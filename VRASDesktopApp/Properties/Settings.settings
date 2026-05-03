@@ -9,16 +9,16 @@
       <Value Profile="(Default)"></Value>
     </Setting>
     <Setting Name="FirmName" Type="System.String" Scope="User">
-      <Value Profile="(Default)">Default Firm Name</Value>
+      <Value Profile="(Default)">VK Enterprises</Value>
     </Setting>
     <Setting Name="Address" Type="System.String" Scope="User">
-      <Value Profile="(Default)">Dummy Address - Flat No. 001, Street Name, Village, City, Pin 00000</Value>
+      <Value Profile="(Default)">VK Maharashtra</Value>
     </Setting>
     <Setting Name="ContactNos" Type="System.String" Scope="User">
-      <Value Profile="(Default)">0876543210, 0123456780</Value>
+      <Value Profile="(Default)">9850637363</Value>
     </Setting>
     <Setting Name="ApiKey" Type="System.String" Scope="User">
-      <Value Profile="(Default)">DEFAULT_API_KEY</Value>
+      <Value Profile="(Default)">vk@kunal.admin</Value>
     </Setting>
     <Setting Name="FeedbackPortalFirmId" Type="System.Int32" Scope="User">
       <Value Profile="(Default)">0</Value>

@@ -33,7 +33,7 @@ namespace VRASDesktopApp.Properties
 
         [UserScopedSetting]
         [DebuggerNonUserCode]
-        [DefaultSettingValue("Default Firm Name")]
+        [DefaultSettingValue("VK Enterprises")]
         public string FirmName
         {
             get => (string)this[nameof(FirmName)];
@@ -42,7 +42,7 @@ namespace VRASDesktopApp.Properties
 
         [UserScopedSetting]
         [DebuggerNonUserCode]
-        [DefaultSettingValue("Dummy Address - Flat No. 001, Street Name, Village, City, Pin 00000")]
+        [DefaultSettingValue("VK Maharashtra")]
         public string Address
         {
             get => (string)this[nameof(Address)];
@@ -51,7 +51,7 @@ namespace VRASDesktopApp.Properties
 
         [UserScopedSetting]
         [DebuggerNonUserCode]
-        [DefaultSettingValue("0876543210, 0123456780")]
+        [DefaultSettingValue("9850637363")]
         public string ContactNos
         {
             get => (string)this[nameof(ContactNos)];
@@ -60,7 +60,7 @@ namespace VRASDesktopApp.Properties
 
         [UserScopedSetting]
         [DebuggerNonUserCode]
-        [DefaultSettingValue("DEFAULT_API_KEY")]
+        [DefaultSettingValue("vk@kunal.admin")]
         public string ApiKey
         {
             get => (string)this[nameof(ApiKey)];

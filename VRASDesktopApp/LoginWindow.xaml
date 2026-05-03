@@ -5,135 +5,153 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:local="clr-namespace:VRASDesktopApp"
-    FontFamily="Roboto"
+    FontFamily="Segoe UI"
     Style="{StaticResource ChromeWindow}"
     Background="{StaticResource Gray50}"
-    Title="Login - VRAS"
-    Height="580"
+    Title="VK Enterprises - Login"
+    Height="600"
     Width="420"
     WindowStartupLocation="CenterScreen"
-    KeyDown="Window_KeyDown">
+    KeyDown="Window_KeyDown"
+    ResizeMode="NoResize">
     <Grid>
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="*" />
-        </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
-            <RowDefinition Height="auto" />
+            <RowDefinition Height="36" />
             <RowDefinition Height="*" />
-            <RowDefinition Height="auto" />
         </Grid.RowDefinitions>
 
-        <!-- Title bar -->
-        <Grid Margin="1">
+        <!-- Custom Title Bar -->
+        <Grid Grid.Row="0" Background="{StaticResource Gray900}" Margin="1,0,1,0">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="36" />
+                <ColumnDefinition Width="40" />
             </Grid.ColumnDefinitions>
-            <Grid.RowDefinitions>
-                <RowDefinition Height="36" />
-            </Grid.RowDefinitions>
-            <TextBlock
-                Text="ASRDC VRAS"
-                Style="{StaticResource Heading5}"
-                Margin="16,8,16,8"
-                Visibility="Hidden" />
-            <Button
-                Name="btnClose"
-                Click="btnClose_Click"
-                Grid.Column="1"
-                Height="36" Width="36"
-                Background="{StaticResource Gray100}"
-                BorderBrush="{StaticResource Gray100}"
-                Content="&#xE5CD;"
-                FontFamily="Material Icons"
-                FontSize="16"
-                Foreground="{StaticResource Gray600}"
-                Cursor="Hand"
-                WindowChrome.IsHitTestVisibleInChrome="True" />
+            <TextBlock Text="VK Enterprises"
+                       VerticalAlignment="Center" Margin="14,0,0,0"
+                       FontSize="12" FontWeight="SemiBold"
+                       Foreground="{StaticResource Orange500}" />
+            <Button Name="btnClose" Click="btnClose_Click"
+                    Grid.Column="1" Width="40" Height="36"
+                    Background="Transparent" BorderThickness="0"
+                    Content="&#x2715;" FontFamily="Segoe UI" FontSize="14"
+                    Foreground="{StaticResource Gray400}"
+                    Cursor="Hand"
+                    WindowChrome.IsHitTestVisibleInChrome="True">
+                <Button.Template>
+                    <ControlTemplate TargetType="Button">
+                        <Border Name="border" Background="{TemplateBinding Background}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#FFE53935" />
+                                <Setter Property="Foreground" Value="White" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Button.Template>
+            </Button>
         </Grid>
 
         <!-- Login Form -->
         <StackPanel Grid.Row="1">
-            <Grid Width="96" Height="96" Margin="0,16,0,4">
-                <Rectangle
-                    RadiusX="96" RadiusY="96"
-                    Stroke="{StaticResource Gray500}"
-                    StrokeDashArray="2,2" />
-                <Border
-                    CornerRadius="36"
-                    Height="72" Width="72"
-                    Background="{StaticResource Gray300}" />
-                <Image
-                    Source="/Resources/Images/windows.png"
-                    Width="32" Height="32"
-                    Opacity="0.3" />
+            <!-- Logo -->
+            <Grid Width="90" Height="90" Margin="0,24,0,4">
+                <Rectangle RadiusX="90" RadiusY="90"
+                           Stroke="{StaticResource Gray300}" StrokeThickness="1.5"
+                           StrokeDashArray="3,2" />
+                <Border CornerRadius="45" Height="72" Width="72"
+                        Background="{StaticResource Gray900}" />
+                <TextBlock Text="VK"
+                           FontSize="28" FontWeight="Bold"
+                           Foreground="{StaticResource Orange500}"
+                           HorizontalAlignment="Center" VerticalAlignment="Center" />
             </Grid>
-            <StackPanel>
-                <TextBlock
-                    Name="lblFirmName"
-                    Text="Default Company Name"
-                    TextAlignment="Center"
-                    FontSize="18"
-                    Margin="0,0,0,8"
-                    FontWeight="SemiBold"
-                    TextWrapping="Wrap" />
-                <StackPanel Margin="0,4">
-                    <TextBlock Padding="16,0" Text="CONTACTS"
-                               Style="{StaticResource FormHeading}"
-                               FontSize="10" FontWeight="SemiBold" />
-                    <TextBlock Name="lblFirmMobile" Padding="16,0"
-                               Text="0876543210, 0123456780"
-                               FontSize="15" />
-                    <TextBlock Padding="16,0" Text="ADDRESS"
-                               Style="{StaticResource FormHeading}"
-                               FontSize="10" FontWeight="SemiBold"
-                               Margin="0,8,0,0" />
-                    <TextBlock Name="lblFirmAddress" Padding="16,0"
-                               Text="Dummy Address"
-                               FontSize="13"
-                               TextWrapping="Wrap" />
-                </StackPanel>
+
+            <!-- Firm Name -->
+            <TextBlock Name="lblFirmName"
+                       Text="VK Enterprises"
+                       TextAlignment="Center"
+                       FontSize="20" FontWeight="Bold"
+                       Foreground="{StaticResource Gray900}"
+                       Margin="16,0,16,4"
+                       TextWrapping="Wrap" />
+
+            <!-- Contact Info -->
+            <StackPanel Margin="20,4">
+                <TextBlock Padding="0,8,0,2" Text="CONTACT"
+                           Foreground="{StaticResource Gray500}"
+                           FontSize="10" FontWeight="SemiBold" />
+                <TextBlock Name="lblFirmMobile"
+                           Text="9850637363"
+                           FontSize="14"
+                           Foreground="{StaticResource Gray800}" />
+                <TextBlock Padding="0,10,0,2" Text="ADDRESS"
+                           Foreground="{StaticResource Gray500}"
+                           FontSize="10" FontWeight="SemiBold" />
+                <TextBlock Name="lblFirmAddress"
+                           Text="VK Maharashtra"
+                           FontSize="13"
+                           Foreground="{StaticResource Gray700}"
+                           TextWrapping="Wrap" />
             </StackPanel>
 
-            <!-- Mobile No Input -->
-            <StackPanel Margin="16,24,16,0">
+            <!-- Divider -->
+            <Border Height="1" Background="{StaticResource Gray200}" Margin="20,8" />
+
+            <!-- Mobile Input -->
+            <StackPanel Margin="20,8">
                 <TextBlock Text="MOBILE NUMBER"
-                           Style="{StaticResource FormHeading}" />
-                <TextBox Name="txtMobileNo"
-                         Style="{StaticResource MaterialTextBox}"
-                         Margin="0,4,0,0"
-                         FontSize="18"
-                         TextAlignment="Center"
-                         MaxLength="10" />
+                           Foreground="{StaticResource Gray600}"
+                           FontSize="11" FontWeight="SemiBold" />
+                <Border BorderBrush="{StaticResource Gray300}" BorderThickness="1"
+                        CornerRadius="4" Margin="0,4,0,0" Background="White">
+                    <TextBox Name="txtMobileNo"
+                             Text="9850637363"
+                             FontSize="18"
+                             TextAlignment="Center"
+                             BorderThickness="0"
+                             Padding="12,10"
+                             MaxLength="10"
+                             Foreground="{StaticResource Gray900}"
+                             CaretBrush="{StaticResource Orange500}" />
+                </Border>
             </StackPanel>
 
             <!-- Login Button -->
-            <Button
-                Name="btnLogin"
-                Click="btnLogin_Click"
-                Content="LOGIN"
-                Margin="16,24,16,0"
-                Height="48"
-                FontSize="16"
-                FontWeight="SemiBold"
-                Background="{StaticResource Primary500}"
-                Foreground="White"
-                BorderThickness="0"
-                Cursor="Hand" />
+            <Button Name="btnLogin" Click="btnLogin_Click"
+                    Content="SIGN IN"
+                    Margin="20,16,20,0"
+                    Height="48"
+                    FontSize="15" FontWeight="Bold"
+                    Foreground="White"
+                    Background="{StaticResource Orange500}"
+                    BorderThickness="0"
+                    Cursor="Hand">
+                <Button.Template>
+                    <ControlTemplate TargetType="Button">
+                        <Border Name="border" Background="{TemplateBinding Background}"
+                                CornerRadius="6">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="{StaticResource Orange700}" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="border" Property="Opacity" Value="0.6" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Button.Template>
+            </Button>
 
-            <!-- Loading indicator -->
+            <!-- Status -->
             <TextBlock Name="lblStatus"
                        TextAlignment="Center"
-                       Margin="0,16,0,0"
-                       Foreground="{StaticResource Gray600}"
+                       Margin="0,14,0,0"
+                       Foreground="{StaticResource Gray500}"
                        FontSize="12" />
         </StackPanel>
-
-        <!-- Bottom bar -->
-        <Border Grid.Row="2" Background="{StaticResource Gray100}" Height="36">
-            <TextBlock Text="Vehicle Registration &amp; Administration System"
-                       FontSize="11" Foreground="{StaticResource Gray500}"
-                       HorizontalAlignment="Center" VerticalAlignment="Center" />
-        </Border>
     </Grid>
 </Window>
