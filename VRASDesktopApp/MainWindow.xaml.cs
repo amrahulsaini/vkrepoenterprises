@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media;
 using VRASDesktopApp.AppUsers;
 using VRASDesktopApp.Confirmations;
@@ -91,4 +92,10 @@ public partial class MainWindow : Window
     private void btnMinimize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
     private void btnRestore_Click(object sender, RoutedEventArgs e) =>
         WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
+
+    private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ClickCount == 1 && WindowState != WindowState.Maximized)
+            DragMove();
+    }
 }

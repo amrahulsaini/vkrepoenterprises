@@ -18,11 +18,24 @@ public partial class LoginWindow : Window
         lblFirmAddress.Text = App.Firm.Address;
     }
 
+    /// <summary>Allow dragging the window by the title bar.</summary>
+    private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ClickCount == 1)
+            DragMove();
+    }
+
     private async void btnLogin_Click(object sender, RoutedEventArgs e)
     {
         if (string.IsNullOrWhiteSpace(txtMobileNo.Text) || txtMobileNo.Text.Length < 10)
         {
             MessageBox.Show("Please enter a valid 10-digit mobile number.", "Validation", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(txtPassword.Password))
+        {
+            MessageBox.Show("Please enter your password.", "Validation", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
 
@@ -51,7 +64,7 @@ public partial class LoginWindow : Window
             var formData = new
             {
                 mobileno = txtMobileNo.Text,
-                password = App.ApiKey
+                password = txtPassword.Password
             };
 
             HttpResponseMessage response = await App.HttpClient.PostAsync(
@@ -72,7 +85,7 @@ public partial class LoginWindow : Window
         {
             if (ex.StatusCode == HttpStatusCode.BadRequest)
             {
-                MessageBox.Show("Mobile number and this device do not match.", "Access Denied", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show("Invalid mobile number or password.", "Access Denied", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
             else
             {

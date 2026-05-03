@@ -15,7 +15,7 @@ namespace VRASDesktopApp.Properties
 
         [UserScopedSetting]
         [DebuggerNonUserCode]
-        [DefaultSettingValue("http://192.168.1.201/vrasapi/")]
+        [DefaultSettingValue("http://localhost:5000/")]
         public string ApiBaseUrl
         {
             get => (string)this[nameof(ApiBaseUrl)];
