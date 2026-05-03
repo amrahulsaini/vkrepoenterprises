@@ -52,6 +52,10 @@
     <SolidColorBrush x:Key="Accent700" Color="{StaticResource cOrange700}" />
     <SolidColorBrush x:Key="Yellow700" Color="{StaticResource cOrange700}" />
 
+    <!-- Named Orange brushes -->
+    <SolidColorBrush x:Key="Orange500" Color="{StaticResource cOrange500}" />
+    <SolidColorBrush x:Key="Orange700" Color="{StaticResource cOrange700}" />
+
     <!-- Grays -->
     <SolidColorBrush x:Key="Gray50" Color="{StaticResource cGray50}" />
     <SolidColorBrush x:Key="Gray100" Color="{StaticResource cGray100}" />
@@ -71,6 +75,5 @@
     <!-- Status -->
     <SolidColorBrush x:Key="Red500" Color="{StaticResource cRed500}" />
     <SolidColorBrush x:Key="Green500" Color="{StaticResource cGreen500}" />
-    <SolidColorBrush x:Key="Orange500" Color="{StaticResource cOrange500}" />
 
 </ResourceDictionary>
