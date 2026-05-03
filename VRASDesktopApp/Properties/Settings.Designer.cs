@@ -1,0 +1,88 @@
+using System.CodeDom.Compiler;
+using System.Configuration;
+using System.Diagnostics;
+using System.Runtime.CompilerServices;
+
+namespace VRASDesktopApp.Properties
+{
+    [CompilerGenerated]
+    [GeneratedCode("Microsoft.VisualStudio.Editors.SettingsDesigner.SettingsSingleFileGenerator", "17.1.0.0")]
+    internal sealed partial class Settings : ApplicationSettingsBase
+    {
+        private static Settings defaultInstance = (Settings)Synchronized(new Settings());
+
+        public static Settings Default => defaultInstance;
+
+        [UserScopedSetting]
+        [DebuggerNonUserCode]
+        [DefaultSettingValue("http://192.168.1.201/vrasapi/")]
+        public string ApiBaseUrl
+        {
+            get => (string)this[nameof(ApiBaseUrl)];
+            set => this[nameof(ApiBaseUrl)] = value;
+        }
+
+        [UserScopedSetting]
+        [DebuggerNonUserCode]
+        [DefaultSettingValue("")]
+        public string Password
+        {
+            get => (string)this[nameof(Password)];
+            set => this[nameof(Password)] = value;
+        }
+
+        [UserScopedSetting]
+        [DebuggerNonUserCode]
+        [DefaultSettingValue("Default Firm Name")]
+        public string FirmName
+        {
+            get => (string)this[nameof(FirmName)];
+            set => this[nameof(FirmName)] = value;
+        }
+
+        [UserScopedSetting]
+        [DebuggerNonUserCode]
+        [DefaultSettingValue("Dummy Address - Flat No. 001, Street Name, Village, City, Pin 00000")]
+        public string Address
+        {
+            get => (string)this[nameof(Address)];
+            set => this[nameof(Address)] = value;
+        }
+
+        [UserScopedSetting]
+        [DebuggerNonUserCode]
+        [DefaultSettingValue("0876543210, 0123456780")]
+        public string ContactNos
+        {
+            get => (string)this[nameof(ContactNos)];
+            set => this[nameof(ContactNos)] = value;
+        }
+
+        [UserScopedSetting]
+        [DebuggerNonUserCode]
+        [DefaultSettingValue("DEFAULT_API_KEY")]
+        public string ApiKey
+        {
+            get => (string)this[nameof(ApiKey)];
+            set => this[nameof(ApiKey)] = value;
+        }
+
+        [UserScopedSetting]
+        [DebuggerNonUserCode]
+        [DefaultSettingValue("0")]
+        public int FeedbackPortalFirmId
+        {
+            get => (int)this[nameof(FeedbackPortalFirmId)];
+            set => this[nameof(FeedbackPortalFirmId)] = value;
+        }
+
+        [UserScopedSetting]
+        [DebuggerNonUserCode]
+        [DefaultSettingValue("False")]
+        public bool AppDeactivated
+        {
+            get => (bool)this[nameof(AppDeactivated)];
+            set => this[nameof(AppDeactivated)] = value;
+        }
+    }
+}

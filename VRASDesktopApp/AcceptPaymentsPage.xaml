@@ -1,0 +1,38 @@
+<Page
+    x:Class="VRASDesktopApp.AcceptPaymentsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="Accept Payments"
+    Background="White"
+    FontFamily="Roboto">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <TextBlock Text="ACCEPT PAYMENTS"
+                   Style="{StaticResource Heading4}"
+                   Margin="16,8,8,8" />
+
+        <Grid Grid.Row="1" Margin="16,0,16,16" MaxWidth="480">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <TextBlock Text="Vehicle Number" Style="{StaticResource FormHeading}" />
+            <TextBox Name="txtVehicleNo" Style="{StaticResource MaterialTextBox}" Grid.Row="1" Margin="0,4,0,8" />
+
+            <TextBlock Text="Amount (₹)" Style="{StaticResource FormHeading}" Grid.Row="2" />
+            <TextBox Name="txtAmount" Style="{StaticResource MaterialTextBox}" Grid.Row="3" Margin="0,4,0,8" />
+
+            <TextBlock Grid.Row="4" Text="Payment Method" Style="{StaticResource FormHeading}" />
+            <ComboBox Name="cmbPaymentMethod" Grid.Row="5" Margin="0,4,0,16" Height="40" />
+        </Grid>
+    </Grid>
+</Page>

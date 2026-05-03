@@ -1,0 +1,174 @@
+<Window
+    x:Class="VRASDesktopApp.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:local="clr-namespace:VRASDesktopApp"
+    FontFamily="Roboto"
+    Style="{StaticResource ChromeWindow}"
+    Background="{StaticResource Gray300}"
+    Title="VRAS - Desktop App"
+    Width="1366" Height="768"
+    WindowState="Maximized"
+    Loaded="Window_Loaded">
+    <Grid Margin="1">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="64" />
+            <ColumnDefinition Name="clmMenuContainer" Width="300" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="36" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- Title bar -->
+        <Border Grid.ColumnSpan="3" Background="{StaticResource Gray100}" />
+        <Grid Grid.ColumnSpan="3" Margin="1,0,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="36" />
+                <ColumnDefinition Width="36" />
+                <ColumnDefinition Width="36" />
+            </Grid.ColumnDefinitions>
+            <TextBlock Name="lblTitle" Text="VRAS Desktop"
+                       VerticalAlignment="Center" Margin="16,0"
+                       FontSize="12" Foreground="{StaticResource Gray700}" />
+            <Button Name="btnMinimize" Click="btnMinimize_Click"
+                    Grid.Column="1" Width="36" Height="36"
+                    Background="Transparent" BorderBrush="Transparent"
+                    Content="&#xE15B;" FontFamily="Material Icons" FontSize="16"
+                    Foreground="{StaticResource Gray600}" Cursor="Hand" />
+            <Button Name="btnRestore" Click="btnRestore_Click"
+                    Grid.Column="2" Width="36" Height="36"
+                    Background="Transparent" BorderBrush="Transparent"
+                    Content="&#xE5D0;" FontFamily="Material Icons" FontSize="16"
+                    Foreground="{StaticResource Gray600}" Cursor="Hand" />
+            <Button Name="btnClose" Click="btnClose_Click"
+                    Grid.Column="3" Width="36" Height="36"
+                    Background="Transparent" BorderBrush="Transparent"
+                    Content="&#xE5CD;" FontFamily="Material Icons" FontSize="16"
+                    Foreground="{StaticResource Gray600}" Cursor="Hand" />
+        </Grid>
+
+        <!-- Left sidebar -->
+        <Border Grid.Column="0" Grid.RowSpan="2" Background="{StaticResource Gray100}" />
+        <Grid Grid.Column="0" Grid.RowSpan="2">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="64" />
+                <RowDefinition Height="64" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="64" />
+                <RowDefinition Height="64" />
+                <RowDefinition Height="64" />
+                <RowDefinition Height="64" />
+                <RowDefinition Height="64" />
+                <RowDefinition Height="64" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="64" />
+                <RowDefinition Height="64" />
+            </Grid.RowDefinitions>
+
+            <!-- App Icon -->
+            <Border Grid.Row="0" Background="{StaticResource Yellow700}" />
+            <Image Grid.Row="0" Stretch="None"
+                   Source="/Resources/Images/WindowsApp.png" Opacity="0.67" />
+
+            <!-- Menu Toggle -->
+            <Button Name="btnMenuToggle" Click="btnMenuToggle_Click"
+                    Grid.Row="1" Width="64" Height="64"
+                    Background="Transparent" BorderBrush="Transparent"
+                    Content="&#xE5D2;" FontFamily="Material Icons" FontSize="24"
+                    Foreground="{StaticResource Gray600}" Cursor="Hand" />
+
+            <!-- Navigation Buttons -->
+            <Button Name="btnHome" Click="btnNav_Click"
+                    Grid.Row="3" Width="64" Height="64"
+                    Background="Transparent" BorderBrush="Transparent"
+                    Content="&#xE88A;" FontFamily="Material Icons" FontSize="24"
+                    Foreground="{StaticResource Gray600}" Cursor="Hand"
+                    Tag="Home" />
+
+            <Button Name="btnSearch" Click="btnNav_Click"
+                    Grid.Row="4" Width="64" Height="64"
+                    Background="Transparent" BorderBrush="Transparent"
+                    Content="&#xE8B6;" FontFamily="Material Icons" FontSize="24"
+                    Foreground="{StaticResource Primary500}" Cursor="Hand"
+                    Tag="Search" />
+
+            <Button Name="btnFinances" Click="btnNav_Click"
+                    Grid.Row="5" Width="64" Height="64"
+                    Background="Transparent" BorderBrush="Transparent"
+                    Content="&#xE227;" FontFamily="Material Icons" FontSize="24"
+                    Foreground="{StaticResource Gray600}" Cursor="Hand"
+                    Tag="Finances" />
+
+            <Button Name="btnUsers" Click="btnNav_Click"
+                    Grid.Row="6" Width="64" Height="64"
+                    Background="Transparent" BorderBrush="Transparent"
+                    Content="&#xE7EF;" FontFamily="Material Icons" FontSize="24"
+                    Foreground="{StaticResource Gray600}" Cursor="Hand"
+                    Tag="Users" />
+
+            <Button Name="btnConfirmations" Click="btnNav_Click"
+                    Grid.Row="7" Width="64" Height="64"
+                    Background="Transparent" BorderBrush="Transparent"
+                    Content="&#xE5CA;" FontFamily="Material Icons" FontSize="24"
+                    Foreground="{StaticResource Gray600}" Cursor="Hand"
+                    Tag="Confirmations" />
+
+            <Button Name="btnReports" Click="btnNav_Click"
+                    Grid.Row="8" Width="64" Height="64"
+                    Background="Transparent" BorderBrush="Transparent"
+                    Content="&#xE0E5;" FontFamily="Material Icons" FontSize="24"
+                    Foreground="{StaticResource Gray600}" Cursor="Hand"
+                    Tag="Reports" />
+
+            <!-- Settings -->
+            <Button Name="btnSettings" Click="btnSettings_Click"
+                    Grid.Row="11" Width="64" Height="64"
+                    Background="Transparent" BorderBrush="Transparent"
+                    Content="&#xE8B8;" FontFamily="Material Icons" FontSize="24"
+                    Foreground="{StaticResource Gray600}" Cursor="Hand" />
+        </Grid>
+
+        <!-- Menu Container (Slide-out) -->
+        <Border Name="MenuContainer" Grid.Column="1" Grid.Row="1"
+                Background="White" Visibility="Collapsed">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+                <StackPanel Margin="16">
+                    <TextBlock Style="{StaticResource Heading5}" Text="FIRM DETAILS" />
+                    <TextBlock Name="lblFirmName" Style="{StaticResource Body1}" Margin="0,8,0,0" />
+                    <TextBlock Name="lblFirmMobile" Style="{StaticResource Body2}" Margin="0,4,0,0" />
+                    <TextBlock Name="lblFirmAddress" Style="{StaticResource Caption}" Margin="0,8,0,0" TextWrapping="Wrap" />
+                </StackPanel>
+                <ListBox Grid.Row="1" BorderThickness="0" Background="White">
+                    <ListBoxItem Padding="16,12" FontSize="14">Search Records</ListBoxItem>
+                    <ListBoxItem Padding="16,12" FontSize="14">Upload Records</ListBoxItem>
+                    <ListBoxItem Padding="16,12" FontSize="14">Finances Manager</ListBoxItem>
+                    <ListBoxItem Padding="16,12" FontSize="14">App Users</ListBoxItem>
+                    <ListBoxItem Padding="16,12" FontSize="14">Confirmations</ListBoxItem>
+                    <ListBoxItem Padding="16,12" FontSize="14">Reports</ListBoxItem>
+                    <ListBoxItem Padding="16,12" FontSize="14">Feedbacks</ListBoxItem>
+                    <ListBoxItem Padding="16,12" FontSize="14">Payments</ListBoxItem>
+                </ListBox>
+            </Grid>
+        </Border>
+
+        <!-- Main Content Area -->
+        <Border Name="PageContainer" Grid.Column="2" Grid.Row="1"
+                Background="White" Margin="0,0,0,0">
+            <!-- Pages are loaded here dynamically -->
+        </Border>
+
+        <!-- Wide content area (when menu collapsed) -->
+        <Border Name="PageContainerWide" Grid.Column="1" Grid.ColumnSpan="2"
+                Grid.Row="1" Background="White" Margin="0,0,0,0"
+                Visibility="Collapsed" />
+    </Grid>
+</Window>

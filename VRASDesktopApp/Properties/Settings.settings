@@ -1,0 +1,30 @@
+<?xml version='1.0' encoding='utf-8'?>
+<SettingsFile CurrentProfile="(Default)" GeneratedClassNamespace="VRASDesktopApp.Properties" GeneratedClassName="Settings" xmlns="http://schemas.microsoft.com/VisualStudio/2004/01/settings">
+  <Profiles />
+  <Settings>
+    <Setting Name="ApiBaseUrl" Type="System.String" Scope="User">
+      <Value Profile="(Default)">http://192.168.1.201/vrasapi/</Value>
+    </Setting>
+    <Setting Name="Password" Type="System.String" Scope="User">
+      <Value Profile="(Default)"></Value>
+    </Setting>
+    <Setting Name="FirmName" Type="System.String" Scope="User">
+      <Value Profile="(Default)">Default Firm Name</Value>
+    </Setting>
+    <Setting Name="Address" Type="System.String" Scope="User">
+      <Value Profile="(Default)">Dummy Address - Flat No. 001, Street Name, Village, City, Pin 00000</Value>
+    </Setting>
+    <Setting Name="ContactNos" Type="System.String" Scope="User">
+      <Value Profile="(Default)">0876543210, 0123456780</Value>
+    </Setting>
+    <Setting Name="ApiKey" Type="System.String" Scope="User">
+      <Value Profile="(Default)">DEFAULT_API_KEY</Value>
+    </Setting>
+    <Setting Name="FeedbackPortalFirmId" Type="System.Int32" Scope="User">
+      <Value Profile="(Default)">0</Value>
+    </Setting>
+    <Setting Name="AppDeactivated" Type="System.Boolean" Scope="User">
+      <Value Profile="(Default)">False</Value>
+    </Setting>
+  </Settings>
+</SettingsFile>

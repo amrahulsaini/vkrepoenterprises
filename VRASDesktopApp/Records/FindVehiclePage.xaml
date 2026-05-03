@@ -1,0 +1,55 @@
+<Page
+    x:Class="VRASDesktopApp.Records.FindVehiclePage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="clr-namespace:VRASDesktopApp.Records"
+    Title="Find Vehicle"
+    Background="White"
+    FontFamily="Roboto">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <TextBlock Text="SEARCH RECORDS"
+                   Style="{StaticResource Heading4}"
+                   Margin="16,8,8,8" />
+
+        <!-- Search Bar -->
+        <Grid Grid.Row="1" Margin="16,0,16,8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="120" />
+            </Grid.ColumnDefinitions>
+            <TextBox Name="txtSearch"
+                     Style="{StaticResource MaterialTextBox}"
+                     Text="Enter vehicle number..."
+                     Foreground="{StaticResource Gray500}" />
+            <Button Name="btnSearch" Click="btnSearch_Click"
+                    Grid.Column="1" Content="SEARCH"
+                    Margin="8,0,0,0"
+                    Height="40"
+                    Background="{StaticResource Primary500}"
+                    Foreground="White"
+                    FontWeight="SemiBold"
+                    BorderThickness="0"
+                    Cursor="Hand" />
+        </Grid>
+
+        <!-- Results -->
+        <DataGrid Name="dgResults" Grid.Row="2"
+                  AutoGenerateColumns="False"
+                  Margin="16,0,16,16">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Vehicle No" Binding="{Binding VehicleNo}" Width="120" />
+                <DataGridTextColumn Header="Owner Name" Binding="{Binding OwnerName}" Width="180" />
+                <DataGridTextColumn Header="Chassis No" Binding="{Binding ChassisNo}" Width="150" />
+                <DataGridTextColumn Header="Engine No" Binding="{Binding EngineNo}" Width="150" />
+                <DataGridTextColumn Header="Branch" Binding="{Binding BranchName}" Width="120" />
+                <DataGridTextColumn Header="Created On" Binding="{Binding CreatedOn}" Width="140" />
+            </DataGrid.Columns>
+        </DataGrid>
+    </Grid>
+</Page>
