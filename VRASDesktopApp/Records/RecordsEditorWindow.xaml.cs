@@ -73,6 +73,7 @@ public partial class RecordsEditorWindow : RibbonWindow
     private void RibbonWindow_Loaded(object sender, RoutedEventArgs e)
     {
         GetMappingDetails();
+        AddSampleData();
     }
 
     private void rbn_Loaded(object sender, RoutedEventArgs e)
@@ -145,6 +146,9 @@ public partial class RecordsEditorWindow : RibbonWindow
             migrantRange.CellStyle.ColorIndex = ExcelKnownColors.White;
             sp.ActiveGrid.InvalidateCell(RecordHeadingIndex, i);
         }
+        
+        // Auto-map columns after workbook is loaded
+        MapColumns();
     }
 
     private void sp_KeyDown(object sender, KeyEventArgs e)
@@ -315,5 +319,77 @@ public partial class RecordsEditorWindow : RibbonWindow
             Owner = this
         };
         mappingExplorerWindow.ShowDialog();
+    }
+
+    private void AddSampleData()
+    {
+        try
+        {
+            var sheet = sp.ActiveSheet;
+            var range = sheet.MigrantRange;
+
+            // Add headers in row 2
+            range.ResetRowColumn(2, 1);
+            range.Value = "VehicleNo";
+            range.ResetRowColumn(2, 2);
+            range.Value = "ChasisNo";
+            range.ResetRowColumn(2, 3);
+            range.Value = "Model";
+            range.ResetRowColumn(2, 4);
+            range.Value = "EngineNo";
+            range.ResetRowColumn(2, 5);
+            range.Value = "AgreementNo";
+            range.ResetRowColumn(2, 6);
+            range.Value = "CustomerName";
+            range.ResetRowColumn(2, 7);
+            range.Value = "CustomerAddress";
+            range.ResetRowColumn(2, 8);
+            range.Value = "Region";
+            range.ResetRowColumn(2, 9);
+            range.Value = "Area";
+            range.ResetRowColumn(2, 10);
+            range.Value = "Bucket";
+            range.ResetRowColumn(2, 11);
+            range.Value = "GV";
+            range.ResetRowColumn(2, 12);
+            range.Value = "OD";
+            range.ResetRowColumn(2, 13);
+            range.Value = "Branch";
+
+            // Add sample records
+            for (int row = 3; row <= 10; row++)
+            {
+                range.ResetRowColumn(row, 1);
+                range.Value = $"AB-2024-{1000 + row}";
+                range.ResetRowColumn(row, 2);
+                range.Value = $"CHASSIS{1000 + row}";
+                range.ResetRowColumn(row, 3);
+                range.Value = "Model-X";
+                range.ResetRowColumn(row, 4);
+                range.Value = $"ENG{row}";
+                range.ResetRowColumn(row, 5);
+                range.Value = $"AGR{row}";
+                range.ResetRowColumn(row, 6);
+                range.Value = $"Customer {row}";
+                range.ResetRowColumn(row, 7);
+                range.Value = $"Address {row}";
+                range.ResetRowColumn(row, 8);
+                range.Value = "North";
+                range.ResetRowColumn(row, 9);
+                range.Value = "Area A";
+                range.ResetRowColumn(row, 10);
+                range.Value = "Bucket1";
+                range.ResetRowColumn(row, 11);
+                range.Value = "GV-001";
+                range.ResetRowColumn(row, 12);
+                range.Value = "OD-001";
+                range.ResetRowColumn(row, 13);
+                range.Value = "Main Branch";
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Error adding sample data: {ex.Message}");
+        }
     }
 }
