@@ -42,8 +42,10 @@
                 BorderBrush="{StaticResource Gray100}"
                 MouseOverBackgroundBrush="#FFFF0000"
                 MouseOverBorderBrush="#FFFF0000"
+                Foreground="{StaticResource Gray800}"
                 FontFamily="Segoe UI"
                 FontSize="18"
+                Cursor="Hand"
                 WindowChrome.IsHitTestVisibleInChrome="True" />
         </Grid>
 

@@ -46,12 +46,14 @@
                 Width="36"
                 IsNavigationButton="False"
                 FontIcon="-"
-                Background="#00FFFFFF"
-                BorderBrush="#00FFFFFF"
+                Background="{StaticResource Gray100}"
+                BorderBrush="{StaticResource Gray100}"
                 MouseOverBackgroundBrush="{StaticResource Gray200}"
                 MouseOverBorderBrush="{StaticResource Gray200}"
+                Foreground="{StaticResource Gray800}"
                 FontFamily="Segoe UI"
                 FontSize="16"
+                Cursor="Hand"
                 WindowChrome.IsHitTestVisibleInChrome="True" />
             <md:MaterialQuickActionButton
                 x:Name="btnClose"
@@ -65,8 +67,10 @@
                 BorderBrush="{StaticResource Gray100}"
                 MouseOverBackgroundBrush="#FFFF0000"
                 MouseOverBorderBrush="#FFFF0000"
+                Foreground="{StaticResource Gray800}"
                 FontFamily="Segoe UI"
                 FontSize="16"
+                Cursor="Hand"
                 WindowChrome.IsHitTestVisibleInChrome="True" />
         </Grid>
 
@@ -120,7 +124,10 @@
                 Height="32"
                 Margin="8,0,0,0"
                 Content="DELETE"
-                ToolTip="Delete selected record" />
+                ToolTip="Delete selected record"
+                Background="{StaticResource Gray100}"
+                BorderBrush="{StaticResource Gray100}"
+                Foreground="{StaticResource Gray800}" />
             <TextBox
                 x:Name="txtSelectedBranch"
                 Grid.Column="3"
@@ -137,7 +144,10 @@
                 Height="32"
                 Margin="8,0,0,0"
                 Content="SELECT BRANCH"
-                ToolTip="Select branch" />
+                ToolTip="Select branch"
+                Background="{StaticResource Gray100}"
+                BorderBrush="{StaticResource Gray100}"
+                Foreground="{StaticResource Gray800}" />
             <md:MaterialButton
                 x:Name="btnUpload"
                 Click="btnUpload_Click"
@@ -146,7 +156,10 @@
                 Height="32"
                 Margin="8,0,0,0"
                 Content="UPLOAD"
-                ToolTip="Upload record" />
+                ToolTip="Upload record"
+                Background="{StaticResource PrimaryColor}"
+                BorderBrush="{StaticResource PrimaryColor}"
+                Foreground="White" />
         </Grid>
 
         <DataGrid
