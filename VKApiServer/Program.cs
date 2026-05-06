@@ -135,10 +135,135 @@ app.MapDelete("/api/Records/Delete/{id}", async (string id, IMongoDatabase db) =
     return Results.Ok();
 });
 
-app.MapPost("/api/Records/PostRecordsFile", async (HttpRequest req) =>
+app.MapPost("/api/Records/PostRecordsFile", async (HttpRequest req, IMongoDatabase db) =>
 {
-    // Minimal mockup endpoint for Excel record uploads
-    return Results.Ok(new { message = "Records uploaded successfully." });
+    try
+    {
+        if (!req.HasFormContentType)
+        {
+            return Results.BadRequest(new { message = "Request must have form content type." });
+        }
+
+        var form = await req.ReadFormAsync();
+        var file = form.Files.GetFile("RecordsFile");
+        if (file == null || file.Length == 0)
+        {
+            return Results.BadRequest(new { message = "No file uploaded." });
+        }
+
+        var branchIdStr = req.Query["BranchId"].ToString();
+        if (string.IsNullOrWhiteSpace(branchIdStr))
+        {
+            return Results.BadRequest(new { message = "BranchId is required." });
+        }
+
+        // Read CSV content
+        using var reader = new StreamReader(file.OpenReadStream());
+        var csvContent = await reader.ReadToEndAsync();
+        var lines = csvContent.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.RemoveEmptyEntries);
+
+        if (lines.Length == 0)
+        {
+            return Results.BadRequest(new { message = "CSV file is empty." });
+        }
+
+        var recordsCollection = db.GetCollection<BsonDocument>("records");
+        var fileInfoCollection = db.GetCollection<BsonDocument>("file_info");
+        
+        var uploadedRecords = new List<BsonDocument>();
+        int successCount = 0;
+
+        // Parse CSV and insert records
+        foreach (var line in lines)
+        {
+            var fields = line.Split('|');
+            if (fields.Length < 32) continue; // Skip incomplete lines
+
+            try
+            {
+                var recordDoc = new BsonDocument
+                {
+                    { "_id", ObjectId.GenerateNewId() },
+                    { "rc_no", fields[0] ?? "" },
+                    { "chassis_no", fields[1] ?? "" },
+                    { "model", fields[2] ?? "" },
+                    { "engine_no", fields[3] ?? "" },
+                    { "agreement_no", fields[4] ?? "" },
+                    { "customer_name", fields[5] ?? "" },
+                    { "customer_address", fields[6] ?? "" },
+                    { "region", fields[7] ?? "" },
+                    { "area", fields[8] ?? "" },
+                    { "bucket", fields[9] ?? "" },
+                    { "gv", fields[10] ?? "" },
+                    { "od", fields[11] ?? "" },
+                    { "branch_name", fields[12] ?? "" },
+                    { "level1", fields[13] ?? "" },
+                    { "level1_contact", fields[14] ?? "" },
+                    { "level2", fields[15] ?? "" },
+                    { "level2_contact", fields[16] ?? "" },
+                    { "level3", fields[17] ?? "" },
+                    { "level3_contact", fields[18] ?? "" },
+                    { "level4", fields[19] ?? "" },
+                    { "level4_contact", fields[20] ?? "" },
+                    { "sec9_available", fields[21] ?? "" },
+                    { "sec17_available", fields[22] ?? "" },
+                    { "tbr_flag", fields[23] ?? "" },
+                    { "seasoning", fields[24] ?? "" },
+                    { "sender_mail_id1", fields[25] ?? "" },
+                    { "sender_mail_id2", fields[26] ?? "" },
+                    { "executive_name", fields[27] ?? "" },
+                    { "pos", fields[28] ?? "" },
+                    { "toss", fields[29] ?? "" },
+                    { "customer_contact_nos", fields[30] ?? "" },
+                    { "remark", fields[31] ?? "" },
+                    { "branch_id", branchIdStr },
+                    { "status", "uploaded" },
+                    { "createdAt", DateTime.UtcNow },
+                    { "uploadedAt", DateTime.UtcNow }
+                };
+
+                uploadedRecords.Add(recordDoc);
+                successCount++;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error parsing record: {ex.Message}");
+            }
+        }
+
+        // Bulk insert records
+        if (uploadedRecords.Count > 0)
+        {
+            await recordsCollection.InsertManyAsync(uploadedRecords);
+        }
+
+        // Save file metadata
+        var fileInfoDoc = new BsonDocument
+        {
+            { "_id", ObjectId.GenerateNewId() },
+            { "fileName", file.FileName },
+            { "fileSize", file.Length },
+            { "branch_id", branchIdStr },
+            { "recordsCount", successCount },
+            { "uploadStatus", "completed" },
+            { "uploadedAt", DateTime.UtcNow },
+            { "uploadedBy", "desktop_app" }
+        };
+
+        await fileInfoCollection.InsertOneAsync(fileInfoDoc);
+
+        return Results.Ok(new
+        {
+            message = "Records uploaded successfully.",
+            recordsInserted = successCount,
+            fileId = fileInfoDoc["_id"],
+            timestamp = DateTime.UtcNow
+        });
+    }
+    catch (Exception ex)
+    {
+        return Results.BadRequest(new { message = "Error uploading records: " + ex.Message, exception = ex.ToString() });
+    }
 });
 
 app.MapGet("/api/Mapping/GetMappingDetails", async (IMongoDatabase db) =>

@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Json;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows;
@@ -314,14 +315,23 @@ public partial class RecordValidatorAndUploaderWindow : Window
     {
         if (SelectedBranch == null)
         {
-            MessageBox.Show("Select branch");
+            MessageBox.Show("Please select a branch first.", "Branch Required", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
 
         var count = _records.Count;
+        if (count == 0)
+        {
+            MessageBox.Show("No records to upload.", "Empty Records", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
         btnUpload.IsEnabled = false;
         txtPBR.Visibility = Visibility.Visible;
         pbr.Visibility = Visibility.Visible;
+        pbr.IsIndeterminate = true;
+        txtPBR.Text = $"Uploading {count} records...";
+
         var fileInfo = new FileInfo(Path.GetTempPath() + "vras_upload_records.csv");
         try
         {
@@ -329,6 +339,8 @@ public partial class RecordValidatorAndUploaderWindow : Window
             {
                 fileInfo.Delete();
             }
+
+            // Write CSV file
             using (var writer = fileInfo.CreateText())
             {
                 for (var i = 0; i < count; i++)
@@ -339,21 +351,47 @@ public partial class RecordValidatorAndUploaderWindow : Window
                 }
             }
 
+            txtPBR.Text = "Sending to server...";
+
+            // Upload file to server
             using var fileToCompress = new FileStream(fileInfo.FullName, FileMode.Open, FileAccess.Read);
             using var content = new MultipartFormDataContent("Upload----" + DateTime.Now.ToString(CultureInfo.InvariantCulture));
             content.Add(new StreamContent(fileToCompress), "RecordsFile", fileInfo.Name);
-            (await App.HttpClient.PostAsync(App.ApiBaseUrl + "api/Records/PostRecordsFile?BranchId=" + SelectedBranch.BranchId, content))
-                .EnsureSuccessStatusCode();
-            txtPBR.Text = "Records uploaded successfully";
+            
+            var uploadUrl = $"{App.ApiBaseUrl}api/Records/PostRecordsFile?BranchId={Uri.EscapeDataString(SelectedBranch.BranchId)}";
+            var response = await App.HttpClient.PostAsync(uploadUrl, content);
+            response.EnsureSuccessStatusCode();
+
+            var responseJson = await response.Content.ReadAsStringAsync();
+            System.Diagnostics.Debug.WriteLine($"Upload Response: {responseJson}");
+
+            var result = System.Text.Json.JsonSerializer.Deserialize<JsonElement>(responseJson);
+            if (result.TryGetProperty("recordsInserted", out var recordsInsertedElement))
+            {
+                int inserted = recordsInsertedElement.GetInt32();
+                txtPBR.Text = $"✓ Uploaded {inserted} records successfully!";
+                MessageBox.Show($"{inserted} records have been saved to the database.", "Upload Success", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            else
+            {
+                txtPBR.Text = "Records uploaded successfully";
+                MessageBox.Show("Records have been uploaded successfully.", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+        catch (HttpRequestException ex)
+        {
+            txtPBR.Text = "Upload failed";
+            MessageBox.Show($"Upload error: {ex.Message}\n\nURL: {App.ApiBaseUrl}api/Records/PostRecordsFile", "Upload Failed", MessageBoxButton.OK, MessageBoxImage.Error);
         }
         catch (Exception ex)
         {
-            MessageBox.Show(ex.Message);
+            txtPBR.Text = "Upload failed";
+            MessageBox.Show($"Error: {ex.Message}\n\nStackTrace: {ex.StackTrace}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
         }
         finally
         {
             btnUpload.IsEnabled = true;
-            pbr.Visibility = Visibility.Collapsed;
+            pbr.IsIndeterminate = false;
         }
     }
 
