@@ -354,13 +354,18 @@ public partial class RecordValidatorAndUploaderWindow : Window
             txtPBR.Text = "Sending to server...";
 
             // Upload file to server
-            using var fileToCompress = new FileStream(fileInfo.FullName, FileMode.Open, FileAccess.Read);
+            byte[] fileBytes = File.ReadAllBytes(fileInfo.FullName);
             using var content = new MultipartFormDataContent("Upload----" + DateTime.Now.ToString(CultureInfo.InvariantCulture));
-            content.Add(new StreamContent(fileToCompress), "RecordsFile", fileInfo.Name);
+            content.Add(new ByteArrayContent(fileBytes), "RecordsFile", fileInfo.Name);
             
             var uploadUrl = $"{App.ApiBaseUrl}api/Records/PostRecordsFile?BranchId={Uri.EscapeDataString(SelectedBranch.BranchId)}";
             var response = await App.HttpClient.PostAsync(uploadUrl, content);
-            response.EnsureSuccessStatusCode();
+            
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                throw new HttpRequestException($"Upload failed with status {(int)response.StatusCode}: {errorContent}");
+            }
 
             var responseJson = await response.Content.ReadAsStringAsync();
             System.Diagnostics.Debug.WriteLine($"Upload Response: {responseJson}");
