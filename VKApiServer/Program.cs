@@ -231,31 +231,121 @@ app.MapGet("/api/Branches/GetBranches/{financeId}", async (int financeId, IMongo
 {
     try
     {
-        // Get the Finance dashboard which contains TopBranches
+        // First try: Get branches from Finance dashboard TopBranches
         var dashboard = await GetCachedAsync(cache, "finance-dashboard", () => DashboardRepository.BuildFinanceDashboardAsync(db), 45);
         
-        if (dashboard?.TopBranches == null || dashboard.TopBranches.Count == 0)
+        if (dashboard?.TopBranches != null && dashboard.TopBranches.Count > 0)
         {
-            return Results.Ok(new List<object>());
+            var branches = dashboard.TopBranches
+                .Select(b => new
+                {
+                    branchId = int.TryParse(b.BranchId, out var id) ? id : 0,
+                    branchName = b.BranchName,
+                    headOfficeName = b.HeadOfficeName
+                })
+                .Where(b => b.branchId > 0 && !string.IsNullOrWhiteSpace(b.branchName))
+                .OrderBy(b => b.branchName)
+                .ToList();
+
+            if (branches.Count > 0)
+            {
+                return Results.Ok(branches);
+            }
         }
 
-        // Convert BranchSummaryItem to the format expected by the client
-        var branches = dashboard.TopBranches
-            .Select(b => new
+        // Fallback: Query branches collection directly if dashboard has no branches
+        var branchesCollection = db.GetCollection<BsonDocument>("branches");
+        var branchDocs = await branchesCollection
+            .Find(Builders<BsonDocument>.Filter.Empty)
+            .Limit(100)
+            .ToListAsync();
+
+        if (branchDocs.Count == 0)
+        {
+            return Results.Ok(new List<object> { new { message = "No branches found in database. Please check if branches collection has data." } });
+        }
+
+        var fallbackBranches = branchDocs
+            .Select(doc => new
             {
-                branchId = int.TryParse(b.BranchId, out var id) ? id : 0,
-                branchName = b.BranchName,
-                headOfficeName = b.HeadOfficeName
+                branchId = GetBranchIdFromDoc(doc),
+                branchName = GetBranchNameFromDoc(doc),
+                headOfficeName = GetHeadOfficeFromDoc(doc)
             })
             .Where(b => b.branchId > 0 && !string.IsNullOrWhiteSpace(b.branchName))
             .OrderBy(b => b.branchName)
             .ToList();
 
-        return Results.Ok(branches);
+        return Results.Ok(fallbackBranches);
     }
     catch (Exception ex)
     {
-        return Results.BadRequest(new { message = "Error loading branches: " + ex.Message });
+        return Results.BadRequest(new { message = "Error loading branches: " + ex.Message, exception = ex.ToString() });
+    }
+});
+
+static int GetBranchIdFromDoc(BsonDocument doc)
+{
+    foreach (var key in new[] { "BranchId", "branchId", "_id", "id" })
+    {
+        if (doc.TryGetValue(key, out var val))
+        {
+            if (val.IsInt32) return val.AsInt32;
+            if (val.IsInt64) return (int)val.AsInt64;
+            if (int.TryParse(val.ToString(), out var id)) return id;
+        }
+    }
+    return 0;
+}
+
+static string GetBranchNameFromDoc(BsonDocument doc)
+{
+    foreach (var key in new[] { "BranchName", "branchName", "Name", "name" })
+    {
+        if (doc.TryGetValue(key, out var val) && !val.IsBsonNull)
+        {
+            return val.ToString();
+        }
+    }
+    return string.Empty;
+}
+
+static string GetHeadOfficeFromDoc(BsonDocument doc)
+{
+    foreach (var key in new[] { "HeadOfficeName", "headOfficeName", "HeadOffice", "headOffice" })
+    {
+        if (doc.TryGetValue(key, out var val) && !val.IsBsonNull)
+        {
+            return val.ToString();
+        }
+    }
+    return string.Empty;
+}
+
+// Debug endpoint to check database state
+app.MapGet("/api/Debug/BranchesCollection", async (IMongoDatabase db) =>
+{
+    try
+    {
+        var branchesCollection = db.GetCollection<BsonDocument>("branches");
+        var count = await branchesCollection.EstimatedDocumentCountAsync();
+        var sample = await branchesCollection.Find(Builders<BsonDocument>.Filter.Empty).Limit(3).ToListAsync();
+        
+        return Results.Ok(new
+        {
+            totalCount = count,
+            sampleRecords = sample.Select(doc => new
+            {
+                id = GetBranchIdFromDoc(doc),
+                name = GetBranchNameFromDoc(doc),
+                headOffice = GetHeadOfficeFromDoc(doc),
+                raw = doc.ToString()
+            }).ToList()
+        });
+    }
+    catch (Exception ex)
+    {
+        return Results.BadRequest(new { error = ex.Message });
     }
 });
 

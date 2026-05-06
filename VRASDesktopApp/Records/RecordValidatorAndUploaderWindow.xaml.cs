@@ -362,32 +362,41 @@ public partial class RecordValidatorAndUploaderWindow : Window
         try
         {
             btnUpload.IsEnabled = false;
-            var response = await App.HttpClient.GetAsync(App.ApiBaseUrl + "api/Branches/GetBranches/" + financeId);
+            var url = App.ApiBaseUrl + "api/Branches/GetBranches/" + financeId;
+            var response = await App.HttpClient.GetAsync(url);
             response.EnsureSuccessStatusCode();
+            
+            var json = await response.Content.ReadAsStringAsync();
+            System.Diagnostics.Debug.WriteLine($"API Response: {json}");
+            
             var branches = await response.Content.ReadFromJsonAsync<List<Branch>>() ?? new List<Branch>();
             
             if (branches.Count == 0)
             {
-                MessageBox.Show("No branches found from API.", "Info", MessageBoxButton.OK, MessageBoxImage.Information);
+                var errorMsg = "No branches found from API.\n\nURL: " + url + "\n\nResponse: " + json;
+                MessageBox.Show(errorMsg, "No Branches", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+            else
+            {
+                Branches.Clear();
+                Branches.AddRange(branches);
             }
             
-            Branches.Clear();
-            Branches.AddRange(branches);
             btnUpload.IsEnabled = true;
         }
         catch (HttpRequestException ex)
         {
-            MessageBox.Show("Http request exception: " + ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            MessageBox.Show($"Http request exception: {ex.Message}\n\nPlease check if API server is running at {App.ApiBaseUrl}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             btnUpload.IsEnabled = true;
         }
         catch (TaskCanceledException)
         {
-            MessageBox.Show("Request timeout. Please try again.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            MessageBox.Show("Request timeout. The API server may be unresponsive. Please try again.", "Timeout Error", MessageBoxButton.OK, MessageBoxImage.Error);
             btnUpload.IsEnabled = true;
         }
         catch (Exception ex)
         {
-            MessageBox.Show("Exception: " + ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            MessageBox.Show($"Exception: {ex.Message}\n\nStackTrace: {ex.StackTrace}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             btnUpload.IsEnabled = true;
         }
     }
