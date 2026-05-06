@@ -14,6 +14,7 @@ public partial class ServerSettingsWindow : Window
         txtApiKey.Text = Settings.Default.ApiKey;
         txtFirmName.Text = Settings.Default.FirmName;
         txtContactNos.Text = Settings.Default.ContactNos;
+        txtAddress.Text = Settings.Default.Address;
     }
 
     private void btnSave_Click(object sender, RoutedEventArgs e)
@@ -22,6 +23,7 @@ public partial class ServerSettingsWindow : Window
         Settings.Default.ApiKey = txtApiKey.Text;
         Settings.Default.FirmName = txtFirmName.Text;
         Settings.Default.ContactNos = txtContactNos.Text;
+        Settings.Default.Address = txtAddress.Text;
         Settings.Default.Save();
 
         MessageBox.Show("Settings saved successfully.", "Settings", MessageBoxButton.OK, MessageBoxImage.Information);

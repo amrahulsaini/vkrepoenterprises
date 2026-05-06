@@ -14,28 +14,40 @@ public partial class HomePage : Page
 
     private async void Page_Loaded(object sender, RoutedEventArgs e)
     {
-        await LoadOverviewAsync();
+        await LoadDashboardAsync();
     }
 
-    private async Task LoadOverviewAsync()
+    private async Task LoadDashboardAsync()
     {
         try
         {
-            var overview = await App.HttpClient.GetFromJsonAsync<Overview>(
-                App.ApiBaseUrl + "api/Overview");
+            var dashboard = await App.HttpClient.GetFromJsonAsync<HomeDashboardResponse>(
+                $"{App.ApiBaseUrl}api/Overview");
 
-            if (overview != null)
+            if (dashboard == null)
             {
-                lblRecords.Text = overview.TotalRecords.ToString("N0");
-                lblFinances.Text = overview.TotalFinances.ToString("N0");
-                lblUsers.Text = overview.TotalAppUsers.ToString("N0");
-                lblConfirmations.Text = overview.TotalConfirmations.ToString("N0");
-                lblFeedbacks.Text = overview.TotalFeedbacks.ToString("N0");
+                return;
             }
+
+            lblRecords.Text = dashboard.Overview.TotalRecords.ToString("N0");
+            lblBranches.Text = dashboard.Overview.TotalBranches.ToString("N0");
+            lblHeadOffices.Text = $"{dashboard.Overview.TotalHeadOffices:N0} head offices";
+            lblUsers.Text = dashboard.Overview.TotalUsers.ToString("N0");
+            lblUserStatus.Text = $"{dashboard.Overview.ActiveUsers:N0} active • {dashboard.Overview.AdminUsers:N0} admin";
+            lblDetailViews.Text = dashboard.Overview.TotalDetailViews.ToString("N0");
+            lblFoundDetails.Text = $"{dashboard.Overview.FoundDetails:N0} marked FOUND";
+            lblUploads.Text = dashboard.Overview.TotalUploads.ToString("N0");
+            lblOtps.Text = $"{dashboard.Overview.TotalOtps:N0} OTP records";
+            lblBillings.Text = dashboard.Overview.TotalBillings.ToString("N0");
+
+            dgUploads.ItemsSource = dashboard.RecentUploads;
+            dgCollections.ItemsSource = dashboard.Collections;
+            dgDetails.ItemsSource = dashboard.RecentDetails;
+            dgBranches.ItemsSource = dashboard.TopBranches;
         }
-        catch
+        catch (Exception ex)
         {
-            // Silently fail - show defaults
+            MessageBox.Show($"Failed to load home dashboard: {ex.Message}", "Dashboard", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 }

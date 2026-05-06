@@ -18,6 +18,8 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
@@ -38,24 +40,19 @@
         <TextBlock Text="Contact Numbers" Style="{StaticResource FormHeading}" Grid.Row="7" />
         <TextBox Name="txtContactNos" Style="{StaticResource MaterialTextBox}" Grid.Row="8" Margin="0,4,0,12" />
 
-        <StackPanel Grid.Row="9" Orientation="Horizontal" HorizontalAlignment="Right">
+        <TextBlock Text="Address" Style="{StaticResource FormHeading}" Grid.Row="9" />
+        <TextBox Name="txtAddress" Style="{StaticResource MaterialTextBox}" Grid.Row="10" Margin="0,4,0,12" />
+
+        <StackPanel Grid.Row="11" Orientation="Horizontal" HorizontalAlignment="Right">
             <Button Name="btnCancel" Click="btnCancel_Click"
                     Content="CANCEL"
-                    Background="{StaticResource Gray300}"
-                    BorderBrush="{StaticResource Gray300}"
-                    Foreground="{StaticResource Gray800}"
+                    Style="{StaticResource SecondaryButton}"
                     Margin="0,0,8,0"
-                    Height="40" Padding="24,0"
-                    FontWeight="SemiBold"
-                    Cursor="Hand" />
+                    Width="120" />
             <Button Name="btnSave" Click="btnSave_Click"
                     Content="SAVE"
-                    Background="{StaticResource Primary500}"
-                    Foreground="White"
-                    BorderThickness="0"
-                    Height="40" Padding="24,0"
-                    FontWeight="SemiBold"
-                    Cursor="Hand" />
+                    Style="{StaticResource PrimaryButton}"
+                    Width="120" />
         </StackPanel>
     </Grid>
 </Window>

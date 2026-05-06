@@ -1,0 +1,224 @@
+<Window
+    x:Class="VRASDesktopApp.Records.RecordValidatorAndUploaderWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:md="clr-namespace:VRASDesktopApp.Material"
+    xmlns:fa="http://schemas.fontawesome.com/icons/"
+    FontFamily="Segoe UI"
+    Style="{StaticResource ChromeWindow}"
+    Height="680"
+    Width="1366"
+    WindowStartupLocation="CenterOwner"
+    WindowState="Maximized"
+    Loaded="Window_Loaded">
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <Grid Margin="1" MouseLeftButtonDown="TitleBar_MouseLeftButtonDown" Background="Transparent">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="36" />
+                <ColumnDefinition Width="36" />
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="36" />
+            </Grid.RowDefinitions>
+            <TextBlock
+                Text="VERIFY AND UPLOAD RECORDS"
+                Style="{StaticResource Heading5}"
+                VerticalAlignment="Center"
+                Padding="16,0" />
+            <md:MaterialQuickActionButton
+                x:Name="btnMinimize"
+                Click="btnMinimize_Click"
+                Grid.Column="1"
+                Height="36"
+                Width="36"
+                IsNavigationButton="False"
+                FontIcon="-"
+                Background="#00FFFFFF"
+                BorderBrush="#00FFFFFF"
+                MouseOverBackgroundBrush="{StaticResource Gray200}"
+                MouseOverBorderBrush="{StaticResource Gray200}"
+                FontFamily="Segoe UI"
+                FontSize="16"
+                WindowChrome.IsHitTestVisibleInChrome="True" />
+            <md:MaterialQuickActionButton
+                x:Name="btnClose"
+                Click="btnClose_Click"
+                Grid.Column="2"
+                Height="36"
+                Width="36"
+                IsNavigationButton="False"
+                FontIcon="X"
+                Background="{StaticResource Gray100}"
+                BorderBrush="{StaticResource Gray100}"
+                MouseOverBackgroundBrush="#FFFF0000"
+                MouseOverBorderBrush="#FFFF0000"
+                FontFamily="Segoe UI"
+                FontSize="16"
+                WindowChrome.IsHitTestVisibleInChrome="True" />
+        </Grid>
+
+        <Grid Grid.Row="1" Margin="0,8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <Menu
+                x:Name="mnFilter"
+                Margin="12,0"
+                Background="#00FFFFFF"
+                HorizontalAlignment="Left"
+                VerticalAlignment="Center">
+                <MenuItem Padding="0">
+                    <HeaderedItemsControl.Header>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <fa:FontAwesome
+                                Icon="Solid_Filter"
+                                FontSize="16"
+                                Foreground="{StaticResource Gray700}"
+                                Margin="4,2,0,2" />
+                            <TextBlock
+                                x:Name="mnFilterHeader"
+                                Grid.Column="1"
+                                Text="Invalid"
+                                Padding="4,0,0,0"
+                                Margin="0,2,4,2"
+                                VerticalAlignment="Center"
+                                FontWeight="SemiBold"
+                                Foreground="{StaticResource Gray700}" />
+                        </Grid>
+                    </HeaderedItemsControl.Header>
+                    <MenuItem x:Name="miInvalid" Header="Invalid" Click="miInvalid_Click" />
+                    <MenuItem x:Name="miValid" Header="Valid" Click="miValid_Click" />
+                    <MenuItem x:Name="miAll" Header="All" Click="miAll_Click" />
+                </MenuItem>
+            </Menu>
+            <md:MaterialButton
+                Click="MaterialButton_Click"
+                Grid.Column="1"
+                Width="32"
+                Height="32"
+                Margin="4,0"
+                Content="DEL"
+                ToolTip="Delete selected record" />
+            <TextBox
+                x:Name="txtSelectedBranch"
+                Grid.Column="3"
+                IsReadOnly="True"
+                Background="{StaticResource Gray50}" />
+            <md:MaterialButton
+                x:Name="btnSelectBranch"
+                Click="btnSelectBranch_Click"
+                Grid.Column="4"
+                Height="32"
+                Margin="4,0,32,0"
+                Content="SELECT BRANCH"
+                ToolTip="Select branch" />
+            <md:MaterialButton
+                x:Name="btnUpload"
+                Click="btnUpload_Click"
+                Grid.Column="5"
+                Height="32"
+                Margin="4,0,12,0"
+                Content="UPLOAD"
+                ToolTip="Upload record" />
+        </Grid>
+
+        <DataGrid
+            x:Name="dgList"
+            Grid.Row="2"
+            CanUserAddRows="False"
+            HorizontalGridLinesBrush="{StaticResource Gray200}"
+            VerticalGridLinesBrush="{StaticResource Gray200}"
+            AutoGenerateColumns="False"
+            CanUserDeleteRows="True"
+            SelectionUnit="CellOrRowHeader"
+            IsReadOnly="False"
+            Background="#FFFFFFFF">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Original VRN" Binding="{Binding VehicleNo}" />
+                <DataGridTextColumn Header="Chasis No" Binding="{Binding ChasisNo}" />
+                <DataGridTextColumn Header="Model" Binding="{Binding Model}" />
+                <DataGridTextColumn Header="Engine No" Binding="{Binding EngineNo}" />
+                <DataGridTextColumn Header="Agreement No" Binding="{Binding AgreementNo}" />
+                <DataGridTextColumn Header="Customer Name" Binding="{Binding CustomerName}" />
+                <DataGridTextColumn Header="Customer Address" Binding="{Binding CustomerAddress}" />
+                <DataGridTextColumn Header="Region" Binding="{Binding Region}" />
+                <DataGridTextColumn Header="Area" Binding="{Binding Area}" />
+                <DataGridTextColumn Header="Bucket" Binding="{Binding Bucket}" />
+                <DataGridTextColumn Header="GC" Binding="{Binding GV}" />
+                <DataGridTextColumn Header="OD" Binding="{Binding OD}" />
+                <DataGridTextColumn Header="Branch Name" Binding="{Binding BranchName}" />
+                <DataGridTextColumn Header="Sec 9 Available" Binding="{Binding Sec9Available}" />
+                <DataGridTextColumn Header="Sec 17 Available" Binding="{Binding Sec17Available}" />
+                <DataGridTextColumn Header="TBR Flag" Binding="{Binding TBRFlag}" />
+                <DataGridTextColumn Header="Seasoning" Binding="{Binding Seasoning}" />
+                <DataGridTextColumn Header="Sender Mail Id 1" Binding="{Binding SenderMailId1}" />
+                <DataGridTextColumn Header="Sender Mail Id 2" Binding="{Binding SenderMailId2}" />
+                <DataGridTextColumn Header="Executive Name" Binding="{Binding ExecutiveName}" />
+                <DataGridTextColumn Header="POS" Binding="{Binding POS}" />
+                <DataGridTextColumn Header="TOSS" Binding="{Binding TOSS}" />
+                <DataGridTextColumn Header="Financer Name" Binding="{Binding FinancerName}" />
+                <DataGridTextColumn Header="Remark" Binding="{Binding Remark}" />
+                <DataGridTextColumn Header="Level1" Binding="{Binding Level1}" />
+                <DataGridTextColumn Header="Level1 Contact" Binding="{Binding Level1ContactNos}" />
+                <DataGridTextColumn Header="Level2" Binding="{Binding Level2}" />
+                <DataGridTextColumn Header="Level2 Contact" Binding="{Binding Level2ContactNos}" />
+                <DataGridTextColumn Header="Level3" Binding="{Binding Level3}" />
+                <DataGridTextColumn Header="Level3 Contact" Binding="{Binding Level3ContactNos}" />
+                <DataGridTextColumn Header="Level4" Binding="{Binding Level4}" />
+                <DataGridTextColumn Header="Level4 Contact" Binding="{Binding Level4ContactNos}" />
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <fa:ImageAwesome
+            x:Name="ldrRecords"
+            Grid.Row="2"
+            Icon="Solid_Spinner"
+            SpinDuration="1.5"
+            Height="48"
+            Width="48"
+            Spin="True"
+            Visibility="Collapsed" />
+
+        <StatusBar Grid.Row="3">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                    </Grid>
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <StatusBarItem Grid.Column="1">
+                <TextBlock x:Name="txtPBR" Text="Processing.." FontWeight="SemiBold" />
+            </StatusBarItem>
+            <StatusBarItem Grid.Column="2">
+                <ProgressBar x:Name="pbr" Width="256" Height="8" />
+            </StatusBarItem>
+        </StatusBar>
+    </Grid>
+</Window>

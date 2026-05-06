@@ -18,3 +18,7 @@ x64/
 # NuGet
 packages/
 *.nupkg
+
+# Local environment
+db/.env
+db/.env.local

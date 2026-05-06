@@ -10,22 +10,37 @@ public partial class AcceptPaymentsPage : Page
     public AcceptPaymentsPage()
     {
         InitializeComponent();
-        Loaded += async (s, e) => await LoadPaymentMethodsAsync();
     }
 
-    private async Task LoadPaymentMethodsAsync()
+    private async void Page_Loaded(object sender, RoutedEventArgs e)
+    {
+        await LoadDashboardAsync();
+    }
+
+    private async Task LoadDashboardAsync()
     {
         try
         {
-            var methods = await App.HttpClient.GetFromJsonAsync<List<PaymentMethods>>(
-                $"{App.ApiBaseUrl}api/PaymentMethods");
-            cmbPaymentMethod.ItemsSource = methods;
-            cmbPaymentMethod.DisplayMemberPath = "MethodName";
-            cmbPaymentMethod.SelectedValuePath = "PaymentMethodId";
+            var dashboard = await App.HttpClient.GetFromJsonAsync<PaymentsDashboardResponse>(
+                $"{App.ApiBaseUrl}api/Payments");
+
+            if (dashboard == null)
+            {
+                return;
+            }
+
+            lblBanks.Text = dashboard.TotalBanks.ToString("N0");
+            lblBillings.Text = dashboard.TotalBillings.ToString("N0");
+            lblUploads.Text = dashboard.TotalUploads.ToString("N0");
+            lblStatusNote.Text = dashboard.StatusNote;
+
+            cmbPaymentMethod.ItemsSource = dashboard.PaymentMethods;
+            dgMethods.ItemsSource = dashboard.PaymentMethods;
+            dgUploads.ItemsSource = dashboard.RecentUploads;
         }
-        catch
+        catch (Exception ex)
         {
-            // Silently fail
+            MessageBox.Show($"Failed to load payments dashboard: {ex.Message}", "Payments", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 }

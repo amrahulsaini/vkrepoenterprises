@@ -5,6 +5,8 @@ VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VRASDesktopApp", "VRASDesktopApp\VRASDesktopApp.csproj", "{960C1925-15E8-4BE4-998B-7A54679B100B}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VKApiServer", "VKApiServer\VKApiServer.csproj", "{2FF48E1A-834E-45BE-8827-B07F7E32B4D2}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -18,5 +20,9 @@ Global
 		{960C1925-15E8-4BE4-998B-7A54679B100B}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{960C1925-15E8-4BE4-998B-7A54679B100B}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{960C1925-15E8-4BE4-998B-7A54679B100B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2FF48E1A-834E-45BE-8827-B07F7E32B4D2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2FF48E1A-834E-45BE-8827-B07F7E32B4D2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2FF48E1A-834E-45BE-8827-B07F7E32B4D2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2FF48E1A-834E-45BE-8827-B07F7E32B4D2}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

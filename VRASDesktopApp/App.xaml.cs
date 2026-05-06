@@ -31,7 +31,60 @@ public partial class App : Application
         HttpClient = new HttpClient();
         HttpClient.DefaultRequestHeaders.Add("Connection", "keep-alive");
         HttpClient.Timeout = TimeSpan.FromMinutes(20.0);
-        SyncfusionLicenseProvider.RegisterLicense("Mjc2NjM2NUAzMjMzMmUzMDJlMzBSTjlpNWtQSTFMQ1d3QTdLL2xCaDBnenUvK2tRV2VBSVZpKzRmOHg2THJvPQ==");
+        // Syncfusion license
+        SyncfusionLicenseProvider.RegisterLicense("Ngo9BigBOggjHTQxAR8/V1NMaF5cXmBCf1FpRmJGdld5fUVHYVZUTXxaS00DNHVRdkdlWXpedXRTRWheV0VxV0RWYUE=");
+    }
+
+    protected override void OnStartup(StartupEventArgs e)
+    {
+        base.OnStartup(e);
+
+        // Global handlers so crashes are logged and surfaced instead of silently exiting.
+        this.DispatcherUnhandledException += App_DispatcherUnhandledException;
+        AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
+        TaskScheduler.UnobservedTaskException += TaskScheduler_UnobservedTaskException;
+    }
+
+    private void App_DispatcherUnhandledException(object? sender, System.Windows.Threading.DispatcherUnhandledExceptionEventArgs e)
+    {
+        try
+        {
+            LogException(e.Exception);
+            MessageBox.Show($"Unhandled UI exception:\n\n{e.Exception}", "Unhandled Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            e.Handled = true;
+        }
+        catch { }
+    }
+
+    private void CurrentDomain_UnhandledException(object? sender, UnhandledExceptionEventArgs e)
+    {
+        try
+        {
+            LogException(e.ExceptionObject as Exception);
+        }
+        catch { }
+    }
+
+    private void TaskScheduler_UnobservedTaskException(object? sender, UnobservedTaskExceptionEventArgs e)
+    {
+        try
+        {
+            LogException(e.Exception);
+            e.SetObserved();
+        }
+        catch { }
+    }
+
+    private static void LogException(Exception? ex)
+    {
+        try
+        {
+            var logDir = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logs");
+            System.IO.Directory.CreateDirectory(logDir);
+            var logFile = System.IO.Path.Combine(logDir, $"error_{DateTime.Now:yyyyMMdd_HHmmss}.txt");
+            System.IO.File.WriteAllText(logFile, ex?.ToString() ?? "(null)");
+        }
+        catch { }
     }
 
     public static DateTime GetDateTime_IN()
@@ -76,6 +129,21 @@ public partial class App : Application
             }
         }
         return text;
+    }
+
+    public static string GetVehicleNoInSearchableFormated(string vehicleNo)
+    {
+        var match = Regex.Match(vehicleNo, "\\d{4}");
+        if (match.Success)
+        {
+            var index = match.Index;
+            if (index + 4 < vehicleNo.Length)
+            {
+                var suffix = vehicleNo.Substring(index + 4);
+                vehicleNo = suffix + "/" + vehicleNo.Substring(0, index + 4);
+            }
+        }
+        return vehicleNo;
     }
 
     /// <summary>

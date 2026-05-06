@@ -9,10 +9,6 @@
             <ResourceDictionary.MergedDictionaries>
                 <ResourceDictionary Source="Material/Colors.xaml" />
                 <ResourceDictionary Source="Material/Styles.xaml" />
-                <ResourceDictionary Source="Material/MaterialQuickActionButton.xaml" />
-                <ResourceDictionary Source="Material/MaterialButton.xaml" />
-                <ResourceDictionary Source="Material/MaterialCardButton.xaml" />
-                <ResourceDictionary Source="Material/MaterialDataGrid.xaml" />
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
     </Application.Resources>

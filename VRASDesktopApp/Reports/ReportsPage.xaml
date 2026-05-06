@@ -2,61 +2,97 @@
     x:Class="VRASDesktopApp.Reports.ReportsPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:local="clr-namespace:VRASDesktopApp.Reports"
-    Title="Reports"
-    Background="White"
-    FontFamily="Roboto">
-    <Grid>
+    Background="{StaticResource Gray50}"
+    FontFamily="Segoe UI"
+    Loaded="Page_Loaded">
+    <Grid Margin="20">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <TextBlock Text="REPORTS"
-                   Style="{StaticResource Heading4}"
-                   Margin="16,8,8,8" />
+        <Border Grid.Row="0" Style="{StaticResource DashboardCard}">
+            <StackPanel>
+                <TextBlock Text="REPORTS AND OPERATIONS" Style="{StaticResource Heading4}" />
+                <TextBlock Text="Collection coverage, highest-volume branches and bank upload distribution."
+                           Margin="0,6,0,0"
+                           Style="{StaticResource Caption}" />
+            </StackPanel>
+        </Border>
 
-        <Grid Grid.Row="1" Margin="16,0,16,16">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="*" />
-            </Grid.RowDefinitions>
+        <UniformGrid Grid.Row="1" Columns="4" Margin="0,18,0,18">
+            <Border Style="{StaticResource DashboardCard}" Margin="0,0,12,0"><StackPanel><TextBlock Text="VEHICLES" Style="{StaticResource FormHeading}" /><TextBlock Name="lblVehicles" Style="{StaticResource StatValue}" Text="0" /></StackPanel></Border>
+            <Border Style="{StaticResource DashboardCard}" Margin="0,0,12,0"><StackPanel><TextBlock Text="UPLOADS" Style="{StaticResource FormHeading}" /><TextBlock Name="lblUploads" Style="{StaticResource StatValue}" Text="0" /></StackPanel></Border>
+            <Border Style="{StaticResource DashboardCard}" Margin="0,0,12,0"><StackPanel><TextBlock Text="BRANCHES" Style="{StaticResource FormHeading}" /><TextBlock Name="lblBranches" Style="{StaticResource StatValue}" Text="0" /></StackPanel></Border>
+            <Border Style="{StaticResource DashboardCard}"><StackPanel><TextBlock Text="USERS" Style="{StaticResource FormHeading}" /><TextBlock Name="lblUsers" Style="{StaticResource StatValue}" Text="0" /></StackPanel></Border>
+        </UniformGrid>
 
-            <TextBlock Text="Generate Reports"
-                       Style="{StaticResource Heading5}"
-                       Margin="0,0,0,16" />
+        <Grid Grid.Row="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="16" />
+                <ColumnDefinition Width="1.1*" />
+            </Grid.ColumnDefinitions>
 
-            <Button Content="Records Report"
-                    Grid.Row="1" Margin="0,4"
-                    Height="48"
-                    Background="White"
-                    BorderBrush="{StaticResource Gray200}"
-                    BorderThickness="1"
-                    Cursor="Hand" />
-            <Button Content="Finances Report"
-                    Grid.Row="2" Margin="0,4"
-                    Height="48"
-                    Background="White"
-                    BorderBrush="{StaticResource Gray200}"
-                    BorderThickness="1"
-                    Cursor="Hand" />
-            <Button Content="App Users Report"
-                    Grid.Row="3" Margin="0,4"
-                    Height="48"
-                    Background="White"
-                    BorderBrush="{StaticResource Gray200}"
-                    BorderThickness="1"
-                    Cursor="Hand" />
-            <Button Content="Billing Summary"
-                    Grid.Row="4" Margin="0,4"
-                    Height="48"
-                    Background="White"
-                    BorderBrush="{StaticResource Gray200}"
-                    BorderThickness="1"
-                    Cursor="Hand" />
+            <Border Grid.Column="0" Style="{StaticResource DashboardCard}">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <TextBlock Text="COLLECTION COVERAGE" Style="{StaticResource Heading5}" Margin="0,0,0,12" />
+                    <DataGrid Name="dgCollections" Grid.Row="1" Style="{StaticResource MaterialDataGrid}">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Collection" Binding="{Binding Name}" Width="*" />
+                            <DataGridTextColumn Header="Rows" Binding="{Binding Count}" Width="120" />
+                            <DataGridTextColumn Header="Summary" Binding="{Binding Summary}" Width="*" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </Border>
+
+            <Grid Grid.Column="2">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="16" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <Border Style="{StaticResource DashboardCard}">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+                        <TextBlock Text="TOP BRANCHES" Style="{StaticResource Heading5}" Margin="0,0,0,12" />
+                        <DataGrid Name="dgBranches" Grid.Row="1" Style="{StaticResource MaterialDataGrid}">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Branch" Binding="{Binding BranchName}" Width="*" />
+                                <DataGridTextColumn Header="Head Office" Binding="{Binding HeadOfficeName}" Width="*" />
+                                <DataGridTextColumn Header="Records" Binding="{Binding Records}" Width="100" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Grid>
+                </Border>
+
+                <Border Grid.Row="2" Style="{StaticResource DashboardCard}">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+                        <TextBlock Text="TOP BANKS" Style="{StaticResource Heading5}" Margin="0,0,0,12" />
+                        <DataGrid Name="dgBanks" Grid.Row="1" Style="{StaticResource MaterialDataGrid}">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Bank" Binding="{Binding Name}" Width="*" />
+                                <DataGridTextColumn Header="Files" Binding="{Binding Count}" Width="120" />
+                                <DataGridTextColumn Header="Summary" Binding="{Binding Detail}" Width="*" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Grid>
+                </Border>
+            </Grid>
         </Grid>
     </Grid>
 </Page>

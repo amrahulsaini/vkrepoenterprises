@@ -49,7 +49,15 @@ public partial class LoginWindow : Window
         catch (Exception ex)
         {
             lblStatus.Text = "";
-            MessageBox.Show($"Login failed: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            try
+            {
+                var logDir = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logs");
+                System.IO.Directory.CreateDirectory(logDir);
+                var logFile = System.IO.Path.Combine(logDir, $"error_{DateTime.Now:yyyyMMdd_HHmmss}.txt");
+                System.IO.File.WriteAllText(logFile, ex.ToString());
+            }
+            catch { }
+            MessageBox.Show($"Login failed:\n\n{ex}\n\nFull details written to 'logs' folder.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
         }
         finally
         {
@@ -76,10 +84,29 @@ public partial class LoginWindow : Window
             App.SignedAppUser = await response.Content.ReadFromJsonAsync<SignedAppUser>();
             App.SetAuthToken(App.SignedAppUser?.Token ?? "");
 
+            // Construct the main window first to catch any initialization/XAML errors
+            MainWindow window;
+            try
+            {
+                window = new MainWindow();
+            }
+            catch (Exception)
+            {
+                // If main window fails to construct, do not hide the login window — let outer catch handle logging
+                throw;
+            }
+
+            // Only hide the login window after the main window is successfully constructed.
             Hide();
-            MainWindow window = new MainWindow();
-            window.ShowDialog();
-            Show();
+            try
+            {
+                window.ShowDialog();
+            }
+            finally
+            {
+                // Ensure the login window is visible again if the main window closes or if ShowDialog throws.
+                Show();
+            }
         }
         catch (HttpRequestException ex)
         {

@@ -54,6 +54,7 @@
 
     <!-- Named Orange brushes -->
     <SolidColorBrush x:Key="Orange500" Color="{StaticResource cOrange500}" />
+    <SolidColorBrush x:Key="Orange600" Color="{StaticResource cOrange600}" />
     <SolidColorBrush x:Key="Orange700" Color="{StaticResource cOrange700}" />
 
     <!-- Grays -->

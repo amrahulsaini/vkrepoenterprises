@@ -2,31 +2,118 @@
     x:Class="VRASDesktopApp.Finances.FinancesManagerPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:local="clr-namespace:VRASDesktopApp.Finances"
-    Title="Finances Manager"
-    Background="White"
-    FontFamily="Roboto">
-    <Grid>
+    Background="{StaticResource Gray50}"
+    FontFamily="Segoe UI"
+    Loaded="Page_Loaded">
+    <Grid Margin="20">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <TextBlock Text="FINANCES MANAGER"
-                   Style="{StaticResource Heading4}"
-                   Margin="16,8,8,8" />
+        <Border Grid.Row="0" Style="{StaticResource DashboardCard}">
+            <StackPanel>
+                <TextBlock Text="FINANCE NETWORK" Style="{StaticResource Heading4}" />
+                <TextBlock Text="Head offices, branches, bank upload channels and record volumes."
+                           Margin="0,6,0,0"
+                           Style="{StaticResource Caption}" />
+            </StackPanel>
+        </Border>
 
-        <DataGrid Name="dgFinances" Grid.Row="1"
-                  AutoGenerateColumns="False"
-                  Margin="16,0,16,16">
-            <DataGrid.Columns>
-                <DataGridTextColumn Header="ID" Binding="{Binding FinanceId}" Width="60" />
-                <DataGridTextColumn Header="Vehicle No" Binding="{Binding VehicleNo}" Width="120" />
-                <DataGridTextColumn Header="Type" Binding="{Binding FinanceType}" Width="120" />
-                <DataGridTextColumn Header="Amount" Binding="{Binding Amount}" Width="120" />
-                <DataGridTextColumn Header="Date" Binding="{Binding FinanceDate}" Width="140" />
-                <DataGridTextColumn Header="Created On" Binding="{Binding CreatedOn}" Width="140" />
-            </DataGrid.Columns>
-        </DataGrid>
+        <UniformGrid Grid.Row="1" Columns="4" Margin="0,18,0,18">
+            <Border Style="{StaticResource DashboardCard}" Margin="0,0,12,0">
+                <StackPanel>
+                    <TextBlock Text="HEAD OFFICES" Style="{StaticResource FormHeading}" />
+                    <TextBlock Name="lblHeadOffices" Style="{StaticResource StatValue}" Text="0" />
+                </StackPanel>
+            </Border>
+            <Border Style="{StaticResource DashboardCard}" Margin="0,0,12,0">
+                <StackPanel>
+                    <TextBlock Text="BRANCHES" Style="{StaticResource FormHeading}" />
+                    <TextBlock Name="lblBranches" Style="{StaticResource StatValue}" Text="0" />
+                </StackPanel>
+            </Border>
+            <Border Style="{StaticResource DashboardCard}" Margin="0,0,12,0">
+                <StackPanel>
+                    <TextBlock Text="RECORDS" Style="{StaticResource FormHeading}" />
+                    <TextBlock Name="lblRecords" Style="{StaticResource StatValue}" Text="0" />
+                </StackPanel>
+            </Border>
+            <Border Style="{StaticResource DashboardCard}">
+                <StackPanel>
+                    <TextBlock Text="UPLOADS" Style="{StaticResource FormHeading}" />
+                    <TextBlock Name="lblUploads" Style="{StaticResource StatValue}" Text="0" />
+                </StackPanel>
+            </Border>
+        </UniformGrid>
+
+        <Grid Grid.Row="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="1.3*" />
+                <ColumnDefinition Width="16" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <Border Grid.Column="0" Style="{StaticResource DashboardCard}">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <TextBlock Text="TOP BRANCHES" Style="{StaticResource Heading5}" Margin="0,0,0,12" />
+                    <DataGrid Name="dgBranches" Grid.Row="1" Style="{StaticResource MaterialDataGrid}">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Branch" Binding="{Binding BranchName}" Width="*" />
+                            <DataGridTextColumn Header="Head Office" Binding="{Binding HeadOfficeName}" Width="*" />
+                            <DataGridTextColumn Header="Records" Binding="{Binding Records}" Width="100" />
+                            <DataGridTextColumn Header="Contact" Binding="{Binding ContactMobile}" Width="120" />
+                            <DataGridTextColumn Header="Updated" Binding="{Binding UpdatedOn}" Width="140" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </Border>
+
+            <Grid Grid.Column="2">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="16" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <Border Style="{StaticResource DashboardCard}">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+                        <TextBlock Text="RECENT FILE UPLOADS" Style="{StaticResource Heading5}" Margin="0,0,0,12" />
+                        <DataGrid Name="dgUploads" Grid.Row="1" Style="{StaticResource MaterialDataGrid}">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="File" Binding="{Binding FileName}" Width="*" />
+                                <DataGridTextColumn Header="Bank" Binding="{Binding BankName}" Width="*" />
+                                <DataGridTextColumn Header="Created" Binding="{Binding CreatedOn}" Width="140" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Grid>
+                </Border>
+
+                <Border Grid.Row="2" Style="{StaticResource DashboardCard}">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+                        <TextBlock Text="CONNECTED BANKS" Style="{StaticResource Heading5}" Margin="0,0,0,12" />
+                        <DataGrid Name="dgBanks" Grid.Row="1" Style="{StaticResource MaterialDataGrid}">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Bank" Binding="{Binding Name}" Width="*" />
+                                <DataGridTextColumn Header="Type" Binding="{Binding Detail}" Width="*" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Grid>
+                </Border>
+            </Grid>
+        </Grid>
     </Grid>
 </Page>

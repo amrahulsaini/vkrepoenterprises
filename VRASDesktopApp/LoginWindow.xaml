@@ -57,17 +57,16 @@
 
         <!-- Login Form -->
         <StackPanel Grid.Row="1">
-            <!-- Logo -->
+            <!-- Logo (favicon.ico) -->
             <Grid Width="90" Height="90" Margin="0,24,0,4">
                 <Rectangle RadiusX="90" RadiusY="90"
                            Stroke="{StaticResource Gray300}" StrokeThickness="1.5"
                            StrokeDashArray="3,2" />
                 <Border CornerRadius="45" Height="72" Width="72"
                         Background="{StaticResource Gray900}" />
-                <TextBlock Text="VK"
-                           FontSize="28" FontWeight="Bold"
-                           Foreground="{StaticResource Orange500}"
-                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+                <Image Source="/public/favicon.ico"
+                       Width="48" Height="48"
+                       HorizontalAlignment="Center" VerticalAlignment="Center" />
             </Grid>
 
             <!-- Firm Name -->
