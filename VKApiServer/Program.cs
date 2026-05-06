@@ -239,11 +239,11 @@ app.MapGet("/api/Branches/GetBranches/{financeId}", async (int financeId, IMongo
             var branches = dashboard.TopBranches
                 .Select(b => new
                 {
-                    branchId = int.TryParse(b.BranchId, out var id) ? id : 0,
+                    branchId = b.BranchId,
                     branchName = b.BranchName,
                     headOfficeName = b.HeadOfficeName
                 })
-                .Where(b => b.branchId > 0 && !string.IsNullOrWhiteSpace(b.branchName))
+                .Where(b => !string.IsNullOrWhiteSpace(b.branchId) && !string.IsNullOrWhiteSpace(b.branchName))
                 .OrderBy(b => b.branchName)
                 .ToList();
 
@@ -262,7 +262,7 @@ app.MapGet("/api/Branches/GetBranches/{financeId}", async (int financeId, IMongo
 
         if (branchDocs.Count == 0)
         {
-            return Results.Ok(new List<object> { new { message = "No branches found in database. Please check if branches collection has data." } });
+            return Results.Ok(new List<object>());
         }
 
         var fallbackBranches = branchDocs
@@ -272,7 +272,7 @@ app.MapGet("/api/Branches/GetBranches/{financeId}", async (int financeId, IMongo
                 branchName = GetBranchNameFromDoc(doc),
                 headOfficeName = GetHeadOfficeFromDoc(doc)
             })
-            .Where(b => b.branchId > 0 && !string.IsNullOrWhiteSpace(b.branchName))
+            .Where(b => !string.IsNullOrWhiteSpace(b.branchId) && !string.IsNullOrWhiteSpace(b.branchName))
             .OrderBy(b => b.branchName)
             .ToList();
 
@@ -284,18 +284,16 @@ app.MapGet("/api/Branches/GetBranches/{financeId}", async (int financeId, IMongo
     }
 });
 
-static int GetBranchIdFromDoc(BsonDocument doc)
+static string GetBranchIdFromDoc(BsonDocument doc)
 {
     foreach (var key in new[] { "BranchId", "branchId", "_id", "id" })
     {
-        if (doc.TryGetValue(key, out var val))
+        if (doc.TryGetValue(key, out var val) && !val.IsBsonNull)
         {
-            if (val.IsInt32) return val.AsInt32;
-            if (val.IsInt64) return (int)val.AsInt64;
-            if (int.TryParse(val.ToString(), out var id)) return id;
+            return val.ToString();
         }
     }
-    return 0;
+    return string.Empty;
 }
 
 static string GetBranchNameFromDoc(BsonDocument doc)
