@@ -229,13 +229,82 @@ app.MapPost("/api/Mapping/CreateMapping", () =>
 
 app.MapGet("/api/Branches/GetBranches/{financeId}", async (int financeId, IMongoDatabase db) =>
 {
-    var collection = db.GetCollection<BsonDocument>("vrasbranches");
-    // Mock mapping; assume frontend needs array of `{ branchId, branchName, financeId }`
-    return Results.Ok(new object[] { 
-        new { branchId = 1, branchName = "Main Branch", financeId = financeId },
-        new { branchId = 2, branchName = "Secondary Branch", financeId = financeId },
-        new { branchId = 3, branchName = "Downtown Branch", financeId = financeId }
-    });
+    var collection = db.GetCollection<BsonDocument>("branches");
+    var docs = await collection
+        .Find(Builders<BsonDocument>.Filter.Empty)
+        .ToListAsync();
+
+    static int GetBranchId(BsonDocument doc)
+    {
+        if (doc.TryGetValue("BranchId", out var branchIdVal))
+        {
+            if (branchIdVal.IsInt32) return branchIdVal.AsInt32;
+            if (branchIdVal.IsInt64) return (int)branchIdVal.AsInt64;
+            if (int.TryParse(branchIdVal.ToString(), out var parsedBranchId)) return parsedBranchId;
+        }
+
+        if (doc.TryGetValue("_id", out var idVal))
+        {
+            if (idVal.IsInt32) return idVal.AsInt32;
+            if (idVal.IsInt64) return (int)idVal.AsInt64;
+            if (int.TryParse(idVal.ToString(), out var parsedId)) return parsedId;
+        }
+
+        return 0;
+    }
+
+    static int? GetFinanceId(BsonDocument doc)
+    {
+        foreach (var key in new[] { "FinanceId", "financeId", "finance_id" })
+        {
+            if (!doc.TryGetValue(key, out var value))
+            {
+                continue;
+            }
+
+            if (value.IsInt32) return value.AsInt32;
+            if (value.IsInt64) return (int)value.AsInt64;
+            if (int.TryParse(value.ToString(), out var parsed)) return parsed;
+        }
+
+        return null;
+    }
+
+    static string GetBranchName(BsonDocument doc)
+    {
+        foreach (var key in new[] { "Name", "name", "BranchName", "branch_name" })
+        {
+            if (doc.TryGetValue(key, out var value))
+            {
+                return value.ToString();
+            }
+        }
+
+        return string.Empty;
+    }
+
+    var rows = docs
+        .Select(doc => new
+        {
+            BranchId = GetBranchId(doc),
+            BranchName = GetBranchName(doc),
+            FinanceId = GetFinanceId(doc)
+        })
+        .Where(x => x.BranchId > 0 && !string.IsNullOrWhiteSpace(x.BranchName));
+
+    if (financeId > 0)
+    {
+        rows = rows.Where(x => x.FinanceId == null || x.FinanceId == financeId);
+    }
+
+    var branches = rows
+        .GroupBy(x => x.BranchId)
+        .Select(g => g.First())
+        .OrderBy(x => x.BranchName)
+        .Select(x => new { branchId = x.BranchId, branchName = x.BranchName, financeId })
+        .ToList();
+
+    return Results.Ok(branches);
 });
 
 app.MapGet("/api/Finances", async (IMongoDatabase db, IMemoryCache cache) =>
