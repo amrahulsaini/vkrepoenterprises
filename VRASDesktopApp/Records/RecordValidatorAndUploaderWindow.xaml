@@ -70,18 +70,17 @@
                 WindowChrome.IsHitTestVisibleInChrome="True" />
         </Grid>
 
-        <Grid Grid.Row="1" Margin="0,8">
+        <Grid Grid.Row="1" Margin="12,8,12,8" Height="40">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
             <Menu
                 x:Name="mnFilter"
-                Margin="12,0"
                 Background="#00FFFFFF"
                 HorizontalAlignment="Left"
                 VerticalAlignment="Center">
@@ -114,32 +113,38 @@
                 </MenuItem>
             </Menu>
             <md:MaterialButton
+                x:Name="btnDelete"
                 Click="MaterialButton_Click"
                 Grid.Column="1"
-                Width="32"
+                Width="70"
                 Height="32"
-                Margin="4,0"
-                Content="DEL"
+                Margin="8,0,0,0"
+                Content="DELETE"
                 ToolTip="Delete selected record" />
             <TextBox
                 x:Name="txtSelectedBranch"
                 Grid.Column="3"
                 IsReadOnly="True"
-                Background="{StaticResource Gray50}" />
+                Background="{StaticResource Gray50}"
+                Height="32"
+                Margin="8,0,0,0"
+                VerticalAlignment="Center" />
             <md:MaterialButton
                 x:Name="btnSelectBranch"
                 Click="btnSelectBranch_Click"
                 Grid.Column="4"
+                Width="140"
                 Height="32"
-                Margin="4,0,32,0"
+                Margin="8,0,0,0"
                 Content="SELECT BRANCH"
                 ToolTip="Select branch" />
             <md:MaterialButton
                 x:Name="btnUpload"
                 Click="btnUpload_Click"
                 Grid.Column="5"
+                Width="100"
                 Height="32"
-                Margin="4,0,12,0"
+                Margin="8,0,0,0"
                 Content="UPLOAD"
                 ToolTip="Upload record" />
         </Grid>
