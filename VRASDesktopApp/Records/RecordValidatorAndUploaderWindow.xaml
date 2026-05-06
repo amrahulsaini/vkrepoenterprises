@@ -112,7 +112,7 @@
                     <MenuItem x:Name="miAll" Header="All" Click="miAll_Click" />
                 </MenuItem>
             </Menu>
-            <md:MaterialButton
+            <Button
                 x:Name="btnDelete"
                 Click="MaterialButton_Click"
                 Grid.Column="1"
@@ -121,9 +121,14 @@
                 Margin="8,0,0,0"
                 Content="DELETE"
                 ToolTip="Delete selected record"
-                Background="{StaticResource Gray100}"
-                BorderBrush="{StaticResource Gray100}"
-                Foreground="{StaticResource Gray800}" />
+                Background="#FFD3D3D3"
+                BorderBrush="#FF808080"
+                BorderThickness="1"
+                Foreground="#FF000000"
+                FontFamily="Segoe UI"
+                FontSize="12"
+                FontWeight="Normal"
+                Cursor="Hand" />
             <TextBox
                 x:Name="txtSelectedBranch"
                 Grid.Column="3"
@@ -132,7 +137,7 @@
                 Height="32"
                 Margin="8,0,0,0"
                 VerticalAlignment="Center" />
-            <md:MaterialButton
+            <Button
                 x:Name="btnSelectBranch"
                 Click="btnSelectBranch_Click"
                 Grid.Column="4"
@@ -141,10 +146,15 @@
                 Margin="8,0,0,0"
                 Content="SELECT BRANCH"
                 ToolTip="Select branch"
-                Background="{StaticResource Gray100}"
-                BorderBrush="{StaticResource Gray100}"
-                Foreground="{StaticResource Gray800}" />
-            <md:MaterialButton
+                Background="#FFD3D3D3"
+                BorderBrush="#FF808080"
+                BorderThickness="1"
+                Foreground="#FF000000"
+                FontFamily="Segoe UI"
+                FontSize="12"
+                FontWeight="Normal"
+                Cursor="Hand" />
+            <Button
                 x:Name="btnUpload"
                 Click="btnUpload_Click"
                 Grid.Column="5"
@@ -153,9 +163,14 @@
                 Margin="8,0,0,0"
                 Content="UPLOAD"
                 ToolTip="Upload record"
-                Background="{StaticResource Primary500}"
-                BorderBrush="{StaticResource Primary500}"
-                Foreground="White" />
+                Background="#FF0078D4"
+                BorderBrush="#FF0078D4"
+                BorderThickness="1"
+                Foreground="#FFFFFFFF"
+                FontFamily="Segoe UI"
+                FontSize="12"
+                FontWeight="Normal"
+                Cursor="Hand" />
         </Grid>
 
         <DataGrid

@@ -1,9 +1,9 @@
-// ...existing code...
 using System;
 using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Json;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
 using Syncfusion.UI.Xaml.Grid.Utility;
@@ -21,6 +21,7 @@ public partial class RecordsEditorWindow : RibbonWindow
     private const int RecordHeadingIndex = 2;
     private MappingDetails? _mappingDetails;
     private MappedColumns _mappedColumns;
+    private Task? _mappingDetailsLoadTask;
 
     public RecordsEditorWindow()
     {
@@ -28,7 +29,13 @@ public partial class RecordsEditorWindow : RibbonWindow
         _mappedColumns = new MappedColumns();
     }
 
-    private async void GetMappingDetails()
+    private Task EnsureMappingDetailsLoadedAsync()
+    {
+        _mappingDetailsLoadTask ??= GetMappingDetailsAsync();
+        return _mappingDetailsLoadTask;
+    }
+
+    private async Task GetMappingDetailsAsync()
     {
         try
         {
@@ -70,9 +77,9 @@ public partial class RecordsEditorWindow : RibbonWindow
         }
     }
 
-    private void RibbonWindow_Loaded(object sender, RoutedEventArgs e)
+    private async void RibbonWindow_Loaded(object sender, RoutedEventArgs e)
     {
-        GetMappingDetails();
+        await EnsureMappingDetailsLoadedAsync();
     }
 
     private void rbn_Loaded(object sender, RoutedEventArgs e)
@@ -145,12 +152,9 @@ public partial class RecordsEditorWindow : RibbonWindow
             migrantRange.CellStyle.ColorIndex = ExcelKnownColors.White;
             sp.ActiveGrid.InvalidateCell(RecordHeadingIndex, i);
         }
-        
-        // Auto-map columns after workbook is loaded
-        MapColumns();
     }
 
-    private void sp_KeyDown(object sender, KeyEventArgs e)
+    private async void sp_KeyDown(object sender, KeyEventArgs e)
     {
         if ((Keyboard.Modifiers & ModifierKeys.Control) != ModifierKeys.Control)
         {
@@ -168,8 +172,11 @@ public partial class RecordsEditorWindow : RibbonWindow
 
             if (_mappingDetails == null)
             {
-                GetMappingDetails();
-                return;
+                await EnsureMappingDetailsLoadedAsync();
+                if (_mappingDetails == null)
+                {
+                    return;
+                }
             }
 
             var addMappingWindow = new AddMappingWindow(_mappingDetails.ColumnTypes, currentCellValue)
@@ -203,14 +210,16 @@ public partial class RecordsEditorWindow : RibbonWindow
         }
     }
 
-    private void btnUploadExcel_Click(object sender, RoutedEventArgs e)
+    private async void btnUploadExcel_Click(object sender, RoutedEventArgs e)
     {
+        await EnsureMappingDetailsLoadedAsync();
+
         var openFileDialog = new Microsoft.Win32.OpenFileDialog
         {
             Filter = "Excel Files|*.xls;*.xlsx;*.xlsm;*.csv",
             Title = "Select an Excel File"
         };
-        
+
         if (openFileDialog.ShowDialog() == true)
         {
             sp.Open(openFileDialog.FileName);
@@ -292,8 +301,18 @@ public partial class RecordsEditorWindow : RibbonWindow
         _mappedColumns = mapped;
     }
 
-    private void btnMapColumns_Click(object sender, RoutedEventArgs e)
+    private async void btnMapColumns_Click(object sender, RoutedEventArgs e)
     {
+        if (_mappingDetails == null)
+        {
+            await EnsureMappingDetailsLoadedAsync();
+            if (_mappingDetails == null)
+            {
+                MessageBox.Show("Mapping details are not loaded.");
+                return;
+            }
+        }
+
         MapColumns();
     }
 
@@ -322,6 +341,6 @@ public partial class RecordsEditorWindow : RibbonWindow
 
     private void AddSampleData()
     {
-        // Sample data method - left empty for manual Excel uploads
+        // Sample data method intentionally left empty.
     }
 }

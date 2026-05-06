@@ -30,7 +30,7 @@ public partial class BranchDialogWindow : Window
         txtTerm.Focus();
     }
 
-    private void MaterialQuickActionButton_Click(object sender, RoutedEventArgs e)
+    private void btnClose_Click(object sender, RoutedEventArgs e)
     {
         Close();
     }

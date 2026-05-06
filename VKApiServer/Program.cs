@@ -227,84 +227,36 @@ app.MapPost("/api/Mapping/UnMap", () =>
 app.MapPost("/api/Mapping/CreateMapping", () =>
     Results.Ok(new { mappingId = 999, columnTypeId = 1, name = "mapped" }));
 
-app.MapGet("/api/Branches/GetBranches/{financeId}", async (int financeId, IMongoDatabase db) =>
+app.MapGet("/api/Branches/GetBranches/{financeId}", async (int financeId, IMongoDatabase db, IMemoryCache cache) =>
 {
-    var collection = db.GetCollection<BsonDocument>("branches");
-    var docs = await collection
-        .Find(Builders<BsonDocument>.Filter.Empty)
-        .ToListAsync();
-
-    static int GetBranchId(BsonDocument doc)
+    try
     {
-        if (doc.TryGetValue("BranchId", out var branchIdVal))
+        // Get the Finance dashboard which contains TopBranches
+        var dashboard = await GetCachedAsync(cache, "finance-dashboard", () => DashboardRepository.BuildFinanceDashboardAsync(db), 45);
+        
+        if (dashboard?.TopBranches == null || dashboard.TopBranches.Count == 0)
         {
-            if (branchIdVal.IsInt32) return branchIdVal.AsInt32;
-            if (branchIdVal.IsInt64) return (int)branchIdVal.AsInt64;
-            if (int.TryParse(branchIdVal.ToString(), out var parsedBranchId)) return parsedBranchId;
+            return Results.Ok(new List<object>());
         }
 
-        if (doc.TryGetValue("_id", out var idVal))
-        {
-            if (idVal.IsInt32) return idVal.AsInt32;
-            if (idVal.IsInt64) return (int)idVal.AsInt64;
-            if (int.TryParse(idVal.ToString(), out var parsedId)) return parsedId;
-        }
-
-        return 0;
-    }
-
-    static int? GetFinanceId(BsonDocument doc)
-    {
-        foreach (var key in new[] { "FinanceId", "financeId", "finance_id" })
-        {
-            if (!doc.TryGetValue(key, out var value))
+        // Convert BranchSummaryItem to the format expected by the client
+        var branches = dashboard.TopBranches
+            .Select(b => new
             {
-                continue;
-            }
+                branchId = int.TryParse(b.BranchId, out var id) ? id : 0,
+                branchName = b.BranchName,
+                headOfficeName = b.HeadOfficeName
+            })
+            .Where(b => b.branchId > 0 && !string.IsNullOrWhiteSpace(b.branchName))
+            .OrderBy(b => b.branchName)
+            .ToList();
 
-            if (value.IsInt32) return value.AsInt32;
-            if (value.IsInt64) return (int)value.AsInt64;
-            if (int.TryParse(value.ToString(), out var parsed)) return parsed;
-        }
-
-        return null;
+        return Results.Ok(branches);
     }
-
-    static string GetBranchName(BsonDocument doc)
+    catch (Exception ex)
     {
-        foreach (var key in new[] { "Name", "name", "BranchName", "branch_name" })
-        {
-            if (doc.TryGetValue(key, out var value))
-            {
-                return value.ToString();
-            }
-        }
-
-        return string.Empty;
+        return Results.BadRequest(new { message = "Error loading branches: " + ex.Message });
     }
-
-    var rows = docs
-        .Select(doc => new
-        {
-            BranchId = GetBranchId(doc),
-            BranchName = GetBranchName(doc),
-            FinanceId = GetFinanceId(doc)
-        })
-        .Where(x => x.BranchId > 0 && !string.IsNullOrWhiteSpace(x.BranchName));
-
-    if (financeId > 0)
-    {
-        rows = rows.Where(x => x.FinanceId == null || x.FinanceId == financeId);
-    }
-
-    var branches = rows
-        .GroupBy(x => x.BranchId)
-        .Select(g => g.First())
-        .OrderBy(x => x.BranchName)
-        .Select(x => new { branchId = x.BranchId, branchName = x.BranchName, financeId })
-        .ToList();
-
-    return Results.Ok(branches);
 });
 
 app.MapGet("/api/Finances", async (IMongoDatabase db, IMemoryCache cache) =>
