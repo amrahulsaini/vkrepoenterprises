@@ -77,6 +77,8 @@
             <DataGrid.CellStyle>
                 <Style TargetType="{x:Type DataGridCell}">
                     <Setter Property="Height" Value="32" />
+                    <Setter Property="Foreground" Value="#FF000000" />
+                    <Setter Property="Background" Value="#FFFFFFFF" />
                     <Style.Triggers>
                         <Trigger Property="DataGridCell.IsSelected" Value="True">
                             <Setter Property="Background" Value="{StaticResource HighlightBackgroundBrush}" />

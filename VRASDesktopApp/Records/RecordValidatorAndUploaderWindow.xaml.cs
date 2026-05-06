@@ -365,22 +365,29 @@ public partial class RecordValidatorAndUploaderWindow : Window
             var response = await App.HttpClient.GetAsync(App.ApiBaseUrl + "api/Branches/GetBranches/" + financeId);
             response.EnsureSuccessStatusCode();
             var branches = await response.Content.ReadFromJsonAsync<List<Branch>>() ?? new List<Branch>();
+            
+            if (branches.Count == 0)
+            {
+                MessageBox.Show("No branches found from API.", "Info", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            
+            Branches.Clear();
             Branches.AddRange(branches);
             btnUpload.IsEnabled = true;
         }
         catch (HttpRequestException ex)
         {
-            MessageBox.Show("Http request exception: " + ex.Message);
+            MessageBox.Show("Http request exception: " + ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            btnUpload.IsEnabled = true;
         }
         catch (TaskCanceledException)
         {
+            MessageBox.Show("Request timeout. Please try again.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            btnUpload.IsEnabled = true;
         }
         catch (Exception ex)
         {
-            MessageBox.Show("Exception: " + ex.Message);
-        }
-        finally
-        {
+            MessageBox.Show("Exception: " + ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             btnUpload.IsEnabled = true;
         }
     }
