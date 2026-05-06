@@ -73,7 +73,6 @@ public partial class RecordsEditorWindow : RibbonWindow
     private void RibbonWindow_Loaded(object sender, RoutedEventArgs e)
     {
         GetMappingDetails();
-        AddSampleData();
     }
 
     private void rbn_Loaded(object sender, RoutedEventArgs e)
