@@ -5,6 +5,7 @@ using System.Windows;
 using Syncfusion.Licensing;
 using VRASDesktopApp.Models;
 using VRASDesktopApp.Properties;
+using VRASDesktopApp.Data;
 
 namespace VRASDesktopApp;
 
@@ -28,6 +29,13 @@ public partial class App : Application
 
     public App()
     {
+        // Load environment variables from project .env if present (for local dev)
+        try
+        {
+            EnvLoader.LoadDotEnv();
+        }
+        catch { }
+
         HttpClient = new HttpClient();
         HttpClient.DefaultRequestHeaders.Add("Connection", "keep-alive");
         HttpClient.Timeout = TimeSpan.FromMinutes(20.0);
@@ -43,6 +51,12 @@ public partial class App : Application
         this.DispatcherUnhandledException += App_DispatcherUnhandledException;
         AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
         TaskScheduler.UnobservedTaskException += TaskScheduler_UnobservedTaskException;
+
+        // Pre-warm the MySQL connection pool in the background.
+        // By the time the user navigates to Finances, the TCP socket is already
+        // established and waiting in the pool — turning a 3-4 s cold connect
+        // into a sub-100 ms pool reuse.
+        _ = Data.MySqlFactory.WarmUpAsync();
     }
 
     private void App_DispatcherUnhandledException(object? sender, System.Windows.Threading.DispatcherUnhandledExceptionEventArgs e)
