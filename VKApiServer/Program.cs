@@ -256,7 +256,7 @@ app.MapPost("/api/Records/PostRecordsFile", async (HttpRequest req, IMongoDataba
         {
             message = "Records uploaded successfully.",
             recordsInserted = successCount,
-            fileId = fileInfoDoc["_id"],
+            fileId = fileInfoDoc["_id"].ToString(),
             timestamp = DateTime.UtcNow
         });
     }
