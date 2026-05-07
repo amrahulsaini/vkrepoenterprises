@@ -7,10 +7,22 @@ public partial class NewFinanceDialog : Window
 {
     public string FinanceName { get; private set; } = string.Empty;
 
-    public NewFinanceDialog()
+    private readonly bool _isEdit;
+    private readonly int _editId;
+
+    public NewFinanceDialog(int editId = 0, string existingName = "")
     {
         InitializeComponent();
-        Loaded += (_, _) => txtName.Focus();
+        _editId = editId;
+        _isEdit = editId > 0;
+        if (_isEdit)
+        {
+            txtTitle.Text = "Edit Finance";
+            Title = "Edit Finance";
+            txtName.Text = existingName;
+            btnSave.Content = "Save Changes";
+        }
+        Loaded += (_, _) => { txtName.Focus(); if (_isEdit) txtName.SelectAll(); };
     }
 
     private void btnSave_Click(object sender, RoutedEventArgs e) => TrySave();
