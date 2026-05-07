@@ -44,7 +44,8 @@
                     Grid.Column="1" Width="40" Height="40"
                     Background="Transparent" BorderThickness="0"
                     Content="&#x2014;" FontFamily="Segoe UI" FontSize="14"
-                    Foreground="{StaticResource Gray400}" Cursor="Hand">
+                    Foreground="{StaticResource Gray400}" Cursor="Hand"
+                    WindowChrome.IsHitTestVisibleInChrome="True">
                 <Button.Template>
                     <ControlTemplate TargetType="Button">
                         <Border Name="b" Background="Transparent">
@@ -62,7 +63,8 @@
                     Grid.Column="2" Width="40" Height="40"
                     Background="Transparent" BorderThickness="0"
                     Content="&#x2750;" FontFamily="Segoe UI" FontSize="12"
-                    Foreground="{StaticResource Gray400}" Cursor="Hand">
+                    Foreground="{StaticResource Gray400}" Cursor="Hand"
+                    WindowChrome.IsHitTestVisibleInChrome="True">
                 <Button.Template>
                     <ControlTemplate TargetType="Button">
                         <Border Name="b" Background="Transparent">
@@ -80,7 +82,8 @@
                     Grid.Column="3" Width="40" Height="40"
                     Background="Transparent" BorderThickness="0"
                     Content="&#x2715;" FontFamily="Segoe UI" FontSize="14"
-                    Foreground="{StaticResource Gray400}" Cursor="Hand">
+                    Foreground="{StaticResource Gray400}" Cursor="Hand"
+                    WindowChrome.IsHitTestVisibleInChrome="True">
                 <Button.Template>
                     <ControlTemplate TargetType="Button">
                         <Border Name="b" Background="Transparent">
