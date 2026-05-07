@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net6.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>VRASDesktopApp</RootNamespace>
+    <AssemblyName>VRASDesktopApp</AssemblyName>
+    <PlatformTarget>x64</PlatformTarget>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FontAwesome5" Version="2.1.11" />
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.2903.40" />
+    <PackageReference Include="Syncfusion.Licensing" Version="28.1.33" />
+    <PackageReference Include="Syncfusion.Pdf.Net.Core" Version="28.1.33" />
+    <PackageReference Include="Syncfusion.PropertyGrid.WPF" Version="28.1.33" />
+    <PackageReference Include="Syncfusion.SfSpreadsheet.WPF" Version="28.1.33" />
+    <PackageReference Include="System.Net.Http.Json" Version="6.0.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="public\favicon.ico" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,69 @@
+<Page
+    x:Class="VRASDesktopApp.Confirmations.ConfirmationsManagerPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="clr-namespace:VRASDesktopApp.Confirmations"
+    Title="Confirmations Manager"
+    Background="#F4F4F4"
+    FontFamily="Segoe UI">
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <TextBlock Text="Confirmed Vehicles"
+                   FontSize="20" FontWeight="Bold"
+                   Margin="0,0,0,16" />
+
+        <Grid Grid.Row="1" Margin="0,0,0,8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="250" />
+            </Grid.ColumnDefinitions>
+
+            <DatePicker x:Name="dpFrom" Width="120" Height="28" Margin="0,0,8,0" />
+            <DatePicker x:Name="dpTo" Grid.Column="1" Width="120" Height="28" Margin="0,0,8,0" />
+
+            <Button Grid.Column="2" x:Name="btnRefresh" Width="30" Height="28" Margin="0,0,8,0" Background="White" BorderBrush="#CCC" Click="btnRefresh_Click">
+                <TextBlock Text="↻" FontSize="16" />
+            </Button>
+
+            <Button Grid.Column="3" x:Name="btnExport" Width="30" Height="28" Margin="0,0,8,0" Background="White" BorderBrush="#CCC" Click="btnExport_Click">
+                <TextBlock Text="📄" FontSize="14" />
+            </Button>
+
+            <TextBox x:Name="txtSearch" Grid.Column="5" Height="28" Padding="4" TextChanged="txtSearch_TextChanged" VerticalContentAlignment="Center" />
+            <TextBlock Grid.Column="5" Text="Filter Vehicle no, chassis no" Foreground="Gray" Margin="8,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False" Visibility="Visible" x:Name="lblSearchWatermark" />
+        </Grid>
+
+        <DataGrid Name="dgConfirmations" Grid.Row="2"
+                  AutoGenerateColumns="False" Background="White"
+                  BorderBrush="#CCC" BorderThickness="1"
+                  HeadersVisibility="Column" RowBackground="#F9F9F9" AlternatingRowBackground="White"
+                  GridLinesVisibility="All" HorizontalGridLinesBrush="#E0E0E0" VerticalGridLinesBrush="#E0E0E0">
+            <DataGrid.ColumnHeaderStyle>
+                <Style TargetType="DataGridColumnHeader">
+                    <Setter Property="Background" Value="#F0F0F0" />
+                    <Setter Property="BorderBrush" Value="#E0E0E0" />
+                    <Setter Property="BorderThickness" Value="0,0,1,1" />
+                    <Setter Property="Padding" Value="8,4" />
+                    <Setter Property="FontWeight" Value="SemiBold" />
+                </Style>
+            </DataGrid.ColumnHeaderStyle>
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="VRN" Binding="{Binding VehicleNo}" Width="120" />
+                <DataGridTextColumn Header="VIN/CHASSIS" Binding="{Binding ChassisNo}" Width="150" />
+                <DataGridTextColumn Header="Model" Binding="{Binding Model}" Width="200" />
+                <DataGridTextColumn Header="Seizer Full name" Binding="{Binding SeizerName}" Width="150" />
+                <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="100" />
+                <DataGridTextColumn Header="Confirmed On" Binding="{Binding ConfirmedOn}" Width="120" />
+            </DataGrid.Columns>
+        </DataGrid>
+    </Grid>
+</Page>
