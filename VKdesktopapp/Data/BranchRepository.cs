@@ -62,4 +62,42 @@ VALUES (@fid, @name, @c1, @c2, @c3, @addr, @bcode, @city, @state, @postal, @note
         var id = Convert.ToInt32(scalar);
         return id;
     }
+
+    public async Task<(int Id, string Name, string Contact1, string Contact2, string Contact3, string Address, string BranchCode)?> GetBranchAsync(int id)
+    {
+        await using var conn = MySqlFactory.CreateConnection();
+        await conn.OpenAsync();
+        const string sql = "SELECT id, name, COALESCE(contact1,'') AS c1, COALESCE(contact2,'') AS c2, COALESCE(contact3,'') AS c3, COALESCE(address,'') AS addr, COALESCE(branch_code,'') AS bcode FROM branches WHERE id = @id LIMIT 1";
+        await using var cmd = new MySqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("@id", id);
+        await using var rdr = await cmd.ExecuteReaderAsync();
+        if (!await rdr.ReadAsync()) return null;
+        return (rdr.GetInt32(0), rdr.GetString(1), rdr.GetString(2), rdr.GetString(3), rdr.GetString(4), rdr.GetString(5), rdr.GetString(6));
+    }
+
+    public async Task UpdateBranchAsync(int id, string name, string? contact1 = null, string? contact2 = null, string? contact3 = null, string? address = null, string? branchCode = null)
+    {
+        await using var conn = MySqlFactory.CreateConnection();
+        await conn.OpenAsync();
+        const string sql = "UPDATE branches SET name=@name, contact1=@c1, contact2=@c2, contact3=@c3, address=@addr, branch_code=@bcode WHERE id=@id";
+        await using var cmd = new MySqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("@name", name);
+        cmd.Parameters.AddWithValue("@c1", contact1 ?? string.Empty);
+        cmd.Parameters.AddWithValue("@c2", contact2 ?? string.Empty);
+        cmd.Parameters.AddWithValue("@c3", contact3 ?? string.Empty);
+        cmd.Parameters.AddWithValue("@addr", address ?? string.Empty);
+        cmd.Parameters.AddWithValue("@bcode", branchCode ?? string.Empty);
+        cmd.Parameters.AddWithValue("@id", id);
+        await cmd.ExecuteNonQueryAsync();
+    }
+
+    public async Task DeleteBranchAsync(int id)
+    {
+        await using var conn = MySqlFactory.CreateConnection();
+        await conn.OpenAsync();
+        const string sql = "UPDATE branches SET is_active = 0 WHERE id = @id";
+        await using var cmd = new MySqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("@id", id);
+        await cmd.ExecuteNonQueryAsync();
+    }
 }

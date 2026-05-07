@@ -255,3 +255,4 @@ systemctl restart vkapi
 | SSL/TLS mode  | **Full** (not Flexible)  |
 | Cache (API)   | Page Rule: `api.*` → Cache Level: Bypass |
 | DNS           | A record → server IP, orange cloud ON |
+Note: whenever you update the env file in future, remember to copy it again: cp /home/vkapp/db/.env.local /opt/vkapi/db/.env.local && systemctl restart vkapi

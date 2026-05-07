@@ -41,16 +41,12 @@
             </Setter>
         </Style>
 
-        <!-- Row: clean orange hover, no cell-level fade -->
+        <!-- Row: no hover color, subtle selected highlight -->
         <Style x:Key="GridRowStyle" TargetType="DataGridRow">
             <Setter Property="Height" Value="46" />
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="Background" Value="Transparent" />
             <Style.Triggers>
-                <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="{StaticResource Primary50}" />
-                    <Setter Property="Cursor" Value="Hand" />
-                </Trigger>
                 <Trigger Property="IsSelected" Value="True">
                     <Setter Property="Background" Value="{StaticResource Primary100}" />
                 </Trigger>
@@ -235,12 +231,20 @@
                                   CellStyle="{StaticResource GridCellStyle}"
                                   ColumnHeaderStyle="{StaticResource ColHeaderStyle}"
                                   SelectionChanged="dgFinances_SelectionChanged"
+                                  ContextMenuOpening="dgFinances_ContextMenuOpening"
                                   VirtualizingPanel.IsVirtualizing="True"
                                   VirtualizingPanel.VirtualizationMode="Recycling"
                                   EnableRowVirtualization="True"
                                   BorderThickness="0"
                                   GridLinesVisibility="Horizontal"
                                   HorizontalGridLinesBrush="{StaticResource Gray100}">
+                            <DataGrid.ContextMenu>
+                                <ContextMenu>
+                                    <MenuItem Header="Edit Finance" Click="FinanceEdit_Click" />
+                                    <Separator />
+                                    <MenuItem Header="Delete Finance" Foreground="#C0392B" Click="FinanceDelete_Click" />
+                                </ContextMenu>
+                            </DataGrid.ContextMenu>
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="Finance Name"
                                                     Binding="{Binding Name}"
@@ -339,12 +343,20 @@
                                   RowStyle="{StaticResource GridRowStyle}"
                                   CellStyle="{StaticResource GridCellStyle}"
                                   ColumnHeaderStyle="{StaticResource ColHeaderStyle}"
+                                  ContextMenuOpening="dgBranches_ContextMenuOpening"
                                   VirtualizingPanel.IsVirtualizing="True"
                                   VirtualizingPanel.VirtualizationMode="Recycling"
                                   EnableRowVirtualization="True"
                                   BorderThickness="0"
                                   GridLinesVisibility="Horizontal"
                                   HorizontalGridLinesBrush="{StaticResource Gray100}">
+                            <DataGrid.ContextMenu>
+                                <ContextMenu>
+                                    <MenuItem Header="Edit Branch" Click="BranchEdit_Click" />
+                                    <Separator />
+                                    <MenuItem Header="Delete Branch" Foreground="#C0392B" Click="BranchDelete_Click" />
+                                </ContextMenu>
+                            </DataGrid.ContextMenu>
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="Branch Name"
                                                     Binding="{Binding BranchName}"

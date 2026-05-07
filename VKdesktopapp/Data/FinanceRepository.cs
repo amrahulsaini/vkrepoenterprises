@@ -40,8 +40,28 @@ ORDER BY f.name LIMIT 100";
         cmd.Parameters.AddWithValue("@name", name);
         cmd.Parameters.AddWithValue("@descr", description ?? string.Empty);
         var scalar = await cmd.ExecuteScalarAsync();
-        // MySql LAST_INSERT_ID may return UInt64 boxed; convert safely to Int32
         var id = Convert.ToInt32(scalar);
         return id;
+    }
+
+    public async Task UpdateFinanceAsync(int id, string name)
+    {
+        await using var conn = MySqlFactory.CreateConnection();
+        await conn.OpenAsync();
+        const string sql = "UPDATE finances SET name = @name WHERE id = @id";
+        await using var cmd = new MySqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("@name", name);
+        cmd.Parameters.AddWithValue("@id", id);
+        await cmd.ExecuteNonQueryAsync();
+    }
+
+    public async Task DeleteFinanceAsync(int id)
+    {
+        await using var conn = MySqlFactory.CreateConnection();
+        await conn.OpenAsync();
+        const string sql = "DELETE FROM finances WHERE id = @id";
+        await using var cmd = new MySqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("@id", id);
+        await cmd.ExecuteNonQueryAsync();
     }
 }

@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
+using System.Windows.Media;
 using VRASDesktopApp.Models;
 using VRASDesktopApp.Data;
 using System.Collections.Generic;
@@ -15,24 +16,17 @@ public partial class FinancesManagerPage : Page
         InitializeComponent();
         _financeRepo = new FinanceRepository();
         _branchRepo  = new BranchRepository();
-
-        // Kick off the finance query IMMEDIATELY in the constructor —
-        // before the page is even shown. By the time Page_Loaded fires and
-        // the UI renders, the server round-trip may already be done.
         _preloadFinancesTask = _financeRepo.GetFinancesAsync();
     }
 
     private readonly FinanceRepository _financeRepo;
     private readonly BranchRepository  _branchRepo;
 
-    // Pre-started DB task (fired in constructor for lowest perceived latency)
     private Task<List<(int Id, string Name, long BranchCount, long TotalRecords)>>? _preloadFinancesTask;
 
-    // Finance list kept in memory for instant search (0 ms, no DB)
     private List<FinanceListItem> _allFinances = new();
     private ICollectionView? _financesView;
 
-    // Branch cache: financeId → list. 2nd+ clicks on same finance are instant.
     private readonly Dictionary<int, List<BranchSummaryItem>> _branchCache = new();
     private int _loadingForFinanceId = -1;
 
@@ -50,26 +44,12 @@ public partial class FinancesManagerPage : Page
         SetFinanceLoading(true);
         try
         {
-            // Reuse the pre-started task from the constructor when possible.
-            // If it's already done, await returns immediately (0 ms wait).
             var finances = _preloadFinancesTask != null
                 ? await _preloadFinancesTask
                 : await _financeRepo.GetFinancesAsync();
             _preloadFinancesTask = null;
 
-            _allFinances = new List<FinanceListItem>(finances.Count);
-            foreach (var f in finances)
-                _allFinances.Add(new FinanceListItem
-                {
-                    Id          = f.Id,
-                    Name        = f.Name,
-                    BranchCount = f.BranchCount,
-                    TotalRecords = f.TotalRecords
-                });
-
-            _financesView = CollectionViewSource.GetDefaultView(_allFinances);
-            _financesView.Filter = FilterFinance;
-            dgFinances.ItemsSource = _financesView;
+            RebuildFinanceList(finances);
 
             if (_allFinances.Count > 0)
             {
@@ -83,6 +63,46 @@ public partial class FinancesManagerPage : Page
             MessageBox.Show(
                 $"Failed to load finances.\n\nConnection: {connInfo}\n\nError: {ex.Message}",
                 "Finances", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally
+        {
+            SetFinanceLoading(false);
+        }
+    }
+
+    private void RebuildFinanceList(List<(int Id, string Name, long BranchCount, long TotalRecords)> finances)
+    {
+        _allFinances = new List<FinanceListItem>(finances.Count);
+        foreach (var f in finances)
+            _allFinances.Add(new FinanceListItem
+            {
+                Id           = f.Id,
+                Name         = f.Name,
+                BranchCount  = f.BranchCount,
+                TotalRecords = f.TotalRecords
+            });
+        _financesView = CollectionViewSource.GetDefaultView(_allFinances);
+        _financesView.Filter = FilterFinance;
+        dgFinances.ItemsSource = _financesView;
+    }
+
+    private async Task ReloadFinancesAsync(int? selectId = null)
+    {
+        SetFinanceLoading(true);
+        try
+        {
+            var finances = await _financeRepo.GetFinancesAsync();
+            RebuildFinanceList(finances);
+            if (selectId.HasValue)
+            {
+                var idx = _allFinances.FindIndex(x => x.Id == selectId.Value);
+                if (idx >= 0) { dgFinances.SelectedIndex = idx; return; }
+            }
+            if (_allFinances.Count > 0) dgFinances.SelectedIndex = 0;
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Failed to refresh: {ex.Message}", "Finances", MessageBoxButton.OK, MessageBoxImage.Error);
         }
         finally
         {
@@ -116,7 +136,6 @@ public partial class FinancesManagerPage : Page
     {
         txtBranchSubtitle.Text = financeName;
 
-        // Cache hit → instant display, silent background refresh
         if (_branchCache.TryGetValue(financeId, out var cached))
         {
             dgBranches.ItemsSource = cached;
@@ -124,7 +143,6 @@ public partial class FinancesManagerPage : Page
             return;
         }
 
-        // First load → show branch panel spinner only
         _loadingForFinanceId = financeId;
         SetBranchLoading(true);
         try
@@ -190,24 +208,7 @@ public partial class FinancesManagerPage : Page
         try
         {
             var id = await _financeRepo.CreateFinanceAsync(dlg.FinanceName, null);
-
-            var finances = await _financeRepo.GetFinancesAsync();
-            _allFinances = new List<FinanceListItem>(finances.Count);
-            foreach (var f in finances)
-                _allFinances.Add(new FinanceListItem
-                {
-                    Id          = f.Id,
-                    Name        = f.Name,
-                    BranchCount = f.BranchCount,
-                    TotalRecords = f.TotalRecords
-                });
-
-            _financesView = CollectionViewSource.GetDefaultView(_allFinances);
-            _financesView.Filter = FilterFinance;
-            dgFinances.ItemsSource = _financesView;
-
-            var idx = _allFinances.FindIndex(x => x.Id == id);
-            if (idx >= 0) dgFinances.SelectedIndex = idx;
+            await ReloadFinancesAsync(id);
         }
         catch (Exception ex)
         {
@@ -236,8 +237,144 @@ public partial class FinancesManagerPage : Page
         var w = new BranchEditorWindow(fi.Id, fi.Name) { Owner = Window.GetWindow(this) };
         if (w.ShowDialog() == true)
         {
-            _branchCache.Remove(fi.Id); // invalidate so next load is fresh
+            _branchCache.Remove(fi.Id);
             await LoadBranchesForFinanceAsync(fi.Id, fi.Name);
+        }
+    }
+
+    // ─────────────────────────────────────────────────────
+    //  Context menus — select row on right-click
+    // ─────────────────────────────────────────────────────
+
+    private void dgFinances_ContextMenuOpening(object sender, ContextMenuEventArgs e)
+    {
+        var row = FindVisualParent<DataGridRow>(
+            dgFinances.InputHitTest(System.Windows.Input.Mouse.GetPosition(dgFinances)) as DependencyObject);
+        if (row == null) { e.Handled = true; return; }
+        row.IsSelected = true;
+    }
+
+    private void dgBranches_ContextMenuOpening(object sender, ContextMenuEventArgs e)
+    {
+        var row = FindVisualParent<DataGridRow>(
+            dgBranches.InputHitTest(System.Windows.Input.Mouse.GetPosition(dgBranches)) as DependencyObject);
+        if (row == null) { e.Handled = true; return; }
+        row.IsSelected = true;
+    }
+
+    private static T? FindVisualParent<T>(DependencyObject? obj) where T : DependencyObject
+    {
+        while (obj != null)
+        {
+            if (obj is T t) return t;
+            obj = VisualTreeHelper.GetParent(obj);
+        }
+        return null;
+    }
+
+    // ─────────────────────────────────────────────────────
+    //  Finance Edit / Delete
+    // ─────────────────────────────────────────────────────
+
+    private async void FinanceEdit_Click(object sender, RoutedEventArgs e)
+    {
+        if (dgFinances.SelectedItem is not FinanceListItem fi) return;
+
+        var dlg = new NewFinanceDialog(fi.Id, fi.Name) { Owner = Window.GetWindow(this) };
+        if (dlg.ShowDialog() != true) return;
+
+        try
+        {
+            await _financeRepo.UpdateFinanceAsync(fi.Id, dlg.FinanceName);
+            await ReloadFinancesAsync(fi.Id);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Failed to update finance: {ex.Message}",
+                "Finances", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private async void FinanceDelete_Click(object sender, RoutedEventArgs e)
+    {
+        if (dgFinances.SelectedItem is not FinanceListItem fi) return;
+
+        var result = MessageBox.Show(
+            $"Delete \"{fi.Name}\"?\n\nThis will permanently delete the finance. Branches must be deleted first.",
+            "Delete Finance", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+        if (result != MessageBoxResult.Yes) return;
+
+        try
+        {
+            await _financeRepo.DeleteFinanceAsync(fi.Id);
+            _branchCache.Remove(fi.Id);
+            dgBranches.ItemsSource = null;
+            txtBranchSubtitle.Text = "Select a finance to view branches";
+            await ReloadFinancesAsync();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Failed to delete finance: {ex.Message}",
+                "Finances", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    // ─────────────────────────────────────────────────────
+    //  Branch Edit / Delete
+    // ─────────────────────────────────────────────────────
+
+    private async void BranchEdit_Click(object sender, RoutedEventArgs e)
+    {
+        if (dgBranches.SelectedItem is not BranchSummaryItem bi) return;
+        if (dgFinances.SelectedItem is not FinanceListItem fi) return;
+        if (!int.TryParse(bi.BranchId, out int branchId)) return;
+
+        try
+        {
+            var branch = await _branchRepo.GetBranchAsync(branchId);
+            if (branch == null) return;
+
+            var w = new BranchEditorWindow(
+                fi.Id, fi.Name, branchId,
+                branch.Value.Name,
+                branch.Value.Contact1, branch.Value.Contact2, branch.Value.Contact3,
+                branch.Value.Address, branch.Value.BranchCode)
+            { Owner = Window.GetWindow(this) };
+
+            if (w.ShowDialog() == true)
+            {
+                _branchCache.Remove(fi.Id);
+                await LoadBranchesForFinanceAsync(fi.Id, fi.Name);
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Failed to load branch details: {ex.Message}",
+                "Finances", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private async void BranchDelete_Click(object sender, RoutedEventArgs e)
+    {
+        if (dgBranches.SelectedItem is not BranchSummaryItem bi) return;
+        if (dgFinances.SelectedItem is not FinanceListItem fi) return;
+        if (!int.TryParse(bi.BranchId, out int branchId)) return;
+
+        var result = MessageBox.Show(
+            $"Delete branch \"{bi.BranchName}\"?\n\nThe branch will be deactivated.",
+            "Delete Branch", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+        if (result != MessageBoxResult.Yes) return;
+
+        try
+        {
+            await _branchRepo.DeleteBranchAsync(branchId);
+            _branchCache.Remove(fi.Id);
+            await LoadBranchesForFinanceAsync(fi.Id, fi.Name);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Failed to delete branch: {ex.Message}",
+                "Finances", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 

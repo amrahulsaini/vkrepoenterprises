@@ -32,7 +32,8 @@
                         Cursor="Hand"
                         Click="btnCancel_Click"
                         WindowChrome.IsHitTestVisibleInChrome="True" />
-                <TextBlock Text="New Finance / Head Office"
+                <TextBlock x:Name="txtTitle"
+                           Text="New Finance / Head Office"
                            FontSize="15" FontWeight="SemiBold"
                            Foreground="{StaticResource Gray900}"
                            VerticalAlignment="Center" />
