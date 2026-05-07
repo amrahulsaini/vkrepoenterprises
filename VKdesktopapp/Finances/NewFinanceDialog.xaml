@@ -49,7 +49,7 @@
 
             <TextBlock Grid.Row="0"
                        Text="FINANCE NAME"
-                       FontSize="11" FontWeight="SemiBold" LetterSpacing="1"
+                       FontSize="11" FontWeight="SemiBold"
                        Foreground="{StaticResource Gray500}" />
 
             <Border Grid.Row="2"
