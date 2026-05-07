@@ -26,6 +26,7 @@ public partial class FinancesManagerPage : Page
 
     private List<FinanceListItem> _allFinances = new();
     private ICollectionView? _financesView;
+    private ICollectionView? _branchView;
 
     private readonly Dictionary<int, List<BranchSummaryItem>> _branchCache = new();
     private int _loadingForFinanceId = -1;
@@ -123,6 +124,31 @@ public partial class FinancesManagerPage : Page
         => _financesView?.Refresh();
 
     // ─────────────────────────────────────────────────────
+    //  Branch search — pure in-memory, 0 ms
+    // ─────────────────────────────────────────────────────
+
+    private bool FilterBranch(object obj) =>
+        obj is BranchSummaryItem item &&
+        (string.IsNullOrEmpty(txtBranchSearch.Text) ||
+         item.BranchName.Contains(txtBranchSearch.Text, StringComparison.OrdinalIgnoreCase));
+
+    private void txtBranchSearch_TextChanged(object sender, TextChangedEventArgs e)
+        => _branchView?.Refresh();
+
+    private void SetBranchItemsSource(List<BranchSummaryItem>? list)
+    {
+        if (list == null)
+        {
+            _branchView            = null;
+            dgBranches.ItemsSource = null;
+            return;
+        }
+        _branchView = CollectionViewSource.GetDefaultView(list);
+        _branchView.Filter     = FilterBranch;
+        dgBranches.ItemsSource = _branchView;
+    }
+
+    // ─────────────────────────────────────────────────────
     //  Branch loading — cached for instant 2nd+ clicks
     // ─────────────────────────────────────────────────────
 
@@ -138,7 +164,7 @@ public partial class FinancesManagerPage : Page
 
         if (_branchCache.TryGetValue(financeId, out var cached))
         {
-            dgBranches.ItemsSource = cached;
+            SetBranchItemsSource(cached);
             _ = RefreshBranchCacheAsync(financeId);
             return;
         }
@@ -151,7 +177,7 @@ public partial class FinancesManagerPage : Page
             if (_loadingForFinanceId == financeId)
             {
                 _branchCache[financeId] = list;
-                dgBranches.ItemsSource  = list;
+                SetBranchItemsSource(list);
             }
         }
         catch (Exception ex)
@@ -172,7 +198,7 @@ public partial class FinancesManagerPage : Page
             var list = await FetchBranchesAsync(financeId);
             _branchCache[financeId] = list;
             if (dgFinances.SelectedItem is FinanceListItem fi && fi.Id == financeId)
-                dgBranches.ItemsSource = list;
+                SetBranchItemsSource(list);
         }
         catch { /* silent */ }
     }
@@ -308,7 +334,7 @@ public partial class FinancesManagerPage : Page
         {
             await _financeRepo.DeleteFinanceAsync(fi.Id);
             _branchCache.Remove(fi.Id);
-            dgBranches.ItemsSource = null;
+            SetBranchItemsSource(null);
             txtBranchSubtitle.Text = "Select a finance to view branches";
             await ReloadFinancesAsync();
         }

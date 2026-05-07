@@ -334,7 +334,50 @@
                         </DockPanel>
                     </Border>
 
-                    <Grid Margin="14,10,14,14">
+                    <!-- Branch search box -->
+                    <Border DockPanel.Dock="Top"
+                            Margin="14,12,14,4"
+                            Background="White"
+                            BorderBrush="{StaticResource Gray200}"
+                            BorderThickness="1"
+                            CornerRadius="7">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0"
+                                       Text="&#xE721;"
+                                       FontFamily="Segoe MDL2 Assets"
+                                       FontSize="14"
+                                       Foreground="{StaticResource Gray400}"
+                                       VerticalAlignment="Center"
+                                       Margin="12,0,6,0" />
+                            <Grid Grid.Column="1">
+                                <TextBox Name="txtBranchSearch"
+                                         Style="{StaticResource InlineTextBox}"
+                                         TextChanged="txtBranchSearch_TextChanged" />
+                                <TextBlock Text="Search branches..."
+                                           FontSize="14"
+                                           Foreground="{StaticResource Gray400}"
+                                           VerticalAlignment="Center"
+                                           IsHitTestVisible="False">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding Text, ElementName=txtBranchSearch}" Value="">
+                                                    <Setter Property="Visibility" Value="Visible" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </Grid>
+                        </Grid>
+                    </Border>
+
+                    <Grid Margin="14,6,14,14">
                         <DataGrid Name="dgBranches"
                                   Style="{StaticResource MaterialDataGrid}"
                                   AutoGenerateColumns="False"

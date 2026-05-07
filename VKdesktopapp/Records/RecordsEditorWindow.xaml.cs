@@ -117,7 +117,7 @@ public partial class RecordsEditorWindow : RibbonWindow
     {
         if ((Keyboard.Modifiers & ModifierKeys.Control) != ModifierKeys.Control) return;
 
-        if (e.Key == Key.D8)
+        if (e.Key == Key.M)
         {
             e.Handled = true;
             var currentCellValue = sp.CurrentCellValue;
@@ -129,9 +129,51 @@ public partial class RecordsEditorWindow : RibbonWindow
                 if (_mappingDetails == null) return;
             }
 
-            var addMappingWindow = new AddMappingWindow(_mappingDetails.ColumnTypes, currentCellValue) { Owner = this };
+            // Collect which column type IDs are already mapped so they don't show in the picker
+            var alreadyMapped = new HashSet<int>();
+            if (_mappedColumns.CI_VehicleNo        != 0) alreadyMapped.Add(1);
+            if (_mappedColumns.CI_ChasisNo         != 0) alreadyMapped.Add(2);
+            if (_mappedColumns.CI_Model            != 0) alreadyMapped.Add(3);
+            if (_mappedColumns.CI_EngineNo         != 0) alreadyMapped.Add(4);
+            if (_mappedColumns.CI_AgreementNo      != 0) alreadyMapped.Add(5);
+            if (_mappedColumns.CI_CustomerName     != 0) alreadyMapped.Add(6);
+            if (_mappedColumns.CI_CustomerAddress  != 0) alreadyMapped.Add(7);
+            if (_mappedColumns.CI_Region           != 0) alreadyMapped.Add(8);
+            if (_mappedColumns.CI_Area             != 0) alreadyMapped.Add(9);
+            if (_mappedColumns.CI_Bucket           != 0) alreadyMapped.Add(10);
+            if (_mappedColumns.CI_GV               != 0) alreadyMapped.Add(11);
+            if (_mappedColumns.CI_OD               != 0) alreadyMapped.Add(12);
+            if (_mappedColumns.CI_Branch           != 0) alreadyMapped.Add(13);
+            if (_mappedColumns.CI_Level1           != 0) alreadyMapped.Add(14);
+            if (_mappedColumns.CI_Level1ContactNo  != 0) alreadyMapped.Add(15);
+            if (_mappedColumns.CI_Level2           != 0) alreadyMapped.Add(16);
+            if (_mappedColumns.CI_Level2ContactNo  != 0) alreadyMapped.Add(17);
+            if (_mappedColumns.CI_Level3           != 0) alreadyMapped.Add(18);
+            if (_mappedColumns.CI_Level3ContactNo  != 0) alreadyMapped.Add(19);
+            if (_mappedColumns.CI_Level4           != 0) alreadyMapped.Add(20);
+            if (_mappedColumns.CI_Level4ContactNo  != 0) alreadyMapped.Add(21);
+            if (_mappedColumns.CI_Sec9Available    != 0) alreadyMapped.Add(22);
+            if (_mappedColumns.CI_Sec17Available   != 0) alreadyMapped.Add(23);
+            if (_mappedColumns.CI_TBRFlag          != 0) alreadyMapped.Add(24);
+            if (_mappedColumns.CI_Seasoning        != 0) alreadyMapped.Add(25);
+            if (_mappedColumns.CI_SenderMailId1    != 0) alreadyMapped.Add(26);
+            if (_mappedColumns.CI_SenderMailId2    != 0) alreadyMapped.Add(27);
+            if (_mappedColumns.CI_ExecutiveName    != 0) alreadyMapped.Add(28);
+            if (_mappedColumns.CI_POS              != 0) alreadyMapped.Add(29);
+            if (_mappedColumns.CI_TOSS             != 0) alreadyMapped.Add(30);
+            if (_mappedColumns.CI_CustomerContactNos != 0) alreadyMapped.Add(31);
+            if (_mappedColumns.CI_Remark           != 0) alreadyMapped.Add(32);
+
+            var availableTypes = _mappingDetails.ColumnTypes
+                .Where(t => !alreadyMapped.Contains(t.ColumnTypeId))
+                .ToList();
+
+            var addMappingWindow = new AddMappingWindow(availableTypes, currentCellValue) { Owner = this };
             if (addMappingWindow.ShowDialog() == true)
+            {
                 _mappingDetails.Mappings.Add(addMappingWindow.MappedColumn);
+                MapColumns();
+            }
         }
         else if (e.Key == Key.OemPipe)
         {
