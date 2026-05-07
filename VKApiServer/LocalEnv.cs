@@ -27,6 +27,9 @@ internal static class LocalEnv
         yield return Path.Combine(current, "..", "db", ".env");
         yield return Path.Combine(baseDir, "..", "..", "..", "..", "db", ".env.local");
         yield return Path.Combine(baseDir, "..", "..", "..", "..", "db", ".env");
+        yield return Path.Combine(current, ".env");
+        yield return Path.Combine(current, "..", ".env");
+        yield return Path.Combine(baseDir, "..", "..", "..", "..", ".env");
     }
 
     private static void LoadFrom(string path)

@@ -1,7 +1,6 @@
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Caching.Memory;
-using MongoDB.Bson;
-using MongoDB.Driver;
+using MySqlConnector;
 using VKApiServer;
 using VKApiServer.Models;
 
@@ -17,271 +16,211 @@ builder.Services.AddCors(options =>
 
 builder.Services.AddMemoryCache();
 
-var mongoUrl = Environment.GetEnvironmentVariable("MONGO_URL")
-    ?? throw new InvalidOperationException("MONGO_URL is not configured.");
-var mongoDbName = Environment.GetEnvironmentVariable("MONGO_DB_NAME") ?? "vers_system";
+var connStr = new MySqlConnectionStringBuilder
+{
+    Server   = Environment.GetEnvironmentVariable("MYSQL_HOST") ?? "localhost",
+    UserID   = Environment.GetEnvironmentVariable("MYSQL_USER") ?? "root",
+    Password = Environment.GetEnvironmentVariable("MYSQL_PASSWORD") ?? "",
+    Database = Environment.GetEnvironmentVariable("MYSQL_DATABASE") ?? "vkre_db1",
+    Port     = uint.TryParse(Environment.GetEnvironmentVariable("MYSQL_PORT"), out var p) ? p : 3306u,
+    SslMode  = MySqlSslMode.None,
+    Pooling  = true,
+    MaximumPoolSize      = 20,
+    ConnectionTimeout    = 10,
+    DefaultCommandTimeout = 30
+}.ConnectionString;
+
 var desktopLoginPassword = Environment.GetEnvironmentVariable("DESKTOP_LOGIN_PASSWORD") ?? "vk@kunal.admin";
 var privateKey = Environment.GetEnvironmentVariable("PRIVATEKEY") ?? "vk_enterprises_local_jwt_key";
 var port = Environment.GetEnvironmentVariable("PORT") ?? "5002";
 
-builder.Services.AddSingleton<IMongoClient>(_ => new MongoClient(mongoUrl));
-builder.Services.AddSingleton(sp => sp.GetRequiredService<IMongoClient>().GetDatabase(mongoDbName));
-
 var app = builder.Build();
-
 app.UseCors();
 
-app.MapPost("/api/AppUsers/Login", async (LoginRequest request, IMongoDatabase db) =>
+app.MapPost("/api/AppUsers/Login", async (LoginRequest request) =>
 {
     if (!Regex.IsMatch(request.mobileno ?? string.Empty, @"^\d{10}$"))
-    {
         return Results.BadRequest(new { message = "Please enter a valid 10-digit mobile number." });
-    }
 
     if (!string.Equals(request.password, desktopLoginPassword, StringComparison.Ordinal))
-    {
         return Results.BadRequest(new { message = "Invalid mobile number or password." });
-    }
-
-    var users = db.GetCollection<BsonDocument>("users");
-    var filter = Builders<BsonDocument>.Filter.Or(
-        Builders<BsonDocument>.Filter.Eq("mobile", request.mobileno),
-        Builders<BsonDocument>.Filter.And(
-            Builders<BsonDocument>.Filter.Eq("role", "ADMIN"),
-            Builders<BsonDocument>.Filter.Eq("status", "ACTIVE")));
-
-    BsonDocument? user = await users
-        .Find(filter)
-        .Sort(Builders<BsonDocument>.Sort.Descending("role"))
-        .FirstOrDefaultAsync();
 
     int appUserId = 0;
-    if (user != null)
+    string fullName = "VK ENTERPRISES ADMIN";
+
+    try
     {
-        if (user.TryGetValue("AppUserId", out var appUserField))
+        await using var conn = new MySqlConnection(connStr);
+        await conn.OpenAsync();
+        await using var cmd = new MySqlCommand(
+            "SELECT id, name FROM users WHERE mobile = @m AND status = 'ACTIVE' LIMIT 1", conn);
+        cmd.Parameters.AddWithValue("@m", request.mobileno);
+        await using var reader = await cmd.ExecuteReaderAsync();
+        if (await reader.ReadAsync())
         {
-            try
-            {
-                if (appUserField.IsInt32) appUserId = appUserField.AsInt32;
-                else if (appUserField.IsInt64) appUserId = (int)appUserField.AsInt64;
-                else int.TryParse(appUserField.ToString(), out appUserId);
-            }
-            catch { int.TryParse(appUserField.ToString(), out appUserId); }
-        }
-        else if (user.TryGetValue("_id", out var idValue))
-        {
-            try
-            {
-                if (idValue.IsInt32) appUserId = idValue.AsInt32;
-                else if (idValue.IsInt64) appUserId = (int)idValue.AsInt64;
-                else int.TryParse(idValue.ToString(), out appUserId);
-            }
-            catch { int.TryParse(idValue.ToString(), out appUserId); }
+            if (!reader.IsDBNull(0)) appUserId = reader.GetInt32(0);
+            if (!reader.IsDBNull(1)) fullName = reader.GetString(1);
         }
     }
-    var fullName = user != null && user.TryGetValue("name", out var nameValue)
-        ? nameValue.ToString() ?? string.Empty
-        : string.Empty;
+    catch { }
 
-    if (string.IsNullOrWhiteSpace(fullName))
-    {
-        fullName = "VK ENTERPRISES ADMIN";
-    }
-
+    if (string.IsNullOrWhiteSpace(fullName)) fullName = "VK ENTERPRISES ADMIN";
     var nameParts = fullName.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
     var tokenPayload = $"{request.mobileno}:{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}:{privateKey}";
 
     return Results.Ok(new SignedAppUser
     {
         AppUserId = appUserId,
-        MobileNo = request.mobileno ?? string.Empty,
+        MobileNo  = request.mobileno ?? string.Empty,
         FirstName = nameParts.FirstOrDefault() ?? "VK",
-        LastName = nameParts.Length > 1 ? nameParts[1] : "ADMIN",
-        IsActive = true,
-        IsAdmin = true,
-        Token = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(tokenPayload))
+        LastName  = nameParts.Length > 1 ? nameParts[1] : "ADMIN",
+        IsActive  = true,
+        IsAdmin   = true,
+        Token     = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(tokenPayload))
     });
 });
 
-app.MapGet("/api/Overview", async (IMongoDatabase db, IMemoryCache cache) =>
-    Results.Ok(await GetCachedAsync(cache, "home-dashboard", () => DashboardRepository.BuildHomeDashboardAsync(db), 30)));
+app.MapGet("/api/Overview", async (IMemoryCache cache) =>
+    Results.Ok(await GetCachedAsync(cache, "home-dashboard",
+        () => DashboardRepository.BuildHomeDashboardAsync(connStr), 30)));
 
-app.MapGet("/api/Records/Search", async (string? q, string? mode, IMongoDatabase db) =>
-    Results.Ok(await DashboardRepository.BuildVehicleSearchAsync(db, q, mode)));
+app.MapGet("/api/Records/Search", async (string? q, string? mode) =>
+    Results.Ok(await DashboardRepository.BuildVehicleSearchAsync(connStr, q, mode)));
 
-app.MapPost("/api/Records/MarkReleased/{id}", async (string id, IMongoDatabase db) =>
+app.MapPost("/api/Records/MarkReleased/{id}", async (string id) =>
 {
-    var collection = db.GetCollection<BsonDocument>("vehicles");
-    if (!ObjectId.TryParse(id, out var objectId)) return Results.BadRequest("Invalid ID");
-    
-    var doc = await collection.Find(Builders<BsonDocument>.Filter.Eq("_id", objectId)).FirstOrDefaultAsync();
-    var currentStatus = doc?.GetValue("is_released", "").ToString()?.ToUpperInvariant();
-    var newStatus = currentStatus == "YES" ? "NO" : "YES";
-    
-    var update = Builders<BsonDocument>.Update
-        .Set("is_released", newStatus)
-        .Set("updatedAt", DateTime.UtcNow);
-        
-    await collection.UpdateOneAsync(Builders<BsonDocument>.Filter.Eq("_id", objectId), update);
-    return Results.Ok(new { status = newStatus });
+    try
+    {
+        await using var conn = new MySqlConnection(connStr);
+        await conn.OpenAsync();
+        await using var getCmd = new MySqlCommand(
+            "SELECT is_released FROM records WHERE id = @id LIMIT 1", conn);
+        getCmd.Parameters.AddWithValue("@id", id);
+        var current = (await getCmd.ExecuteScalarAsync())?.ToString()?.ToUpperInvariant();
+        var newStatus = current == "YES" ? "NO" : "YES";
+        await using var upd = new MySqlCommand(
+            "UPDATE records SET is_released = @s, updated_at = @d WHERE id = @id", conn);
+        upd.Parameters.AddWithValue("@s", newStatus);
+        upd.Parameters.AddWithValue("@d", DateTime.UtcNow);
+        upd.Parameters.AddWithValue("@id", id);
+        await upd.ExecuteNonQueryAsync();
+        return Results.Ok(new { status = newStatus });
+    }
+    catch (Exception ex) { return Results.BadRequest(new { message = ex.Message }); }
 });
 
-app.MapDelete("/api/Records/Delete/{id}", async (string id, IMongoDatabase db) =>
+app.MapDelete("/api/Records/Delete/{id}", async (string id) =>
 {
-    var collection = db.GetCollection<BsonDocument>("vehicles");
-    if (!ObjectId.TryParse(id, out var objectId)) return Results.BadRequest("Invalid ID");
-    
-    await collection.DeleteOneAsync(Builders<BsonDocument>.Filter.Eq("_id", objectId));
-    return Results.Ok();
+    try
+    {
+        await using var conn = new MySqlConnection(connStr);
+        await conn.OpenAsync();
+        await using var cmd = new MySqlCommand("DELETE FROM records WHERE id = @id", conn);
+        cmd.Parameters.AddWithValue("@id", id);
+        await cmd.ExecuteNonQueryAsync();
+        return Results.Ok();
+    }
+    catch (Exception ex) { return Results.BadRequest(new { message = ex.Message }); }
 });
 
-app.MapPost("/api/Records/PostRecordsFile", async (HttpRequest req, IMongoDatabase db) =>
+app.MapPost("/api/Records/PostRecordsFile", async (HttpRequest req) =>
 {
     try
     {
         if (!req.HasFormContentType)
-        {
             return Results.BadRequest(new { message = "Request must have form content type." });
-        }
 
         var form = await req.ReadFormAsync();
         var file = form.Files.GetFile("RecordsFile");
         if (file == null || file.Length == 0)
-        {
             return Results.BadRequest(new { message = "No file uploaded." });
-        }
 
         var branchIdStr = req.Query["BranchId"].ToString();
         if (string.IsNullOrWhiteSpace(branchIdStr))
-        {
             return Results.BadRequest(new { message = "BranchId is required." });
-        }
 
-        // Read CSV content
         using var reader = new StreamReader(file.OpenReadStream());
         var csvContent = await reader.ReadToEndAsync();
         var lines = csvContent.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.RemoveEmptyEntries);
 
         if (lines.Length == 0)
-        {
             return Results.BadRequest(new { message = "CSV file is empty." });
-        }
 
-        var recordsCollection = db.GetCollection<BsonDocument>("records");
-        var fileInfoCollection = db.GetCollection<BsonDocument>("file_info");
-        
-        var uploadedRecords = new List<BsonDocument>();
         int successCount = 0;
+        await using var conn = new MySqlConnection(connStr);
+        await conn.OpenAsync();
 
-        // Parse CSV and insert records
         foreach (var line in lines)
         {
-            var fields = line.Split('|');
-            if (fields.Length < 32) continue; // Skip incomplete lines
-
+            var f = line.Split('|');
+            if (f.Length < 32) continue;
             try
             {
-                var recordDoc = new BsonDocument
-                {
-                    { "_id", ObjectId.GenerateNewId() },
-                    { "rc_no", fields[0] ?? "" },
-                    { "chassis_no", fields[1] ?? "" },
-                    { "model", fields[2] ?? "" },
-                    { "engine_no", fields[3] ?? "" },
-                    { "agreement_no", fields[4] ?? "" },
-                    { "customer_name", fields[5] ?? "" },
-                    { "customer_address", fields[6] ?? "" },
-                    { "region", fields[7] ?? "" },
-                    { "area", fields[8] ?? "" },
-                    { "bucket", fields[9] ?? "" },
-                    { "gv", fields[10] ?? "" },
-                    { "od", fields[11] ?? "" },
-                    { "branch_name", fields[12] ?? "" },
-                    { "level1", fields[13] ?? "" },
-                    { "level1_contact", fields[14] ?? "" },
-                    { "level2", fields[15] ?? "" },
-                    { "level2_contact", fields[16] ?? "" },
-                    { "level3", fields[17] ?? "" },
-                    { "level3_contact", fields[18] ?? "" },
-                    { "level4", fields[19] ?? "" },
-                    { "level4_contact", fields[20] ?? "" },
-                    { "sec9_available", fields[21] ?? "" },
-                    { "sec17_available", fields[22] ?? "" },
-                    { "tbr_flag", fields[23] ?? "" },
-                    { "seasoning", fields[24] ?? "" },
-                    { "sender_mail_id1", fields[25] ?? "" },
-                    { "sender_mail_id2", fields[26] ?? "" },
-                    { "executive_name", fields[27] ?? "" },
-                    { "pos", fields[28] ?? "" },
-                    { "toss", fields[29] ?? "" },
-                    { "customer_contact_nos", fields[30] ?? "" },
-                    { "remark", fields[31] ?? "" },
-                    { "branch_id", branchIdStr },
-                    { "status", "uploaded" },
-                    { "createdAt", DateTime.UtcNow },
-                    { "uploadedAt", DateTime.UtcNow }
-                };
-
-                uploadedRecords.Add(recordDoc);
+                await using var cmd = new MySqlCommand(@"
+                    INSERT INTO records
+                        (rc_no,chassis_no,model,engine_no,agreement_no,customer_name,customer_address,
+                         region,area,bucket,gv,od,branch_name,level1,level1_contact,level2,level2_contact,
+                         level3,level3_contact,level4,level4_contact,sec9_available,sec17_available,
+                         tbr_flag,seasoning,sender_mail_id1,sender_mail_id2,executive_name,pos,toss,
+                         customer_contact_nos,remark,branch_id,status,created_at)
+                    VALUES
+                        (@f0,@f1,@f2,@f3,@f4,@f5,@f6,@f7,@f8,@f9,@f10,@f11,@f12,@f13,@f14,@f15,@f16,
+                         @f17,@f18,@f19,@f20,@f21,@f22,@f23,@f24,@f25,@f26,@f27,@f28,@f29,@f30,@f31,
+                         @bid,'uploaded',@now)", conn);
+                for (int i = 0; i < 32; i++)
+                    cmd.Parameters.AddWithValue($"@f{i}", f[i] ?? "");
+                cmd.Parameters.AddWithValue("@bid", branchIdStr);
+                cmd.Parameters.AddWithValue("@now", DateTime.UtcNow);
+                await cmd.ExecuteNonQueryAsync();
                 successCount++;
             }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Error parsing record: {ex.Message}");
-            }
+            catch { }
         }
 
-        // Bulk insert records
-        if (uploadedRecords.Count > 0)
+        int fileId = 0;
+        try
         {
-            await recordsCollection.InsertManyAsync(uploadedRecords);
+            await using var meta = new MySqlCommand(@"
+                INSERT INTO file_info (file_name,file_size,branch_id,records_count,upload_status,uploaded_at,uploaded_by)
+                VALUES (@fn,@fs,@bid,@rc,'completed',@ua,'desktop_app');
+                SELECT LAST_INSERT_ID();", conn);
+            meta.Parameters.AddWithValue("@fn", file.FileName);
+            meta.Parameters.AddWithValue("@fs", file.Length);
+            meta.Parameters.AddWithValue("@bid", branchIdStr);
+            meta.Parameters.AddWithValue("@rc", successCount);
+            meta.Parameters.AddWithValue("@ua", DateTime.UtcNow);
+            fileId = Convert.ToInt32(await meta.ExecuteScalarAsync());
         }
-
-        // Save file metadata
-        var fileInfoDoc = new BsonDocument
-        {
-            { "_id", ObjectId.GenerateNewId() },
-            { "fileName", file.FileName },
-            { "fileSize", file.Length },
-            { "branch_id", branchIdStr },
-            { "recordsCount", successCount },
-            { "uploadStatus", "completed" },
-            { "uploadedAt", DateTime.UtcNow },
-            { "uploadedBy", "desktop_app" }
-        };
-
-        await fileInfoCollection.InsertOneAsync(fileInfoDoc);
+        catch { }
 
         return Results.Ok(new
         {
             message = "Records uploaded successfully.",
             recordsInserted = successCount,
-            fileId = fileInfoDoc["_id"].ToString(),
+            fileId = fileId.ToString(),
             timestamp = DateTime.UtcNow
         });
     }
     catch (Exception ex)
     {
-        return Results.BadRequest(new { message = "Error uploading records: " + ex.Message, exception = ex.ToString() });
+        return Results.BadRequest(new { message = "Error uploading records: " + ex.Message });
     }
 });
 
-app.MapGet("/api/Mapping/GetMappingDetails", async (IMongoDatabase db) =>
+app.MapGet("/api/Mapping/GetMappingDetails", () => Results.Ok(new
 {
-    var collection = db.GetCollection<BsonDocument>("headers");
-    var doc = await collection.Find(new BsonDocument()).FirstOrDefaultAsync();
-
-    var columnTypes = new List<object>
+    mappings = new List<object>(),
+    columnTypes = new List<object>
     {
-        new { columnTypeId = 1, columnTypeName = "Vehicle No" },
-        new { columnTypeId = 2, columnTypeName = "Chasis No" },
-        new { columnTypeId = 3, columnTypeName = "Model" },
-        new { columnTypeId = 4, columnTypeName = "Engine No" },
-        new { columnTypeId = 5, columnTypeName = "Agreement No" },
-        new { columnTypeId = 6, columnTypeName = "Customer Name" },
-        new { columnTypeId = 7, columnTypeName = "Customer Address" },
-        new { columnTypeId = 8, columnTypeName = "Region" },
-        new { columnTypeId = 9, columnTypeName = "Area" },
+        new { columnTypeId = 1,  columnTypeName = "Vehicle No" },
+        new { columnTypeId = 2,  columnTypeName = "Chasis No" },
+        new { columnTypeId = 3,  columnTypeName = "Model" },
+        new { columnTypeId = 4,  columnTypeName = "Engine No" },
+        new { columnTypeId = 5,  columnTypeName = "Agreement No" },
+        new { columnTypeId = 6,  columnTypeName = "Customer Name" },
+        new { columnTypeId = 7,  columnTypeName = "Customer Address" },
+        new { columnTypeId = 8,  columnTypeName = "Region" },
+        new { columnTypeId = 9,  columnTypeName = "Area" },
         new { columnTypeId = 10, columnTypeName = "Bucket" },
         new { columnTypeId = 11, columnTypeName = "GV" },
         new { columnTypeId = 12, columnTypeName = "OD" },
@@ -298,284 +237,172 @@ app.MapGet("/api/Mapping/GetMappingDetails", async (IMongoDatabase db) =>
         new { columnTypeId = 23, columnTypeName = "Sec 17 Available" },
         new { columnTypeId = 24, columnTypeName = "TBR Flag" },
         new { columnTypeId = 25, columnTypeName = "Seasoning" },
-        new { columnTypeId = 26, columnTypeName = "Sender Mail Id 1" },
-        new { columnTypeId = 27, columnTypeName = "Sender Mail Id 2" },
         new { columnTypeId = 28, columnTypeName = "Executive Name" },
         new { columnTypeId = 29, columnTypeName = "POS" },
         new { columnTypeId = 30, columnTypeName = "TOSS" },
         new { columnTypeId = 31, columnTypeName = "Customer Contact Nos" },
         new { columnTypeId = 32, columnTypeName = "Remark" }
-    };
-
-    var mappings = new List<object>();
-
-    if (doc != null)
-    {
-        var fieldToId = new Dictionary<string, int>
-        {
-            { "rc_no", 1 }, { "chassis_no", 2 }, { "mek_and_model", 3 }, { "engine_no", 4 },
-            { "contract_no", 5 }, { "customer_name", 6 }, { "customer_address", 7 }, { "region", 8 },
-            { "area", 9 }, { "bkt", 10 }, { "gv", 11 }, { "od", 12 }, { "branch", 13 },
-            { "level1", 14 }, { "level1con", 15 }, { "level2", 16 }, { "level2con", 17 },
-            { "level3", 18 }, { "level3con", 19 }, { "level4", 20 }, { "level4con", 21 },
-            { "ses9", 22 }, { "ses17", 23 }, { "tbr", 24 }, { "seasoning", 25 },
-            { "ex_name", 28 }, { "poss", 29 }, { "toss", 30 }, { "customer_contact_nos", 31 }
-        };
-
-        int mappingId = 1;
-        foreach (var kvp in fieldToId)
-        {
-            if (doc.TryGetValue(kvp.Key, out var val) && val.IsBsonArray)
-            {
-                foreach (var item in val.AsBsonArray)
-                {
-                    if (item.IsString)
-                    {
-                        mappings.Add(new
-                        {
-                            mappingId = mappingId++,
-                            columnTypeId = kvp.Value,
-                            name = item.AsString
-                        });
-                    }
-                }
-            }
-        }
     }
+}));
 
-    return Results.Ok(new { mappings = mappings, columnTypes = columnTypes });
-});
+app.MapPost("/api/Mapping/UnMap", () => Results.Ok(new { message = "Unmapped." }));
+app.MapPost("/api/Mapping/CreateMapping", () => Results.Ok(new { mappingId = 999, columnTypeId = 1, name = "mapped" }));
 
-app.MapPost("/api/Mapping/UnMap", () =>
-    Results.Ok(new { message = "Unmapped." }));
-
-app.MapPost("/api/Mapping/CreateMapping", () =>
-    Results.Ok(new { mappingId = 999, columnTypeId = 1, name = "mapped" }));
-
-app.MapGet("/api/Branches/GetBranches/{financeId}", async (int financeId, IMongoDatabase db, IMemoryCache cache) =>
+app.MapGet("/api/Branches/GetBranches/{financeId}", async (int financeId) =>
 {
     try
     {
-        // First try: Get branches from Finance dashboard TopBranches
-        var dashboard = await GetCachedAsync(cache, "finance-dashboard", () => DashboardRepository.BuildFinanceDashboardAsync(db), 45);
-        
-        if (dashboard?.TopBranches != null && dashboard.TopBranches.Count > 0)
+        await using var conn = new MySqlConnection(connStr);
+        await conn.OpenAsync();
+        await using var cmd = new MySqlCommand(
+            "SELECT id, name, contact1, contact2 FROM branches WHERE finance_id = @fid AND is_active = 1 ORDER BY name LIMIT 100",
+            conn);
+        cmd.Parameters.AddWithValue("@fid", financeId);
+        var branches = new List<object>();
+        await using var reader = await cmd.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
         {
-            var branches = dashboard.TopBranches
-                .Select(b => new
-                {
-                    branchId = b.BranchId,
-                    branchName = b.BranchName,
-                    headOfficeName = b.HeadOfficeName
-                })
-                .Where(b => !string.IsNullOrWhiteSpace(b.branchId) && !string.IsNullOrWhiteSpace(b.branchName))
-                .OrderBy(b => b.branchName)
-                .ToList();
-
-            if (branches.Count > 0)
+            branches.Add(new
             {
-                return Results.Ok(branches);
-            }
+                branchId      = reader.GetInt32(0).ToString(),
+                branchName    = reader.IsDBNull(1) ? "" : reader.GetString(1),
+                headOfficeName = ""
+            });
         }
-
-        // Fallback: Query branches collection directly if dashboard has no branches
-        var branchesCollection = db.GetCollection<BsonDocument>("branches");
-        var branchDocs = await branchesCollection
-            .Find(Builders<BsonDocument>.Filter.Empty)
-            .Limit(100)
-            .ToListAsync();
-
-        if (branchDocs.Count == 0)
-        {
-            return Results.Ok(new List<object>());
-        }
-
-        var fallbackBranches = branchDocs
-            .Select(doc => new
-            {
-                branchId = GetBranchIdFromDoc(doc),
-                branchName = GetBranchNameFromDoc(doc),
-                headOfficeName = GetHeadOfficeFromDoc(doc)
-            })
-            .Where(b => !string.IsNullOrWhiteSpace(b.branchId) && !string.IsNullOrWhiteSpace(b.branchName))
-            .OrderBy(b => b.branchName)
-            .ToList();
-
-        return Results.Ok(fallbackBranches);
+        return Results.Ok(branches);
     }
     catch (Exception ex)
     {
-        return Results.BadRequest(new { message = "Error loading branches: " + ex.Message, exception = ex.ToString() });
+        return Results.BadRequest(new { message = "Error loading branches: " + ex.Message });
     }
 });
 
-static string GetBranchIdFromDoc(BsonDocument doc)
-{
-    foreach (var key in new[] { "BranchId", "branchId", "_id", "id" })
-    {
-        if (doc.TryGetValue(key, out var val) && !val.IsBsonNull)
-        {
-            return val.ToString();
-        }
-    }
-    return string.Empty;
-}
+app.MapGet("/api/Finances", async (IMemoryCache cache) =>
+    Results.Ok(await GetCachedAsync(cache, "finance-dashboard",
+        () => DashboardRepository.BuildFinanceDashboardAsync(connStr), 45)));
 
-static string GetBranchNameFromDoc(BsonDocument doc)
-{
-    foreach (var key in new[] { "BranchName", "branchName", "Name", "name" })
-    {
-        if (doc.TryGetValue(key, out var val) && !val.IsBsonNull)
-        {
-            return val.ToString();
-        }
-    }
-    return string.Empty;
-}
+app.MapGet("/api/AppUsers", async (IMemoryCache cache) =>
+    Results.Ok(await GetCachedAsync(cache, "users-dashboard",
+        () => DashboardRepository.BuildUsersDashboardAsync(connStr), 45)));
 
-static string GetHeadOfficeFromDoc(BsonDocument doc)
-{
-    foreach (var key in new[] { "HeadOfficeName", "headOfficeName", "HeadOffice", "headOffice" })
-    {
-        if (doc.TryGetValue(key, out var val) && !val.IsBsonNull)
-        {
-            return val.ToString();
-        }
-    }
-    return string.Empty;
-}
+app.MapGet("/api/Uploads", async (IMemoryCache cache) =>
+    Results.Ok(await GetCachedAsync(cache, "uploads-dashboard",
+        () => DashboardRepository.BuildUploadsDashboardAsync(connStr), 45)));
 
-// Debug endpoint to check database state
-app.MapGet("/api/Debug/BranchesCollection", async (IMongoDatabase db) =>
+app.MapGet("/api/DetailsViews", async (IMemoryCache cache) =>
+    Results.Ok(await GetCachedAsync(cache, "details-dashboard",
+        () => DashboardRepository.BuildDetailsDashboardAsync(connStr), 30)));
+
+app.MapGet("/api/OTPs", async (IMemoryCache cache) =>
+    Results.Ok(await GetCachedAsync(cache, "otp-dashboard",
+        () => DashboardRepository.BuildOtpDashboardAsync(connStr), 30)));
+
+app.MapGet("/api/Reports", async (IMemoryCache cache) =>
+    Results.Ok(await GetCachedAsync(cache, "reports-dashboard",
+        () => DashboardRepository.BuildReportsDashboardAsync(connStr), 60)));
+
+app.MapGet("/api/Payments", async (IMemoryCache cache) =>
+    Results.Ok(await GetCachedAsync(cache, "payments-dashboard",
+        () => DashboardRepository.BuildPaymentsDashboardAsync(connStr), 45)));
+
+app.MapGet("/api/PaymentMethods", async (IMemoryCache cache) =>
+    Results.Ok((await GetCachedAsync(cache, "payments-dashboard",
+        () => DashboardRepository.BuildPaymentsDashboardAsync(connStr), 45)).PaymentMethods));
+
+app.MapPost("/api/Confirmations", async (ConfirmationRequest req) =>
 {
     try
     {
-        var branchesCollection = db.GetCollection<BsonDocument>("branches");
-        var count = await branchesCollection.EstimatedDocumentCountAsync();
-        var sample = await branchesCollection.Find(Builders<BsonDocument>.Filter.Empty).Limit(3).ToListAsync();
-        
-        return Results.Ok(new
-        {
-            totalCount = count,
-            sampleRecords = sample.Select(doc => new
-            {
-                id = GetBranchIdFromDoc(doc),
-                name = GetBranchNameFromDoc(doc),
-                headOffice = GetHeadOfficeFromDoc(doc),
-                raw = doc.ToString()
-            }).ToList()
-        });
+        await using var conn = new MySqlConnection(connStr);
+        await conn.OpenAsync();
+        await using var cmd = new MySqlCommand(@"
+            INSERT INTO repoconformations
+                (vehicle_no,chassis_no,model,engine_no,customer_name,customer_contact_nos,
+                 customer_address,finance_name,branch_name,branch_contact_1,branch_contact_2,
+                 branch_contact_3,seizer_id,seizer_name,vehicle_contains_load,load_description,
+                 confirm_by,status,yard,apply_amt_credited,amount_credited,created_at,updated_at)
+            VALUES
+                (@vn,@cn,@m,@en,@cname,@ccontact,@caddr,@fname,@bname,@bc1,@bc2,@bc3,
+                 @sid,@sname,@vcl,@ld,@cb,@st,@yard,@aac,@ac,@now,@now);
+            SELECT LAST_INSERT_ID();", conn);
+        cmd.Parameters.AddWithValue("@vn",   req.VehicleNo);
+        cmd.Parameters.AddWithValue("@cn",   req.ChassisNo);
+        cmd.Parameters.AddWithValue("@m",    req.Model);
+        cmd.Parameters.AddWithValue("@en",   req.EngineNo);
+        cmd.Parameters.AddWithValue("@cname",req.CustomerName);
+        cmd.Parameters.AddWithValue("@ccontact", req.CustomerContactNos);
+        cmd.Parameters.AddWithValue("@caddr",req.CustomerAddress);
+        cmd.Parameters.AddWithValue("@fname",req.FinanceName);
+        cmd.Parameters.AddWithValue("@bname",req.BranchName);
+        cmd.Parameters.AddWithValue("@bc1",  req.BranchFirstContactDetails);
+        cmd.Parameters.AddWithValue("@bc2",  req.BranchSecondContactDetails);
+        cmd.Parameters.AddWithValue("@bc3",  req.BranchThirdContactDetails);
+        cmd.Parameters.AddWithValue("@sid",  req.SeizerId);
+        cmd.Parameters.AddWithValue("@sname",req.SeizerName);
+        cmd.Parameters.AddWithValue("@vcl",  req.VehicleContainsLoad);
+        cmd.Parameters.AddWithValue("@ld",   req.LoadDescription);
+        cmd.Parameters.AddWithValue("@cb",   req.ConfirmBy);
+        cmd.Parameters.AddWithValue("@st",   req.Status);
+        cmd.Parameters.AddWithValue("@yard", req.Yard);
+        cmd.Parameters.AddWithValue("@aac",  req.ApplyAmtCredited);
+        cmd.Parameters.AddWithValue("@ac",   (double)req.AmountCredited);
+        cmd.Parameters.AddWithValue("@now",  DateTime.UtcNow);
+        var id = Convert.ToInt32(await cmd.ExecuteScalarAsync());
+        return Results.Ok(new { id = id.ToString() });
     }
     catch (Exception ex)
     {
-        return Results.BadRequest(new { error = ex.Message });
+        return Results.BadRequest(new { message = ex.Message });
     }
 });
 
-app.MapGet("/api/Finances", async (IMongoDatabase db, IMemoryCache cache) =>
-    Results.Ok(await GetCachedAsync(cache, "finance-dashboard", () => DashboardRepository.BuildFinanceDashboardAsync(db), 45)));
-
-app.MapGet("/api/AppUsers", async (IMongoDatabase db, IMemoryCache cache) =>
-    Results.Ok(await GetCachedAsync(cache, "users-dashboard", () => DashboardRepository.BuildUsersDashboardAsync(db), 45)));
-
-app.MapGet("/api/Uploads", async (IMongoDatabase db, IMemoryCache cache) =>
-    Results.Ok(await GetCachedAsync(cache, "uploads-dashboard", () => DashboardRepository.BuildUploadsDashboardAsync(db), 45)));
-
-app.MapGet("/api/DetailsViews", async (IMongoDatabase db, IMemoryCache cache) =>
-    Results.Ok(await GetCachedAsync(cache, "details-dashboard", () => DashboardRepository.BuildDetailsDashboardAsync(db), 30)));
-
-app.MapGet("/api/OTPs", async (IMongoDatabase db, IMemoryCache cache) =>
-    Results.Ok(await GetCachedAsync(cache, "otp-dashboard", () => DashboardRepository.BuildOtpDashboardAsync(db), 30)));
-
-app.MapGet("/api/Reports", async (IMongoDatabase db, IMemoryCache cache) =>
-    Results.Ok(await GetCachedAsync(cache, "reports-dashboard", () => DashboardRepository.BuildReportsDashboardAsync(db), 60)));
-
-app.MapGet("/api/Payments", async (IMongoDatabase db, IMemoryCache cache) =>
-    Results.Ok(await GetCachedAsync(cache, "payments-dashboard", () => DashboardRepository.BuildPaymentsDashboardAsync(db), 45)));
-
-app.MapGet("/api/PaymentMethods", async (IMongoDatabase db, IMemoryCache cache) =>
-    Results.Ok((await GetCachedAsync(cache, "payments-dashboard", () => DashboardRepository.BuildPaymentsDashboardAsync(db), 45)).PaymentMethods));
-
-app.MapPost("/api/Confirmations", async (ConfirmationRequest req, IMongoDatabase db) =>
+app.MapGet("/api/Confirmations", async () =>
 {
-    var collection = db.GetCollection<BsonDocument>("repoconformations");
-    var doc = new BsonDocument
+    try
     {
-        { "vehicle_no", req.VehicleNo },
-        { "chassis_no", req.ChassisNo },
-        { "model", req.Model },
-        { "engine_no", req.EngineNo },
-        { "customer_name", req.CustomerName },
-        { "customer_contact_nos", req.CustomerContactNos },
-        { "customer_address", req.CustomerAddress },
-        { "finance_name", req.FinanceName },
-        { "branch_name", req.BranchName },
-        { "branch_contact_1", req.BranchFirstContactDetails },
-        { "branch_contact_2", req.BranchSecondContactDetails },
-        { "branch_contact_3", req.BranchThirdContactDetails },
-        { "seizer_id", req.SeizerId },
-        { "seizer_name", req.SeizerName },
-        { "vehicle_contains_load", req.VehicleContainsLoad },
-        { "load_description", req.LoadDescription },
-        { "confirm_by", req.ConfirmBy },
-        { "status", req.Status },
-        { "yard", req.Yard },
-        { "apply_amt_credited", req.ApplyAmtCredited },
-        { "amount_credited", (double)req.AmountCredited },
-        { "createdAt", DateTime.UtcNow },
-        { "updatedAt", DateTime.UtcNow }
-    };
-    await collection.InsertOneAsync(doc);
-    return Results.Ok(new { id = doc["_id"].ToString() });
+        await using var conn = new MySqlConnection(connStr);
+        await conn.OpenAsync();
+        await using var cmd = new MySqlCommand(
+            "SELECT id,vehicle_no,chassis_no,model,seizer_name,status,created_at FROM repoconformations ORDER BY created_at DESC",
+            conn);
+        var results = new List<ConfirmationResponseItem>();
+        await using var reader = await cmd.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            results.Add(new ConfirmationResponseItem
+            {
+                Id          = reader.GetInt32(0).ToString(),
+                VehicleNo   = reader.IsDBNull(1) ? "" : reader.GetString(1),
+                ChassisNo   = reader.IsDBNull(2) ? "" : reader.GetString(2),
+                Model       = reader.IsDBNull(3) ? "" : reader.GetString(3),
+                SeizerName  = reader.IsDBNull(4) ? "" : reader.GetString(4),
+                Status      = reader.IsDBNull(5) ? "" : reader.GetString(5),
+                ConfirmedOn = reader.IsDBNull(6) ? "" : reader.GetDateTime(6).ToLocalTime().ToString("dd-MM-yyyy")
+            });
+        }
+        return Results.Ok(results);
+    }
+    catch { return Results.Ok(new List<ConfirmationResponseItem>()); }
 });
 
-app.MapGet("/api/Confirmations", async (IMongoDatabase db) =>
-{
-    var collection = db.GetCollection<BsonDocument>("repoconformations");
-    var docs = await collection.Find(Builders<BsonDocument>.Filter.Empty)
-        .Sort(Builders<BsonDocument>.Sort.Descending("createdAt"))
-        .ToListAsync();
-
-    var results = docs.Select(doc => new ConfirmationResponseItem
-    {
-        Id = doc.GetValue("_id", ObjectId.Empty).ToString() ?? string.Empty,
-        VehicleNo = doc.GetValue("vehicle_no", "").AsString,
-        ChassisNo = doc.GetValue("chassis_no", "").AsString,
-        Model = doc.GetValue("model", "").AsString,
-        SeizerName = doc.GetValue("seizer_name", "").AsString,
-        Status = doc.GetValue("status", "").AsString,
-        ConfirmedOn = doc.TryGetValue("createdAt", out var dt) && dt.IsBsonDateTime
-            ? dt.ToUniversalTime().ToLocalTime().ToString("dd-MM-yyyy")
-            : ""
-    }).ToList();
-
-    return Results.Ok(results);
-});
-
-app.MapGet("/api/Modules/{moduleKey}", async (string moduleKey, IMongoDatabase db, IMemoryCache cache) =>
-    Results.Ok(await GetCachedAsync(cache, $"module-{moduleKey}", () => DashboardRepository.BuildModuleStatusAsync(db, moduleKey), 45)));
+app.MapGet("/api/Modules/{moduleKey}", async (string moduleKey, IMemoryCache cache) =>
+    Results.Ok(await GetCachedAsync(cache, $"module-{moduleKey}",
+        () => DashboardRepository.BuildModuleStatusAsync(connStr, moduleKey), 45)));
 
 app.MapGet("/", () => Results.Ok(new
 {
     name = "VK Enterprises API Server",
-    mode = "local",
+    mode = "mysql",
     port
 }));
 
 app.Run($"http://localhost:{port}");
 
-static async Task<T> GetCachedAsync<T>(
-    IMemoryCache cache,
-    string cacheKey,
-    Func<Task<T>> factory,
-    int seconds)
+static async Task<T> GetCachedAsync<T>(IMemoryCache cache, string key, Func<Task<T>> factory, int seconds)
 {
-    if (cache.TryGetValue(cacheKey, out T? cached) && cached is not null)
-    {
+    if (cache.TryGetValue(key, out T? cached) && cached is not null)
         return cached;
-    }
-
     var result = await factory();
-    cache.Set(cacheKey, result, TimeSpan.FromSeconds(seconds));
+    cache.Set(key, result, TimeSpan.FromSeconds(seconds));
     return result;
 }
