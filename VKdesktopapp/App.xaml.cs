@@ -12,6 +12,7 @@ namespace VRASDesktopApp;
 public partial class App : Application
 {
     public static HttpClient HttpClient = null!;
+    public static Task WarmUpTask { get; private set; } = Task.CompletedTask;
 
     public static string ApiBaseUrl => Settings.Default.ApiBaseUrl;
 
@@ -52,11 +53,9 @@ public partial class App : Application
         AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
         TaskScheduler.UnobservedTaskException += TaskScheduler_UnobservedTaskException;
 
-        // Pre-warm the MySQL connection pool in the background.
-        // By the time the user navigates to Finances, the TCP socket is already
-        // established and waiting in the pool — turning a 3-4 s cold connect
-        // into a sub-100 ms pool reuse.
-        _ = Data.MySqlFactory.WarmUpAsync();
+        // Pre-warm the MySQL connection pool. Stored so finance page can chain
+        // its preload after warmup completes, reusing the warm socket instantly.
+        WarmUpTask = Data.MySqlFactory.WarmUpAsync();
     }
 
     private void App_DispatcherUnhandledException(object? sender, System.Windows.Threading.DispatcherUnhandledExceptionEventArgs e)

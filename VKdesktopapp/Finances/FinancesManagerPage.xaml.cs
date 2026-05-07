@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
@@ -16,7 +17,12 @@ public partial class FinancesManagerPage : Page
         InitializeComponent();
         _financeRepo = new FinanceRepository();
         _branchRepo  = new BranchRepository();
-        _preloadFinancesTask = _financeRepo.GetFinancesAsync();
+        // Chain after warmup so finance query reuses the warm pooled connection (0 ms vs 4-5 s cold)
+        _preloadFinancesTask = App.WarmUpTask
+            .ContinueWith(_ => _financeRepo.GetFinancesAsync(), TaskScheduler.Default)
+            .Unwrap();
+        // Set once; filter manages what's visible — no ItemsSource swapping needed
+        dgBranches.ItemsSource = _displayedBranches;
     }
 
     private readonly FinanceRepository _financeRepo;
@@ -26,7 +32,10 @@ public partial class FinancesManagerPage : Page
 
     private List<FinanceListItem> _allFinances = new();
     private ICollectionView? _financesView;
-    private ICollectionView? _branchView;
+
+    // Branch search — ObservableCollection so the DataGrid ItemsSource never changes
+    private readonly ObservableCollection<BranchSummaryItem> _displayedBranches = new();
+    private List<BranchSummaryItem> _allCurrentBranches = new();
 
     private readonly Dictionary<int, List<BranchSummaryItem>> _branchCache = new();
     private int _loadingForFinanceId = -1;
@@ -127,26 +136,26 @@ public partial class FinancesManagerPage : Page
     //  Branch search — pure in-memory, 0 ms
     // ─────────────────────────────────────────────────────
 
-    private bool FilterBranch(object obj) =>
-        obj is BranchSummaryItem item &&
-        (string.IsNullOrEmpty(txtBranchSearch.Text) ||
-         item.BranchName.Contains(txtBranchSearch.Text, StringComparison.OrdinalIgnoreCase));
-
-    private void txtBranchSearch_TextChanged(object sender, TextChangedEventArgs e)
-        => _branchView?.Refresh();
-
     private void SetBranchItemsSource(List<BranchSummaryItem>? list)
     {
-        if (list == null)
-        {
-            _branchView            = null;
-            dgBranches.ItemsSource = null;
-            return;
-        }
-        _branchView = CollectionViewSource.GetDefaultView(list);
-        _branchView.Filter     = FilterBranch;
-        dgBranches.ItemsSource = _branchView;
+        _allCurrentBranches = list ?? new List<BranchSummaryItem>();
+        ApplyBranchFilter();
     }
+
+    private void ApplyBranchFilter()
+    {
+        var term = txtBranchSearch?.Text ?? string.Empty;
+        _displayedBranches.Clear();
+        foreach (var b in _allCurrentBranches)
+        {
+            if (string.IsNullOrEmpty(term) ||
+                b.BranchName.Contains(term, StringComparison.OrdinalIgnoreCase))
+                _displayedBranches.Add(b);
+        }
+    }
+
+    private void txtBranchSearch_TextChanged(object sender, TextChangedEventArgs e)
+        => ApplyBranchFilter();
 
     // ─────────────────────────────────────────────────────
     //  Branch loading — cached for instant 2nd+ clicks
@@ -387,7 +396,7 @@ public partial class FinancesManagerPage : Page
         if (!int.TryParse(bi.BranchId, out int branchId)) return;
 
         var result = MessageBox.Show(
-            $"Delete branch \"{bi.BranchName}\"?\n\nThe branch will be deactivated.",
+            $"Delete branch \"{bi.BranchName}\"?\n\nThis will permanently delete the branch and ALL its vehicle records.",
             "Delete Branch", MessageBoxButton.YesNo, MessageBoxImage.Warning);
         if (result != MessageBoxResult.Yes) return;
 

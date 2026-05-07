@@ -67,7 +67,29 @@ public class RecordsRepository
         var result = await bc.WriteToServerAsync(dt);
         int inserted = (int)result.RowsInserted;
 
-        // 4. Update branch metadata
+        // 4. Populate rc_info / chassis_info for instant vehicle search
+        // Wrapped separately so a missing table never aborts the upload.
+        try
+        {
+            await using var rcIns = new MySqlCommand(@"
+                INSERT INTO rc_info (vehicle_record_id, rc_number, model, last4)
+                SELECT id, vehicle_no, COALESCE(model,''), RIGHT(vehicle_no, 4)
+                FROM   vehicle_records
+                WHERE  branch_id = @bid AND vehicle_no IS NOT NULL AND vehicle_no != ''", conn);
+            rcIns.Parameters.AddWithValue("@bid", branchId);
+            await rcIns.ExecuteNonQueryAsync();
+
+            await using var chIns = new MySqlCommand(@"
+                INSERT INTO chassis_info (vehicle_record_id, chassis_number, model, last5)
+                SELECT id, chassis_no, COALESCE(model,''), RIGHT(chassis_no, 5)
+                FROM   vehicle_records
+                WHERE  branch_id = @bid AND chassis_no IS NOT NULL AND chassis_no != ''", conn);
+            chIns.Parameters.AddWithValue("@bid", branchId);
+            await chIns.ExecuteNonQueryAsync();
+        }
+        catch { /* rc_info/chassis_info tables may not exist yet — upload still succeeds */ }
+
+        // 5. Update branch metadata
         await using var upd = new MySqlCommand(
             "UPDATE branches SET total_records = @cnt, uploaded_at = NOW() WHERE id = @bid", conn);
         upd.Parameters.AddWithValue("@cnt", inserted);
