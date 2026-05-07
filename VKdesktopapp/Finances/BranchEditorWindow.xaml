@@ -1,0 +1,120 @@
+<Window x:Class="VRASDesktopApp.Finances.BranchEditorWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Branch" Height="460" Width="540"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        Style="{StaticResource ChromeWindow}"
+        Background="{StaticResource Gray50}">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="56" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Title bar -->
+        <Border Grid.Row="0"
+                Background="White"
+                BorderBrush="{StaticResource Gray200}"
+                BorderThickness="0,0,0,1">
+            <DockPanel Margin="20,0">
+                <Button DockPanel.Dock="Right"
+                        Content="&#xE8BB;"
+                        FontFamily="Segoe MDL2 Assets"
+                        FontSize="14"
+                        Width="32" Height="32"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        Foreground="{StaticResource Gray500}"
+                        Cursor="Hand"
+                        Click="btnCancel_Click"
+                        WindowChrome.IsHitTestVisibleInChrome="True" />
+                <TextBlock Text="Add Branch"
+                           Style="{StaticResource Heading6}"
+                           VerticalAlignment="Center" />
+            </DockPanel>
+        </Border>
+
+        <!-- Form body -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <Grid Margin="24,20,24,12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="145" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="Branch Name *"
+                           Style="{StaticResource FormHeading}" VerticalAlignment="Center" />
+                <TextBox Grid.Row="0" Grid.Column="1" x:Name="txtBranchName"
+                         Style="{StaticResource MaterialTextBox}" Margin="0,0,0,10" />
+
+                <TextBlock Grid.Row="1" Grid.Column="0" Text="Finance / Head office"
+                           Style="{StaticResource FormHeading}" VerticalAlignment="Center" />
+                <TextBox Grid.Row="1" Grid.Column="1" x:Name="txtFinanceName"
+                         Style="{StaticResource MaterialTextBox}" Margin="0,0,0,10"
+                         IsReadOnly="True" Background="{StaticResource Gray100}"
+                         Foreground="{StaticResource Gray500}" />
+
+                <TextBlock Grid.Row="2" Grid.Column="0" Text="Contact (primary)"
+                           Style="{StaticResource FormHeading}" VerticalAlignment="Center" />
+                <TextBox Grid.Row="2" Grid.Column="1" x:Name="txtContact1"
+                         Style="{StaticResource MaterialTextBox}" Margin="0,0,0,10" />
+
+                <TextBlock Grid.Row="3" Grid.Column="0" Text="Contact (secondary)"
+                           Style="{StaticResource FormHeading}" VerticalAlignment="Center" />
+                <TextBox Grid.Row="3" Grid.Column="1" x:Name="txtContact2"
+                         Style="{StaticResource MaterialTextBox}" Margin="0,0,0,10" />
+
+                <TextBlock Grid.Row="4" Grid.Column="0" Text="Contact (other)"
+                           Style="{StaticResource FormHeading}" VerticalAlignment="Center" />
+                <TextBox Grid.Row="4" Grid.Column="1" x:Name="txtContact3"
+                         Style="{StaticResource MaterialTextBox}" Margin="0,0,0,10" />
+
+                <TextBlock Grid.Row="5" Grid.Column="0" Text="Branch Code"
+                           Style="{StaticResource FormHeading}" VerticalAlignment="Center" />
+                <TextBox Grid.Row="5" Grid.Column="1" x:Name="txtBranchCode"
+                         Style="{StaticResource MaterialTextBox}" Margin="0,0,0,10" />
+
+                <TextBlock Grid.Row="6" Grid.Column="0" Text="Address / Notes"
+                           Style="{StaticResource FormHeading}" VerticalAlignment="Top"
+                           Margin="0,10,0,0" />
+                <TextBox Grid.Row="6" Grid.Column="1" x:Name="txtAddress"
+                         Style="{StaticResource MaterialTextBox}" Margin="0,0,0,10"
+                         Height="80" TextWrapping="Wrap" AcceptsReturn="True"
+                         VerticalScrollBarVisibility="Auto" />
+            </Grid>
+        </ScrollViewer>
+
+        <!-- Footer actions -->
+        <Border Grid.Row="2"
+                Background="White"
+                BorderBrush="{StaticResource Gray200}"
+                BorderThickness="0,1,0,0"
+                Padding="20,12">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button x:Name="btnCancel"
+                        Content="Cancel"
+                        Style="{StaticResource SecondaryButton}"
+                        Width="100" Height="36"
+                        Margin="0,0,10,0"
+                        Click="btnCancel_Click" />
+                <Button x:Name="btnSave"
+                        Content="Save Branch"
+                        Style="{StaticResource PrimaryButton}"
+                        Width="130" Height="36"
+                        Click="btnSave_Click" />
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>

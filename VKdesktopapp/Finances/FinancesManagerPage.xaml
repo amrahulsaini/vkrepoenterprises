@@ -5,115 +5,392 @@
     Background="{StaticResource Gray50}"
     FontFamily="Segoe UI"
     Loaded="Page_Loaded">
-    <Grid Margin="20">
+
+    <Page.Resources>
+
+        <!-- Orange "+" circle button -->
+        <Style x:Key="PlusIconButton" TargetType="Button">
+            <Setter Property="Width" Value="30" />
+            <Setter Property="Height" Value="30" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="brd"
+                                Background="{StaticResource Orange500}"
+                                CornerRadius="15"
+                                Width="30" Height="30">
+                            <TextBlock Text="+"
+                                       FontSize="19" FontWeight="Light"
+                                       Foreground="White"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"
+                                       Margin="0,-1,0,0" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="brd" Property="Background" Value="{StaticResource Orange600}" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="brd" Property="Background" Value="{StaticResource Orange700}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Row: orange hover + selected -->
+        <Style x:Key="GridRowStyle" TargetType="DataGridRow">
+            <Setter Property="Height" Value="42" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{StaticResource Primary50}" />
+                    <Setter Property="Cursor" Value="Hand" />
+                </Trigger>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="{StaticResource Primary100}" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Cell: remove system-blue selection -->
+        <Style x:Key="GridCellStyle" TargetType="DataGridCell">
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="14,0" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="DataGridCell">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderThickness="0"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter VerticalAlignment="Center" />
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="{StaticResource Primary100}" />
+                    <Setter Property="Foreground" Value="{StaticResource Gray900}" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Column header with bottom accent line -->
+        <Style x:Key="ColHeaderStyle" TargetType="DataGridColumnHeader">
+            <Setter Property="Height" Value="40" />
+            <Setter Property="Background" Value="{StaticResource Gray50}" />
+            <Setter Property="Foreground" Value="{StaticResource Gray600}" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Padding" Value="14,0,6,0" />
+            <Setter Property="HorizontalContentAlignment" Value="Left" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="DataGridColumnHeader">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{StaticResource Gray200}"
+                                BorderThickness="0,0,0,2"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter VerticalAlignment="Center" />
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Transparent inline TextBox (search field) -->
+        <Style x:Key="InlineTextBox" TargetType="TextBox">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Padding" Value="0,8" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border Background="Transparent">
+                            <ScrollViewer x:Name="PART_ContentHost" />
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+    </Page.Resources>
+
+    <Grid Margin="24,20,24,20">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <Border Grid.Row="0" Style="{StaticResource DashboardCard}">
-            <StackPanel>
-                <TextBlock Text="FINANCE NETWORK" Style="{StaticResource Heading4}" />
-                <TextBlock Text="Head offices, branches, bank upload channels and record volumes."
-                           Margin="0,6,0,0"
-                           Style="{StaticResource Caption}" />
-            </StackPanel>
-        </Border>
+        <!-- Page header -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,18">
+            <TextBlock Text="Finances" Style="{StaticResource Heading4}" />
+            <TextBlock Text="Manage finance companies and their branches"
+                       Style="{StaticResource Caption}" Margin="0,2,0,0" />
+        </StackPanel>
 
-        <UniformGrid Grid.Row="1" Columns="4" Margin="0,18,0,18">
-            <Border Style="{StaticResource DashboardCard}" Margin="0,0,12,0">
-                <StackPanel>
-                    <TextBlock Text="HEAD OFFICES" Style="{StaticResource FormHeading}" />
-                    <TextBlock Name="lblHeadOffices" Style="{StaticResource StatValue}" Text="0" />
-                </StackPanel>
-            </Border>
-            <Border Style="{StaticResource DashboardCard}" Margin="0,0,12,0">
-                <StackPanel>
-                    <TextBlock Text="BRANCHES" Style="{StaticResource FormHeading}" />
-                    <TextBlock Name="lblBranches" Style="{StaticResource StatValue}" Text="0" />
-                </StackPanel>
-            </Border>
-            <Border Style="{StaticResource DashboardCard}" Margin="0,0,12,0">
-                <StackPanel>
-                    <TextBlock Text="RECORDS" Style="{StaticResource FormHeading}" />
-                    <TextBlock Name="lblRecords" Style="{StaticResource StatValue}" Text="0" />
-                </StackPanel>
-            </Border>
-            <Border Style="{StaticResource DashboardCard}">
-                <StackPanel>
-                    <TextBlock Text="UPLOADS" Style="{StaticResource FormHeading}" />
-                    <TextBlock Name="lblUploads" Style="{StaticResource StatValue}" Text="0" />
-                </StackPanel>
-            </Border>
-        </UniformGrid>
-
-        <Grid Grid.Row="2">
+        <!-- Two-column layout -->
+        <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="1.3*" />
+                <ColumnDefinition Width="1.15*" />
                 <ColumnDefinition Width="16" />
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
-            <Border Grid.Column="0" Style="{StaticResource DashboardCard}">
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="*" />
-                    </Grid.RowDefinitions>
-                    <TextBlock Text="TOP BRANCHES" Style="{StaticResource Heading5}" Margin="0,0,0,12" />
-                    <DataGrid Name="dgBranches" Grid.Row="1" Style="{StaticResource MaterialDataGrid}">
-                        <DataGrid.Columns>
-                            <DataGridTextColumn Header="Branch" Binding="{Binding BranchName}" Width="*" />
-                            <DataGridTextColumn Header="Head Office" Binding="{Binding HeadOfficeName}" Width="*" />
-                            <DataGridTextColumn Header="Records" Binding="{Binding Records}" Width="100" />
-                            <DataGridTextColumn Header="Contact" Binding="{Binding ContactMobile}" Width="120" />
-                            <DataGridTextColumn Header="Updated" Binding="{Binding UpdatedOn}" Width="140" />
-                        </DataGrid.Columns>
-                    </DataGrid>
-                </Grid>
+            <!-- ═══════════════════════════════════
+                 LEFT — Finance list
+            ═══════════════════════════════════ -->
+            <Border Grid.Column="0" Style="{StaticResource DashboardCard}" Padding="0">
+                <DockPanel LastChildFill="True">
+
+                    <!-- Panel header -->
+                    <Border DockPanel.Dock="Top"
+                            Background="White"
+                            BorderBrush="{StaticResource Gray100}"
+                            BorderThickness="0,0,0,1"
+                            CornerRadius="8,8,0,0"
+                            Padding="16,12">
+                        <DockPanel>
+                            <Button Name="btnAddFinance"
+                                    DockPanel.Dock="Right"
+                                    Style="{StaticResource PlusIconButton}"
+                                    ToolTip="New Finance"
+                                    Click="btnAddFinance_Click" />
+                            <TextBlock Text="Finance / Head Offices"
+                                       Style="{StaticResource Heading6}"
+                                       VerticalAlignment="Center" />
+                        </DockPanel>
+                    </Border>
+
+                    <!-- Search box -->
+                    <Border DockPanel.Dock="Top"
+                            Margin="14,10,14,2"
+                            Background="{StaticResource Gray50}"
+                            BorderBrush="{StaticResource Gray300}"
+                            BorderThickness="1"
+                            CornerRadius="6">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0"
+                                       Text="&#xE721;"
+                                       FontFamily="Segoe MDL2 Assets"
+                                       FontSize="13"
+                                       Foreground="{StaticResource Gray400}"
+                                       VerticalAlignment="Center"
+                                       Margin="10,0,6,0" />
+                            <Grid Grid.Column="1">
+                                <TextBox Name="txtSearch"
+                                         Style="{StaticResource InlineTextBox}"
+                                         TextChanged="txtSearch_TextChanged" />
+                                <TextBlock Text="Search finances..."
+                                           FontSize="13"
+                                           Foreground="{StaticResource Gray400}"
+                                           VerticalAlignment="Center"
+                                           IsHitTestVisible="False">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding Text, ElementName=txtSearch}" Value="">
+                                                    <Setter Property="Visibility" Value="Visible" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </Grid>
+                        </Grid>
+                    </Border>
+
+                    <!-- DataGrid + scoped spinner (stacked in a Grid) -->
+                    <Grid Margin="14,6,14,14">
+
+                        <DataGrid Name="dgFinances"
+                                  Style="{StaticResource MaterialDataGrid}"
+                                  AutoGenerateColumns="False"
+                                  SelectionMode="Single"
+                                  RowStyle="{StaticResource GridRowStyle}"
+                                  CellStyle="{StaticResource GridCellStyle}"
+                                  ColumnHeaderStyle="{StaticResource ColHeaderStyle}"
+                                  SelectionChanged="dgFinances_SelectionChanged"
+                                  VirtualizingPanel.IsVirtualizing="True"
+                                  VirtualizingPanel.VirtualizationMode="Recycling"
+                                  EnableRowVirtualization="True"
+                                  BorderThickness="0"
+                                  GridLinesVisibility="Horizontal"
+                                  HorizontalGridLinesBrush="{StaticResource Gray100}">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Finance Name"
+                                                    Binding="{Binding Name}"
+                                                    Width="*"
+                                                    ElementStyle="{StaticResource Body1}" />
+                                <DataGridTextColumn Header="Branches"
+                                                    Binding="{Binding BranchCount}"
+                                                    Width="100" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+
+                        <!-- Scoped loading overlay — covers only this DataGrid area -->
+                        <Grid x:Name="financeLoadingGrid"
+                              Visibility="Collapsed"
+                              Background="#CCFAFAFA"
+                              Panel.ZIndex="100">
+                            <Border Width="68" Height="68"
+                                    CornerRadius="10"
+                                    Background="White"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center">
+                                <Border.Effect>
+                                    <DropShadowEffect BlurRadius="20" Opacity="0.10" ShadowDepth="4" />
+                                </Border.Effect>
+                                <Grid Width="38" Height="38">
+                                    <Ellipse Stroke="{StaticResource Gray200}"
+                                             StrokeThickness="4" Fill="Transparent" />
+                                    <Path Stroke="{StaticResource Orange500}"
+                                          StrokeThickness="4"
+                                          StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                                          Fill="Transparent"
+                                          Data="M19,2 A17,17 0 0,1 36,19">
+                                        <Path.RenderTransform>
+                                            <RotateTransform x:Name="financeSpinnerRot"
+                                                             CenterX="19" CenterY="19" />
+                                        </Path.RenderTransform>
+                                        <Path.Triggers>
+                                            <EventTrigger RoutedEvent="FrameworkElement.Loaded">
+                                                <BeginStoryboard>
+                                                    <Storyboard RepeatBehavior="Forever">
+                                                        <DoubleAnimation
+                                                            Storyboard.TargetName="financeSpinnerRot"
+                                                            Storyboard.TargetProperty="Angle"
+                                                            From="0" To="360"
+                                                            Duration="0:0:0.75" />
+                                                    </Storyboard>
+                                                </BeginStoryboard>
+                                            </EventTrigger>
+                                        </Path.Triggers>
+                                    </Path>
+                                </Grid>
+                            </Border>
+                        </Grid>
+
+                    </Grid>
+                </DockPanel>
             </Border>
 
-            <Grid Grid.Column="2">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="*" />
-                    <RowDefinition Height="16" />
-                    <RowDefinition Height="*" />
-                </Grid.RowDefinitions>
+            <!-- ═══════════════════════════════════
+                 RIGHT — Branch list
+            ═══════════════════════════════════ -->
+            <Border Grid.Column="2" Style="{StaticResource DashboardCard}" Padding="0">
+                <DockPanel LastChildFill="True">
 
-                <Border Style="{StaticResource DashboardCard}">
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="*" />
-                        </Grid.RowDefinitions>
-                        <TextBlock Text="RECENT FILE UPLOADS" Style="{StaticResource Heading5}" Margin="0,0,0,12" />
-                        <DataGrid Name="dgUploads" Grid.Row="1" Style="{StaticResource MaterialDataGrid}">
+                    <!-- Panel header -->
+                    <Border DockPanel.Dock="Top"
+                            Background="White"
+                            BorderBrush="{StaticResource Gray100}"
+                            BorderThickness="0,0,0,1"
+                            CornerRadius="8,8,0,0"
+                            Padding="16,12">
+                        <DockPanel>
+                            <Button Name="btnAddBranch"
+                                    DockPanel.Dock="Right"
+                                    Style="{StaticResource PlusIconButton}"
+                                    ToolTip="New Branch"
+                                    Click="btnAddBranch_Click" />
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="Branches" Style="{StaticResource Heading6}" />
+                                <TextBlock Name="txtBranchSubtitle"
+                                           Text="Select a finance to view branches"
+                                           Style="{StaticResource Caption}"
+                                           Margin="0,2,0,0" />
+                            </StackPanel>
+                        </DockPanel>
+                    </Border>
+
+                    <!-- DataGrid + scoped spinner -->
+                    <Grid Margin="14,10,14,14">
+
+                        <DataGrid Name="dgBranches"
+                                  Style="{StaticResource MaterialDataGrid}"
+                                  AutoGenerateColumns="False"
+                                  RowStyle="{StaticResource GridRowStyle}"
+                                  CellStyle="{StaticResource GridCellStyle}"
+                                  ColumnHeaderStyle="{StaticResource ColHeaderStyle}"
+                                  VirtualizingPanel.IsVirtualizing="True"
+                                  VirtualizingPanel.VirtualizationMode="Recycling"
+                                  EnableRowVirtualization="True"
+                                  BorderThickness="0"
+                                  GridLinesVisibility="Horizontal"
+                                  HorizontalGridLinesBrush="{StaticResource Gray100}">
                             <DataGrid.Columns>
-                                <DataGridTextColumn Header="File" Binding="{Binding FileName}" Width="*" />
-                                <DataGridTextColumn Header="Bank" Binding="{Binding BankName}" Width="*" />
-                                <DataGridTextColumn Header="Created" Binding="{Binding CreatedOn}" Width="140" />
+                                <DataGridTextColumn Header="Branch Name"
+                                                    Binding="{Binding BranchName}"
+                                                    Width="*"
+                                                    ElementStyle="{StaticResource Body1}" />
+                                <DataGridTextColumn Header="Uploaded"
+                                                    Binding="{Binding UpdatedOn}"
+                                                    Width="150" />
+                                <DataGridTextColumn Header="Records"
+                                                    Binding="{Binding Records}"
+                                                    Width="90" />
                             </DataGrid.Columns>
                         </DataGrid>
-                    </Grid>
-                </Border>
 
-                <Border Grid.Row="2" Style="{StaticResource DashboardCard}">
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="*" />
-                        </Grid.RowDefinitions>
-                        <TextBlock Text="CONNECTED BANKS" Style="{StaticResource Heading5}" Margin="0,0,0,12" />
-                        <DataGrid Name="dgBanks" Grid.Row="1" Style="{StaticResource MaterialDataGrid}">
-                            <DataGrid.Columns>
-                                <DataGridTextColumn Header="Bank" Binding="{Binding Name}" Width="*" />
-                                <DataGridTextColumn Header="Type" Binding="{Binding Detail}" Width="*" />
-                            </DataGrid.Columns>
-                        </DataGrid>
+                        <!-- Scoped loading overlay — covers only this DataGrid area -->
+                        <Grid x:Name="branchLoadingGrid"
+                              Visibility="Collapsed"
+                              Background="#CCFAFAFA"
+                              Panel.ZIndex="100">
+                            <Border Width="68" Height="68"
+                                    CornerRadius="10"
+                                    Background="White"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center">
+                                <Border.Effect>
+                                    <DropShadowEffect BlurRadius="20" Opacity="0.10" ShadowDepth="4" />
+                                </Border.Effect>
+                                <Grid Width="38" Height="38">
+                                    <Ellipse Stroke="{StaticResource Gray200}"
+                                             StrokeThickness="4" Fill="Transparent" />
+                                    <Path Stroke="{StaticResource Orange500}"
+                                          StrokeThickness="4"
+                                          StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                                          Fill="Transparent"
+                                          Data="M19,2 A17,17 0 0,1 36,19">
+                                        <Path.RenderTransform>
+                                            <RotateTransform x:Name="branchSpinnerRot"
+                                                             CenterX="19" CenterY="19" />
+                                        </Path.RenderTransform>
+                                        <Path.Triggers>
+                                            <EventTrigger RoutedEvent="FrameworkElement.Loaded">
+                                                <BeginStoryboard>
+                                                    <Storyboard RepeatBehavior="Forever">
+                                                        <DoubleAnimation
+                                                            Storyboard.TargetName="branchSpinnerRot"
+                                                            Storyboard.TargetProperty="Angle"
+                                                            From="0" To="360"
+                                                            Duration="0:0:0.75" />
+                                                    </Storyboard>
+                                                </BeginStoryboard>
+                                            </EventTrigger>
+                                        </Path.Triggers>
+                                    </Path>
+                                </Grid>
+                            </Border>
+                        </Grid>
+
                     </Grid>
-                </Border>
-            </Grid>
+                </DockPanel>
+            </Border>
         </Grid>
     </Grid>
 </Page>

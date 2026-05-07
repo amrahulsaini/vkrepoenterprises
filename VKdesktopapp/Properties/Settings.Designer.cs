@@ -15,7 +15,7 @@ namespace VRASDesktopApp.Properties
 
         [UserScopedSetting]
         [DebuggerNonUserCode]
-        [DefaultSettingValue("http://localhost:5002/")]
+        [DefaultSettingValue("https://api.characterverse.tech/")]
         public string ApiBaseUrl
         {
             get => (string)this[nameof(ApiBaseUrl)];
