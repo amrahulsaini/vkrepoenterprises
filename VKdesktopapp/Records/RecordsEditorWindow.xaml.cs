@@ -196,8 +196,12 @@ public partial class RecordsEditorWindow : RibbonWindow
         await EnsureMappingDetailsLoadedAsync();
         var openFileDialog = new Microsoft.Win32.OpenFileDialog
         {
-            Filter = "Excel Files|*.xls;*.xlsx;*.xlsm;*.csv",
-            Title  = "Select an Excel File"
+            Filter      = "All Excel Files|*.xls;*.xlsx;*.xlsm;*.xlam;*.xlt;*.xltx;*.xltm;*.csv" +
+                          "|Excel Workbook (*.xlsx)|*.xlsx" +
+                          "|Excel 97-2003 Workbook (*.xls)|*.xls" +
+                          "|CSV (Comma delimited)|*.csv",
+            FilterIndex = 1,
+            Title       = "Select an Excel File"
         };
         if (openFileDialog.ShowDialog() == true)
             sp.Open(openFileDialog.FileName);

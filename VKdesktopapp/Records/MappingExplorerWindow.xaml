@@ -61,16 +61,54 @@
                 </Grid.ColumnDefinitions>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
                     <RowDefinition Height="*" />
                 </Grid.RowDefinitions>
-                <TextBlock
-                    x:Name="lblTitle"
-                    Text="Columns"
-                    Style="{StaticResource Heading4}"
-                    Margin="16,8,16,8" />
+                <!-- Column type header + Add button -->
+                <Grid Margin="16,8,8,8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock x:Name="lblTitle" Text="Columns" Style="{StaticResource Heading4}" VerticalAlignment="Center" />
+                    <Button Grid.Column="1"
+                            x:Name="btnAddColumnType"
+                            Width="28" Height="28"
+                            FontSize="18" FontWeight="Light"
+                            Content="+" Cursor="Hand"
+                            Background="{StaticResource Orange500}"
+                            Foreground="White" BorderThickness="0"
+                            ToolTip="Add new column type"
+                            Click="btnAddColumnType_Click" />
+                </Grid>
+                <!-- Inline: add new column type -->
+                <Border x:Name="brdNewColumnType"
+                        Grid.Row="1"
+                        Visibility="Collapsed"
+                        Margin="8,0,8,6"
+                        Padding="8,6"
+                        Background="#FFF9F3EC"
+                        BorderBrush="{StaticResource Orange500}"
+                        BorderThickness="1"
+                        CornerRadius="5">
+                    <DockPanel>
+                        <Button DockPanel.Dock="Right" Content="✓" Width="28" Height="28"
+                                Margin="4,0,0,0" Cursor="Hand" FontSize="14"
+                                Background="{StaticResource Orange500}" Foreground="White" BorderThickness="0"
+                                Click="btnSaveColumnType_Click" />
+                        <Button DockPanel.Dock="Right" Content="✕" Width="28" Height="28"
+                                Margin="4,0,0,0" Cursor="Hand" FontSize="14"
+                                Background="#FFD3D3D3" Foreground="#FF333333" BorderThickness="0"
+                                Click="btnCancelColumnType_Click" />
+                        <TextBox x:Name="txtNewColumnType"
+                                 FontSize="13" Padding="6,4"
+                                 PlaceholderText="New column name…"
+                                 KeyDown="txtNewColumnType_KeyDown" />
+                    </DockPanel>
+                </Border>
                 <DataGrid
                     x:Name="gvColumns"
-                    Grid.Row="1"
+                    Grid.Row="2"
                     Margin="0,8,0,0"
                     Background="#FFF"
                     BorderBrush="#00FFFFFF"
@@ -129,13 +167,48 @@
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="*" />
                 </Grid.RowDefinitions>
-                <Grid Margin="16,8,16,8">
+                <!-- Aliases header + Add button -->
+                <Grid Margin="16,8,8,8">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="Mappings" Style="{StaticResource Heading4}" />
+                    <TextBlock Grid.Column="0" Text="Aliases" Style="{StaticResource Heading4}" VerticalAlignment="Center" />
+                    <Button Grid.Column="1"
+                            x:Name="btnAddAlias"
+                            Width="28" Height="28"
+                            FontSize="18" FontWeight="Light"
+                            Content="+" Cursor="Hand"
+                            Background="{StaticResource Orange500}"
+                            Foreground="White" BorderThickness="0"
+                            ToolTip="Add alias for selected column"
+                            Click="btnAddAlias_Click" />
                 </Grid>
+                <!-- Inline: add new alias -->
+                <Border x:Name="brdNewAlias"
+                        Grid.Row="1"
+                        Visibility="Collapsed"
+                        Margin="8,0,8,6"
+                        Padding="8,6"
+                        Background="#FFF9F3EC"
+                        BorderBrush="{StaticResource Orange500}"
+                        BorderThickness="1"
+                        CornerRadius="5">
+                    <DockPanel>
+                        <Button DockPanel.Dock="Right" Content="✓" Width="28" Height="28"
+                                Margin="4,0,0,0" Cursor="Hand" FontSize="14"
+                                Background="{StaticResource Orange500}" Foreground="White" BorderThickness="0"
+                                Click="btnSaveAlias_Click" />
+                        <Button DockPanel.Dock="Right" Content="✕" Width="28" Height="28"
+                                Margin="4,0,0,0" Cursor="Hand" FontSize="14"
+                                Background="#FFD3D3D3" Foreground="#FF333333" BorderThickness="0"
+                                Click="btnCancelAlias_Click" />
+                        <TextBox x:Name="txtNewAlias"
+                                 FontSize="13" Padding="6,4"
+                                 PlaceholderText="New alias (raw header text)…"
+                                 KeyDown="txtNewAlias_KeyDown" />
+                    </DockPanel>
+                </Border>
                 <DataGrid
                     x:Name="gvMappings"
                     Grid.Row="2"

@@ -63,4 +63,15 @@ public class MappingRepository
         cmd.Parameters.AddWithValue("@id", mappingId);
         await cmd.ExecuteNonQueryAsync();
     }
+
+    public async Task<ColumnType> CreateColumnTypeAsync(string name)
+    {
+        await using var conn = MySqlFactory.CreateConnection();
+        await conn.OpenAsync();
+        const string sql = "INSERT INTO column_types (name) VALUES (@name); SELECT LAST_INSERT_ID();";
+        await using var cmd = new MySqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("@name", name.Trim());
+        var id = Convert.ToInt32(await cmd.ExecuteScalarAsync());
+        return new ColumnType { ColumnTypeId = id, ColumnTypeName = name.Trim() };
+    }
 }

@@ -95,7 +95,7 @@ VALUES (@fid, @name, @c1, @c2, @c3, @addr, @bcode, @city, @state, @postal, @note
     {
         await using var conn = MySqlFactory.CreateConnection();
         await conn.OpenAsync();
-        const string sql = "UPDATE branches SET is_active = 0 WHERE id = @id";
+        const string sql = "DELETE FROM branches WHERE id = @id";
         await using var cmd = new MySqlCommand(sql, conn);
         cmd.Parameters.AddWithValue("@id", id);
         await cmd.ExecuteNonQueryAsync();
