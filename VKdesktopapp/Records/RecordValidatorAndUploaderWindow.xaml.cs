@@ -262,14 +262,19 @@ public partial class RecordValidatorAndUploaderWindow : Window
         txtPBR.Visibility      = Visibility.Visible;
         pbr.Visibility         = Visibility.Visible;
         pbr.IsIndeterminate    = true;
-        txtPBR.Text            = $"Uploading {_records.Count} records to {SelectedBranch.BranchName}...";
+        txtPBR.Text            = "Preparing records...";
+
+        var validRecords = _records.Where(r => RcRegex.IsMatch(r.FormatedVehicleNo)).ToList();
+        var skipped      = _records.Count - validRecords.Count;
+        txtPBR.Text = $"Uploading {validRecords.Count} valid records to {SelectedBranch.BranchName}...";
 
         try
         {
-            var inserted = await _recordsRepo.UploadRecordsAsync(branchId, _records);
+            var inserted = await _recordsRepo.UploadRecordsAsync(branchId, validRecords);
             txtPBR.Text = $"✓ {inserted} records saved successfully!";
+            var skipNote = skipped > 0 ? $"\n\n{skipped} invalid record(s) were skipped." : string.Empty;
             MessageBox.Show(
-                $"{inserted} records have been saved to branch \"{SelectedBranch.BranchName}\".\n\nPrevious records for this branch were replaced.",
+                $"{inserted} records have been saved to branch \"{SelectedBranch.BranchName}\".\n\nPrevious records for this branch were replaced.{skipNote}",
                 "Upload Success", MessageBoxButton.OK, MessageBoxImage.Information);
         }
         catch (Exception ex)

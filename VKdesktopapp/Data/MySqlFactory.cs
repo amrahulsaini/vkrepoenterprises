@@ -29,7 +29,8 @@ public static class MySqlFactory
             ConnectionIdleTimeout = 300,  // keep idle connections alive 5 min
             ConnectionReset      = false, // skip COM_CHANGE_USER on pool reuse (~5ms saved)
             ConnectionTimeout    = 8,     // generous enough for remote servers
-            DefaultCommandTimeout = 30
+            DefaultCommandTimeout = 30,
+            AllowLoadLocalInfile  = true  // enables LOAD DATA LOCAL INFILE path in MySqlBulkCopy
         }.ConnectionString;
 
         return new MySqlConnection(cs);
