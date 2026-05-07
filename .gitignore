@@ -22,3 +22,5 @@ packages/
 # Local environment
 db/.env
 db/.env.local
+.env
+
