@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using MySqlConnector;
 using VKmobileapi.Models;
 
@@ -5,6 +6,17 @@ namespace VKmobileapi.Data;
 
 public class MobileRepository
 {
+    // ── In-memory search cache ─────────────────────────────────────────────
+    // Key: "rc:XXXX" or "ch:XXXXX" — value: cached result list with timestamp
+    private static readonly ConcurrentDictionary<string, (List<SearchResult> Results, DateTime At)> _cache = new();
+    private static readonly TimeSpan CacheTtl = TimeSpan.FromMinutes(30);
+
+    public static void InvalidateSearchCache()
+    {
+        _cache.Clear();
+    }
+
+
     // ── Register ──────────────────────────────────────────────────────────
     public async Task<(bool Success, string Reason, long UserId)> RegisterAsync(
         string mobile, string name, string? address, string? pincode,
@@ -204,7 +216,12 @@ public class MobileRepository
 
     // ── RC search (instant — indexed last4) ───────────────────────────────
     public async Task<List<SearchResult>> SearchByRcAsync(string last4)
-        => await SearchAsync($@"
+    {
+        var key = $"rc:{last4.ToUpper()}";
+        if (_cache.TryGetValue(key, out var cached) && DateTime.UtcNow - cached.At < CacheTtl)
+            return cached.Results;
+
+        var results = await SearchAsync($@"
             SELECT {SelectFields}
             FROM rc_info ri
             INNER JOIN vehicle_records vr ON vr.id = ri.vehicle_record_id
@@ -214,9 +231,18 @@ public class MobileRepository
             ORDER BY b.name, vr.vehicle_no LIMIT 500",
             last4.ToUpper());
 
+        _cache[key] = (results, DateTime.UtcNow);
+        return results;
+    }
+
     // ── Chassis search (instant — indexed last5) ──────────────────────────
     public async Task<List<SearchResult>> SearchByChassisAsync(string last5)
-        => await SearchAsync($@"
+    {
+        var key = $"ch:{last5.ToUpper()}";
+        if (_cache.TryGetValue(key, out var cached) && DateTime.UtcNow - cached.At < CacheTtl)
+            return cached.Results;
+
+        var results = await SearchAsync($@"
             SELECT {SelectFields}
             FROM chassis_info ci
             INNER JOIN vehicle_records vr ON vr.id = ci.vehicle_record_id
@@ -225,6 +251,10 @@ public class MobileRepository
             WHERE ci.last5 = @q
             ORDER BY b.name, vr.chassis_no LIMIT 500",
             last5.ToUpper());
+
+        _cache[key] = (results, DateTime.UtcNow);
+        return results;
+    }
 
     // ── Helpers ───────────────────────────────────────────────────────────
     private const string SelectFields = @"

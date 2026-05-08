@@ -5,7 +5,6 @@ import androidx.lifecycle.viewModelScope
 import com.vkenterprises.vras.data.models.SearchResult
 import com.vkenterprises.vras.data.repository.SearchRepository
 import com.vkenterprises.vras.data.repository.SearchResult2
-
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
@@ -14,13 +13,14 @@ import javax.inject.Inject
 enum class SearchMode { RC, CHASSIS }
 
 data class SearchUiState(
-    val query: String         = "",
-    val mode: SearchMode      = SearchMode.RC,
+    val query: String           = "",
+    val mode: SearchMode        = SearchMode.RC,
     val results: List<SearchResult> = emptyList(),
-    val isLoading: Boolean    = false,
-    val errorMsg: String?     = null,
+    val selectedResult: SearchResult? = null,
+    val isLoading: Boolean      = false,
+    val errorMsg: String?       = null,
     val subscriptionExpired: Boolean = false,
-    val hint: String          = ""
+    val hint: String            = ""
 )
 
 @HiltViewModel
@@ -43,18 +43,25 @@ class SearchViewModel @Inject constructor() : ViewModel() {
         _ui.update { it.copy(query = q, errorMsg = null) }
 
         searchJob?.cancel()
-        if (q.length == requiredLen) {
-            searchJob = viewModelScope.launch {
-                delay(80) // tiny debounce for key-hold
-                executeSearch(q, mode, userId)
+        when {
+            q.length == requiredLen -> {
+                searchJob = viewModelScope.launch {
+                    executeSearch(q, mode, userId)
+                }
             }
-        } else if (q.isEmpty()) {
-            _ui.update { it.copy(results = emptyList(), hint = "") }
+            q.isEmpty() -> _ui.update { it.copy(results = emptyList(), hint = "") }
+            q.length > requiredLen -> {
+                // keep existing results, just update query display
+            }
         }
     }
 
     fun setMode(mode: SearchMode) {
         _ui.update { it.copy(mode = mode, query = "", results = emptyList(), hint = "") }
+    }
+
+    fun selectResult(result: SearchResult) {
+        _ui.update { it.copy(selectedResult = result) }
     }
 
     private suspend fun executeSearch(q: String, mode: SearchMode, userId: Long) {
@@ -70,7 +77,8 @@ class SearchViewModel @Inject constructor() : ViewModel() {
                     it.copy(
                         isLoading = false,
                         results   = result.data,
-                        hint      = "${result.data.size} result(s) for \"$q\""
+                        hint      = if (result.data.isEmpty()) "No results for \"$q\""
+                                    else "${result.data.size} result(s)"
                     )
                 is SearchResult2.SubscriptionExpired ->
                     it.copy(isLoading = false, subscriptionExpired = true)

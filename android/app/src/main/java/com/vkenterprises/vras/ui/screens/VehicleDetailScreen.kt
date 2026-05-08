@@ -20,11 +20,10 @@ import com.vkenterprises.vras.viewmodel.SearchViewModel
 @Composable
 fun VehicleDetailScreen(
     searchVm: SearchViewModel,
-    index: Int,
     onBack: () -> Unit
 ) {
     val ui by searchVm.ui.collectAsState()
-    val item = ui.results.getOrNull(index)
+    val item = ui.selectedResult
 
     Scaffold(
         topBar = {

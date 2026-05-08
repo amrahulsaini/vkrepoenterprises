@@ -9,6 +9,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.*
 import androidx.navigation.navArgument
+
 import com.vkenterprises.vras.navigation.Screen
 import com.vkenterprises.vras.ui.screens.*
 import com.vkenterprises.vras.ui.theme.VKTheme
@@ -68,12 +69,8 @@ fun VKNavHost() {
             HomeScreen(searchVm, authVm, navController)
         }
 
-        composable(
-            Screen.VehicleDetail.route,
-            arguments = listOf(navArgument("index") { type = NavType.IntType })
-        ) { back ->
-            val idx = back.arguments?.getInt("index") ?: 0
-            VehicleDetailScreen(searchVm, idx) { navController.popBackStack() }
+        composable(Screen.VehicleDetail.route) {
+            VehicleDetailScreen(searchVm) { navController.popBackStack() }
         }
 
         composable(Screen.SubscriptionExpired.route) {
