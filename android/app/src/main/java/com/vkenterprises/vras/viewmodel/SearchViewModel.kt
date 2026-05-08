@@ -39,22 +39,26 @@ class SearchViewModel @Inject constructor(
     val ui: StateFlow<SearchUiState> = _ui.asStateFlow()
 
     private var searchJob: Job? = null
+    private var syncJob: Job? = null
 
     val requiredLen get() = if (_ui.value.mode == SearchMode.RC) 4 else 5
 
     init {
         viewModelScope.launch(Dispatchers.IO) {
-            if (!syncRepo.hasLocalData()) triggerSync()
+            triggerSync()  // Always check on app open; sync() silently skips unchanged branches
         }
     }
 
     fun triggerSync() {
-        viewModelScope.launch(Dispatchers.IO) {
-            _ui.update { it.copy(isSyncing = true, syncCurrent = 0L, syncTotal = 0L) }
+        if (syncJob?.isActive == true) return
+        syncJob = viewModelScope.launch(Dispatchers.IO) {
             syncRepo.sync { p ->
-                _ui.update { it.copy(syncCurrent = p.current, syncTotal = p.total) }
+                when {
+                    p.started -> _ui.update { it.copy(isSyncing = true, syncCurrent = 0L, syncTotal = p.total) }
+                    p.done    -> _ui.update { it.copy(isSyncing = false) }
+                    else      -> _ui.update { it.copy(syncCurrent = p.current, syncTotal = p.total) }
+                }
             }
-            _ui.update { it.copy(isSyncing = false) }
         }
     }
 

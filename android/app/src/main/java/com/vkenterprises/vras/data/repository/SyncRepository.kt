@@ -14,7 +14,15 @@ class SyncRepository @Inject constructor(
     private val vehicleDao: VehicleCacheDao,
     private val syncStateDao: BranchSyncStateDao
 ) {
-    data class Progress(val current: Long, val total: Long, val done: Boolean = false)
+    // started=true  → actual download is beginning, show the banner
+    // done=true     → all done, hide the banner
+    // otherwise     → progress update while downloading
+    data class Progress(
+        val current: Long,
+        val total: Long,
+        val done: Boolean = false,
+        val started: Boolean = false
+    )
 
     suspend fun hasLocalData(): Boolean = vehicleDao.count() > 0
 
@@ -22,18 +30,19 @@ class SyncRepository @Inject constructor(
         val branchResp = runCatching { api.getSyncBranches() }.getOrNull() ?: return
         if (!branchResp.isSuccessful) return
         val branches = branchResp.body()?.branches ?: return
-        val totalRecords = branches.sumOf { it.totalRecords }
+
+        // Find only branches that actually changed since last sync
+        val toSync = branches.filter { b ->
+            b.uploadedAt != null &&
+            syncStateDao.get(b.branchId)?.uploadedAt != b.uploadedAt
+        }
+        if (toSync.isEmpty()) return  // Nothing changed — no progress callback, no banner
+
+        val totalToSync = toSync.sumOf { it.totalRecords }
+        onProgress(Progress(0L, totalToSync, started = true))  // Signal: show banner now
 
         var synced = 0L
-        for (branch in branches) {
-            if (branch.uploadedAt == null) continue
-            val localState = syncStateDao.get(branch.branchId)
-            if (localState?.uploadedAt == branch.uploadedAt) {
-                synced += branch.totalRecords
-                onProgress(Progress(synced, totalRecords))
-                continue
-            }
-
+        for (branch in toSync) {
             vehicleDao.deleteByBranch(branch.branchId)
 
             var page = 0
@@ -46,12 +55,12 @@ class SyncRepository @Inject constructor(
                         r.engineNo, r.model, r.customerName, r.last4, r.last5)
                 })
                 synced += body.records.size
-                onProgress(Progress(synced, totalRecords))
+                onProgress(Progress(synced, totalToSync))
                 if (!body.hasMore) break
                 page++
             }
-            syncStateDao.save(BranchSyncState(branch.branchId, branch.uploadedAt))
+            syncStateDao.save(BranchSyncState(branch.branchId, branch.uploadedAt!!))
         }
-        onProgress(Progress(synced, totalRecords, done = true))
+        onProgress(Progress(synced, totalToSync, done = true))
     }
 }
