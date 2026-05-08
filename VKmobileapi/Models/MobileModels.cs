@@ -112,3 +112,34 @@ public record ProfileResponse(
     List<SubscriptionRecord> Subscriptions);
 
 public record ApiError(bool Success, string Message);
+
+public record SyncBranch(
+    int     BranchId,
+    string  BranchName,
+    string  FinancerName,
+    long    TotalRecords,
+    string? UploadedAt);
+
+public record SyncBranchResponse(
+    bool             Success,
+    int              BranchCount,
+    long             TotalRecords,
+    List<SyncBranch> Branches);
+
+public record SyncRecord(
+    long   Id,
+    string VehicleNo,
+    string ChassisNo,
+    string EngineNo,
+    string Model,
+    string CustomerName,
+    string Last4,
+    string Last5);
+
+public record SyncRecordsResponse(
+    bool             Success,
+    int              BranchId,
+    int              Page,
+    int              PageSize,
+    bool             HasMore,
+    List<SyncRecord> Records);

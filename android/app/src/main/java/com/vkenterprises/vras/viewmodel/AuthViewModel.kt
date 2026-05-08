@@ -45,6 +45,20 @@ class AuthViewModel @Inject constructor(
     val isAdmin     = prefs.isAdmin
     val pfpBase64   = prefs.pfpBase64
 
+    init {
+        viewModelScope.launch {
+            prefs.subscriptionEnd.collect { subEnd ->
+                if (!subEnd.isNullOrBlank()) {
+                    runCatching {
+                        val expired = java.time.LocalDate.parse(subEnd)
+                            .isBefore(java.time.LocalDate.now())
+                        if (expired) _state.value = AuthUiState.SubscriptionExpired
+                    }
+                }
+            }
+        }
+    }
+
     fun register(
         mobile: String, name: String,
         address: String?, pincode: String?,
