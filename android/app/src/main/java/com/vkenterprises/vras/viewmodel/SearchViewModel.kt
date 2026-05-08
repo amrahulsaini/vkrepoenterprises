@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.vkenterprises.vras.data.models.SearchResult
 import com.vkenterprises.vras.data.repository.SearchRepository
 import com.vkenterprises.vras.data.repository.SearchResult2
+
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*

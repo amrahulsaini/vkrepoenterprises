@@ -102,7 +102,6 @@
                                 Click="btnCancelColumnType_Click" />
                         <TextBox x:Name="txtNewColumnType"
                                  FontSize="13" Padding="6,4"
-                                 PlaceholderText="New column name…"
                                  KeyDown="txtNewColumnType_KeyDown" />
                     </DockPanel>
                 </Border>
@@ -205,7 +204,6 @@
                                 Click="btnCancelAlias_Click" />
                         <TextBox x:Name="txtNewAlias"
                                  FontSize="13" Padding="6,4"
-                                 PlaceholderText="New alias (raw header text)…"
                                  KeyDown="txtNewAlias_KeyDown" />
                     </DockPanel>
                 </Border>
