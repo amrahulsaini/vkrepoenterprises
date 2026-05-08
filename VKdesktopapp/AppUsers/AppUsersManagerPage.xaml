@@ -464,12 +464,18 @@
                             <StackPanel Orientation="Horizontal" Margin="0,0,0,18">
                                 <Border Name="brdAvatar"
                                         Width="60" Height="60" CornerRadius="30"
-                                        Background="{StaticResource Primary100}">
-                                    <TextBlock Name="txtAvatar"
-                                               FontSize="22" FontWeight="Bold"
-                                               Foreground="{StaticResource Orange700}"
-                                               HorizontalAlignment="Center"
-                                               VerticalAlignment="Center" />
+                                        Background="{StaticResource Primary100}"
+                                        ClipToBounds="True">
+                                    <Grid>
+                                        <TextBlock Name="txtAvatar"
+                                                   FontSize="22" FontWeight="Bold"
+                                                   Foreground="{StaticResource Orange700}"
+                                                   HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center" />
+                                        <Image Name="imgPfp"
+                                               Stretch="UniformToFill"
+                                               Visibility="Collapsed" />
+                                    </Grid>
                                 </Border>
                                 <StackPanel Margin="14,0,0,0" VerticalAlignment="Center">
                                     <TextBlock Name="txtProfileName"

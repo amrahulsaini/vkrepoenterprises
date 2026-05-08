@@ -113,7 +113,7 @@
 
         <!-- Error message -->
         <Border Name="brdError" Visibility="Collapsed"
-                Background="#FFEEE" BorderBrush="#FFCCC"
+                Background="#FFEEEE" BorderBrush="#FFCCCC"
                 BorderThickness="1" CornerRadius="6"
                 Padding="10,8" Margin="0,0,0,14">
             <TextBlock Name="txtError" FontSize="12"
