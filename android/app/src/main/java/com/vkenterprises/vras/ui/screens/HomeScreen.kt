@@ -1,12 +1,12 @@
 package com.vkenterprises.vras.ui.screens
 
 import android.util.Base64
-import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -17,6 +17,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.*
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
@@ -53,7 +54,7 @@ fun HomeScreen(
             TopAppBar(
                 title = {
                     Column {
-                        Text("VK Enterprises", fontWeight = FontWeight.Bold)
+                        Text("VK Enterprises", fontWeight = FontWeight.Bold, fontSize = 16.sp)
                         if (userName.isNotEmpty())
                             Text("Hello, $userName",
                                 style = MaterialTheme.typography.bodySmall,
@@ -67,17 +68,17 @@ fun HomeScreen(
                             val bytes = remember(pfpB64) {
                                 runCatching { Base64.decode(pfpB64, Base64.DEFAULT) }.getOrNull()
                             }
-                            if (bytes != null) {
-                                AsyncImage(model = bytes, contentDescription = "Profile",
+                            if (bytes != null)
+                                AsyncImage(model = bytes, contentDescription = null,
                                     contentScale = ContentScale.Crop,
-                                    modifier = Modifier.size(32.dp).clip(CircleShape))
-                            } else Icon(Icons.Default.AccountCircle, "Profile")
-                        } else Icon(Icons.Default.AccountCircle, "Profile")
+                                    modifier = Modifier.size(30.dp).clip(CircleShape))
+                            else Icon(Icons.Default.AccountCircle, null)
+                        } else Icon(Icons.Default.AccountCircle, null)
                     }
                     IconButton(onClick = {
                         authVm.logout()
                         nav.navigate(Screen.Login.route) { popUpTo(0) { inclusive = true } }
-                    }) { Icon(Icons.Default.Logout, "Logout") }
+                    }) { Icon(Icons.Default.Logout, null) }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface)
@@ -91,47 +92,40 @@ fun HomeScreen(
                 color = MaterialTheme.colorScheme.surfaceVariant,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-
-                    // RC / Chassis toggle
+                Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // Mode toggle
                     Row(
                         Modifier.fillMaxWidth()
-                            .clip(RoundedCornerShape(10.dp))
+                            .clip(RoundedCornerShape(8.dp))
                             .background(MaterialTheme.colorScheme.surface)
                     ) {
-                        SearchModeTab("RC Number",  ui.mode == SearchMode.RC,
-                            { searchVm.setMode(SearchMode.RC) },    Modifier.weight(1f))
-                        SearchModeTab("Chassis No", ui.mode == SearchMode.CHASSIS,
+                        ModeTab("RC Number",  ui.mode == SearchMode.RC,
+                            { searchVm.setMode(SearchMode.RC) }, Modifier.weight(1f))
+                        ModeTab("Chassis No", ui.mode == SearchMode.CHASSIS,
                             { searchVm.setMode(SearchMode.CHASSIS) }, Modifier.weight(1f))
                     }
 
-                    // Search field
+                    // Search input — capped at 4 (RC) or 5 (Chassis) digits, no spinner
+                    val maxLen = if (ui.mode == SearchMode.RC) 4 else 5
                     OutlinedTextField(
-                        value = ui.query,
-                        onValueChange = { q -> searchVm.onQueryChange(q, userId) },
+                        value = ui.inputText,
+                        onValueChange = { searchVm.onInputChange(it, userId) },
                         placeholder = {
                             Text(
-                                if (ui.mode == SearchMode.RC) "Last 4 digits of RC number"
-                                else "Last 5 digits of Chassis number",
-                                style = MaterialTheme.typography.bodyMedium
+                                if (ui.mode == SearchMode.RC) "Enter last 4 digits of RC"
+                                else "Enter last 5 digits of Chassis",
+                                style = MaterialTheme.typography.bodySmall
                             )
                         },
-                        leadingIcon = {
-                            if (ui.isLoading)
-                                CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp,
-                                    color = MaterialTheme.colorScheme.primary)
-                            else Icon(Icons.Default.Search, null)
-                        },
-                        trailingIcon = {
-                            if (ui.query.isNotEmpty())
-                                IconButton(onClick = { searchVm.onQueryChange("", userId) }) {
-                                    Icon(Icons.Default.Close, "Clear")
-                                }
-                        },
+                        leadingIcon = { Icon(Icons.Default.Search, null, Modifier.size(18.dp)) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(10.dp),
+                        shape = RoundedCornerShape(8.dp),
+                        textStyle = MaterialTheme.typography.bodyMedium.copy(
+                            fontFamily = FontFamily.Monospace,
+                            letterSpacing = 3.sp
+                        ),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedContainerColor   = MaterialTheme.colorScheme.surface,
                             unfocusedContainerColor = MaterialTheme.colorScheme.surface
@@ -140,63 +134,50 @@ fun HomeScreen(
                 }
             }
 
-            // ── Error banner ─────────────────────────────────────────────
+            // ── Error ────────────────────────────────────────────────────
             if (ui.errorMsg != null) {
-                Box(
-                    Modifier.fillMaxWidth()
-                        .background(MaterialTheme.colorScheme.errorContainer)
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
-                ) {
-                    Text(ui.errorMsg!!, style = MaterialTheme.typography.bodySmall,
+                Surface(color = MaterialTheme.colorScheme.errorContainer) {
+                    Text(ui.errorMsg!!, Modifier.fillMaxWidth().padding(10.dp),
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onErrorContainer)
                 }
             }
 
             // ── Results ──────────────────────────────────────────────────
-            when {
-                ui.results.isNotEmpty() -> {
-                    // Header row
-                    ResultHeader(ui.results.size)
-
-                    LazyColumn(Modifier.fillMaxSize()) {
-                        items(ui.results) { item ->
-                            ResultRow(item) {
-                                searchVm.selectResult(item)
-                                nav.navigate(Screen.VehicleDetail.route)
-                            }
-                            HorizontalDivider(
-                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
-                                thickness = 0.5.dp
-                            )
+            if (ui.results.isNotEmpty()) {
+                // Count bar
+                Surface(color = MaterialTheme.colorScheme.primaryContainer) {
+                    Text(
+                        "${ui.results.size} record(s) found",
+                        Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 5.dp),
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                }
+                // 2-column grid
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(2),
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(0.dp)
+                ) {
+                    items(ui.results) { item ->
+                        VehicleGridCell(item) {
+                            searchVm.selectResult(item)
+                            nav.navigate(Screen.VehicleDetail.route)
                         }
                     }
                 }
-
-                ui.query.isEmpty() -> {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Icon(Icons.Default.DirectionsCar, null,
-                                Modifier.size(56.dp),
-                                tint = MaterialTheme.colorScheme.outlineVariant)
-                            Text("Enter last digits to search",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.outlineVariant)
-                        }
-                    }
-                }
-
-                !ui.isLoading -> {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Icon(Icons.Default.SearchOff, null,
-                                Modifier.size(48.dp),
-                                tint = MaterialTheme.colorScheme.outlineVariant)
-                            Text("No results for \"${ui.query}\"",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
+            } else if (ui.errorMsg == null) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Icon(Icons.Default.DirectionsCar, null, Modifier.size(48.dp),
+                            tint = MaterialTheme.colorScheme.outlineVariant)
+                        val hint = if (ui.mode == SearchMode.RC) "Enter last 4 digits of RC"
+                                   else "Enter last 5 digits of Chassis"
+                        Text(hint, style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.outlineVariant)
                     }
                 }
             }
@@ -205,102 +186,44 @@ fun HomeScreen(
 }
 
 @Composable
-private fun ResultHeader(count: Int) {
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.primaryContainer)
-            .padding(horizontal = 12.dp, vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text("$count record(s) found",
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onPrimaryContainer,
-            modifier = Modifier.weight(1f))
-        Text("Tap a row for details",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f))
-    }
-}
-
-@Composable
-private fun ResultRow(item: SearchResult, onClick: () -> Unit) {
+private fun VehicleGridCell(item: SearchResult, onClick: () -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 10.dp),
+            .padding(horizontal = 10.dp, vertical = 9.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
+        horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        // Vehicle icon
-        Surface(
-            shape = RoundedCornerShape(8.dp),
-            color = MaterialTheme.colorScheme.primaryContainer,
-            modifier = Modifier.size(38.dp)
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Icon(Icons.Default.DirectionsCar, null,
-                    Modifier.size(20.dp),
-                    tint = MaterialTheme.colorScheme.primary)
-            }
-        }
-
-        // Main info
-        Column(Modifier.weight(1f)) {
-            Text(
-                item.vehicleNo.ifBlank { item.chassisNo }.ifBlank { "—" },
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1, overflow = TextOverflow.Ellipsis
-            )
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                if (item.customerName.isNotBlank())
-                    Text(item.customerName,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1, overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f, fill = false))
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                if (item.branchName.isNotBlank()) MiniChip(item.branchName)
-                if (item.model.isNotBlank())      MiniChip(item.model)
-                if (item.bucket.isNotBlank())     MiniChip(item.bucket)
-            }
-        }
-
+        Text(
+            item.vehicleNo.ifBlank { item.chassisNo }.ifBlank { "—" },
+            style = MaterialTheme.typography.bodySmall,
+            fontWeight = FontWeight.Medium,
+            fontFamily = FontFamily.Monospace,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f)
+        )
         Icon(Icons.Default.ChevronRight, null,
-            Modifier.size(18.dp),
+            Modifier.size(14.dp),
             tint = MaterialTheme.colorScheme.outlineVariant)
     }
+    HorizontalDivider(
+        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
+        thickness = 0.5.dp
+    )
 }
 
 @Composable
-private fun MiniChip(label: String) {
-    Surface(
-        shape = RoundedCornerShape(4.dp),
-        color = MaterialTheme.colorScheme.secondaryContainer
-    ) {
-        Text(label,
-            Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSecondaryContainer,
-            maxLines = 1)
-    }
-}
-
-@Composable
-private fun SearchModeTab(
-    label: String, selected: Boolean,
-    onClick: () -> Unit, modifier: Modifier = Modifier
-) {
+private fun ModeTab(label: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier) {
     Box(
-        modifier.clip(RoundedCornerShape(8.dp))
-            .background(if (selected) MaterialTheme.colorScheme.primary
-                        else MaterialTheme.colorScheme.surface)
+        modifier.clip(RoundedCornerShape(6.dp))
+            .background(
+                if (selected) MaterialTheme.colorScheme.primary
+                else MaterialTheme.colorScheme.surface
+            )
             .clickable(onClick = onClick)
-            .padding(vertical = 9.dp),
+            .padding(vertical = 8.dp),
         contentAlignment = Alignment.Center
     ) {
         Text(label,

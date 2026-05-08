@@ -11,4 +11,5 @@ sealed class Screen(val route: String) {
     object VehicleDetail       : Screen("vehicle_detail")
     object SubscriptionExpired : Screen("subscription_expired")
     object Profile             : Screen("profile")
+    object Confirm             : Screen("confirm")
 }

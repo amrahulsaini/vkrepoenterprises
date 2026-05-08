@@ -41,6 +41,7 @@ class AuthViewModel @Inject constructor(
     val isLoggedIn  = prefs.isLoggedIn
     val userId      = prefs.userId
     val userName    = prefs.userName
+    val userMobile  = prefs.userMobile
     val isAdmin     = prefs.isAdmin
     val pfpBase64   = prefs.pfpBase64
 
