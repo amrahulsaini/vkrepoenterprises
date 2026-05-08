@@ -12,14 +12,6 @@ VKAPI_SRC="$REPO_DIR/VKApiServer"
 MOBILE_SRC="$REPO_DIR/VKmobileapi"
 VKAPI_OUT="/opt/vkapi"
 MOBILE_OUT="/opt/vkmobileapi"
-DB_SCHEMA="$REPO_DIR/dbschema"
-
-# DB credentials (same as your .env.local)
-DB_HOST="localhost"
-DB_USER="vkre_db1"
-DB_PASS="db1"
-DB_NAME="vkre_db1"
-DB_PORT="3306"
 
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -27,7 +19,6 @@ RED='\033[0;31m'
 NC='\033[0m'
 
 info()    { echo -e "${GREEN}[✓]${NC} $1"; }
-warn()    { echo -e "${YELLOW}[!]${NC} $1"; }
 section() { echo -e "\n${YELLOW}══ $1 ══${NC}"; }
 
 # ── 1. Pull latest code ───────────────────────────────────────────────────────
@@ -36,24 +27,7 @@ cd "$REPO_DIR"
 git pull origin main
 info "Code is up to date"
 
-# ── 2. Run DB migrations (only new .sql files) ────────────────────────────────
-section "Running DB migrations"
-APPLIED_LOG="/home/vkapp/.vk_applied_migrations"
-touch "$APPLIED_LOG"
-
-for sql_file in "$DB_SCHEMA"/*.sql; do
-    fname=$(basename "$sql_file")
-    if grep -qx "$fname" "$APPLIED_LOG"; then
-        warn "Already applied: $fname — skipping"
-    else
-        echo "  Applying: $fname ..."
-        mysql -h"$DB_HOST" -P"$DB_PORT" -u"$DB_USER" -p"$DB_PASS" "$DB_NAME" < "$sql_file" 2>&1
-        echo "$fname" >> "$APPLIED_LOG"
-        info "Applied: $fname"
-    fi
-done
-
-# ── 3. Build & deploy VKApiServer (desktop/web API — port 5002) ───────────────
+# ── 2. Build & deploy VKApiServer (desktop/web API — port 5002) ───────────────
 section "Building VKApiServer"
 cd "$VKAPI_SRC"
 dotnet publish -c Release -o "$VKAPI_OUT" --nologo -v quiet

@@ -33,3 +33,11 @@ test.js
 # Claude Code
 .claude/
 
+# Android build artifacts
+android/.gradle/
+android/app/build/
+android/build/
+android/local.properties
+android/**/*.apk
+android/**/*.aab
+
