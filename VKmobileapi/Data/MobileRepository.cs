@@ -239,7 +239,6 @@ public class MobileRepository
         vr.level1, vr.level1_contact, vr.level2, vr.level2_contact,
         vr.level3, vr.level3_contact, vr.level4, vr.level4_contact,
         vr.sender_mail1, vr.sender_mail2, vr.executive_name, vr.pos, vr.toss, vr.remark,
-        COALESCE(vr.release_status,'') AS release_status,
         COALESCE(vr.branch_name_raw,'') AS branch_name_raw,
         COALESCE(DATE_FORMAT(vr.created_at,'%d %b %Y'),'') AS created_on";
 
@@ -259,7 +258,7 @@ public class MobileRepository
                 S(14), S(15), S(16), S(17), S(18), S(19), S(20), S(21),
                 S(22), S(23), S(24), S(25), S(26), S(27), S(28), S(29),
                 S(30), S(31), S(32), S(33), S(34), S(35), S(36), S(37),
-                S(38), S(39), S(40)));
+                S(38), S(39)));
         return list;
     }
 

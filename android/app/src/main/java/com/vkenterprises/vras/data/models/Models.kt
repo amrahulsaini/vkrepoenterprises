@@ -73,7 +73,6 @@ data class SearchResult(
     val pos: String,
     val toss: String,
     val remark: String,
-    val releaseStatus: String,
     val branchFromExcel: String,
     val createdOn: String
 )

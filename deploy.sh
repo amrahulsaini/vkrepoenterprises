@@ -7,7 +7,7 @@
 
 set -e   # stop on first error
 
-REPO_DIR="/home/vkapp/vkrepoenterprises"
+REPO_DIR="/home/vkapp"
 VKAPI_SRC="$REPO_DIR/VKApiServer"
 MOBILE_SRC="$REPO_DIR/VKmobileapi"
 VKAPI_OUT="/opt/vkapi"

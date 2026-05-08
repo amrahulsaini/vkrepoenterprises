@@ -70,7 +70,6 @@ public record SearchResult(
     string Pos,
     string Toss,
     string Remark,
-    string ReleaseStatus,
     string BranchFromExcel,
     string CreatedOn);
 

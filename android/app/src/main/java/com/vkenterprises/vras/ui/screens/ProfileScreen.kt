@@ -37,7 +37,7 @@ fun ProfileScreen(
     val state   by vm.state.collectAsState()
     val pfpUpdating by vm.pfpUpdating.collectAsState()
 
-    LaunchedEffect(userId) { vm.load(userId) }
+    LaunchedEffect(userId) { if (userId > 0) vm.load(userId) }
 
     val pfpPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         uri?.let {
