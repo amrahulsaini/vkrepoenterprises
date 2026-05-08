@@ -2,12 +2,18 @@ namespace VKmobileapi.Models;
 
 // ── Auth ────────────────────────────────────────────────
 public record RegisterRequest(
-    string Mobile,
-    string Name,
+    string  Mobile,
+    string  Name,
     string? Address,
     string? Pincode,
     string? PfpBase64,
-    string DeviceId);
+    string  DeviceId,
+    // KYC
+    string? AadhaarFront,
+    string? AadhaarBack,
+    string? PanFront,
+    string? AccountNumber,
+    string? IfscCode);
 
 public record LoginRequest(
     string Mobile,
@@ -16,7 +22,7 @@ public record LoginRequest(
 public record AuthResponse(
     bool   Success,
     string Message,
-    string Reason,     // "ok" | "pending_approval" | "device_mismatch" | "not_found" | "inactive"
+    string Reason,
     long?  UserId,
     string? Name,
     string? Mobile,
@@ -74,5 +80,36 @@ public record SearchResponse(
     string Query,
     int    Count,
     List<SearchResult> Results);
+
+// ── Profile ─────────────────────────────────────────────
+public record KycInfo(
+    bool    KycSubmitted,
+    string? AadhaarFront,
+    string? AadhaarBack,
+    string? PanFront);
+
+public record SubscriptionRecord(
+    long    Id,
+    string  StartDate,
+    string  EndDate,
+    decimal Amount,
+    string? Notes,
+    bool    IsActive);
+
+public record ProfileResponse(
+    long    UserId,
+    string  Name,
+    string  Mobile,
+    string? Address,
+    string? Pincode,
+    string? PfpBase64,
+    bool    IsActive,
+    bool    IsAdmin,
+    decimal Balance,
+    string  CreatedAt,
+    string? AccountNumber,
+    string? IfscCode,
+    KycInfo Kyc,
+    List<SubscriptionRecord> Subscriptions);
 
 public record ApiError(bool Success, string Message);

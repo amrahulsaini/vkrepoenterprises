@@ -12,4 +12,5 @@ sealed class Screen(val route: String) {
         fun go(index: Int) = "vehicle_detail/$index"
     }
     object SubscriptionExpired : Screen("subscription_expired")
+    object Profile           : Screen("profile")
 }

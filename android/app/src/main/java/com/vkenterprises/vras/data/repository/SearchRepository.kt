@@ -2,6 +2,7 @@ package com.vkenterprises.vras.data.repository
 
 import com.vkenterprises.vras.data.api.ApiClient
 import com.vkenterprises.vras.data.models.SearchResult
+import org.json.JSONObject
 
 sealed class SearchResult2 {
     data class Success(val data: List<SearchResult>) : SearchResult2()
@@ -18,7 +19,10 @@ class SearchRepository {
             when {
                 resp.isSuccessful -> SearchResult2.Success(resp.body()?.results ?: emptyList())
                 resp.code() == 402 -> SearchResult2.SubscriptionExpired()
-                else -> SearchResult2.Error("Search failed: ${resp.code()}")
+                else -> {
+                    val msg = parseErrorBody(resp.errorBody()?.string()) ?: "Search failed (${resp.code()})"
+                    SearchResult2.Error(msg)
+                }
             }
         }.getOrElse { SearchResult2.Error(it.message ?: "Network error") }
 
@@ -28,7 +32,14 @@ class SearchRepository {
             when {
                 resp.isSuccessful -> SearchResult2.Success(resp.body()?.results ?: emptyList())
                 resp.code() == 402 -> SearchResult2.SubscriptionExpired()
-                else -> SearchResult2.Error("Search failed: ${resp.code()}")
+                else -> {
+                    val msg = parseErrorBody(resp.errorBody()?.string()) ?: "Search failed (${resp.code()})"
+                    SearchResult2.Error(msg)
+                }
             }
         }.getOrElse { SearchResult2.Error(it.message ?: "Network error") }
+
+    private fun parseErrorBody(body: String?): String? = runCatching {
+        body?.let { JSONObject(it).optString("message").ifEmpty { null } }
+    }.getOrNull()
 }

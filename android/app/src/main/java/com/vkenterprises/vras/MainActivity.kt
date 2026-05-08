@@ -13,6 +13,7 @@ import com.vkenterprises.vras.navigation.Screen
 import com.vkenterprises.vras.ui.screens.*
 import com.vkenterprises.vras.ui.theme.VKTheme
 import com.vkenterprises.vras.viewmodel.AuthViewModel
+import com.vkenterprises.vras.viewmodel.ProfileViewModel
 import com.vkenterprises.vras.viewmodel.SearchViewModel
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -31,8 +32,8 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun VKNavHost() {
-    val navController   = rememberNavController()
-    val authVm: AuthViewModel   = hiltViewModel()
+    val navController = rememberNavController()
+    val authVm: AuthViewModel     = hiltViewModel()
     val searchVm: SearchViewModel = hiltViewModel()
 
     NavHost(navController = navController, startDestination = Screen.Splash.route) {
@@ -81,6 +82,12 @@ fun VKNavHost() {
                     popUpTo(0) { inclusive = true }
                 }
             }
+        }
+
+        composable(Screen.Profile.route) {
+            val profileVm: ProfileViewModel = hiltViewModel()
+            val userId by authVm.userId.collectAsState(initial = -1L)
+            ProfileScreen(profileVm, userId, navController)
         }
     }
 }

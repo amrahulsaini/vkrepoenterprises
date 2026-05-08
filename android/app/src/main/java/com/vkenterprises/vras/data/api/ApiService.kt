@@ -14,13 +14,22 @@ interface ApiService {
 
     @GET("api/mobile/search/rc/{last4}")
     suspend fun searchRc(
-        @Path("last4")            last4: String,
-        @Header("X-User-Id")      userId: Long
+        @Path("last4")       last4: String,
+        @Header("X-User-Id") userId: Long
     ): Response<SearchResponse>
 
     @GET("api/mobile/search/chassis/{last5}")
     suspend fun searchChassis(
-        @Path("last5")            last5: String,
-        @Header("X-User-Id")      userId: Long
+        @Path("last5")       last5: String,
+        @Header("X-User-Id") userId: Long
     ): Response<SearchResponse>
+
+    @GET("api/mobile/profile/{userId}")
+    suspend fun getProfile(@Path("userId") userId: Long): Response<ProfileResponse>
+
+    @PUT("api/mobile/profile/{userId}/pfp")
+    suspend fun updatePfp(
+        @Path("userId") userId: Long,
+        @Body request: Map<String, String?>
+    ): Response<Map<String, Any>>
 }
