@@ -13,14 +13,12 @@ import javax.inject.Inject
 enum class SearchMode { RC, CHASSIS }
 
 data class SearchUiState(
-    val query: String           = "",
-    val mode: SearchMode        = SearchMode.RC,
+    val inputText: String           = "",      // what shows in the text field
+    val mode: SearchMode            = SearchMode.RC,
     val results: List<SearchResult> = emptyList(),
     val selectedResult: SearchResult? = null,
-    val isLoading: Boolean      = false,
-    val errorMsg: String?       = null,
-    val subscriptionExpired: Boolean = false,
-    val hint: String            = ""
+    val errorMsg: String?           = null,
+    val subscriptionExpired: Boolean = false
 )
 
 @HiltViewModel
@@ -32,32 +30,27 @@ class SearchViewModel @Inject constructor() : ViewModel() {
     val ui: StateFlow<SearchUiState> = _ui.asStateFlow()
 
     private var searchJob: Job? = null
-    private var _userId: Long = -1L
 
-    fun setUser(userId: Long) { _userId = userId }
+    val requiredLen get() = if (_ui.value.mode == SearchMode.RC) 4 else 5
 
-    fun onQueryChange(q: String, userId: Long) {
-        _userId = userId
-        val mode = _ui.value.mode
-        val requiredLen = if (mode == SearchMode.RC) 4 else 5
-        _ui.update { it.copy(query = q, errorMsg = null) }
+    fun onInputChange(text: String, userId: Long) {
+        // Cap at requiredLen — don't allow more
+        val capped = text.take(requiredLen)
+        _ui.update { it.copy(inputText = capped, errorMsg = null) }
 
-        searchJob?.cancel()
-        when {
-            q.length == requiredLen -> {
-                searchJob = viewModelScope.launch {
-                    executeSearch(q, mode, userId)
-                }
+        if (capped.length == requiredLen) {
+            searchJob?.cancel()
+            searchJob = viewModelScope.launch {
+                executeSearch(capped.uppercase(), _ui.value.mode, userId)
             }
-            q.isEmpty() -> _ui.update { it.copy(results = emptyList(), hint = "") }
-            q.length > requiredLen -> {
-                // keep existing results, just update query display
-            }
+            // Auto-clear the input field so user can type again immediately
+            _ui.update { it.copy(inputText = "") }
         }
     }
 
     fun setMode(mode: SearchMode) {
-        _ui.update { it.copy(mode = mode, query = "", results = emptyList(), hint = "") }
+        searchJob?.cancel()
+        _ui.update { it.copy(mode = mode, inputText = "", results = emptyList(), errorMsg = null) }
     }
 
     fun selectResult(result: SearchResult) {
@@ -65,25 +58,19 @@ class SearchViewModel @Inject constructor() : ViewModel() {
     }
 
     private suspend fun executeSearch(q: String, mode: SearchMode, userId: Long) {
-        _ui.update { it.copy(isLoading = true) }
         val result = if (mode == SearchMode.RC)
-            repo.searchRc(q.uppercase(), userId)
+            repo.searchRc(q, userId)
         else
-            repo.searchChassis(q.uppercase(), userId)
+            repo.searchChassis(q, userId)
 
         _ui.update {
             when (result) {
                 is SearchResult2.Success ->
-                    it.copy(
-                        isLoading = false,
-                        results   = result.data,
-                        hint      = if (result.data.isEmpty()) "No results for \"$q\""
-                                    else "${result.data.size} result(s)"
-                    )
+                    it.copy(results = result.data, errorMsg = null)
                 is SearchResult2.SubscriptionExpired ->
-                    it.copy(isLoading = false, subscriptionExpired = true)
+                    it.copy(subscriptionExpired = true)
                 is SearchResult2.Error ->
-                    it.copy(isLoading = false, errorMsg = result.message)
+                    it.copy(errorMsg = result.message)
             }
         }
     }

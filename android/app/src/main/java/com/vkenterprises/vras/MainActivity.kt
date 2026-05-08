@@ -70,7 +70,11 @@ fun VKNavHost() {
         }
 
         composable(Screen.VehicleDetail.route) {
-            VehicleDetailScreen(searchVm) { navController.popBackStack() }
+            VehicleDetailScreen(searchVm, authVm, navController)
+        }
+
+        composable(Screen.Confirm.route) {
+            ConfirmScreen(searchVm, authVm, navController)
         }
 
         composable(Screen.SubscriptionExpired.route) {

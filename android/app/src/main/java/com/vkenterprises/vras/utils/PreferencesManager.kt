@@ -35,6 +35,9 @@ class PreferencesManager(private val context: Context) {
     val subscriptionEnd: Flow<String?> = context.dataStore.data
         .map { it[KEY_SUB_END] }
 
+    val userMobile: Flow<String> = context.dataStore.data
+        .map { it[KEY_MOBILE] ?: "" }
+
     val pfpBase64: Flow<String?> = context.dataStore.data
         .map { it[KEY_PFP]?.ifEmpty { null } }
 
