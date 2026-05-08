@@ -11,9 +11,19 @@ public class MobileRepository
     private static readonly ConcurrentDictionary<string, (List<SearchResult> Results, DateTime At)> _cache = new();
     private static readonly TimeSpan CacheTtl = TimeSpan.FromMinutes(30);
 
+    // ── Subscription status cache — avoids DB hit on every request ─────────
+    // Key: userId — value: (hasActiveSub, cachedAt). TTL 5 min.
+    private static readonly ConcurrentDictionary<long, (bool Active, DateTime At)> _subCache = new();
+    private static readonly TimeSpan SubCacheTtl = TimeSpan.FromMinutes(5);
+
     public static void InvalidateSearchCache()
     {
         _cache.Clear();
+    }
+
+    public static void InvalidateSubCache(long userId)
+    {
+        _subCache.TryRemove(userId, out _);
     }
 
 
@@ -121,15 +131,21 @@ public class MobileRepository
             id, name, dbMobile, isAdmin, pfp, subEnd == "" ? null : subEnd);
     }
 
-    // ── Subscription check ────────────────────────────────────────────────
+    // ── Subscription check (cached 5 min) ─────────────────────────────────
     public async Task<bool> HasActiveSubscriptionAsync(long userId)
     {
+        if (_subCache.TryGetValue(userId, out var sc) && DateTime.UtcNow - sc.At < SubCacheTtl)
+            return sc.Active;
+
         await using var conn = DbFactory.Create();
         await conn.OpenAsync();
         const string sql = "SELECT COUNT(*) FROM subscriptions WHERE user_id=@uid AND end_date >= CURDATE()";
         await using var cmd = new MySqlCommand(sql, conn);
         cmd.Parameters.AddWithValue("@uid", userId);
-        return Convert.ToInt64(await cmd.ExecuteScalarAsync()) > 0;
+        var active = Convert.ToInt64(await cmd.ExecuteScalarAsync()) > 0;
+
+        _subCache[userId] = (active, DateTime.UtcNow);
+        return active;
     }
 
     // ── Profile ───────────────────────────────────────────────────────────

@@ -162,7 +162,7 @@ fun HomeScreen(
                     contentPadding = PaddingValues(0.dp)
                 ) {
                     items(ui.results) { item ->
-                        VehicleGridCell(item) {
+                        VehicleGridCell(item, ui.mode) {
                             searchVm.selectResult(item)
                             nav.navigate(Screen.VehicleDetail.route)
                         }
@@ -186,7 +186,11 @@ fun HomeScreen(
 }
 
 @Composable
-private fun VehicleGridCell(item: SearchResult, onClick: () -> Unit) {
+private fun VehicleGridCell(item: SearchResult, mode: SearchMode, onClick: () -> Unit) {
+    val display = when (mode) {
+        SearchMode.RC      -> item.vehicleNo.ifBlank { "—" }
+        SearchMode.CHASSIS -> item.chassisNo.ifBlank { "—" }
+    }
     Row(
         Modifier
             .fillMaxWidth()
@@ -196,7 +200,7 @@ private fun VehicleGridCell(item: SearchResult, onClick: () -> Unit) {
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Text(
-            item.vehicleNo.ifBlank { item.chassisNo }.ifBlank { "—" },
+            display,
             style = MaterialTheme.typography.bodySmall,
             fontWeight = FontWeight.Medium,
             fontFamily = FontFamily.Monospace,
