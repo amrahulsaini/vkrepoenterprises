@@ -4,6 +4,7 @@ using System.Data;
 using System.Threading.Tasks;
 using MySqlConnector;
 using VRASDesktopApp.Models;
+using System.Diagnostics;
 
 namespace VRASDesktopApp.Data;
 
@@ -40,35 +41,47 @@ public class RecordsRepository
     }
 
     // Overwrites all records for the branch using MySqlBulkCopy (LOAD DATA LOCAL INFILE path).
-    public async Task<int> UploadRecordsAsync(int branchId, List<UploadRecord> records)
+    // progress: (percent 0-100, message) — called at each stage including during chunked bulk copy.
+    public async Task<(int Inserted, double ElapsedSeconds)> UploadRecordsAsync(
+        int branchId, List<UploadRecord> records,
+        IProgress<(int pct, string msg)>? progress = null)
     {
-        if (records.Count == 0) return 0;
+        if (records.Count == 0) return (0, 0);
 
+        var sw = Stopwatch.StartNew();
         await using var conn = MySqlFactory.CreateConnection();
         await conn.OpenAsync();
 
         // 1. Wipe existing records for this branch
+        progress?.Report((5, "Clearing old records..."));
         await using (var del = new MySqlCommand("DELETE FROM vehicle_records WHERE branch_id = @bid", conn))
         {
             del.Parameters.AddWithValue("@bid", branchId);
             await del.ExecuteNonQueryAsync();
         }
 
-        // 2. Build DataTable — columns must match ColumnMappings order below
-        var dt = BuildDataTable(branchId, records);
-
-        // 3. Bulk copy — single binary stream to MySQL, no per-row round trips
-        var bc = new MySqlBulkCopy(conn)
+        // 2. Chunked bulk copy — each 5 000-row chunk updates progress bar
+        const int chunkSize = 5_000;
+        int inserted = 0;
+        for (int offset = 0; offset < records.Count; offset += chunkSize)
         {
-            DestinationTableName = "vehicle_records",
-            BulkCopyTimeout      = 300
-        };
-        AddColumnMappings(bc);
-        var result = await bc.WriteToServerAsync(dt);
-        int inserted = (int)result.RowsInserted;
+            var chunk   = records.GetRange(offset, Math.Min(chunkSize, records.Count - offset));
+            var chunkDt = BuildDataTable(branchId, chunk);
+            var bc = new MySqlBulkCopy(conn)
+            {
+                DestinationTableName = "vehicle_records",
+                BulkCopyTimeout      = 300
+            };
+            AddColumnMappings(bc);
+            var res = await bc.WriteToServerAsync(chunkDt);
+            inserted += (int)res.RowsInserted;
 
-        // 4. Populate rc_info / chassis_info for instant vehicle search
-        // Wrapped separately so a missing table never aborts the upload.
+            int pct = 10 + (int)(75.0 * inserted / records.Count);
+            progress?.Report((pct, $"Uploading... {inserted:N0} / {records.Count:N0} records"));
+        }
+
+        // 3. Populate rc_info / chassis_info for instant vehicle search
+        progress?.Report((87, "Rebuilding search index..."));
         try
         {
             await using var rcIns = new MySqlCommand(@"
@@ -89,14 +102,17 @@ public class RecordsRepository
         }
         catch { /* rc_info/chassis_info tables may not exist yet — upload still succeeds */ }
 
-        // 5. Update branch metadata
+        // 4. Update branch metadata
+        progress?.Report((97, "Saving metadata..."));
         await using var upd = new MySqlCommand(
             "UPDATE branches SET total_records = @cnt, uploaded_at = NOW() WHERE id = @bid", conn);
         upd.Parameters.AddWithValue("@cnt", inserted);
         upd.Parameters.AddWithValue("@bid", branchId);
         await upd.ExecuteNonQueryAsync();
 
-        return inserted;
+        sw.Stop();
+        progress?.Report((100, $"Done — {inserted:N0} records saved"));
+        return (inserted, sw.Elapsed.TotalSeconds);
     }
 
     private static DataTable BuildDataTable(int branchId, List<UploadRecord> records)

@@ -68,6 +68,16 @@ public class VehicleSearchRepository
         return list;
     }
 
+    public async Task DeleteRecordAsync(long id)
+    {
+        await using var conn = MySqlFactory.CreateConnection();
+        await conn.OpenAsync();
+        const string sql = "DELETE FROM vehicle_records WHERE id = @id";
+        await using var cmd = new MySqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("@id", id);
+        await cmd.ExecuteNonQueryAsync();
+    }
+
     private static VehicleSearchItem MapRow(MySqlDataReader r)
     {
         string S(int i) => r.IsDBNull(i) ? string.Empty : r.GetString(i);

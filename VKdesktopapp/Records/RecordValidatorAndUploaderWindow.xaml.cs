@@ -258,27 +258,39 @@ public partial class RecordValidatorAndUploaderWindow : Window
             return;
         }
 
-        btnUpload.IsEnabled    = false;
-        txtPBR.Visibility      = Visibility.Visible;
-        pbr.Visibility         = Visibility.Visible;
-        pbr.IsIndeterminate    = true;
-        txtPBR.Text            = "Preparing records...";
+        btnUpload.IsEnabled  = false;
+        txtPBR.Visibility    = Visibility.Visible;
+        pbr.Visibility       = Visibility.Visible;
+        pbr.IsIndeterminate  = false;
+        pbr.Minimum          = 0;
+        pbr.Maximum          = 100;
+        pbr.Value            = 0;
+        txtPBR.Text          = "Preparing records...";
 
         var validRecords = _records.Where(r => RcRegex.IsMatch(r.FormatedVehicleNo)).ToList();
         var skipped      = _records.Count - validRecords.Count;
-        txtPBR.Text = $"Uploading {validRecords.Count} valid records to {SelectedBranch.BranchName}...";
+
+        var progress = new Progress<(int pct, string msg)>(p =>
+        {
+            pbr.Value   = p.pct;
+            txtPBR.Text = p.msg;
+        });
 
         try
         {
-            var inserted = await _recordsRepo.UploadRecordsAsync(branchId, validRecords);
-            txtPBR.Text = $"✓ {inserted} records saved successfully!";
+            var (inserted, elapsed) = await _recordsRepo.UploadRecordsAsync(branchId, validRecords, progress);
+            pbr.Value   = 100;
+            txtPBR.Text = $"✓ {inserted:N0} records saved in {elapsed:F1}s";
             var skipNote = skipped > 0 ? $"\n\n{skipped} invalid record(s) were skipped." : string.Empty;
             MessageBox.Show(
-                $"{inserted} records have been saved to branch \"{SelectedBranch.BranchName}\".\n\nPrevious records for this branch were replaced.{skipNote}",
+                $"{inserted:N0} records saved to \"{SelectedBranch.BranchName}\".\n" +
+                $"Upload completed in {elapsed:F1} seconds.\n\n" +
+                $"Previous records for this branch were replaced.{skipNote}",
                 "Upload Success", MessageBoxButton.OK, MessageBoxImage.Information);
         }
         catch (Exception ex)
         {
+            pbr.Value   = 0;
             txtPBR.Text = "Upload failed";
             MessageBox.Show($"Upload error: {ex.Message}", "Upload Failed",
                 MessageBoxButton.OK, MessageBoxImage.Error);
@@ -286,7 +298,6 @@ public partial class RecordValidatorAndUploaderWindow : Window
         finally
         {
             btnUpload.IsEnabled = true;
-            pbr.IsIndeterminate = false;
         }
     }
 }
