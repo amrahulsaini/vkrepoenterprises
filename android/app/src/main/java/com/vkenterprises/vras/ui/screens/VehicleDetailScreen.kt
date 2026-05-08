@@ -139,7 +139,6 @@ fun VehicleDetailScreen(
                     "Engine No"     to item.engineNo,
                     "Model"         to item.model,
                     "Agreement No"  to item.agreementNo,
-                    "Release Status" to item.releaseStatus,
                 )
             )
 
