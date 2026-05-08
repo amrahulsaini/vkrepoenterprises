@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -14,11 +15,13 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.*
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.*
 import androidx.navigation.NavController
+import android.util.Base64
+import coil.compose.AsyncImage
 import com.vkenterprises.vras.data.models.SearchResult
 import com.vkenterprises.vras.navigation.Screen
 import com.vkenterprises.vras.viewmodel.AuthViewModel
@@ -60,6 +63,26 @@ fun HomeScreen(
                     }
                 },
                 actions = {
+                    val pfpB64 by authVm.pfpBase64.collectAsState(initial = null)
+                    IconButton(onClick = { nav.navigate(Screen.Profile.route) }) {
+                        if (!pfpB64.isNullOrBlank()) {
+                            val bytes = remember(pfpB64) {
+                                runCatching { Base64.decode(pfpB64, Base64.DEFAULT) }.getOrNull()
+                            }
+                            if (bytes != null) {
+                                AsyncImage(
+                                    model = bytes,
+                                    contentDescription = "Profile",
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.size(32.dp).clip(CircleShape)
+                                )
+                            } else {
+                                Icon(Icons.Default.AccountCircle, "Profile")
+                            }
+                        } else {
+                            Icon(Icons.Default.AccountCircle, "Profile")
+                        }
+                    }
                     IconButton(onClick = {
                         authVm.logout()
                         nav.navigate(Screen.Login.route) {
@@ -138,8 +161,7 @@ fun HomeScreen(
                             }
                         },
                         keyboardOptions = KeyboardOptions(
-                            keyboardType = KeyboardType.Text,
-                            capitalization = KeyboardCapitalization.Characters
+                            keyboardType = KeyboardType.Number
                         ),
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),

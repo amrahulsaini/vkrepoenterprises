@@ -17,6 +17,7 @@ class PreferencesManager(private val context: Context) {
         val KEY_IS_ADMIN    = booleanPreferencesKey("is_admin")
         val KEY_SUB_END     = stringPreferencesKey("sub_end")
         val KEY_LOGGED_IN   = booleanPreferencesKey("logged_in")
+        val KEY_PFP         = stringPreferencesKey("pfp")
     }
 
     val isLoggedIn: Flow<Boolean> = context.dataStore.data
@@ -34,9 +35,12 @@ class PreferencesManager(private val context: Context) {
     val subscriptionEnd: Flow<String?> = context.dataStore.data
         .map { it[KEY_SUB_END] }
 
+    val pfpBase64: Flow<String?> = context.dataStore.data
+        .map { it[KEY_PFP]?.ifEmpty { null } }
+
     suspend fun saveSession(
         userId: Long, name: String, mobile: String,
-        isAdmin: Boolean, subEnd: String?
+        isAdmin: Boolean, subEnd: String?, pfp: String? = null
     ) {
         context.dataStore.edit { prefs ->
             prefs[KEY_USER_ID]   = userId
@@ -45,6 +49,13 @@ class PreferencesManager(private val context: Context) {
             prefs[KEY_IS_ADMIN]  = isAdmin
             prefs[KEY_SUB_END]   = subEnd ?: ""
             prefs[KEY_LOGGED_IN] = true
+            if (pfp != null) prefs[KEY_PFP] = pfp
+        }
+    }
+
+    suspend fun savePfp(pfp: String?) {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_PFP] = pfp ?: ""
         }
     }
 

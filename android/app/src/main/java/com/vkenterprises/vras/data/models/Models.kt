@@ -8,7 +8,13 @@ data class RegisterRequest(
     val address: String?,
     val pincode: String?,
     val pfpBase64: String?,
-    val deviceId: String
+    val deviceId: String,
+    // KYC
+    val aadhaarFront: String?,
+    val aadhaarBack: String?,
+    val panFront: String?,
+    val accountNumber: String?,
+    val ifscCode: String?
 )
 
 data class LoginRequest(
@@ -83,6 +89,40 @@ data class SearchResponse(
 data class ApiError(
     val success: Boolean,
     val message: String
+)
+
+// KYC + Profile models
+data class KycInfo(
+    val kycSubmitted: Boolean,
+    val aadhaarFront: String?,
+    val aadhaarBack: String?,
+    val panFront: String?
+)
+
+data class SubscriptionRecord(
+    val id: Long,
+    val startDate: String,
+    val endDate: String,
+    val amount: Double,
+    val notes: String?,
+    val isActive: Boolean
+)
+
+data class ProfileResponse(
+    val userId: Long,
+    val name: String,
+    val mobile: String,
+    val address: String?,
+    val pincode: String?,
+    val pfpBase64: String?,
+    val isActive: Boolean,
+    val isAdmin: Boolean,
+    val balance: Double,
+    val createdAt: String,
+    val accountNumber: String?,
+    val ifscCode: String?,
+    val kyc: KycInfo,
+    val subscriptions: List<SubscriptionRecord>
 )
 
 // Local session stored in DataStore

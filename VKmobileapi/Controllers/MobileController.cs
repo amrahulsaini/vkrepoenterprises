@@ -14,39 +14,55 @@ public class MobileController : ControllerBase
     [HttpPost("register")]
     public async Task<IActionResult> Register([FromBody] RegisterRequest req)
     {
-        if (string.IsNullOrWhiteSpace(req.Mobile) || string.IsNullOrWhiteSpace(req.Name))
-            return BadRequest(new ApiError(false, "Mobile and name are required."));
-        if (string.IsNullOrWhiteSpace(req.DeviceId))
-            return BadRequest(new ApiError(false, "Device ID is required."));
+        try
+        {
+            if (string.IsNullOrWhiteSpace(req.Mobile) || string.IsNullOrWhiteSpace(req.Name))
+                return BadRequest(new ApiError(false, "Mobile and name are required."));
+            if (string.IsNullOrWhiteSpace(req.DeviceId))
+                return BadRequest(new ApiError(false, "Device ID is required."));
 
-        var (success, reason, userId) = await _repo.RegisterAsync(
-            req.Mobile.Trim(), req.Name.Trim(),
-            req.Address?.Trim(), req.Pincode?.Trim(),
-            req.PfpBase64, req.DeviceId.Trim());
+            var (success, reason, userId) = await _repo.RegisterAsync(
+                req.Mobile.Trim(), req.Name.Trim(),
+                req.Address?.Trim(), req.Pincode?.Trim(),
+                req.PfpBase64, req.DeviceId.Trim(),
+                req.AadhaarFront, req.AadhaarBack, req.PanFront,
+                req.AccountNumber?.Trim(), req.IfscCode?.Trim());
 
-        if (!success && reason == "mobile_exists")
-            return Conflict(new ApiError(false, "This mobile number is already registered."));
+            if (!success && reason == "mobile_exists")
+                return Conflict(new ApiError(false, "This mobile number is already registered."));
 
-        return Ok(new { success = true, message = "Registered! Waiting for admin approval.", userId });
+            return Ok(new { success = true, message = "Registered! Waiting for admin approval.", userId });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new ApiError(false, $"Registration failed: {ex.Message}"));
+        }
     }
 
     // POST /api/mobile/login
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginRequest req)
     {
-        if (string.IsNullOrWhiteSpace(req.Mobile) || string.IsNullOrWhiteSpace(req.DeviceId))
-            return BadRequest(new ApiError(false, "Mobile and device ID are required."));
-
-        var result = await _repo.LoginAsync(req.Mobile.Trim(), req.DeviceId.Trim());
-
-        return result.Reason switch
+        try
         {
-            "ok"               => Ok(result),
-            "pending_approval" => StatusCode(403, result),
-            "device_mismatch"  => StatusCode(403, result),
-            "not_found"        => NotFound(result),
-            _                  => BadRequest(result)
-        };
+            if (string.IsNullOrWhiteSpace(req.Mobile) || string.IsNullOrWhiteSpace(req.DeviceId))
+                return BadRequest(new ApiError(false, "Mobile and device ID are required."));
+
+            var result = await _repo.LoginAsync(req.Mobile.Trim(), req.DeviceId.Trim());
+
+            return result.Reason switch
+            {
+                "ok"               => Ok(result),
+                "pending_approval" => StatusCode(403, result),
+                "device_mismatch"  => StatusCode(403, result),
+                "not_found"        => NotFound(result),
+                _                  => BadRequest(result)
+            };
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new ApiError(false, $"Login failed: {ex.Message}"));
+        }
     }
 
     // GET /api/mobile/search/rc/{last4}
@@ -55,12 +71,19 @@ public class MobileController : ControllerBase
         string last4,
         [FromHeader(Name = "X-User-Id")] long userId)
     {
-        if (last4.Length != 4) return BadRequest(new ApiError(false, "last4 must be exactly 4 characters."));
-        if (!await _repo.HasActiveSubscriptionAsync(userId))
-            return StatusCode(402, new ApiError(false, "subscription_expired"));
+        try
+        {
+            if (last4.Length != 4) return BadRequest(new ApiError(false, "last4 must be exactly 4 characters."));
+            if (!await _repo.HasActiveSubscriptionAsync(userId))
+                return StatusCode(402, new ApiError(false, "subscription_expired"));
 
-        var results = await _repo.SearchByRcAsync(last4);
-        return Ok(new SearchResponse(true, "rc", last4.ToUpper(), results.Count, results));
+            var results = await _repo.SearchByRcAsync(last4);
+            return Ok(new SearchResponse(true, "rc", last4.ToUpper(), results.Count, results));
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new ApiError(false, $"Search failed: {ex.Message}"));
+        }
     }
 
     // GET /api/mobile/search/chassis/{last5}
@@ -69,12 +92,50 @@ public class MobileController : ControllerBase
         string last5,
         [FromHeader(Name = "X-User-Id")] long userId)
     {
-        if (last5.Length != 5) return BadRequest(new ApiError(false, "last5 must be exactly 5 characters."));
-        if (!await _repo.HasActiveSubscriptionAsync(userId))
-            return StatusCode(402, new ApiError(false, "subscription_expired"));
+        try
+        {
+            if (last5.Length != 5) return BadRequest(new ApiError(false, "last5 must be exactly 5 characters."));
+            if (!await _repo.HasActiveSubscriptionAsync(userId))
+                return StatusCode(402, new ApiError(false, "subscription_expired"));
 
-        var results = await _repo.SearchByChassisAsync(last5);
-        return Ok(new SearchResponse(true, "chassis", last5.ToUpper(), results.Count, results));
+            var results = await _repo.SearchByChassisAsync(last5);
+            return Ok(new SearchResponse(true, "chassis", last5.ToUpper(), results.Count, results));
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new ApiError(false, $"Search failed: {ex.Message}"));
+        }
+    }
+
+    // GET /api/mobile/profile/{userId}
+    [HttpGet("profile/{userId:long}")]
+    public async Task<IActionResult> GetProfile(long userId)
+    {
+        try
+        {
+            var profile = await _repo.GetProfileAsync(userId);
+            if (profile == null) return NotFound(new ApiError(false, "User not found."));
+            return Ok(profile);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new ApiError(false, $"Profile fetch failed: {ex.Message}"));
+        }
+    }
+
+    // PUT /api/mobile/profile/{userId}/pfp
+    [HttpPut("profile/{userId:long}/pfp")]
+    public async Task<IActionResult> UpdatePfp(long userId, [FromBody] UpdatePfpRequest req)
+    {
+        try
+        {
+            await _repo.UpdatePfpAsync(userId, req.PfpBase64);
+            return Ok(new { success = true });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new ApiError(false, $"Update failed: {ex.Message}"));
+        }
     }
 
     // GET /api/mobile/pfp/{userId}
@@ -86,3 +147,5 @@ public class MobileController : ControllerBase
         return Ok(new { pfpBase64 = pfp });
     }
 }
+
+public record UpdatePfpRequest(string? PfpBase64);

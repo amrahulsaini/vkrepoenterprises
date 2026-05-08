@@ -38,21 +38,30 @@ class AuthViewModel @Inject constructor(
     private val _state = MutableStateFlow<AuthUiState>(AuthUiState.Idle)
     val state: StateFlow<AuthUiState> = _state.asStateFlow()
 
-    val isLoggedIn   = prefs.isLoggedIn
-    val userId       = prefs.userId
-    val userName     = prefs.userName
-    val isAdmin      = prefs.isAdmin
+    val isLoggedIn  = prefs.isLoggedIn
+    val userId      = prefs.userId
+    val userName    = prefs.userName
+    val isAdmin     = prefs.isAdmin
+    val pfpBase64   = prefs.pfpBase64
 
     fun register(
         mobile: String, name: String,
         address: String?, pincode: String?,
-        pfpBase64: String?
+        pfpBase64: String?,
+        aadhaarFront: String?, aadhaarBack: String?,
+        panFront: String?,
+        accountNumber: String?, ifscCode: String?
     ) = viewModelScope.launch {
         _state.value = AuthUiState.Loading
         val deviceId = DeviceIdUtil.get(context)
         val result = repo.register(
-            RegisterRequest(mobile.trim(), name.trim(), address?.trim(),
-                pincode?.trim(), pfpBase64, deviceId)
+            RegisterRequest(
+                mobile.trim(), name.trim(),
+                address?.trim(), pincode?.trim(),
+                pfpBase64, deviceId,
+                aadhaarFront, aadhaarBack, panFront,
+                accountNumber?.trim(), ifscCode?.trim()
+            )
         )
         _state.value = when (result) {
             is AuthResult.Success -> AuthUiState.RegisterSuccess
@@ -69,9 +78,8 @@ class AuthViewModel @Inject constructor(
                 val user = result.data
                 prefs.saveSession(
                     user.userId ?: 0L, user.name ?: "", user.mobile ?: "",
-                    user.isAdmin, user.subscriptionEndDate
+                    user.isAdmin, user.subscriptionEndDate, user.pfpBase64
                 )
-                // Check subscription
                 val subEnd = user.subscriptionEndDate
                 if (subEnd != null && LocalDate.parse(subEnd).isBefore(LocalDate.now()))
                     AuthUiState.SubscriptionExpired
