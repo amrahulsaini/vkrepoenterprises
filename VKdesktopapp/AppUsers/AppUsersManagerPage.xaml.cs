@@ -1,8 +1,10 @@
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
+using System.Windows.Media.Imaging;
 using VRASDesktopApp.Data;
 using VRASDesktopApp.Models;
 
@@ -84,6 +86,34 @@ public partial class AppUsersManagerPage : Page
         txtProfileBalance.Text = $"₹{user.Balance:N2}";
         txtProfileJoined.Text  = user.CreatedDisplay;
         txtDeviceId.Text       = user.DeviceId ?? "(no device registered)";
+
+        // Load PFP image if available
+        if (!string.IsNullOrWhiteSpace(user.PfpBase64))
+        {
+            try
+            {
+                var bytes = Convert.FromBase64String(user.PfpBase64);
+                var bmp = new BitmapImage();
+                bmp.BeginInit();
+                bmp.CacheOption = BitmapCacheOption.OnLoad;
+                bmp.StreamSource = new MemoryStream(bytes);
+                bmp.EndInit();
+                bmp.Freeze();
+                imgPfp.Source = bmp;
+                imgPfp.Visibility = Visibility.Visible;
+                txtAvatar.Visibility = Visibility.Collapsed;
+            }
+            catch
+            {
+                imgPfp.Visibility = Visibility.Collapsed;
+                txtAvatar.Visibility = Visibility.Visible;
+            }
+        }
+        else
+        {
+            imgPfp.Visibility = Visibility.Collapsed;
+            txtAvatar.Visibility = Visibility.Visible;
+        }
 
         pnlEmpty.Visibility   = Visibility.Collapsed;
         pnlProfile.Visibility = Visibility.Visible;
