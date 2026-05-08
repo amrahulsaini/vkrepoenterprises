@@ -5,100 +5,611 @@
     Background="{StaticResource Gray50}"
     FontFamily="Segoe UI"
     Loaded="Page_Loaded">
-    <Grid Margin="20">
+
+    <Page.Resources>
+
+        <!-- Same styles as FinancesManagerPage for consistency -->
+        <Style x:Key="PlusIconButton" TargetType="Button">
+            <Setter Property="Width" Value="32" /><Setter Property="Height" Value="32" />
+            <Setter Property="BorderThickness" Value="0" /><Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="brd" Background="{StaticResource Orange500}" CornerRadius="16" Width="32" Height="32">
+                            <TextBlock Text="+" FontSize="22" FontWeight="Light" Foreground="White"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,-2,0,0" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="brd" Property="Background" Value="{StaticResource Orange600}" /></Trigger>
+                            <Trigger Property="IsPressed" Value="True"><Setter TargetName="brd" Property="Background" Value="{StaticResource Orange700}" /></Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="InlineTextBox" TargetType="TextBox">
+            <Setter Property="Background" Value="Transparent" /><Setter Property="BorderThickness" Value="0" />
+            <Setter Property="FontSize" Value="14" /><Setter Property="Padding" Value="0,8" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border Background="Transparent"><ScrollViewer x:Name="PART_ContentHost" /></Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Compact flat toggle button for Active/Admin -->
+        <Style x:Key="ToggleBtn" TargetType="ToggleButton">
+            <Setter Property="Width" Value="46" /><Setter Property="Height" Value="24" />
+            <Setter Property="BorderThickness" Value="0" /><Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border x:Name="track" CornerRadius="12"
+                                Background="{StaticResource Gray200}"
+                                Width="46" Height="24" Padding="2">
+                            <Border x:Name="thumb" Width="20" Height="20"
+                                    CornerRadius="10" Background="White"
+                                    HorizontalAlignment="Left"
+                                    VerticalAlignment="Center">
+                                <Border.RenderTransform>
+                                    <TranslateTransform x:Name="slide" X="0" />
+                                </Border.RenderTransform>
+                            </Border>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="track" Property="Background" Value="{StaticResource Orange500}" />
+                                <Trigger.EnterActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="slide"
+                                                             Storyboard.TargetProperty="X"
+                                                             To="22" Duration="0:0:0.12" />
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.EnterActions>
+                                <Trigger.ExitActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="slide"
+                                                             Storyboard.TargetProperty="X"
+                                                             To="0" Duration="0:0:0.12" />
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.ExitActions>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Label for toggle columns -->
+        <Style x:Key="ToggleLabel" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="11" /><Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Margin" Value="0,3,0,0" />
+            <Setter Property="HorizontalAlignment" Value="Center" />
+        </Style>
+
+        <!-- Avatar circle -->
+        <Style x:Key="AvatarCircle" TargetType="Border">
+            <Setter Property="Width" Value="36" /><Setter Property="Height" Value="36" />
+            <Setter Property="CornerRadius" Value="18" />
+            <Setter Property="Background" Value="{StaticResource Primary100}" />
+        </Style>
+
+        <!-- Action button (ghost) in right panel -->
+        <Style x:Key="GhostButton" TargetType="Button">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="BorderBrush" Value="{StaticResource Gray200}" />
+            <Setter Property="Foreground" Value="{StaticResource Gray700}" />
+            <Setter Property="FontSize" Value="13" /><Setter Property="Padding" Value="14,7" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="brd" CornerRadius="6"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="brd" Property="Background" Value="{StaticResource Gray50}" />
+                                <Setter TargetName="brd" Property="BorderBrush" Value="{StaticResource Gray300}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Primary (orange) button -->
+        <Style x:Key="PrimaryButton" TargetType="Button">
+            <Setter Property="Background" Value="{StaticResource Orange500}" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="FontSize" Value="13" /><Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Padding" Value="16,8" /><Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="brd" CornerRadius="6"
+                                Background="{TemplateBinding Background}"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="brd" Property="Background" Value="{StaticResource Orange600}" /></Trigger>
+                            <Trigger Property="IsPressed" Value="True"><Setter TargetName="brd" Property="Background" Value="{StaticResource Orange700}" /></Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Danger ghost button -->
+        <Style x:Key="DangerGhostButton" TargetType="Button" BasedOn="{StaticResource GhostButton}">
+            <Setter Property="Foreground" Value="#C0392B" />
+            <Setter Property="BorderBrush" Value="#FFCDC3C3" />
+        </Style>
+
+        <!-- Subscription row style -->
+        <Style x:Key="SubRowStyle" TargetType="DataGridRow">
+            <Setter Property="Height" Value="42" /><Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="{StaticResource Primary100}" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="SubCellStyle" TargetType="DataGridCell">
+            <Setter Property="BorderThickness" Value="0" /><Setter Property="Padding" Value="12,0" />
+            <Setter Property="Background" Value="Transparent" /><Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="DataGridCell">
+                        <Border Background="Transparent" BorderThickness="0" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter VerticalAlignment="Center" />
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="SubHeaderStyle" TargetType="DataGridColumnHeader">
+            <Setter Property="Height" Value="38" /><Setter Property="Background" Value="{StaticResource Gray50}" />
+            <Setter Property="Foreground" Value="{StaticResource Gray600}" />
+            <Setter Property="FontSize" Value="12" /><Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Padding" Value="12,0,6,0" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="DataGridColumnHeader">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{StaticResource Gray200}" BorderThickness="0,0,0,1"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter VerticalAlignment="Center" />
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+    </Page.Resources>
+
+    <Grid Margin="24,20,24,20">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <Border Grid.Row="0" Style="{StaticResource DashboardCard}">
-            <StackPanel>
-                <TextBlock Text="APP USERS" Style="{StaticResource Heading4}" />
-                <TextBlock Text="Live users, device assignments and subscription plan visibility."
-                           Margin="0,6,0,0"
-                           Style="{StaticResource Caption}" />
-            </StackPanel>
-        </Border>
+        <!-- Page header -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,16">
+            <TextBlock Text="App Users" Style="{StaticResource Heading4}" />
+            <TextBlock Text="Manage mobile app users, subscriptions and device access"
+                       Style="{StaticResource Caption}" Margin="0,2,0,0" />
+        </StackPanel>
 
-        <UniformGrid Grid.Row="1" Columns="5" Margin="0,18,0,18">
-            <Border Style="{StaticResource DashboardCard}" Margin="0,0,12,0"><StackPanel><TextBlock Text="USERS" Style="{StaticResource FormHeading}" /><TextBlock Name="lblUsers" Style="{StaticResource StatValue}" Text="0" /></StackPanel></Border>
-            <Border Style="{StaticResource DashboardCard}" Margin="0,0,12,0"><StackPanel><TextBlock Text="ACTIVE" Style="{StaticResource FormHeading}" /><TextBlock Name="lblActive" Style="{StaticResource StatValue}" Text="0" /></StackPanel></Border>
-            <Border Style="{StaticResource DashboardCard}" Margin="0,0,12,0"><StackPanel><TextBlock Text="ADMIN" Style="{StaticResource FormHeading}" /><TextBlock Name="lblAdmin" Style="{StaticResource StatValue}" Text="0" /></StackPanel></Border>
-            <Border Style="{StaticResource DashboardCard}" Margin="0,0,12,0"><StackPanel><TextBlock Text="PLANS" Style="{StaticResource FormHeading}" /><TextBlock Name="lblPlans" Style="{StaticResource StatValue}" Text="0" /></StackPanel></Border>
-            <Border Style="{StaticResource DashboardCard}"><StackPanel><TextBlock Text="DEVICES" Style="{StaticResource FormHeading}" /><TextBlock Name="lblDevices" Style="{StaticResource StatValue}" Text="0" /></StackPanel></Border>
+        <!-- Stats bar -->
+        <UniformGrid Grid.Row="1" Columns="4" Margin="0,0,0,18">
+            <Border Style="{StaticResource DashboardCard}" Margin="0,0,12,0">
+                <StackPanel>
+                    <TextBlock Text="TOTAL USERS" Style="{StaticResource FormHeading}" />
+                    <TextBlock Name="lblTotal" Style="{StaticResource StatValue}" Text="0" />
+                </StackPanel>
+            </Border>
+            <Border Style="{StaticResource DashboardCard}" Margin="0,0,12,0">
+                <StackPanel>
+                    <TextBlock Text="ACTIVE" Style="{StaticResource FormHeading}" />
+                    <TextBlock Name="lblActive" Style="{StaticResource StatValue}" Text="0" />
+                </StackPanel>
+            </Border>
+            <Border Style="{StaticResource DashboardCard}" Margin="0,0,12,0">
+                <StackPanel>
+                    <TextBlock Text="ADMINS" Style="{StaticResource FormHeading}" />
+                    <TextBlock Name="lblAdmins" Style="{StaticResource StatValue}" Text="0" />
+                </StackPanel>
+            </Border>
+            <Border Style="{StaticResource DashboardCard}">
+                <StackPanel>
+                    <TextBlock Text="WITH ACTIVE PLAN" Style="{StaticResource FormHeading}" />
+                    <TextBlock Name="lblWithSub" Style="{StaticResource StatValue}" Text="0" />
+                </StackPanel>
+            </Border>
         </UniformGrid>
 
+        <!-- Two-column layout -->
         <Grid Grid.Row="2">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="1.4*" />
+                <ColumnDefinition Width="1.3*" />
                 <ColumnDefinition Width="16" />
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
-            <Border Grid.Column="0" Style="{StaticResource DashboardCard}">
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="*" />
-                    </Grid.RowDefinitions>
-                    <TextBlock Text="USER LIST" Style="{StaticResource Heading5}" Margin="0,0,0,12" />
-                    <DataGrid Name="dgUsers" Grid.Row="1" Style="{StaticResource MaterialDataGrid}">
-                        <DataGrid.Columns>
-                            <DataGridTextColumn Header="Name" Binding="{Binding FullName}" Width="*" />
-                            <DataGridTextColumn Header="Mobile" Binding="{Binding MobileNo}" Width="120" />
-                            <DataGridTextColumn Header="Role" Binding="{Binding Role}" Width="80" />
-                            <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="110" />
-                            <DataGridTextColumn Header="Branches" Binding="{Binding BranchCount}" Width="90" />
-                            <DataGridTextColumn Header="Plan End" Binding="{Binding PlanEndDate}" Width="140" />
-                            <DataGridTextColumn Header="Created" Binding="{Binding CreatedOn}" Width="140" />
-                        </DataGrid.Columns>
-                    </DataGrid>
-                </Grid>
+            <!-- LEFT: User list -->
+            <Border Grid.Column="0" Style="{StaticResource DashboardCard}" Padding="0">
+                <DockPanel LastChildFill="True">
+
+                    <!-- Header -->
+                    <Border DockPanel.Dock="Top"
+                            Background="White" BorderBrush="{StaticResource Gray100}"
+                            BorderThickness="0,0,0,1" CornerRadius="8,8,0,0" Padding="16,14">
+                        <TextBlock Text="Users" Style="{StaticResource Heading6}" VerticalAlignment="Center" />
+                    </Border>
+
+                    <!-- Search -->
+                    <Border DockPanel.Dock="Top" Margin="14,10,14,4"
+                            Background="White" BorderBrush="{StaticResource Gray200}"
+                            BorderThickness="1" CornerRadius="7">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="&#xE721;"
+                                       FontFamily="Segoe MDL2 Assets" FontSize="14"
+                                       Foreground="{StaticResource Gray400}"
+                                       VerticalAlignment="Center" Margin="12,0,6,0" />
+                            <Grid Grid.Column="1">
+                                <TextBox Name="txtSearch" Style="{StaticResource InlineTextBox}"
+                                         TextChanged="txtSearch_TextChanged" />
+                                <TextBlock Text="Search users..." FontSize="14"
+                                           Foreground="{StaticResource Gray400}"
+                                           VerticalAlignment="Center" IsHitTestVisible="False">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding Text, ElementName=txtSearch}" Value="">
+                                                    <Setter Property="Visibility" Value="Visible" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </Grid>
+                        </Grid>
+                    </Border>
+
+                    <!-- Column header row (manual, not DataGrid header) -->
+                    <Grid DockPanel.Dock="Top" Margin="14,6,14,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="44" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="110" />
+                            <ColumnDefinition Width="60" />
+                            <ColumnDefinition Width="60" />
+                            <ColumnDefinition Width="80" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="" />
+                        <TextBlock Grid.Column="1" Text="Name / Mobile" FontSize="12" FontWeight="SemiBold"
+                                   Foreground="{StaticResource Gray500}" />
+                        <TextBlock Grid.Column="2" Text="Sub End" FontSize="12" FontWeight="SemiBold"
+                                   Foreground="{StaticResource Gray500}" />
+                        <TextBlock Grid.Column="3" Text="Active" FontSize="12" FontWeight="SemiBold"
+                                   Foreground="{StaticResource Gray500}" HorizontalAlignment="Center" />
+                        <TextBlock Grid.Column="4" Text="Admin" FontSize="12" FontWeight="SemiBold"
+                                   Foreground="{StaticResource Gray500}" HorizontalAlignment="Center" />
+                        <TextBlock Grid.Column="5" Text="Balance" FontSize="12" FontWeight="SemiBold"
+                                   Foreground="{StaticResource Gray500}" HorizontalAlignment="Right" />
+                    </Grid>
+
+                    <Rectangle DockPanel.Dock="Top" Height="1"
+                               Fill="{StaticResource Gray100}" Margin="14,6,14,0" />
+
+                    <!-- User list (ItemsControl) -->
+                    <Grid Margin="14,4,14,14">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                            <ItemsControl Name="icUsers">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border x:Name="rowBorder"
+                                                Background="Transparent"
+                                                BorderThickness="0,0,0,1"
+                                                BorderBrush="{StaticResource Gray100}"
+                                                Padding="0,10"
+                                                Cursor="Hand"
+                                                MouseLeftButtonDown="UserRow_Click"
+                                                Tag="{Binding}">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="44" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="110" />
+                                                    <ColumnDefinition Width="60" />
+                                                    <ColumnDefinition Width="60" />
+                                                    <ColumnDefinition Width="80" />
+                                                </Grid.ColumnDefinitions>
+
+                                                <!-- Avatar -->
+                                                <Border Grid.Column="0" Style="{StaticResource AvatarCircle}">
+                                                    <TextBlock Text="{Binding Initials}"
+                                                               FontSize="13" FontWeight="Bold"
+                                                               Foreground="{StaticResource Orange700}"
+                                                               HorizontalAlignment="Center"
+                                                               VerticalAlignment="Center" />
+                                                </Border>
+
+                                                <!-- Name + mobile -->
+                                                <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,8,0">
+                                                    <TextBlock Text="{Binding Name}"
+                                                               FontSize="14" FontWeight="SemiBold"
+                                                               Foreground="{StaticResource Gray800}" />
+                                                    <TextBlock Text="{Binding Mobile}"
+                                                               FontSize="12"
+                                                               Foreground="{StaticResource Gray500}" />
+                                                </StackPanel>
+
+                                                <!-- Sub end -->
+                                                <TextBlock Grid.Column="2" Text="{Binding SubEndDisplay}"
+                                                           FontSize="12"
+                                                           Foreground="{StaticResource Gray600}"
+                                                           VerticalAlignment="Center" />
+
+                                                <!-- Active toggle -->
+                                                <StackPanel Grid.Column="3" HorizontalAlignment="Center"
+                                                            VerticalAlignment="Center">
+                                                    <ToggleButton Style="{StaticResource ToggleBtn}"
+                                                                  IsChecked="{Binding IsActive, Mode=OneTime}"
+                                                                  Tag="{Binding}"
+                                                                  Checked="ActiveToggle_Checked"
+                                                                  Unchecked="ActiveToggle_Unchecked" />
+                                                </StackPanel>
+
+                                                <!-- Admin toggle -->
+                                                <StackPanel Grid.Column="4" HorizontalAlignment="Center"
+                                                            VerticalAlignment="Center">
+                                                    <ToggleButton Style="{StaticResource ToggleBtn}"
+                                                                  IsChecked="{Binding IsAdmin, Mode=OneTime}"
+                                                                  Tag="{Binding}"
+                                                                  Checked="AdminToggle_Checked"
+                                                                  Unchecked="AdminToggle_Unchecked" />
+                                                </StackPanel>
+
+                                                <!-- Balance -->
+                                                <TextBlock Grid.Column="5"
+                                                           Text="{Binding BalanceDisplay}"
+                                                           FontSize="13" FontWeight="SemiBold"
+                                                           Foreground="{StaticResource Gray700}"
+                                                           HorizontalAlignment="Right"
+                                                           VerticalAlignment="Center" />
+                                            </Grid>
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Style.Triggers>
+                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                            <Setter Property="Background" Value="{StaticResource Gray50}" />
+                                                        </Trigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+
+                        <ProgressBar Name="usersLoadingBar"
+                                     Visibility="Collapsed" IsIndeterminate="True"
+                                     Height="3" VerticalAlignment="Top" Panel.ZIndex="100"
+                                     Foreground="{StaticResource Orange500}"
+                                     Background="Transparent" BorderThickness="0" />
+                    </Grid>
+                </DockPanel>
             </Border>
 
-            <Grid Grid.Column="2">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="*" />
-                    <RowDefinition Height="16" />
-                    <RowDefinition Height="*" />
-                </Grid.RowDefinitions>
+            <!-- RIGHT: Profile panel -->
+            <Border Grid.Column="2" Style="{StaticResource DashboardCard}" Padding="0">
+                <DockPanel LastChildFill="True" Name="rightPanel">
 
-                <Border Style="{StaticResource DashboardCard}">
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="*" />
-                        </Grid.RowDefinitions>
-                        <TextBlock Text="PLAN ALERTS" Style="{StaticResource Heading5}" Margin="0,0,0,12" />
-                        <DataGrid Name="dgPlans" Grid.Row="1" Style="{StaticResource MaterialDataGrid}">
-                            <DataGrid.Columns>
-                                <DataGridTextColumn Header="User" Binding="{Binding UserName}" Width="*" />
-                                <DataGridTextColumn Header="Mobile" Binding="{Binding MobileNo}" Width="120" />
-                                <DataGridTextColumn Header="Start" Binding="{Binding StartDate}" Width="140" />
-                                <DataGridTextColumn Header="End" Binding="{Binding EndDate}" Width="140" />
-                            </DataGrid.Columns>
-                        </DataGrid>
-                    </Grid>
-                </Border>
+                    <!-- Panel header -->
+                    <Border DockPanel.Dock="Top"
+                            Background="White" BorderBrush="{StaticResource Gray100}"
+                            BorderThickness="0,0,0,1" CornerRadius="8,8,0,0" Padding="16,14">
+                        <TextBlock Name="txtRightTitle"
+                                   Text="Select a user" Style="{StaticResource Heading6}"
+                                   VerticalAlignment="Center" />
+                    </Border>
 
-                <Border Grid.Row="2" Style="{StaticResource DashboardCard}">
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="*" />
-                        </Grid.RowDefinitions>
-                        <TextBlock Text="DEVICE STATE" Style="{StaticResource Heading5}" Margin="0,0,0,12" />
-                        <DataGrid Name="dgDevices" Grid.Row="1" Style="{StaticResource MaterialDataGrid}">
-                            <DataGrid.Columns>
-                                <DataGridTextColumn Header="User" Binding="{Binding FullName}" Width="*" />
-                                <DataGridTextColumn Header="Device ID" Binding="{Binding DeviceId}" Width="*" />
-                                <DataGridTextColumn Header="Requested" Binding="{Binding RequestDeviceId}" Width="*" />
-                            </DataGrid.Columns>
-                        </DataGrid>
-                    </Grid>
-                </Border>
-            </Grid>
+                    <!-- Empty state -->
+                    <StackPanel Name="pnlEmpty"
+                                HorizontalAlignment="Center" VerticalAlignment="Center"
+                                DockPanel.Dock="Bottom">
+                        <TextBlock Text="&#xE77B;"
+                                   FontFamily="Segoe MDL2 Assets" FontSize="48"
+                                   Foreground="{StaticResource Gray300}"
+                                   HorizontalAlignment="Center" />
+                        <TextBlock Text="Select a user to view profile"
+                                   FontSize="13" Foreground="{StaticResource Gray400}"
+                                   HorizontalAlignment="Center" Margin="0,8,0,0" />
+                    </StackPanel>
+
+                    <!-- Profile content (hidden until user selected) -->
+                    <ScrollViewer Name="pnlProfile"
+                                  Visibility="Collapsed"
+                                  VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel Margin="20,16,20,20" Name="profileStack">
+
+                            <!-- Avatar + name -->
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,18">
+                                <Border Name="brdAvatar"
+                                        Width="60" Height="60" CornerRadius="30"
+                                        Background="{StaticResource Primary100}">
+                                    <TextBlock Name="txtAvatar"
+                                               FontSize="22" FontWeight="Bold"
+                                               Foreground="{StaticResource Orange700}"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center" />
+                                </Border>
+                                <StackPanel Margin="14,0,0,0" VerticalAlignment="Center">
+                                    <TextBlock Name="txtProfileName"
+                                               FontSize="17" FontWeight="Bold"
+                                               Foreground="{StaticResource Gray900}" />
+                                    <TextBlock Name="txtProfileMobile"
+                                               FontSize="13" Foreground="{StaticResource Gray500}"
+                                               Margin="0,2,0,0" />
+                                </StackPanel>
+                            </StackPanel>
+
+                            <!-- Details grid -->
+                            <Border Background="{StaticResource Gray50}"
+                                    BorderBrush="{StaticResource Gray100}"
+                                    BorderThickness="1" CornerRadius="8"
+                                    Padding="14,12" Margin="0,0,0,16">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="ID"
+                                               Style="{StaticResource Caption}" Width="80" Margin="0,0,0,8" />
+                                    <TextBlock Name="txtProfileId" Grid.Row="0" Grid.Column="1"
+                                               FontSize="13" Foreground="{StaticResource Gray800}" Margin="0,0,0,8" />
+
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Address"
+                                               Style="{StaticResource Caption}" Margin="0,0,0,8" />
+                                    <TextBlock Name="txtProfileAddress" Grid.Row="1" Grid.Column="1"
+                                               FontSize="13" Foreground="{StaticResource Gray800}"
+                                               TextWrapping="Wrap" Margin="0,0,0,8" />
+
+                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Pincode"
+                                               Style="{StaticResource Caption}" Margin="0,0,0,8" />
+                                    <TextBlock Name="txtProfilePincode" Grid.Row="2" Grid.Column="1"
+                                               FontSize="13" Foreground="{StaticResource Gray800}" Margin="0,0,0,8" />
+
+                                    <TextBlock Grid.Row="3" Grid.Column="0" Text="Balance"
+                                               Style="{StaticResource Caption}" Margin="0,0,0,8" />
+                                    <TextBlock Name="txtProfileBalance" Grid.Row="3" Grid.Column="1"
+                                               FontSize="13" FontWeight="SemiBold"
+                                               Foreground="{StaticResource Orange700}" Margin="0,0,0,8" />
+
+                                    <TextBlock Grid.Row="4" Grid.Column="0" Text="Joined"
+                                               Style="{StaticResource Caption}" />
+                                    <TextBlock Name="txtProfileJoined" Grid.Row="4" Grid.Column="1"
+                                               FontSize="13" Foreground="{StaticResource Gray800}" />
+                                </Grid>
+                            </Border>
+
+                            <!-- Device section -->
+                            <StackPanel Margin="0,0,0,16">
+                                <DockPanel Margin="0,0,0,8">
+                                    <Button DockPanel.Dock="Right" Content="Reset Device"
+                                            Style="{StaticResource DangerGhostButton}"
+                                            Click="btnResetDevice_Click" />
+                                    <TextBlock Text="Device ID" FontSize="13" FontWeight="SemiBold"
+                                               Foreground="{StaticResource Gray700}"
+                                               VerticalAlignment="Center" />
+                                </DockPanel>
+                                <TextBlock Name="txtDeviceId"
+                                           FontSize="11" Foreground="{StaticResource Gray500}"
+                                           TextWrapping="Wrap"
+                                           FontFamily="Consolas" />
+                            </StackPanel>
+
+                            <!-- Subscriptions section -->
+                            <DockPanel Margin="0,0,0,8">
+                                <Button DockPanel.Dock="Right" Content="+ Add Plan"
+                                        Style="{StaticResource PrimaryButton}"
+                                        Click="btnAddSubscription_Click" />
+                                <TextBlock Text="Subscriptions" FontSize="13" FontWeight="SemiBold"
+                                           Foreground="{StaticResource Gray700}"
+                                           VerticalAlignment="Center" />
+                            </DockPanel>
+
+                            <DataGrid Name="dgSubscriptions"
+                                      AutoGenerateColumns="False"
+                                      SelectionMode="Single"
+                                      SelectionUnit="FullRow"
+                                      IsReadOnly="True"
+                                      RowStyle="{StaticResource SubRowStyle}"
+                                      CellStyle="{StaticResource SubCellStyle}"
+                                      ColumnHeaderStyle="{StaticResource SubHeaderStyle}"
+                                      BorderThickness="1"
+                                      BorderBrush="{StaticResource Gray100}"
+                                      GridLinesVisibility="Horizontal"
+                                      HorizontalGridLinesBrush="{StaticResource Gray100}"
+                                      Background="White"
+                                      MaxHeight="200"
+                                      ContextMenuOpening="dgSubscriptions_ContextMenuOpening">
+                                <DataGrid.ContextMenu>
+                                    <ContextMenu>
+                                        <MenuItem Header="Delete Plan" Foreground="#C0392B"
+                                                  Click="SubDelete_Click" />
+                                    </ContextMenu>
+                                </DataGrid.ContextMenu>
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Start" Binding="{Binding StartDisplay}" Width="90">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock"><Setter Property="FontSize" Value="12" /></Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="End" Binding="{Binding EndDisplay}" Width="90">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock"><Setter Property="FontSize" Value="12" /></Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Amount" Binding="{Binding AmountDisplay}" Width="80">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="FontSize" Value="12" />
+                                                <Setter Property="FontWeight" Value="SemiBold" />
+                                                <Setter Property="Foreground" Value="{StaticResource Orange700}" />
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Notes" Binding="{Binding Notes}" Width="*">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="FontSize" Value="11" />
+                                                <Setter Property="Foreground" Value="{StaticResource Gray500}" />
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                </DataGrid.Columns>
+                            </DataGrid>
+
+                        </StackPanel>
+                    </ScrollViewer>
+                </DockPanel>
+            </Border>
         </Grid>
     </Grid>
 </Page>
