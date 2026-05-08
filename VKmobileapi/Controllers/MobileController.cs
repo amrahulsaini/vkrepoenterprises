@@ -138,12 +138,20 @@ public class MobileController : ControllerBase
         }
     }
 
-    // POST /api/mobile/cache/invalidate  — call this after desktop uploads records
+    // POST /api/mobile/cache/invalidate  — call after desktop uploads records
     [HttpPost("cache/invalidate")]
     public IActionResult InvalidateCache()
     {
         MobileRepository.InvalidateSearchCache();
         return Ok(new { success = true, message = "Search cache cleared." });
+    }
+
+    // POST /api/mobile/cache/invalidate-sub/{userId}  — call after admin grants/revokes subscription
+    [HttpPost("cache/invalidate-sub/{userId:long}")]
+    public IActionResult InvalidateSubCache(long userId)
+    {
+        MobileRepository.InvalidateSubCache(userId);
+        return Ok(new { success = true, message = "Subscription cache cleared." });
     }
 
     // GET /api/mobile/pfp/{userId}
