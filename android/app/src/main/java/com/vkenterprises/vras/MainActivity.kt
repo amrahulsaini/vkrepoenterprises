@@ -23,14 +23,14 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             VKTheme {
-                VKApp()
+                VKNavHost()
             }
         }
     }
 }
 
 @Composable
-fun VKApp() {
+fun VKNavHost() {
     val navController   = rememberNavController()
     val authVm: AuthViewModel   = hiltViewModel()
     val searchVm: SearchViewModel = hiltViewModel()

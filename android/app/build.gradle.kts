@@ -16,8 +16,7 @@ android {
         versionCode   = 1
         versionName   = "1.0"
 
-        // Change to your server IP / domain
-        buildConfigField("String", "BASE_URL", "\"http://192.168.1.100:5000/\"")
+        buildConfigField("String", "BASE_URL", "\"https://api.characterverse.tech/\"")
     }
 
     buildTypes {
