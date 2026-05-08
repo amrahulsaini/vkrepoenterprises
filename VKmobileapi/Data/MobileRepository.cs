@@ -319,4 +319,60 @@ public class MobileRepository
         var result = await cmd.ExecuteScalarAsync();
         return result is DBNull or null ? null : result.ToString();
     }
+
+    // ── Sync: branch list ──────────────────────────────────────────────────
+    public async Task<List<SyncBranch>> GetSyncBranchesAsync()
+    {
+        await using var conn = DbFactory.Create();
+        await conn.OpenAsync();
+        const string sql = @"
+            SELECT b.id, b.name, COALESCE(f.name,'') AS financer,
+                   COALESCE(b.total_records,0),
+                   DATE_FORMAT(b.uploaded_at,'%Y-%m-%dT%H:%i:%s')
+            FROM branches b
+            LEFT JOIN finances f ON f.id = b.finance_id
+            WHERE b.is_active = 1 AND b.uploaded_at IS NOT NULL
+            ORDER BY b.id";
+        var list = new List<SyncBranch>();
+        await using var cmd = new MySqlCommand(sql, conn);
+        await using var r   = await cmd.ExecuteReaderAsync();
+        while (await r.ReadAsync())
+            list.Add(new SyncBranch(
+                r.GetInt32(0), r.GetString(1), r.GetString(2),
+                r.GetInt64(3), r.IsDBNull(4) ? null : r.GetString(4)));
+        return list;
+    }
+
+    // ── Sync: compact records for one branch (paginated) ──────────────────
+    public async Task<List<SyncRecord>> GetSyncRecordsAsync(int branchId, int page, int size)
+    {
+        await using var conn = DbFactory.Create();
+        await conn.OpenAsync();
+        const string sql = @"
+            SELECT vr.id,
+                   COALESCE(vr.vehicle_no,'')    AS vehicle_no,
+                   COALESCE(vr.chassis_no,'')   AS chassis_no,
+                   COALESCE(vr.engine_no,'')    AS engine_no,
+                   COALESCE(vr.model,'')        AS model,
+                   COALESCE(vr.customer_name,'') AS customer_name,
+                   COALESCE(ri.last4,'')  AS last4,
+                   COALESCE(ci.last5,'')  AS last5
+            FROM vehicle_records vr
+            LEFT JOIN rc_info ri      ON ri.vehicle_record_id  = vr.id
+            LEFT JOIN chassis_info ci ON ci.vehicle_record_id = vr.id
+            WHERE vr.branch_id = @bid
+            GROUP BY vr.id
+            ORDER BY vr.id
+            LIMIT @size OFFSET @off";
+        var list = new List<SyncRecord>();
+        await using var cmd = new MySqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("@bid",  branchId);
+        cmd.Parameters.AddWithValue("@size", size);
+        cmd.Parameters.AddWithValue("@off",  page * size);
+        await using var r = await cmd.ExecuteReaderAsync();
+        string S(int i) => r.IsDBNull(i) ? "" : r.GetString(i);
+        while (await r.ReadAsync())
+            list.Add(new SyncRecord(r.GetInt64(0), S(1), S(2), S(3), S(4), S(5), S(6), S(7)));
+        return list;
+    }
 }

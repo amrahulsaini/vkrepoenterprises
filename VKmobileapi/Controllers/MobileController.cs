@@ -162,6 +162,39 @@ public class MobileController : ControllerBase
         if (pfp == null) return NotFound();
         return Ok(new { pfpBase64 = pfp });
     }
+
+    // GET /api/mobile/sync/branches
+    [HttpGet("sync/branches")]
+    public async Task<IActionResult> GetSyncBranches()
+    {
+        try
+        {
+            var branches = await _repo.GetSyncBranchesAsync();
+            var total    = branches.Sum(b => b.TotalRecords);
+            return Ok(new SyncBranchResponse(true, branches.Count, total, branches));
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new ApiError(false, $"Sync branches failed: {ex.Message}"));
+        }
+    }
+
+    // GET /api/mobile/sync/records/{branchId}?page=0&size=500
+    [HttpGet("sync/records/{branchId}")]
+    public async Task<IActionResult> GetSyncRecords(
+        int branchId, [FromQuery] int page = 0, [FromQuery] int size = 500)
+    {
+        try
+        {
+            if (size > 1000) size = 1000;
+            var records = await _repo.GetSyncRecordsAsync(branchId, page, size);
+            return Ok(new SyncRecordsResponse(true, branchId, page, size, records.Count == size, records));
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new ApiError(false, $"Sync records failed: {ex.Message}"));
+        }
+    }
 }
 
 public record UpdatePfpRequest(string? PfpBase64);

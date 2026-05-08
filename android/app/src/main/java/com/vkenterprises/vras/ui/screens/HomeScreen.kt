@@ -87,6 +87,30 @@ fun HomeScreen(
     ) { pad ->
         Column(Modifier.padding(pad).fillMaxSize()) {
 
+            // Sync progress banner
+            if (ui.isSyncing) {
+                val pct = if (ui.syncTotal > 0) (ui.syncCurrent.toFloat() / ui.syncTotal) else 0f
+                Surface(color = MaterialTheme.colorScheme.primaryContainer) {
+                    Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp)) {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Syncing vehicle data…",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer)
+                            Text("${ui.syncCurrent.toInt().formatCount()} / ${ui.syncTotal.toInt().formatCount()}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer)
+                        }
+                        Spacer(Modifier.height(4.dp))
+                        LinearProgressIndicator(
+                            progress = { pct },
+                            modifier = Modifier.fillMaxWidth(),
+                            color = MaterialTheme.colorScheme.primary,
+                            trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
+                        )
+                    }
+                }
+            }
+
             // ── Search bar ───────────────────────────────────────────────
             Surface(
                 color = MaterialTheme.colorScheme.surfaceVariant,
@@ -236,4 +260,10 @@ private fun ModeTab(label: String, selected: Boolean, onClick: () -> Unit, modif
             color = if (selected) MaterialTheme.colorScheme.onPrimary
                     else MaterialTheme.colorScheme.onSurfaceVariant)
     }
+}
+
+private fun Int.formatCount(): String = when {
+    this >= 1_000_000 -> "${this / 1_000_000}.${(this % 1_000_000) / 100_000}M"
+    this >= 1_000     -> "${this / 1_000}K"
+    else              -> "$this"
 }

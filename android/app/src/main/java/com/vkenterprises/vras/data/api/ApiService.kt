@@ -32,4 +32,14 @@ interface ApiService {
         @Path("userId") userId: Long,
         @Body request: Map<String, String?>
     ): Response<Map<String, Any>>
+
+    @GET("api/mobile/sync/branches")
+    suspend fun getSyncBranches(): Response<SyncBranchResponse>
+
+    @GET("api/mobile/sync/records/{branchId}")
+    suspend fun getSyncRecords(
+        @Path("branchId") branchId: Int,
+        @Query("page")    page: Int = 0,
+        @Query("size")    size: Int = 500
+    ): Response<SyncRecordsResponse>
 }
