@@ -106,8 +106,8 @@ public partial class FindVehiclePage : Page
     {
         try
         {
-            btnSearch.IsEnabled     = false;
-            prgSearching.Visibility = Visibility.Visible;
+            btnSearch.IsEnabled       = false;
+            prgSearching.Visibility   = Visibility.Visible;
 
             _searchCts?.Cancel();
             _searchCts?.Dispose();
@@ -125,6 +125,7 @@ public partial class FindVehiclePage : Page
             if (ct.IsCancellationRequested) return;
 
             _fullResults = results;
+            txtSearch.Text = string.Empty;
 
             lblResults.Text     = results.Count.ToString("N0");
             lblBranchCount.Text = results.Select(r => r.BranchName).Distinct().Count().ToString("N0");
@@ -262,42 +263,41 @@ Agency Contact : 0";
 
     private async void btnDelete_Click(object sender, RoutedEventArgs e)
     {
-        if (brdDetails.DataContext is VehicleSearchItem record)
+        if (brdDetails.DataContext is not VehicleSearchItem record) return;
+
+        var confirm = MessageBox.Show(
+            $"Are you sure you want to permanently delete {record.VehicleNo}?",
+            "Confirm Delete", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+        if (confirm != MessageBoxResult.Yes) return;
+
+        try
         {
-            var confirm = MessageBox.Show(
-                $"Are you sure you want to absolutely delete {record.VehicleNo}?",
-                "Confirm Delete", MessageBoxButton.YesNo, MessageBoxImage.Warning);
-            if (confirm == MessageBoxResult.Yes)
+            btnDelete.IsEnabled = false;
+            await _searchRepo.DeleteRecordAsync(long.Parse(record.Id));
+            _fullResults.Remove(record);
+            var chassis   = IsChassisMode();
+            var key       = chassis ? record.ChassisNo : record.VehicleNo;
+            var remaining = _fullResults.Where(x => (chassis ? x.ChassisNo : x.VehicleNo) == key).ToList();
+            if (remaining.Any())
             {
-                try
-                {
-                    var url = $"{App.ApiBaseUrl}api/Records/Delete/{record.Id}";
-                    var response = await App.HttpClient.DeleteAsync(url);
-                    response.EnsureSuccessStatusCode();
-                    MessageBox.Show("Record deleted successfully.", "Success",
-                        MessageBoxButton.OK, MessageBoxImage.Information);
-                    _fullResults.Remove(record);
-                    var chassis  = IsChassisMode();
-                    var key      = chassis ? record.ChassisNo : record.VehicleNo;
-                    var remaining = _fullResults.Where(x => (chassis ? x.ChassisNo : x.VehicleNo) == key).ToList();
-                    if (remaining.Any())
-                    {
-                        lstBranches.ItemsSource = remaining;
-                        lstBranches.SelectedIndex = 0;
-                    }
-                    else
-                    {
-                        dgResults.ItemsSource  = null;
-                        brdBranches.Visibility = Visibility.Collapsed;
-                        brdDetails.Visibility  = Visibility.Collapsed;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"Failed to delete: {ex.Message}", "Error",
-                        MessageBoxButton.OK, MessageBoxImage.Error);
-                }
+                lstBranches.ItemsSource   = remaining;
+                lstBranches.SelectedIndex = 0;
             }
+            else
+            {
+                dgResults.ItemsSource  = null;
+                brdBranches.Visibility = Visibility.Collapsed;
+                brdDetails.Visibility  = Visibility.Collapsed;
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Failed to delete: {ex.Message}", "Error",
+                MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally
+        {
+            btnDelete.IsEnabled = true;
         }
     }
 }

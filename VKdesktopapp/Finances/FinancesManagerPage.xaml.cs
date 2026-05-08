@@ -1,9 +1,12 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Data;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Media;
+using Microsoft.Win32;
+using Syncfusion.XlsIO;
 using VRASDesktopApp.Models;
 using VRASDesktopApp.Data;
 using System.Collections.Generic;
@@ -27,6 +30,7 @@ public partial class FinancesManagerPage : Page
 
     private readonly FinanceRepository _financeRepo;
     private readonly BranchRepository  _branchRepo;
+    private readonly ExportRepository  _exportRepo = new();
 
     private Task<List<(int Id, string Name, long BranchCount, long TotalRecords)>>? _preloadFinancesTask;
 
@@ -411,6 +415,135 @@ public partial class FinancesManagerPage : Page
             MessageBox.Show($"Failed to delete branch: {ex.Message}",
                 "Finances", MessageBoxButton.OK, MessageBoxImage.Error);
         }
+    }
+
+    // ─────────────────────────────────────────────────────
+    //  Finance — Download All Records
+    // ─────────────────────────────────────────────────────
+
+    private async void FinanceDownloadAll_Click(object sender, RoutedEventArgs e)
+    {
+        if (dgFinances.SelectedItem is not FinanceListItem fi) return;
+
+        var dlg = new SaveFileDialog
+        {
+            Title      = $"Save records for {fi.Name}",
+            Filter     = "Excel Workbook (*.xlsx)|*.xlsx",
+            FileName   = $"{fi.Name}_AllRecords_{DateTime.Now:yyyyMMdd}.xlsx",
+            DefaultExt = "xlsx"
+        };
+        if (dlg.ShowDialog() != true) return;
+
+        SetFinanceLoading(true);
+        try
+        {
+            var dt = await _exportRepo.GetFinanceRecordsAsync(fi.Id);
+            ExportToExcel(dt, fi.Name, dlg.FileName);
+            MessageBox.Show($"Exported {dt.Rows.Count:N0} records to:\n{dlg.FileName}",
+                "Export Complete", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Export failed: {ex.Message}", "Export Error",
+                MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally { SetFinanceLoading(false); }
+    }
+
+    // ─────────────────────────────────────────────────────
+    //  Branch — Download Records / Clear Records
+    // ─────────────────────────────────────────────────────
+
+    private async void BranchDownload_Click(object sender, RoutedEventArgs e)
+    {
+        if (dgBranches.SelectedItem is not BranchSummaryItem bi) return;
+        if (!int.TryParse(bi.BranchId, out int branchId)) return;
+
+        var dlg = new SaveFileDialog
+        {
+            Title      = $"Save records for {bi.BranchName}",
+            Filter     = "Excel Workbook (*.xlsx)|*.xlsx",
+            FileName   = $"{bi.BranchName}_Records_{DateTime.Now:yyyyMMdd}.xlsx",
+            DefaultExt = "xlsx"
+        };
+        if (dlg.ShowDialog() != true) return;
+
+        SetBranchLoading(true);
+        try
+        {
+            var dt = await _exportRepo.GetBranchRecordsAsync(branchId);
+            ExportToExcel(dt, bi.BranchName, dlg.FileName);
+            MessageBox.Show($"Exported {dt.Rows.Count:N0} records to:\n{dlg.FileName}",
+                "Export Complete", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Export failed: {ex.Message}", "Export Error",
+                MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally { SetBranchLoading(false); }
+    }
+
+    private async void BranchClearRecords_Click(object sender, RoutedEventArgs e)
+    {
+        if (dgBranches.SelectedItem is not BranchSummaryItem bi) return;
+        if (dgFinances.SelectedItem is not FinanceListItem fi) return;
+        if (!int.TryParse(bi.BranchId, out int branchId)) return;
+
+        var result = MessageBox.Show(
+            $"Clear ALL records from \"{bi.BranchName}\"?\n\nThis deletes every vehicle record for this branch. The branch itself is kept.",
+            "Clear Records", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+        if (result != MessageBoxResult.Yes) return;
+
+        SetBranchLoading(true);
+        try
+        {
+            await _exportRepo.ClearBranchRecordsAsync(branchId);
+            _branchCache.Remove(fi.Id);
+            await LoadBranchesForFinanceAsync(fi.Id, fi.Name);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Failed to clear records: {ex.Message}", "Error",
+                MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally { SetBranchLoading(false); }
+    }
+
+    // ─────────────────────────────────────────────────────
+    //  Excel export helper (Syncfusion XlsIO)
+    // ─────────────────────────────────────────────────────
+
+    private static void ExportToExcel(DataTable dt, string sheetName, string filePath)
+    {
+        using var engine = new ExcelEngine();
+        var app = engine.Excel;
+        app.DefaultVersion = ExcelVersion.Xlsx;
+        var workbook = app.Workbooks.Create(1);
+        var sheet    = workbook.Worksheets[0];
+        sheet.Name   = sheetName.Length > 31 ? sheetName[..31] : sheetName;
+
+        // Write column headers from ExportRepository.Headers if available,
+        // otherwise fall back to DataTable column names
+        var headers = ExportRepository.Headers;
+        for (int c = 0; c < dt.Columns.Count; c++)
+        {
+            var cell = sheet[1, c + 1];
+            cell.Text = c < headers.Length ? headers[c] : dt.Columns[c].ColumnName;
+            cell.CellStyle.Font.Bold = true;
+            cell.CellStyle.Color = System.Drawing.Color.FromArgb(0xFF, 0xF5, 0xA6, 0x23); // orange header
+            cell.CellStyle.Font.Color = ExcelKnownColors.White;
+        }
+
+        // Write data rows
+        for (int r = 0; r < dt.Rows.Count; r++)
+        {
+            for (int c = 0; c < dt.Columns.Count; c++)
+                sheet[r + 2, c + 1].Text = dt.Rows[r][c]?.ToString() ?? string.Empty;
+        }
+
+        sheet.UsedRange.AutofitColumns();
+        workbook.SaveAs(filePath);
     }
 
     // ─────────────────────────────────────────────────────

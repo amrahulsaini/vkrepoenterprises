@@ -241,6 +241,7 @@
                             <DataGrid.ContextMenu>
                                 <ContextMenu>
                                     <MenuItem Header="Edit Finance" Click="FinanceEdit_Click" />
+                                    <MenuItem Header="Download All Records" Click="FinanceDownloadAll_Click" />
                                     <Separator />
                                     <MenuItem Header="Delete Finance" Foreground="#C0392B" Click="FinanceDelete_Click" />
                                 </ContextMenu>
@@ -263,47 +264,16 @@
                             </DataGrid.Columns>
                         </DataGrid>
 
-                        <!-- Loading overlay -->
-                        <Grid x:Name="financeLoadingGrid"
-                              Visibility="Collapsed"
-                              Background="#E5FAFAFA"
-                              Panel.ZIndex="100">
-                            <Border Width="64" Height="64"
-                                    CornerRadius="12"
-                                    Background="White"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center">
-                                <Border.Effect>
-                                    <DropShadowEffect BlurRadius="24" Opacity="0.12" ShadowDepth="4" />
-                                </Border.Effect>
-                                <Grid Width="36" Height="36">
-                                    <Ellipse Stroke="{StaticResource Gray100}"
-                                             StrokeThickness="3.5" Fill="Transparent" />
-                                    <Path Stroke="{StaticResource Orange500}"
-                                          StrokeThickness="3.5"
-                                          StrokeStartLineCap="Round" StrokeEndLineCap="Round"
-                                          Fill="Transparent"
-                                          Data="M18,2 A16,16 0 0,1 34,18">
-                                        <Path.RenderTransform>
-                                            <RotateTransform x:Name="financeSpinnerRot" CenterX="18" CenterY="18" />
-                                        </Path.RenderTransform>
-                                        <Path.Triggers>
-                                            <EventTrigger RoutedEvent="FrameworkElement.Loaded">
-                                                <BeginStoryboard>
-                                                    <Storyboard RepeatBehavior="Forever">
-                                                        <DoubleAnimation
-                                                            Storyboard.TargetName="financeSpinnerRot"
-                                                            Storyboard.TargetProperty="Angle"
-                                                            From="0" To="360"
-                                                            Duration="0:0:0.65" />
-                                                    </Storyboard>
-                                                </BeginStoryboard>
-                                            </EventTrigger>
-                                        </Path.Triggers>
-                                    </Path>
-                                </Grid>
-                            </Border>
-                        </Grid>
+                        <!-- Loading indicator: thin progress bar at top, no content blocking -->
+                        <ProgressBar x:Name="financeLoadingGrid"
+                                     Visibility="Collapsed"
+                                     IsIndeterminate="True"
+                                     Height="3"
+                                     VerticalAlignment="Top"
+                                     Panel.ZIndex="100"
+                                     Foreground="{StaticResource Orange500}"
+                                     Background="Transparent"
+                                     BorderThickness="0" />
                     </Grid>
                 </DockPanel>
             </Border>
@@ -396,6 +366,8 @@
                             <DataGrid.ContextMenu>
                                 <ContextMenu>
                                     <MenuItem Header="Edit Branch" Click="BranchEdit_Click" />
+                                    <MenuItem Header="Download Records" Click="BranchDownload_Click" />
+                                    <MenuItem Header="Clear All Records" Foreground="#E67E22" Click="BranchClearRecords_Click" />
                                     <Separator />
                                     <MenuItem Header="Delete Branch" Foreground="#C0392B" Click="BranchDelete_Click" />
                                 </ContextMenu>
@@ -425,47 +397,16 @@
                             </DataGrid.Columns>
                         </DataGrid>
 
-                        <!-- Loading overlay -->
-                        <Grid x:Name="branchLoadingGrid"
-                              Visibility="Collapsed"
-                              Background="#E5FAFAFA"
-                              Panel.ZIndex="100">
-                            <Border Width="64" Height="64"
-                                    CornerRadius="12"
-                                    Background="White"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center">
-                                <Border.Effect>
-                                    <DropShadowEffect BlurRadius="24" Opacity="0.12" ShadowDepth="4" />
-                                </Border.Effect>
-                                <Grid Width="36" Height="36">
-                                    <Ellipse Stroke="{StaticResource Gray100}"
-                                             StrokeThickness="3.5" Fill="Transparent" />
-                                    <Path Stroke="{StaticResource Orange500}"
-                                          StrokeThickness="3.5"
-                                          StrokeStartLineCap="Round" StrokeEndLineCap="Round"
-                                          Fill="Transparent"
-                                          Data="M18,2 A16,16 0 0,1 34,18">
-                                        <Path.RenderTransform>
-                                            <RotateTransform x:Name="branchSpinnerRot" CenterX="18" CenterY="18" />
-                                        </Path.RenderTransform>
-                                        <Path.Triggers>
-                                            <EventTrigger RoutedEvent="FrameworkElement.Loaded">
-                                                <BeginStoryboard>
-                                                    <Storyboard RepeatBehavior="Forever">
-                                                        <DoubleAnimation
-                                                            Storyboard.TargetName="branchSpinnerRot"
-                                                            Storyboard.TargetProperty="Angle"
-                                                            From="0" To="360"
-                                                            Duration="0:0:0.65" />
-                                                    </Storyboard>
-                                                </BeginStoryboard>
-                                            </EventTrigger>
-                                        </Path.Triggers>
-                                    </Path>
-                                </Grid>
-                            </Border>
-                        </Grid>
+                        <!-- Loading indicator: thin progress bar at top, no content blocking -->
+                        <ProgressBar x:Name="branchLoadingGrid"
+                                     Visibility="Collapsed"
+                                     IsIndeterminate="True"
+                                     Height="3"
+                                     VerticalAlignment="Top"
+                                     Panel.ZIndex="100"
+                                     Foreground="{StaticResource Orange500}"
+                                     Background="Transparent"
+                                     BorderThickness="0" />
                     </Grid>
                 </DockPanel>
             </Border>
