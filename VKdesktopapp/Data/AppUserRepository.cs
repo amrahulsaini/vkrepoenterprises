@@ -35,7 +35,7 @@ public class AppUserRepository
                 IsAdmin    = rdr.GetBoolean("is_admin"),
                 Balance    = rdr.GetDecimal("balance"),
                 CreatedAt  = rdr.GetDateTime("created_at"),
-                SubEndDate = rdr.IsDBNull("sub_end") ? null : rdr.GetString("sub_end"),
+                SubEndDate = rdr.IsDBNull("sub_end") ? null : rdr.GetDateTime("sub_end").ToString("yyyy-MM-dd"),
             });
         }
         return list;
@@ -79,8 +79,8 @@ public class AppUserRepository
             list.Add(new SubscriptionItem
             {
                 Id        = rdr.GetInt64("id"),
-                StartDate = rdr.GetString("start_date"),
-                EndDate   = rdr.GetString("end_date"),
+                StartDate = rdr.GetDateTime("start_date").ToString("yyyy-MM-dd"),
+                EndDate   = rdr.GetDateTime("end_date").ToString("yyyy-MM-dd"),
                 Amount    = rdr.IsDBNull("amount") ? 0m : rdr.GetDecimal("amount"),
                 Notes     = rdr.IsDBNull("notes") ? null : rdr.GetString("notes"),
                 CreatedAt = rdr.GetDateTime("created_at"),
