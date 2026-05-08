@@ -1,0 +1,26 @@
+package com.vkenterprises.vras.data.api
+
+import com.vkenterprises.vras.data.models.*
+import retrofit2.Response
+import retrofit2.http.*
+
+interface ApiService {
+
+    @POST("api/mobile/register")
+    suspend fun register(@Body request: RegisterRequest): Response<Map<String, Any>>
+
+    @POST("api/mobile/login")
+    suspend fun login(@Body request: LoginRequest): Response<AuthResponse>
+
+    @GET("api/mobile/search/rc/{last4}")
+    suspend fun searchRc(
+        @Path("last4")            last4: String,
+        @Header("X-User-Id")      userId: Long
+    ): Response<SearchResponse>
+
+    @GET("api/mobile/search/chassis/{last5}")
+    suspend fun searchChassis(
+        @Path("last5")            last5: String,
+        @Header("X-User-Id")      userId: Long
+    ): Response<SearchResponse>
+}
