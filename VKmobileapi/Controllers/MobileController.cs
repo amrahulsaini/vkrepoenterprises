@@ -138,6 +138,14 @@ public class MobileController : ControllerBase
         }
     }
 
+    // POST /api/mobile/cache/invalidate  — call this after desktop uploads records
+    [HttpPost("cache/invalidate")]
+    public IActionResult InvalidateCache()
+    {
+        MobileRepository.InvalidateSearchCache();
+        return Ok(new { success = true, message = "Search cache cleared." });
+    }
+
     // GET /api/mobile/pfp/{userId}
     [HttpGet("pfp/{userId:long}")]
     public async Task<IActionResult> GetPfp(long userId)
