@@ -64,6 +64,9 @@ interface BranchSyncStateDao {
 
     @Query("DELETE FROM branch_sync_state WHERE branchId = :id")
     suspend fun delete(id: Int)
+
+    @Query("DELETE FROM branch_sync_state")
+    suspend fun clearAll()
 }
 
 // ── Database ──────────────────────────────────────────────────────────────────
