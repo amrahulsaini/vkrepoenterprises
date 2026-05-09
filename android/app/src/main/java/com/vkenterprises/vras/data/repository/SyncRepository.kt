@@ -40,10 +40,12 @@ class SyncRepository @Inject constructor(
             }
         }
 
-        // Find only branches that actually changed since last sync
+        // Re-sync if uploadedAt changed OR if local record count doesn't match server
         val toSync = branches.filter { b ->
-            b.uploadedAt != null &&
-            syncStateDao.get(b.branchId)?.uploadedAt != b.uploadedAt
+            b.uploadedAt != null && (
+                syncStateDao.get(b.branchId)?.uploadedAt != b.uploadedAt ||
+                vehicleDao.countByBranch(b.branchId) != b.totalRecords
+            )
         }
         if (toSync.isEmpty()) return  // Nothing changed — no progress callback, no banner
 

@@ -52,13 +52,17 @@ class SearchViewModel @Inject constructor(
     fun triggerSync() {
         if (syncJob?.isActive == true) return
         syncJob = viewModelScope.launch(Dispatchers.IO) {
-            syncRepo.sync { p ->
-                when {
-                    p.started -> _ui.update { it.copy(isSyncing = true, syncCurrent = 0L, syncTotal = p.total) }
-                    p.done    -> _ui.update { it.copy(isSyncing = false) }
-                    else      -> _ui.update { it.copy(syncCurrent = p.current, syncTotal = p.total) }
+            runCatching {
+                syncRepo.sync { p ->
+                    when {
+                        p.started -> _ui.update { it.copy(isSyncing = true, syncCurrent = 0L, syncTotal = p.total) }
+                        p.done    -> _ui.update { it.copy(isSyncing = false) }
+                        else      -> _ui.update { it.copy(syncCurrent = p.current, syncTotal = p.total) }
+                    }
                 }
             }
+            // Always clear the banner even if sync threw an exception
+            _ui.update { it.copy(isSyncing = false) }
         }
     }
 
