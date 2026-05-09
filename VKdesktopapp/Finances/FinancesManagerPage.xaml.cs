@@ -50,6 +50,7 @@ public partial class FinancesManagerPage : Page
 
     private async void Page_Loaded(object sender, RoutedEventArgs e)
     {
+        _branchCache.Clear();  // always fetch fresh — stale cache is the #1 cause of wrong counts
         await LoadDashboardAsync();
     }
 
