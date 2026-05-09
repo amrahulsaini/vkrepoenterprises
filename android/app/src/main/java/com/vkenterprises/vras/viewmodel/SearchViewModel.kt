@@ -134,9 +134,9 @@ class SearchViewModel @Inject constructor(
             when (result) {
                 is SearchResult2.Success -> {
                     val data = if (mode == SearchMode.RC)
-                        result.data.filter { it.vehicleNo.isValidRc() }.distinctBy { it.vehicleNo }
+                        result.data.filter { it.vehicleNo.isValidRc() }.distinctBy { it.vehicleNo }.sortedBy { it.vehicleNo }
                     else
-                        result.data.distinctBy { it.chassisNo }
+                        result.data.distinctBy { it.chassisNo }.sortedBy { it.chassisNo }
                     it.copy(results = data, errorMsg = null)
                 }
                 is SearchResult2.SubscriptionExpired -> it.copy(subscriptionExpired = true)
