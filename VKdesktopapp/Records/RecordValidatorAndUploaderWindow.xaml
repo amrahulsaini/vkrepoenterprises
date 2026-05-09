@@ -230,24 +230,38 @@
             Spin="True"
             Visibility="Collapsed" />
 
-        <StatusBar Grid.Row="3">
-            <ItemsControl.ItemsPanel>
-                <ItemsPanelTemplate>
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
-                    </Grid>
-                </ItemsPanelTemplate>
-            </ItemsControl.ItemsPanel>
-            <StatusBarItem Grid.Column="1">
-                <TextBlock x:Name="txtPBR" Text="Processing.." FontWeight="SemiBold" />
-            </StatusBarItem>
-            <StatusBarItem Grid.Column="2">
-                <ProgressBar x:Name="pbr" Width="256" Height="8" />
-            </StatusBarItem>
-        </StatusBar>
+        <!-- Upload progress footer -->
+        <Border Grid.Row="3"
+                Background="{StaticResource Gray50}"
+                BorderBrush="{StaticResource Gray200}"
+                BorderThickness="0,1,0,0"
+                Padding="12,8,12,10">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="16" />
+                    <ColumnDefinition Width="300" />
+                </Grid.ColumnDefinitions>
+                <TextBlock x:Name="txtPBR"
+                           Text=""
+                           VerticalAlignment="Center"
+                           FontSize="13"
+                           FontWeight="SemiBold"
+                           Foreground="{StaticResource Gray700}" />
+                <TextBlock x:Name="txtPBRPct"
+                           Grid.Column="1"
+                           VerticalAlignment="Center"
+                           FontSize="12"
+                           Foreground="{StaticResource Gray500}" />
+                <ProgressBar x:Name="pbr"
+                             Grid.Column="3"
+                             Height="6"
+                             VerticalAlignment="Center"
+                             Foreground="{StaticResource Orange500}"
+                             Background="{StaticResource Gray200}"
+                             BorderThickness="0" />
+            </Grid>
+        </Border>
     </Grid>
 </Window>

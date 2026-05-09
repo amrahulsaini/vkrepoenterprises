@@ -53,8 +53,14 @@ interface BranchSyncStateDao {
     @Query("SELECT * FROM branch_sync_state WHERE branchId = :id")
     suspend fun get(id: Int): BranchSyncState?
 
+    @Query("SELECT * FROM branch_sync_state")
+    suspend fun getAll(): List<BranchSyncState>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun save(state: BranchSyncState)
+
+    @Query("DELETE FROM branch_sync_state WHERE branchId = :id")
+    suspend fun delete(id: Int)
 }
 
 // ── Database ──────────────────────────────────────────────────────────────────

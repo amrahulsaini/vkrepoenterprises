@@ -17,6 +17,10 @@ import com.vkenterprises.vras.navigation.Screen
 import com.vkenterprises.vras.viewmodel.AuthViewModel
 import com.vkenterprises.vras.viewmodel.SearchViewModel
 
+private val RC_REGEX = Regex("^[A-Z]{2}[0-9]{2}[A-Z]{1,3}[0-9]{4}$")
+private fun String.isValidRc(): Boolean =
+    replace(Regex("[^A-Z0-9]"), "").uppercase().matches(RC_REGEX)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun VehicleDetailScreen(
@@ -82,7 +86,8 @@ fun VehicleDetailScreen(
                         color = MaterialTheme.colorScheme.primary)
                     HorizontalDivider(color = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f))
 
-                    DetailRow("Vehicle No",   item.vehicleNo)
+                    DetailRow("Vehicle No",   item.vehicleNo,
+                        invalid = item.vehicleNo.isNotBlank() && !item.vehicleNo.isValidRc())
                     DetailRow("Chassis No",   item.chassisNo)
                     DetailRow("Engine No",    item.engineNo)
                     DetailRow("Model / Make", item.model)
@@ -123,20 +128,35 @@ fun VehicleDetailScreen(
 private fun DetailRow(
     label: String,
     value: String,
-    valueColor: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.onSurface
+    valueColor: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.onSurface,
+    invalid: Boolean = false
 ) {
     if (value.isBlank()) return
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically) {
         Text(label,
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.weight(0.38f))
-        Text(value,
-            style = MaterialTheme.typography.bodySmall,
-            fontWeight = FontWeight.SemiBold,
-            fontFamily = if (label == "Vehicle No" || label == "Chassis No" || label == "Engine No")
-                FontFamily.Monospace else FontFamily.Default,
-            color = valueColor,
-            modifier = Modifier.weight(0.62f))
+        Row(Modifier.weight(0.62f), verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(value,
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = FontWeight.SemiBold,
+                fontFamily = if (label == "Vehicle No" || label == "Chassis No" || label == "Engine No")
+                    FontFamily.Monospace else FontFamily.Default,
+                color = if (invalid) MaterialTheme.colorScheme.error else valueColor)
+            if (invalid) {
+                Surface(
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(4.dp),
+                    color = MaterialTheme.colorScheme.errorContainer
+                ) {
+                    Text("INVALID",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp))
+                }
+            }
+        }
     }
 }

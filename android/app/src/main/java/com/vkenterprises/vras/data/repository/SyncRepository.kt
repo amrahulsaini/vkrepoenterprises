@@ -31,6 +31,15 @@ class SyncRepository @Inject constructor(
         if (!branchResp.isSuccessful) return
         val branches = branchResp.body()?.branches ?: return
 
+        // Prune local data for branches no longer on the server (cleared/deleted)
+        val serverIds = branches.map { it.branchId }.toSet()
+        for (local in syncStateDao.getAll()) {
+            if (local.branchId !in serverIds) {
+                vehicleDao.deleteByBranch(local.branchId)
+                syncStateDao.delete(local.branchId)
+            }
+        }
+
         // Find only branches that actually changed since last sync
         val toSync = branches.filter { b ->
             b.uploadedAt != null &&
