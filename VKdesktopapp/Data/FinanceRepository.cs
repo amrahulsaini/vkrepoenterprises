@@ -14,12 +14,23 @@ public class FinanceRepository
         await using var conn = MySqlFactory.CreateConnection();
         await conn.OpenAsync();
 
-        var sql = @"SELECT f.id, f.name, COALESCE(b.cnt,0) AS branch_count, COALESCE(b.tot,0) AS total_records
-FROM finances f
-LEFT JOIN (
-  SELECT finance_id, COUNT(*) AS cnt, SUM(total_records) AS tot FROM branches WHERE is_active=1 GROUP BY finance_id
-) b ON b.finance_id = f.id
-ORDER BY f.name LIMIT 100";
+        // Live COUNT from vehicle_records — never trusts the denormalized total_records column
+        var sql = @"
+            SELECT f.id, f.name,
+                   COALESCE(b.branch_cnt, 0) AS branch_count,
+                   COALESCE(b.record_cnt, 0) AS total_records
+            FROM finances f
+            LEFT JOIN (
+                SELECT br.finance_id,
+                       COUNT(DISTINCT br.id)  AS branch_cnt,
+                       COUNT(vr.id)           AS record_cnt
+                FROM   branches br
+                LEFT JOIN vehicle_records vr ON vr.branch_id = br.id
+                WHERE  br.is_active = 1
+                GROUP  BY br.finance_id
+            ) b ON b.finance_id = f.id
+            ORDER BY f.name
+            LIMIT 100";
 
         await using var cmd = new MySqlCommand(sql, conn);
         await using var rdr = await cmd.ExecuteReaderAsync();

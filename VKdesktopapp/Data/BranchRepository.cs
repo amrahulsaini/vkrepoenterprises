@@ -12,30 +12,37 @@ public class BranchRepository
         var list = new List<(int, string, string, string, string, string, long, string)>();
         await using var conn = MySqlFactory.CreateConnection();
         await conn.OpenAsync();
-        var sql = @"SELECT id, name, contact, total_records, IFNULL(DATE_FORMAT(uploaded_at, '%d %b %y %h:%i %p'),'') as uploaded_at
-FROM branches
-WHERE finance_id = @fid AND is_active = 1
-ORDER BY total_records DESC LIMIT 100";
+        // COUNT(*) from vehicle_records directly — never trusts the denormalized total_records column
+        var sql = @"
+            SELECT b.id,
+                   b.name,
+                   COALESCE(b.contact1,'') AS contact1,
+                   COALESCE(b.contact2,'') AS contact2,
+                   COALESCE(b.contact3,'') AS contact3,
+                   COALESCE(b.address,'')  AS address,
+                   COUNT(vr.id)            AS live_count,
+                   IFNULL(DATE_FORMAT(b.uploaded_at,'%d %b %y %h:%i %p'),'') AS uploaded_at
+            FROM branches b
+            LEFT JOIN vehicle_records vr ON vr.branch_id = b.id
+            WHERE b.finance_id = @fid AND b.is_active = 1
+            GROUP BY b.id
+            ORDER BY live_count DESC
+            LIMIT 100";
         await using var cmd = new MySqlCommand(sql, conn);
         cmd.Parameters.AddWithValue("@fid", financeId);
         await using var rdr = await cmd.ExecuteReaderAsync();
         while (await rdr.ReadAsync())
         {
-            var id = rdr.GetInt32(0);
-            var name = rdr.IsDBNull(1) ? string.Empty : rdr.GetString(1);
-            // existing legacy `contact` column may still be present; prefer contact1 if available
-            string contact1 = string.Empty;
-            string contact2 = string.Empty;
-            string contact3 = string.Empty;
-            string address = string.Empty;
-            // attempt to read by column name safely
-            try { contact1 = rdr.HasRows && !rdr.IsDBNull(rdr.GetOrdinal("contact1")) ? rdr.GetString(rdr.GetOrdinal("contact1")) : (rdr.IsDBNull(2) ? string.Empty : rdr.GetString(2)); } catch { contact1 = rdr.IsDBNull(2) ? string.Empty : rdr.GetString(2); }
-            try { contact2 = !rdr.IsDBNull(rdr.GetOrdinal("contact2")) ? rdr.GetString(rdr.GetOrdinal("contact2")) : string.Empty; } catch { contact2 = string.Empty; }
-            try { contact3 = !rdr.IsDBNull(rdr.GetOrdinal("contact3")) ? rdr.GetString(rdr.GetOrdinal("contact3")) : string.Empty; } catch { contact3 = string.Empty; }
-            try { address = !rdr.IsDBNull(rdr.GetOrdinal("address")) ? rdr.GetString(rdr.GetOrdinal("address")) : string.Empty; } catch { address = string.Empty; }
-            var total = rdr.IsDBNull(3) ? 0 : rdr.GetInt64(3);
-            var uploaded = rdr.IsDBNull(4) ? string.Empty : rdr.GetString(4);
-            list.Add((id, name, contact1, contact2, contact3, address, total, uploaded));
+            list.Add((
+                rdr.GetInt32(0),
+                rdr.IsDBNull(1) ? string.Empty : rdr.GetString(1),
+                rdr.GetString(2),
+                rdr.GetString(3),
+                rdr.GetString(4),
+                rdr.GetString(5),
+                rdr.GetInt64(6),
+                rdr.GetString(7)
+            ));
         }
         return list;
     }
