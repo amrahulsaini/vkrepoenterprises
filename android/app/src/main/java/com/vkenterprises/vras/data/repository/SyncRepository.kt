@@ -26,6 +26,12 @@ class SyncRepository @Inject constructor(
 
     suspend fun hasLocalData(): Boolean = vehicleDao.count() > 0
 
+    // Wipes the local sync cursor so every branch re-downloads on next sync
+    suspend fun forceSync(onProgress: suspend (Progress) -> Unit) {
+        syncStateDao.clearAll()
+        sync(onProgress)
+    }
+
     suspend fun sync(onProgress: suspend (Progress) -> Unit) {
         val branchResp = runCatching { api.getSyncBranches() }.getOrNull() ?: return
         if (!branchResp.isSuccessful) return

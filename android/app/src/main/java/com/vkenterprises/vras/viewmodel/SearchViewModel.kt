@@ -53,16 +53,28 @@ class SearchViewModel @Inject constructor(
         if (syncJob?.isActive == true) return
         syncJob = viewModelScope.launch(Dispatchers.IO) {
             runCatching {
-                syncRepo.sync { p ->
-                    when {
-                        p.started -> _ui.update { it.copy(isSyncing = true, syncCurrent = 0L, syncTotal = p.total) }
-                        p.done    -> _ui.update { it.copy(isSyncing = false) }
-                        else      -> _ui.update { it.copy(syncCurrent = p.current, syncTotal = p.total) }
-                    }
-                }
+                syncRepo.sync { p -> handleProgress(p) }
             }
-            // Always clear the banner even if sync threw an exception
             _ui.update { it.copy(isSyncing = false) }
+        }
+    }
+
+    // Clears all local sync state and re-downloads everything from server
+    fun forceRefresh() {
+        syncJob?.cancel()
+        syncJob = viewModelScope.launch(Dispatchers.IO) {
+            runCatching {
+                syncRepo.forceSync { p -> handleProgress(p) }
+            }
+            _ui.update { it.copy(isSyncing = false) }
+        }
+    }
+
+    private fun handleProgress(p: SyncRepository.Progress) {
+        when {
+            p.started -> _ui.update { it.copy(isSyncing = true, syncCurrent = 0L, syncTotal = p.total) }
+            p.done    -> _ui.update { it.copy(isSyncing = false) }
+            else      -> _ui.update { it.copy(syncCurrent = p.current, syncTotal = p.total) }
         }
     }
 
@@ -93,8 +105,12 @@ class SearchViewModel @Inject constructor(
             if (mode == SearchMode.RC) vehicleDao.searchByLast4(q)
             else vehicleDao.searchByLast5(q)
         }
-        if (local.isNotEmpty()) {
-            _ui.update { it.copy(results = local.map { it.toSearchResult() }, errorMsg = null) }
+
+        // RC mode: only show records with valid Indian RC format — filter out VINs/chassis stored in wrong column
+        val filtered = if (mode == SearchMode.RC) local.filter { it.vehicleNo.isValidRc() } else local
+
+        if (filtered.isNotEmpty()) {
+            _ui.update { it.copy(results = filtered.map { it.toSearchResult() }, errorMsg = null) }
             return
         }
 
@@ -105,13 +121,20 @@ class SearchViewModel @Inject constructor(
         }
         _ui.update {
             when (result) {
-                is SearchResult2.Success           -> it.copy(results = result.data, errorMsg = null)
+                is SearchResult2.Success -> {
+                    val data = if (mode == SearchMode.RC) result.data.filter { it.vehicleNo.isValidRc() }
+                               else result.data
+                    it.copy(results = data, errorMsg = null)
+                }
                 is SearchResult2.SubscriptionExpired -> it.copy(subscriptionExpired = true)
-                is SearchResult2.Error             -> it.copy(errorMsg = result.message)
+                is SearchResult2.Error               -> it.copy(errorMsg = result.message)
             }
         }
     }
 }
+
+private val RC_REGEX = Regex("^[A-Z]{2}[0-9]{2}[A-Z]{1,3}[0-9]{4}$")
+private fun String.isValidRc() = replace(Regex("[^A-Z0-9]"), "").uppercase().matches(RC_REGEX)
 
 private fun VehicleCache.toSearchResult() = SearchResult(
     id = id, vehicleNo = vehicleNo, chassisNo = chassisNo, engineNo = engineNo,
