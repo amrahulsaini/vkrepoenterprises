@@ -143,3 +143,9 @@ public record SyncRecordsResponse(
     int              PageSize,
     bool             HasMore,
     List<SyncRecord> Records);
+
+public record StatsResponse(
+    bool Success,
+    long VehicleRecords,
+    long RcRecords,
+    long ChassisRecords);

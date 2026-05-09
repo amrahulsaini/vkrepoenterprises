@@ -24,7 +24,9 @@ data class SearchUiState(
     val subscriptionExpired: Boolean  = false,
     val isSyncing: Boolean            = false,
     val syncCurrent: Long             = 0L,
-    val syncTotal: Long               = 0L
+    val syncTotal: Long               = 0L,
+    val onlineOnly: Boolean           = false,
+    val twoColumnView: Boolean        = true
 )
 
 @HiltViewModel
@@ -99,22 +101,29 @@ class SearchViewModel @Inject constructor(
         _ui.update { it.copy(selectedResult = result) }
     }
 
+    fun setOnlineOnly(v: Boolean) {
+        _ui.update { it.copy(onlineOnly = v, results = emptyList(), errorMsg = null, inputText = "") }
+    }
+
+    fun setTwoColumnView(v: Boolean) {
+        _ui.update { it.copy(twoColumnView = v) }
+    }
+
     private suspend fun executeSearch(q: String, mode: SearchMode, userId: Long) {
-        // Try Room first (instant)
-        val local = withContext(Dispatchers.IO) {
-            if (mode == SearchMode.RC) vehicleDao.searchByLast4(q)
-            else vehicleDao.searchByLast5(q)
+        if (!_ui.value.onlineOnly) {
+            // Try Room first (instant)
+            val local = withContext(Dispatchers.IO) {
+                if (mode == SearchMode.RC) vehicleDao.searchByLast4(q)
+                else vehicleDao.searchByLast5(q)
+            }
+            val filtered = if (mode == SearchMode.RC) local.filter { it.vehicleNo.isValidRc() } else local
+            if (filtered.isNotEmpty()) {
+                _ui.update { it.copy(results = filtered.map { it.toSearchResult() }, errorMsg = null) }
+                return
+            }
         }
 
-        // RC mode: only show records with valid Indian RC format — filter out VINs/chassis stored in wrong column
-        val filtered = if (mode == SearchMode.RC) local.filter { it.vehicleNo.isValidRc() } else local
-
-        if (filtered.isNotEmpty()) {
-            _ui.update { it.copy(results = filtered.map { it.toSearchResult() }, errorMsg = null) }
-            return
-        }
-
-        // Server fallback (no local data yet)
+        // Server search (fallback or online-only)
         val result = withContext(Dispatchers.IO) {
             if (mode == SearchMode.RC) serverRepo.searchRc(q, userId)
             else serverRepo.searchChassis(q, userId)

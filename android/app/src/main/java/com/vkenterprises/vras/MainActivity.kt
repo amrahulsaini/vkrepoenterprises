@@ -16,6 +16,7 @@ import com.vkenterprises.vras.ui.theme.VKTheme
 import com.vkenterprises.vras.viewmodel.AuthViewModel
 import com.vkenterprises.vras.viewmodel.ProfileViewModel
 import com.vkenterprises.vras.viewmodel.SearchViewModel
+import com.vkenterprises.vras.viewmodel.SettingsViewModel
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
@@ -89,6 +90,11 @@ fun VKNavHost() {
             val profileVm: ProfileViewModel = hiltViewModel()
             val userId by authVm.userId.collectAsState(initial = -1L)
             ProfileScreen(profileVm, userId, navController)
+        }
+
+        composable(Screen.Settings.route) {
+            val settingsVm: SettingsViewModel = hiltViewModel()
+            SettingsScreen(settingsVm, searchVm, authVm, navController)
         }
     }
 }

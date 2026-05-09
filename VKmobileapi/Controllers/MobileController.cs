@@ -179,6 +179,21 @@ public class MobileController : ControllerBase
         }
     }
 
+    // GET /api/mobile/stats
+    [HttpGet("stats")]
+    public async Task<IActionResult> GetStats()
+    {
+        try
+        {
+            var (vr, rc, ch) = await _repo.GetStatsAsync();
+            return Ok(new StatsResponse(true, vr, rc, ch));
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new ApiError(false, $"Stats failed: {ex.Message}"));
+        }
+    }
+
     // GET /api/mobile/sync/records/{branchId}?page=0&size=500
     [HttpGet("sync/records/{branchId}")]
     public async Task<IActionResult> GetSyncRecords(
