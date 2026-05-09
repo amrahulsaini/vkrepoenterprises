@@ -42,4 +42,7 @@ interface ApiService {
         @Query("page")    page: Int = 0,
         @Query("size")    size: Int = 500
     ): Response<SyncRecordsResponse>
+
+    @GET("api/mobile/stats")
+    suspend fun getStats(): Response<StatsResponse>
 }

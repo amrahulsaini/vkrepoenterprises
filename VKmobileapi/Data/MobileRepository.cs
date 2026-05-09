@@ -375,4 +375,20 @@ public class MobileRepository
             list.Add(new SyncRecord(r.GetInt64(0), S(1), S(2), S(3), S(4), S(5), S(6), S(7)));
         return list;
     }
+
+    // ── Stats ──────────────────────────────────────────────────────────────
+    public async Task<(long vehicleRecords, long rcRecords, long chassisRecords)> GetStatsAsync()
+    {
+        await using var conn = DbFactory.Create();
+        await conn.OpenAsync();
+        const string sql = @"
+            SELECT
+                (SELECT COUNT(*) FROM vehicle_records),
+                (SELECT COUNT(*) FROM rc_info),
+                (SELECT COUNT(*) FROM chassis_info)";
+        await using var cmd = new MySqlCommand(sql, conn);
+        await using var r   = await cmd.ExecuteReaderAsync();
+        await r.ReadAsync();
+        return (r.GetInt64(0), r.GetInt64(1), r.GetInt64(2));
+    }
 }

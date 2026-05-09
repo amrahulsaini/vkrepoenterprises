@@ -26,6 +26,8 @@ class SyncRepository @Inject constructor(
 
     suspend fun hasLocalData(): Boolean = vehicleDao.count() > 0
 
+    suspend fun getSyncLogs(): List<BranchSyncState> = syncStateDao.getAll()
+
     // Wipes the local sync cursor so every branch re-downloads on next sync
     suspend fun forceSync(onProgress: suspend (Progress) -> Unit) {
         syncStateDao.clearAll()

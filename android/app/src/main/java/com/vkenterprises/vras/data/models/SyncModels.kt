@@ -34,3 +34,10 @@ data class SyncRecordsResponse(
     val hasMore: Boolean,
     val records: List<SyncRecord>
 )
+
+data class StatsResponse(
+    val success: Boolean,
+    val vehicleRecords: Long,
+    val rcRecords: Long,
+    val chassisRecords: Long
+)

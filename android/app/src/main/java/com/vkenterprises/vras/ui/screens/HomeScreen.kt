@@ -4,9 +4,11 @@ import android.util.Base64
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -78,10 +80,9 @@ fun HomeScreen(
                             else Icon(Icons.Default.AccountCircle, null)
                         } else Icon(Icons.Default.AccountCircle, null)
                     }
-                    IconButton(onClick = {
-                        authVm.logout()
-                        nav.navigate(Screen.Login.route) { popUpTo(0) { inclusive = true } }
-                    }) { Icon(Icons.Default.Logout, null) }
+                    IconButton(onClick = { nav.navigate(Screen.Settings.route) }) {
+                        Icon(Icons.Default.Settings, contentDescription = "Settings")
+                    }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface)
@@ -182,16 +183,36 @@ fun HomeScreen(
                         color = MaterialTheme.colorScheme.onPrimaryContainer
                     )
                 }
-                // 2-column grid
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(2),
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(0.dp)
-                ) {
-                    items(ui.results) { item ->
-                        VehicleGridCell(item, ui.mode) {
-                            searchVm.selectResult(item)
-                            nav.navigate(Screen.VehicleDetail.route)
+
+                if (ui.twoColumnView) {
+                    // Column-wise alphabetical order: col1 = first half, col2 = second half
+                    val sorted = ui.results
+                    val half   = (sorted.size + 1) / 2
+                    val reordered = buildList {
+                        for (i in 0 until half) {
+                            add(sorted[i])
+                            if (half + i < sorted.size) add(sorted[half + i])
+                        }
+                    }
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(2),
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(0.dp)
+                    ) {
+                        items(reordered) { item ->
+                            VehicleGridCell(item, ui.mode) {
+                                searchVm.selectResult(item)
+                                nav.navigate(Screen.VehicleDetail.route)
+                            }
+                        }
+                    }
+                } else {
+                    LazyColumn(modifier = Modifier.fillMaxSize()) {
+                        items(ui.results) { item ->
+                            VehicleListRow(item, ui.mode) {
+                                searchVm.selectResult(item)
+                                nav.navigate(Screen.VehicleDetail.route)
+                            }
                         }
                     }
                 }
@@ -273,6 +294,49 @@ private fun ModeTab(label: String, selected: Boolean, onClick: () -> Unit, modif
             color = if (selected) MaterialTheme.colorScheme.onPrimary
                     else MaterialTheme.colorScheme.onSurfaceVariant)
     }
+}
+
+@Composable
+private fun VehicleListRow(item: SearchResult, mode: SearchMode, onClick: () -> Unit) {
+    val rcOrChassis = when (mode) {
+        SearchMode.RC      -> item.vehicleNo.ifBlank { "—" }
+        SearchMode.CHASSIS -> item.chassisNo.ifBlank { "—" }
+    }
+    val model = item.model.ifBlank { "—" }
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            rcOrChassis,
+            style = MaterialTheme.typography.bodySmall,
+            fontWeight = FontWeight.Medium,
+            fontFamily = FontFamily.Monospace,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f)
+        )
+        Text(
+            model,
+            style = MaterialTheme.typography.bodySmall,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(1f)
+        )
+        Icon(
+            Icons.Default.ChevronRight, null,
+            Modifier.size(14.dp),
+            tint = MaterialTheme.colorScheme.outlineVariant
+        )
+    }
+    HorizontalDivider(
+        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
+        thickness = 0.5.dp
+    )
 }
 
 private fun Int.formatCount(): String = when {
