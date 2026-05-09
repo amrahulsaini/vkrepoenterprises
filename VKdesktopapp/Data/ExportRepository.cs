@@ -63,7 +63,7 @@ public class ExportRepository
         del.Parameters.AddWithValue("@bid", branchId);
         await del.ExecuteNonQueryAsync();
         await using var upd = new MySqlCommand(
-            "UPDATE branches SET total_records = 0, uploaded_at = NULL WHERE id = @bid", conn);
+            "UPDATE branches SET total_records = 0, uploaded_at = NOW() WHERE id = @bid", conn);
         upd.Parameters.AddWithValue("@bid", branchId);
         await upd.ExecuteNonQueryAsync();
     }

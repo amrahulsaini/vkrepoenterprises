@@ -47,9 +47,10 @@ public partial class RecordValidatorAndUploaderWindow : Window
         InitializeComponent();
         ActiveSheet    = activeSheet;
         MappedColumns  = mappedColumns;
-        txtPBR.Visibility = Visibility.Collapsed;
-        pbr.Visibility    = Visibility.Collapsed;
-        pbr.IsIndeterminate = true;
+        txtPBR.Visibility    = Visibility.Collapsed;
+        txtPBRPct.Visibility = Visibility.Collapsed;
+        pbr.Visibility       = Visibility.Collapsed;
+        pbr.IsIndeterminate  = true;
         dgList.ItemsSource  = _filteredRecords;
     }
 
@@ -260,20 +261,23 @@ public partial class RecordValidatorAndUploaderWindow : Window
 
         btnUpload.IsEnabled  = false;
         txtPBR.Visibility    = Visibility.Visible;
+        txtPBRPct.Visibility = Visibility.Visible;
         pbr.Visibility       = Visibility.Visible;
         pbr.IsIndeterminate  = false;
         pbr.Minimum          = 0;
         pbr.Maximum          = 100;
         pbr.Value            = 0;
         txtPBR.Text          = "Preparing records...";
+        txtPBRPct.Text       = "0%";
 
         var validRecords = _records.Where(r => RcRegex.IsMatch(r.FormatedVehicleNo)).ToList();
         var skipped      = _records.Count - validRecords.Count;
 
         var progress = new Progress<(int pct, string msg)>(p =>
         {
-            pbr.Value   = p.pct;
-            txtPBR.Text = p.msg;
+            pbr.Value      = p.pct;
+            txtPBR.Text    = p.msg;
+            txtPBRPct.Text = $"{p.pct}%";
         });
 
         try

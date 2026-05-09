@@ -218,6 +218,7 @@ private fun VehicleGridCell(item: SearchResult, mode: SearchMode, onClick: () ->
         SearchMode.RC      -> item.vehicleNo.ifBlank { "—" }
         SearchMode.CHASSIS -> item.chassisNo.ifBlank { "—" }
     }
+    val isInvalidRc = mode == SearchMode.RC && item.vehicleNo.isNotBlank() && !item.vehicleNo.isValidRc()
     Row(
         Modifier
             .fillMaxWidth()
@@ -233,11 +234,20 @@ private fun VehicleGridCell(item: SearchResult, mode: SearchMode, onClick: () ->
             fontFamily = FontFamily.Monospace,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f)
+            modifier = Modifier.weight(1f),
+            color = if (isInvalidRc) MaterialTheme.colorScheme.error
+                    else MaterialTheme.colorScheme.onSurface
         )
-        Icon(Icons.Default.ChevronRight, null,
-            Modifier.size(14.dp),
-            tint = MaterialTheme.colorScheme.outlineVariant)
+        if (isInvalidRc) {
+            Text("Invalid",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.padding(end = 4.dp))
+        } else {
+            Icon(Icons.Default.ChevronRight, null,
+                Modifier.size(14.dp),
+                tint = MaterialTheme.colorScheme.outlineVariant)
+        }
     }
     HorizontalDivider(
         color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
@@ -270,3 +280,8 @@ private fun Int.formatCount(): String = when {
     this >= 1_000     -> "${this / 1_000}K"
     else              -> "$this"
 }
+
+// Indian RC format: 2 state letters + 2 district digits + 1-3 series letters + 4 unique digits
+private val RC_REGEX = Regex("^[A-Z]{2}[0-9]{2}[A-Z]{1,3}[0-9]{4}$")
+private fun String.isValidRc(): Boolean =
+    replace(Regex("[^A-Z0-9]"), "").uppercase().matches(RC_REGEX)

@@ -501,6 +501,7 @@ public partial class FinancesManagerPage : Page
             await _exportRepo.ClearBranchRecordsAsync(branchId);
             _branchCache.Remove(fi.Id);
             await LoadBranchesForFinanceAsync(fi.Id, fi.Name);
+            await ReloadFinancesAsync(fi.Id);  // refresh left column totals
         }
         catch (Exception ex)
         {
