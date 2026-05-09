@@ -5,6 +5,9 @@ import com.vkenterprises.vras.data.local.BranchSyncState
 import com.vkenterprises.vras.data.local.BranchSyncStateDao
 import com.vkenterprises.vras.data.local.VehicleCache
 import com.vkenterprises.vras.data.local.VehicleCacheDao
+import com.vkenterprises.vras.data.models.SyncBranch
+import kotlinx.coroutines.*
+import java.util.concurrent.atomic.AtomicLong
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -14,9 +17,6 @@ class SyncRepository @Inject constructor(
     private val vehicleDao: VehicleCacheDao,
     private val syncStateDao: BranchSyncStateDao
 ) {
-    // started=true  → actual download is beginning, show the banner
-    // done=true     → all done, hide the banner
-    // otherwise     → progress update while downloading
     data class Progress(
         val current: Long,
         val total: Long,
@@ -24,12 +24,17 @@ class SyncRepository @Inject constructor(
         val started: Boolean = false
     )
 
+    companion object {
+        private const val PAGE_SIZE = 2000
+    }
+
     suspend fun hasLocalData(): Boolean = vehicleDao.count() > 0
 
     suspend fun getSyncLogs(): List<BranchSyncState> = syncStateDao.getAll()
 
-    // Wipes the local sync cursor so every branch re-downloads on next sync
+    // Nuclear option: wipe everything and re-download all (Settings → Force Full Sync)
     suspend fun forceSync(onProgress: suspend (Progress) -> Unit) {
+        vehicleDao.deleteAll()
         syncStateDao.clearAll()
         sync(onProgress)
     }
@@ -39,7 +44,7 @@ class SyncRepository @Inject constructor(
         if (!branchResp.isSuccessful) return
         val branches = branchResp.body()?.branches ?: return
 
-        // Prune local data for branches no longer on the server (cleared/deleted)
+        // Prune branches no longer on server
         val serverIds = branches.map { it.branchId }.toSet()
         for (local in syncStateDao.getAll()) {
             if (local.branchId !in serverIds) {
@@ -48,38 +53,84 @@ class SyncRepository @Inject constructor(
             }
         }
 
-        // Re-sync if uploadedAt changed OR if local record count doesn't match server
-        val toSync = branches.filter { b ->
-            b.uploadedAt != null && (
-                syncStateDao.get(b.branchId)?.uploadedAt != b.uploadedAt ||
-                vehicleDao.countByBranch(b.branchId) != b.totalRecords
-            )
+        // Build task list: what needs downloading and from where
+        val tasks = mutableListOf<SyncTask>()
+        var totalToDownload = 0L
+
+        for (b in branches) {
+            if (b.uploadedAt == null) continue
+            val savedState = syncStateDao.get(b.branchId)
+            val localCount = vehicleDao.countByBranch(b.branchId)
+
+            val uploadedChanged = savedState?.uploadedAt != b.uploadedAt
+            val countMismatch   = localCount != b.totalRecords
+            if (!uploadedChanged && !countMismatch) continue
+
+            // Full reset when upload changed OR local has MORE records than server (deleted on server)
+            val fullReset  = uploadedChanged || localCount > b.totalRecords
+            val startPage  = if (fullReset) 0 else (localCount / PAGE_SIZE).toInt()
+            val toDownload = if (fullReset) b.totalRecords
+                             else (b.totalRecords - startPage.toLong() * PAGE_SIZE).coerceAtLeast(PAGE_SIZE.toLong())
+
+            tasks.add(SyncTask(b, fullReset, startPage, toDownload))
+            totalToDownload += toDownload
         }
-        if (toSync.isEmpty()) return  // Nothing changed — no progress callback, no banner
 
-        val totalToSync = toSync.sumOf { it.totalRecords }
-        onProgress(Progress(0L, totalToSync, started = true))  // Signal: show banner now
+        if (tasks.isEmpty()) return
+        onProgress(Progress(0L, totalToDownload.coerceAtLeast(1L), started = true))
 
-        var synced = 0L
-        for (branch in toSync) {
-            vehicleDao.deleteByBranch(branch.branchId)
+        val synced = AtomicLong(0L)
 
-            var page = 0
-            while (true) {
-                val resp = runCatching { api.getSyncRecords(branch.branchId, page, 500) }.getOrNull() ?: break
-                if (!resp.isSuccessful) break
-                val body = resp.body() ?: break
-                vehicleDao.insertAll(body.records.map { r ->
-                    VehicleCache(r.id, branch.branchId, r.vehicleNo, r.chassisNo,
-                        r.engineNo, r.model, r.customerName, r.last4, r.last5)
-                })
-                synced += body.records.size
-                onProgress(Progress(synced, totalToSync))
-                if (!body.hasMore) break
-                page++
-            }
-            syncStateDao.save(BranchSyncState(branch.branchId, branch.uploadedAt!!))
+        // Download all branches in parallel
+        coroutineScope {
+            tasks.map { task ->
+                async(Dispatchers.IO) {
+                    downloadBranch(task, totalToDownload, synced, onProgress)
+                }
+            }.awaitAll()
         }
-        onProgress(Progress(synced, totalToSync, done = true))
+
+        onProgress(Progress(synced.get(), totalToDownload.coerceAtLeast(1L), done = true))
+    }
+
+    private suspend fun downloadBranch(
+        task: SyncTask,
+        totalToDownload: Long,
+        synced: AtomicLong,
+        onProgress: suspend (Progress) -> Unit
+    ) {
+        val branch = task.branch
+
+        if (task.fullReset) vehicleDao.deleteByBranch(branch.branchId)
+
+        // Save state BEFORE downloading — if connection drops, next run resumes from localCount offset
+        // rather than restarting from scratch
+        syncStateDao.save(BranchSyncState(branch.branchId, branch.uploadedAt!!))
+
+        var page = task.startPage
+        while (true) {
+            val resp = runCatching {
+                api.getSyncRecords(branch.branchId, page, PAGE_SIZE)
+            }.getOrNull() ?: break
+            if (!resp.isSuccessful) break
+            val body = resp.body() ?: break
+
+            vehicleDao.insertAll(body.records.map { r ->
+                VehicleCache(r.id, branch.branchId, r.vehicleNo, r.chassisNo,
+                    r.engineNo, r.model, r.customerName, r.last4, r.last5)
+            })
+            synced.addAndGet(body.records.size.toLong())
+            onProgress(Progress(synced.get(), totalToDownload.coerceAtLeast(1L)))
+
+            if (!body.hasMore) break
+            page++
+        }
     }
 }
+
+private data class SyncTask(
+    val branch: SyncBranch,
+    val fullReset: Boolean,
+    val startPage: Int,
+    val toDownload: Long
+)

@@ -201,7 +201,7 @@ public class MobileController : ControllerBase
     {
         try
         {
-            if (size > 1000) size = 1000;
+            if (size > 5000) size = 5000;
             var records = await _repo.GetSyncRecordsAsync(branchId, page, size);
             return Ok(new SyncRecordsResponse(true, branchId, page, size, records.Count == size, records));
         }

@@ -111,12 +111,14 @@ class SearchViewModel @Inject constructor(
 
     private suspend fun executeSearch(q: String, mode: SearchMode, userId: Long) {
         if (!_ui.value.onlineOnly) {
-            // Try Room first (instant)
             val local = withContext(Dispatchers.IO) {
                 if (mode == SearchMode.RC) vehicleDao.searchByLast4(q)
                 else vehicleDao.searchByLast5(q)
             }
-            val filtered = if (mode == SearchMode.RC) local.filter { it.vehicleNo.isValidRc() } else local
+            val filtered = if (mode == SearchMode.RC)
+                local.filter { it.vehicleNo.isValidRc() }.distinctBy { it.vehicleNo }
+            else
+                local.distinctBy { it.chassisNo }
             if (filtered.isNotEmpty()) {
                 _ui.update { it.copy(results = filtered.map { it.toSearchResult() }, errorMsg = null) }
                 return
@@ -131,8 +133,10 @@ class SearchViewModel @Inject constructor(
         _ui.update {
             when (result) {
                 is SearchResult2.Success -> {
-                    val data = if (mode == SearchMode.RC) result.data.filter { it.vehicleNo.isValidRc() }
-                               else result.data
+                    val data = if (mode == SearchMode.RC)
+                        result.data.filter { it.vehicleNo.isValidRc() }.distinctBy { it.vehicleNo }
+                    else
+                        result.data.distinctBy { it.chassisNo }
                     it.copy(results = data, errorMsg = null)
                 }
                 is SearchResult2.SubscriptionExpired -> it.copy(subscriptionExpired = true)

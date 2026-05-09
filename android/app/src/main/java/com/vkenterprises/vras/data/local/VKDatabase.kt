@@ -49,6 +49,9 @@ interface VehicleCacheDao {
 
     @Query("SELECT COUNT(*) FROM vehicle_cache WHERE branchId = :branchId")
     suspend fun countByBranch(branchId: Int): Long
+
+    @Query("DELETE FROM vehicle_cache")
+    suspend fun deleteAll()
 }
 
 @Dao
