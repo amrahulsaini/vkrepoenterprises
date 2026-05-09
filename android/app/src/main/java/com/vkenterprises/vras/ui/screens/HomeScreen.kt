@@ -65,8 +65,8 @@ fun HomeScreen(
                 },
                 actions = {
                     val pfpB64 by authVm.pfpBase64.collectAsState(initial = null)
-                    IconButton(onClick = { searchVm.forceRefresh() }) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Force sync")
+                    IconButton(onClick = { searchVm.triggerSync() }) {
+                        Icon(Icons.Default.Refresh, contentDescription = "Sync")
                     }
                     IconButton(onClick = { nav.navigate(Screen.Profile.route) }) {
                         if (!pfpB64.isNullOrBlank()) {
