@@ -41,7 +41,6 @@ public partial class FinancesManagerPage : Page
     private readonly ObservableCollection<BranchSummaryItem> _displayedBranches = new();
     private List<BranchSummaryItem> _allCurrentBranches = new();
 
-    private readonly Dictionary<int, List<BranchSummaryItem>> _branchCache = new();
     private int _loadingForFinanceId = -1;
 
     // ─────────────────────────────────────────────────────
@@ -50,7 +49,6 @@ public partial class FinancesManagerPage : Page
 
     private async void Page_Loaded(object sender, RoutedEventArgs e)
     {
-        _branchCache.Clear();  // always fetch fresh — stale cache is the #1 cause of wrong counts
         await LoadDashboardAsync();
     }
 
@@ -175,24 +173,13 @@ public partial class FinancesManagerPage : Page
     private async Task LoadBranchesForFinanceAsync(int financeId, string financeName)
     {
         txtBranchSubtitle.Text = financeName;
-
-        if (_branchCache.TryGetValue(financeId, out var cached))
-        {
-            SetBranchItemsSource(cached);
-            _ = RefreshBranchCacheAsync(financeId);
-            return;
-        }
-
-        _loadingForFinanceId = financeId;
+        _loadingForFinanceId   = financeId;
         SetBranchLoading(true);
         try
         {
             var list = await FetchBranchesAsync(financeId);
             if (_loadingForFinanceId == financeId)
-            {
-                _branchCache[financeId] = list;
                 SetBranchItemsSource(list);
-            }
         }
         catch (Exception ex)
         {
@@ -203,18 +190,6 @@ public partial class FinancesManagerPage : Page
         {
             SetBranchLoading(false);
         }
-    }
-
-    private async Task RefreshBranchCacheAsync(int financeId)
-    {
-        try
-        {
-            var list = await FetchBranchesAsync(financeId);
-            _branchCache[financeId] = list;
-            if (dgFinances.SelectedItem is FinanceListItem fi && fi.Id == financeId)
-                SetBranchItemsSource(list);
-        }
-        catch { /* silent */ }
     }
 
     private async Task<List<BranchSummaryItem>> FetchBranchesAsync(int financeId)
@@ -277,7 +252,7 @@ public partial class FinancesManagerPage : Page
         var w = new BranchEditorWindow(fi.Id, fi.Name) { Owner = Window.GetWindow(this) };
         if (w.ShowDialog() == true)
         {
-            _branchCache.Remove(fi.Id);
+
             await LoadBranchesForFinanceAsync(fi.Id, fi.Name);
         }
     }
@@ -347,7 +322,7 @@ public partial class FinancesManagerPage : Page
         try
         {
             await _financeRepo.DeleteFinanceAsync(fi.Id);
-            _branchCache.Remove(fi.Id);
+
             SetBranchItemsSource(null);
             txtBranchSubtitle.Text = "Select a finance to view branches";
             await ReloadFinancesAsync();
@@ -383,7 +358,7 @@ public partial class FinancesManagerPage : Page
 
             if (w.ShowDialog() == true)
             {
-                _branchCache.Remove(fi.Id);
+    
                 await LoadBranchesForFinanceAsync(fi.Id, fi.Name);
             }
         }
@@ -408,7 +383,7 @@ public partial class FinancesManagerPage : Page
         try
         {
             await _branchRepo.DeleteBranchAsync(branchId);
-            _branchCache.Remove(fi.Id);
+
             await LoadBranchesForFinanceAsync(fi.Id, fi.Name);
         }
         catch (Exception ex)
@@ -500,7 +475,7 @@ public partial class FinancesManagerPage : Page
         try
         {
             await _exportRepo.ClearBranchRecordsAsync(branchId);
-            _branchCache.Remove(fi.Id);
+
             await LoadBranchesForFinanceAsync(fi.Id, fi.Name);
             await ReloadFinancesAsync(fi.Id);  // refresh left column totals
         }
