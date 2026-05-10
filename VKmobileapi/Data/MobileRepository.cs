@@ -9,7 +9,7 @@ public class MobileRepository
     // ── In-memory search cache ─────────────────────────────────────────────
     // Key: "rc:XXXX" or "ch:XXXXX" — value: cached result list with timestamp
     private static readonly ConcurrentDictionary<string, (List<SearchResult> Results, DateTime At)> _cache = new();
-    private static readonly TimeSpan CacheTtl = TimeSpan.FromMinutes(30);
+    private static readonly TimeSpan CacheTtl = TimeSpan.FromHours(2);
 
     // ── Subscription status cache — avoids DB hit on every request ─────────
     // Key: userId — value: (hasActiveSub, cachedAt). TTL 5 min.
@@ -378,11 +378,14 @@ public class MobileRepository
     {
         await using var conn = DbFactory.Create();
         await conn.OpenAsync();
+        // Read pre-computed total_records from branches (stored on every upload) —
+        // avoids full InnoDB COUNT(*) scan which takes seconds on large tables.
         const string sql = @"
             SELECT
-                (SELECT COUNT(*) FROM vehicle_records),
-                (SELECT COUNT(*) FROM rc_info),
-                (SELECT COUNT(*) FROM chassis_info)";
+                COALESCE(SUM(total_records), 0),
+                COALESCE(SUM(total_records), 0),
+                COALESCE(SUM(total_records), 0)
+            FROM branches WHERE is_active = 1";
         await using var cmd = new MySqlCommand(sql, conn);
         await using var r   = await cmd.ExecuteReaderAsync();
         await r.ReadAsync();
