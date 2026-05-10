@@ -6,21 +6,21 @@ namespace VRASDesktopApp.Data;
 
 public static class MySqlFactory
 {
+    private const string Host = "34.59.75.191";
+    private const string User = "vkre_db1";
+    private const string Pass = "db1";
+    private const string Db   = "vkre_db1";
+    private const uint   Port = 3306;
+
     public static MySqlConnection CreateConnection()
     {
-        var host = Environment.GetEnvironmentVariable("MYSQL_HOST") ?? "localhost";
-        var user = Environment.GetEnvironmentVariable("MYSQL_USER") ?? "root";
-        var pass = Environment.GetEnvironmentVariable("MYSQL_PASSWORD") ?? string.Empty;
-        var db   = Environment.GetEnvironmentVariable("MYSQL_DATABASE") ?? "test";
-        var port = Environment.GetEnvironmentVariable("MYSQL_PORT") ?? "3306";
-
         var cs = new MySqlConnectionStringBuilder
         {
-            Server   = host,
-            UserID   = user,
-            Password = pass,
-            Database = db,
-            Port     = uint.TryParse(port, out var p) ? p : 3306u,
+            Server   = Host,
+            UserID   = User,
+            Password = Pass,
+            Database = Db,
+            Port     = Port,
             SslMode  = MySqlSslMode.None,
             Pooling  = true,
             // Do NOT set MinimumPoolSize > 0 — it can cause eager connection
@@ -54,11 +54,5 @@ public static class MySqlFactory
     }
 
     public static string GetConnectionInfoMasked()
-    {
-        var host = Environment.GetEnvironmentVariable("MYSQL_HOST") ?? "localhost";
-        var user = Environment.GetEnvironmentVariable("MYSQL_USER") ?? "root";
-        var db   = Environment.GetEnvironmentVariable("MYSQL_DATABASE") ?? "test";
-        var port = Environment.GetEnvironmentVariable("MYSQL_PORT") ?? "3306";
-        return $"Server={host};Port={port};User={user};Database={db};Password=****";
-    }
+        => $"Server={Host};Port={Port};User={User};Database={Db};Password=****";
 }
