@@ -50,33 +50,40 @@ public class RecordsRepository
 
         var sw = Stopwatch.StartNew();
 
-        // ── Connection A: delete + bulk insert ───────────────────────────
+        // ── Connection A: delete (if needed) + bulk insert ────────────────
         await using var conn = MySqlFactory.CreateConnection();
         await conn.OpenAsync();
 
-        // Disable constraint checking for this session — safe because we control
-        // both sides of the data and restore before returning.
         await Exec("SET foreign_key_checks = 0", conn);
         await Exec("SET unique_checks = 0", conn);
 
-        // 1. Wipe old records for this branch from all three tables in one pass.
-        //    Multi-table DELETE avoids the row-by-row InnoDB cascade that kills performance.
-        progress?.Report((5, "Clearing old records…"));
-        await Exec(@"
-            DELETE vr, ri, ci
-            FROM   vehicle_records vr
-            LEFT JOIN rc_info      ri ON ri.vehicle_record_id = vr.id
-            LEFT JOIN chassis_info ci ON ci.vehicle_record_id = vr.id
-            WHERE  vr.branch_id = @bid",
-            conn, timeout: 300, ("@bid", branchId));
+        // 1. Only delete existing records when the branch already has data.
+        //    Skip entirely for fresh branches — saves several seconds on first upload.
+        progress?.Report((5, "Checking existing records…"));
+        await using var existCmd = new MySqlCommand(
+            "SELECT EXISTS(SELECT 1 FROM vehicle_records WHERE branch_id = @bid LIMIT 1)", conn);
+        existCmd.Parameters.AddWithValue("@bid", branchId);
+        var hasRecords = Convert.ToInt64(await existCmd.ExecuteScalarAsync()) == 1;
+
+        if (hasRecords)
+        {
+            progress?.Report((10, "Clearing old records…"));
+            await Exec(@"
+                DELETE vr, ri, ci
+                FROM   vehicle_records vr
+                LEFT JOIN rc_info      ri ON ri.vehicle_record_id = vr.id
+                LEFT JOIN chassis_info ci ON ci.vehicle_record_id = vr.id
+                WHERE  vr.branch_id = @bid",
+                conn, timeout: 300, ("@bid", branchId));
+        }
 
         // 2. Materialise records into a DataTable (in-memory, ~100 ms for 100 k rows).
-        progress?.Report((12, $"Preparing {records.Count:N0} rows…"));
+        progress?.Report((15, $"Preparing {records.Count:N0} rows…"));
         var dt = BuildDataTable(branchId, records);
 
         // 3. Single BulkCopy call — MySqlConnector uses LOAD DATA LOCAL INFILE
         //    (the fastest MySQL bulk-load path).  No chunking = no extra round-trips.
-        progress?.Report((18, $"Uploading {records.Count:N0} records…"));
+        progress?.Report((20, $"Uploading {records.Count:N0} records…"));
         var bc = new MySqlBulkCopy(conn)
         {
             DestinationTableName = "vehicle_records",
@@ -87,26 +94,22 @@ public class RecordsRepository
         dt.Dispose();
         int inserted = (int)result.RowsInserted;
 
-        // 4. Rebuild rc_info and chassis_info in parallel on two separate connections
-        //    (server-side INSERT SELECT — no DataTable needed because we don't know the
-        //    auto-increment IDs until after vehicle_records is committed).
-        progress?.Report((72, "Rebuilding search indexes…"));
-
-        var rcTask = RebuildRcInfo(branchId);
-        var chTask = RebuildChassisInfo(branchId);
-        await Task.WhenAll(rcTask, chTask);
-
-        // 5. Restore session settings.
-        await Exec("SET foreign_key_checks = 1", conn);
-        await Exec("SET unique_checks = 1", conn);
-
-        // 6. Stamp the branch with record count + upload timestamp.
-        progress?.Report((96, "Finalising…"));
+        // 4. Stamp the branch immediately so the mobile app can start syncing.
         await Exec("UPDATE branches SET total_records = @cnt, uploaded_at = NOW() WHERE id = @bid",
             conn, timeout: 30, ("@cnt", inserted), ("@bid", branchId));
 
+        await Exec("SET foreign_key_checks = 1", conn);
+        await Exec("SET unique_checks = 1", conn);
+
         sw.Stop();
+
+        // 5. Report Done to the UI now — search index rebuild runs async in background.
         progress?.Report((100, $"Done — {inserted:N0} records in {sw.Elapsed.TotalSeconds:F1}s"));
+
+        // 6. Rebuild rc_info / chassis_info on background threads.
+        //    Mobile sync reads directly from vehicle_records so searches work immediately.
+        _ = Task.Run(() => Task.WhenAll(RebuildRcInfo(branchId), RebuildChassisInfo(branchId)));
+
         return (inserted, sw.Elapsed.TotalSeconds);
     }
 

@@ -350,18 +350,15 @@ public class MobileRepository
         await conn.OpenAsync();
         const string sql = @"
             SELECT vr.id,
-                   COALESCE(vr.vehicle_no,'')    AS vehicle_no,
-                   COALESCE(vr.chassis_no,'')   AS chassis_no,
-                   COALESCE(vr.engine_no,'')    AS engine_no,
-                   COALESCE(vr.model,'')        AS model,
-                   COALESCE(vr.customer_name,'') AS customer_name,
-                   COALESCE(ri.last4,'')  AS last4,
-                   COALESCE(ci.last5,'')  AS last5
+                   COALESCE(vr.vehicle_no,'')         AS vehicle_no,
+                   COALESCE(vr.chassis_no,'')         AS chassis_no,
+                   COALESCE(vr.engine_no,'')          AS engine_no,
+                   COALESCE(vr.model,'')              AS model,
+                   COALESCE(vr.customer_name,'')      AS customer_name,
+                   COALESCE(RIGHT(vr.vehicle_no,4),'') AS last4,
+                   COALESCE(RIGHT(vr.chassis_no,5),'') AS last5
             FROM vehicle_records vr
-            LEFT JOIN rc_info ri      ON ri.vehicle_record_id  = vr.id
-            LEFT JOIN chassis_info ci ON ci.vehicle_record_id = vr.id
             WHERE vr.branch_id = @bid
-            GROUP BY vr.id
             ORDER BY vr.id
             LIMIT @size OFFSET @off";
         var list = new List<SyncRecord>();
