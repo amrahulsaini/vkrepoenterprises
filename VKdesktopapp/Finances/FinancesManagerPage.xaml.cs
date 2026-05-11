@@ -519,10 +519,13 @@ public partial class FinancesManagerPage : Page
             "Clear Records", MessageBoxButton.YesNo, MessageBoxImage.Warning);
         if (result != MessageBoxResult.Yes) return;
 
+        var prevSubtitle = txtBranchSubtitle.Text;
         SetBranchLoading(true);
         try
         {
-            await _exportRepo.ClearBranchRecordsAsync(branchId);
+            // Live progress: subtitle updates per 5 000-row chunk
+            var progress = new Progress<string>(msg => txtBranchSubtitle.Text = msg);
+            await _exportRepo.ClearBranchRecordsAsync(branchId, progress);
 
             _branchCache.Remove(fi.Id);
             await LoadBranchesForFinanceAsync(fi.Id, fi.Name);
@@ -530,6 +533,7 @@ public partial class FinancesManagerPage : Page
         }
         catch (Exception ex)
         {
+            txtBranchSubtitle.Text = prevSubtitle;
             MessageBox.Show($"Failed to clear records: {ex.Message}", "Error",
                 MessageBoxButton.OK, MessageBoxImage.Error);
         }
