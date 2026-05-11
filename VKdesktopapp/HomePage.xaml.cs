@@ -114,7 +114,6 @@ public partial class HomePage : Page
 
         // Live users
         _lastLiveUsers  = live;
-        var since       = txtSinceTime.Text.Trim();
         lblLiveCount.Text = since == "00:00" || string.IsNullOrWhiteSpace(since)
             ? $"{live.Count} users seen today"
             : $"{live.Count} users seen since {since}";
