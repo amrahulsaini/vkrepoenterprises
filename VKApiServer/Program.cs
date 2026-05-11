@@ -18,9 +18,9 @@ builder.Services.AddMemoryCache();
 
 var connStr = new MySqlConnectionStringBuilder
 {
-    Server   = Environment.GetEnvironmentVariable("MYSQL_HOST") ?? "localhost",
-    UserID   = Environment.GetEnvironmentVariable("MYSQL_USER") ?? "root",
-    Password = Environment.GetEnvironmentVariable("MYSQL_PASSWORD") ?? "",
+    Server   = Environment.GetEnvironmentVariable("MYSQL_HOST")     ?? "127.0.0.1",
+    UserID   = Environment.GetEnvironmentVariable("MYSQL_USER")     ?? "vkre_db1",
+    Password = Environment.GetEnvironmentVariable("MYSQL_PASSWORD") ?? "db1",
     Database = Environment.GetEnvironmentVariable("MYSQL_DATABASE") ?? "vkre_db1",
     Port     = uint.TryParse(Environment.GetEnvironmentVariable("MYSQL_PORT"), out var p) ? p : 3306u,
     SslMode  = MySqlSslMode.None,
