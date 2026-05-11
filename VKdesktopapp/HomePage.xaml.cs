@@ -84,11 +84,12 @@ public partial class HomePage : Page
         var requests = new List<DesktopApiClient.DeviceRequestDto>();
         var live     = new List<DesktopApiClient.LiveUserDto>();
 
+        var since = txtSinceTime.Text.Trim();
         await Task.WhenAll(
             Safe(async () => stats    = await DesktopApiClient.GetDashboardStatsAsync()),
             Safe(async () => uStats   = await DesktopApiClient.GetUserStatsAsync()),
             Safe(async () => requests = await DesktopApiClient.GetDeviceRequestsAsync()),
-            Safe(async () => live     = await DesktopApiClient.GetLiveUsersAsync())
+            Safe(async () => live     = await DesktopApiClient.GetLiveUsersAsync(since))
         );
 
         // Records / Finances / Branches
@@ -112,9 +113,11 @@ public partial class HomePage : Page
         lvDeviceRequests.Visibility  = reqRows.Count > 0  ? Visibility.Visible : Visibility.Collapsed;
 
         // Live users
-        _lastLiveUsers   = live;
-        lblLiveCount.Text    = $"{live.Count} online in last 15 min";
-        lblLastRefresh.Text  = DateTime.Now.ToString("hh:mm tt");
+        _lastLiveUsers  = live;
+        var since       = txtSinceTime.Text.Trim();
+        lblLiveCount.Text = since == "00:00" || string.IsNullOrWhiteSpace(since)
+            ? $"{live.Count} users seen today"
+            : $"{live.Count} users seen since {since}";
         PushMarkersToMap(live);
     }
 

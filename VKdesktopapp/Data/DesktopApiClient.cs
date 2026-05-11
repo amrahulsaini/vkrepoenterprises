@@ -240,9 +240,12 @@ internal static class DesktopApiClient
 
     // ── Live users ──────────────────────────────────────────────────────────
 
-    internal static async Task<List<LiveUserDto>> GetLiveUsersAsync()
+    internal static async Task<List<LiveUserDto>> GetLiveUsersAsync(string? since = null)
     {
-        var resp = await Send(HttpMethod.Get, "api/mgr/live-users");
+        var url = string.IsNullOrWhiteSpace(since)
+            ? "api/mgr/live-users"
+            : $"api/mgr/live-users?since={Uri.EscapeDataString(since)}";
+        var resp = await Send(HttpMethod.Get, url);
         resp.EnsureSuccessStatusCode();
         return (await resp.Content.ReadFromJsonAsync<List<LiveUserDto>>(_json))!;
     }
