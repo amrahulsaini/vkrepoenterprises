@@ -17,7 +17,7 @@
     <Setting Name="ContactNos" Type="System.String" Scope="User">
       <Value Profile="(Default)">9850637363</Value>
     </Setting>
-    <Setting Name="ApiKey" Type="System.String" Scope="User">
+    <Setting Name="ApiKey" Type="System.String" Scope="Application">
       <Value Profile="(Default)">12</Value>
     </Setting>
     <Setting Name="FeedbackPortalFirmId" Type="System.Int32" Scope="User">
