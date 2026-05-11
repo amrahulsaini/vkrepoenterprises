@@ -348,22 +348,25 @@
                                    FontSize="12"
                                    Foreground="{StaticResource Gray600}"
                                    VerticalAlignment="Center" />
-                        <Border BorderBrush="{StaticResource Gray300}"
-                                BorderThickness="1" CornerRadius="4">
-                            <TextBox Name="txtSinceTime"
-                                     Text="00:00"
-                                     Width="58"
-                                     FontSize="13" FontWeight="SemiBold"
-                                     Padding="5,3"
-                                     BorderThickness="0"
-                                     Background="Transparent"
-                                     VerticalContentAlignment="Center"
-                                     MaxLength="5" />
-                        </Border>
-                        <TextBlock Text="  (HH:mm, 24 h)"
-                                   FontSize="10"
-                                   Foreground="{StaticResource Gray400}"
-                                   VerticalAlignment="Center" />
+                        <ComboBox Name="cmbHour"
+                                  Width="52" Height="28"
+                                  FontSize="13" FontWeight="SemiBold"
+                                  VerticalContentAlignment="Center"
+                                  Margin="0,0,2,0" />
+                        <TextBlock Text=":"
+                                   FontSize="14" FontWeight="Bold"
+                                   Foreground="{StaticResource Gray600}"
+                                   VerticalAlignment="Center"
+                                   Margin="0,0,2,0" />
+                        <ComboBox Name="cmbMinute"
+                                  Width="52" Height="28"
+                                  FontSize="13" FontWeight="SemiBold"
+                                  VerticalContentAlignment="Center"
+                                  Margin="0,0,6,0" />
+                        <ComboBox Name="cmbAmPm"
+                                  Width="52" Height="28"
+                                  FontSize="13" FontWeight="SemiBold"
+                                  VerticalContentAlignment="Center" />
                     </StackPanel>
                     <Button Content="↻  Apply"
                             HorizontalAlignment="Right"

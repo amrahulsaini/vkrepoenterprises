@@ -1096,6 +1096,80 @@ app.MapGet("/api/mgr/live-users", async (HttpContext ctx, string? since) =>
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
 
+// ── Column types & mappings (Excel column mapping config) ─────────────────────
+app.MapGet("/api/mgr/column-mappings", async (HttpContext ctx) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        await using var conn = new MySqlConnection(connStr);
+        await conn.OpenAsync();
+        var types = new List<object>();
+        await using (var cmd = new MySqlCommand(
+            "SELECT id, name FROM column_types ORDER BY sort_order, id", conn))
+        await using (var r = await cmd.ExecuteReaderAsync())
+            while (await r.ReadAsync())
+                types.Add(new { id = r.GetInt32(0), name = r.GetString(1) });
+
+        var maps = new List<object>();
+        await using (var cmd = new MySqlCommand(
+            "SELECT id, column_type_id, name FROM column_mappings ORDER BY column_type_id, name", conn))
+        await using (var r = await cmd.ExecuteReaderAsync())
+            while (await r.ReadAsync())
+                maps.Add(new { id = r.GetInt32(0), columnTypeId = r.GetInt32(1), name = r.GetString(2) });
+
+        return Results.Ok(new { columnTypes = types, mappings = maps });
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+app.MapPost("/api/mgr/column-mappings", async (HttpContext ctx, MgrCreateMappingDto dto) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        var normalized = System.Text.RegularExpressions.Regex.Replace(dto.RawName, "[^A-Za-z0-9]", "").ToLower();
+        await using var conn = new MySqlConnection(connStr);
+        await conn.OpenAsync();
+        await using var cmd = new MySqlCommand(
+            "INSERT INTO column_mappings (column_type_id, name) VALUES (@tid, @name); SELECT LAST_INSERT_ID();", conn);
+        cmd.Parameters.AddWithValue("@tid",  dto.ColumnTypeId);
+        cmd.Parameters.AddWithValue("@name", normalized);
+        var id = Convert.ToInt32(await cmd.ExecuteScalarAsync());
+        return Results.Ok(new { id, columnTypeId = dto.ColumnTypeId, name = normalized });
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+app.MapDelete("/api/mgr/column-mappings/{id:int}", async (HttpContext ctx, int id) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        await using var conn = new MySqlConnection(connStr);
+        await conn.OpenAsync();
+        await MgrExec("DELETE FROM column_mappings WHERE id=@id", conn, 10, ("@id", id));
+        return Results.Ok();
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+app.MapPost("/api/mgr/column-types", async (HttpContext ctx, MgrCreateColumnTypeDto dto) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        await using var conn = new MySqlConnection(connStr);
+        await conn.OpenAsync();
+        await using var cmd = new MySqlCommand(
+            "INSERT INTO column_types (name) VALUES (@name); SELECT LAST_INSERT_ID();", conn);
+        cmd.Parameters.AddWithValue("@name", dto.Name.Trim());
+        var id = Convert.ToInt32(await cmd.ExecuteScalarAsync());
+        return Results.Ok(new { id, name = dto.Name.Trim() });
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
 // ── Forward /api/mobile/* → VKmobileapi on port 5001 ─────────────────────────
 app.Map("/api/mobile/{**rest}", async (HttpContext ctx) =>
 {
@@ -1156,3 +1230,5 @@ record MgrUpdateBranchDto(string Name,
 record MgrSetActiveDto(bool Active);
 record MgrSetAdminDto(bool Admin);
 record MgrAddSubscriptionDto(string StartDate, string EndDate, decimal Amount, string? Notes);
+record MgrCreateMappingDto(int ColumnTypeId, string RawName);
+record MgrCreateColumnTypeDto(string Name);

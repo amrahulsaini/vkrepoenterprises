@@ -250,6 +250,40 @@ internal static class DesktopApiClient
         return (await resp.Content.ReadFromJsonAsync<List<LiveUserDto>>(_json))!;
     }
 
+    // ── Column mappings ─────────────────────────────────────────────────────
+
+    internal record ColumnTypeDto(int Id, string Name);
+    internal record MappingDto(int Id, int ColumnTypeId, string Name);
+    internal record ColumnMappingsDto(List<ColumnTypeDto> ColumnTypes, List<MappingDto> Mappings);
+
+    internal static async Task<ColumnMappingsDto> GetColumnMappingsAsync()
+    {
+        var resp = await Send(HttpMethod.Get, "api/mgr/column-mappings");
+        resp.EnsureSuccessStatusCode();
+        return (await resp.Content.ReadFromJsonAsync<ColumnMappingsDto>(_json))!;
+    }
+
+    internal static async Task<MappingDto> CreateMappingAsync(int columnTypeId, string rawName)
+    {
+        var resp = await Send(HttpMethod.Post, "api/mgr/column-mappings",
+            new { ColumnTypeId = columnTypeId, RawName = rawName });
+        resp.EnsureSuccessStatusCode();
+        return (await resp.Content.ReadFromJsonAsync<MappingDto>(_json))!;
+    }
+
+    internal static async Task DeleteColumnMappingAsync(int mappingId)
+    {
+        var resp = await Send(HttpMethod.Delete, $"api/mgr/column-mappings/{mappingId}");
+        resp.EnsureSuccessStatusCode();
+    }
+
+    internal static async Task<ColumnTypeDto> CreateColumnTypeAsync(string name)
+    {
+        var resp = await Send(HttpMethod.Post, "api/mgr/column-types", new { Name = name });
+        resp.EnsureSuccessStatusCode();
+        return (await resp.Content.ReadFromJsonAsync<ColumnTypeDto>(_json))!;
+    }
+
     // ── HTTP helper ─────────────────────────────────────────────────────────
 
     private static Task<HttpResponseMessage> Send(
