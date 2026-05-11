@@ -1099,8 +1099,8 @@ app.MapGet("/api/mgr/live-users", async (HttpContext ctx, string? since) =>
 // ── Forward /api/mobile/* → VKmobileapi on port 5001 ─────────────────────────
 app.Map("/api/mobile/{**rest}", async (HttpContext ctx) =>
 {
-    var target = ctx.Request.Path + ctx.Request.QueryString;
-    var req    = new HttpRequestMessage(new HttpMethod(ctx.Request.Method), target.Value);
+    var target = (ctx.Request.Path.Value ?? "/") + ctx.Request.QueryString.Value;
+    var req    = new HttpRequestMessage(new HttpMethod(ctx.Request.Method), target);
 
     foreach (var (k, v) in ctx.Request.Headers)
     {
