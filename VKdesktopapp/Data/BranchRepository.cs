@@ -95,14 +95,46 @@ VALUES (@fid, @name, @c1, @c2, @c3, @addr, @bcode, @city, @state, @postal, @note
         await cmd.ExecuteNonQueryAsync();
     }
 
-    public async Task DeleteBranchAsync(int id)
+    public async Task DeleteBranchAsync(int id, IProgress<string>? progress = null)
     {
         await using var conn = MySqlFactory.CreateConnection();
         await conn.OpenAsync();
-        const string sql = "DELETE FROM branches WHERE id = @id";
-        await using var cmd = new MySqlCommand(sql, conn);
-        cmd.Parameters.AddWithValue("@id", id);
-        await cmd.ExecuteNonQueryAsync();
+
+        static async Task Exec(string sql, MySqlConnection c, int timeout = 30,
+            params (string n, object v)[] ps)
+        {
+            await using var cmd = new MySqlCommand(sql, c) { CommandTimeout = timeout };
+            foreach (var (n, v) in ps) cmd.Parameters.AddWithValue(n, v);
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        // Chunked record purge first — same pattern as ClearBranchRecordsAsync.
+        // Deleting the branch directly triggers a cascade on 100k+ rows in one
+        // transaction which bloats the InnoDB undo log and causes a timeout.
+        await Exec("SET foreign_key_checks=0", conn);
+        int totalDeleted = 0;
+        while (true)
+        {
+            var ids = new List<long>(5000);
+            await using (var sel = new MySqlCommand(
+                "SELECT id FROM vehicle_records WHERE branch_id = @bid LIMIT 5000", conn)
+                { CommandTimeout = 30 })
+            {
+                sel.Parameters.AddWithValue("@bid", id);
+                await using var rdr = await sel.ExecuteReaderAsync();
+                while (await rdr.ReadAsync()) ids.Add(rdr.GetInt64(0));
+            }
+            if (ids.Count == 0) break;
+            var idList = string.Join(",", ids);
+            await Exec($"DELETE FROM rc_info      WHERE vehicle_record_id IN ({idList})", conn, 60);
+            await Exec($"DELETE FROM chassis_info WHERE vehicle_record_id IN ({idList})", conn, 60);
+            await Exec($"DELETE FROM vehicle_records WHERE id IN ({idList})", conn, 60);
+            totalDeleted += ids.Count;
+            progress?.Report($"Deleting… {totalDeleted:N0} records removed");
+        }
+        await Exec("SET foreign_key_checks=1", conn);
+
+        await Exec("DELETE FROM branches WHERE id = @id", conn, 30, ("@id", id));
     }
 
     public async Task<List<(int Id, string Name, string FinanceName, long TotalRecords, string UploadedAt)>> GetAllBranchesWithFinanceAsync()

@@ -427,18 +427,23 @@ public partial class FinancesManagerPage : Page
             "Delete Branch", MessageBoxButton.YesNo, MessageBoxImage.Warning);
         if (result != MessageBoxResult.Yes) return;
 
+        var prevSubtitle = txtBranchSubtitle.Text;
+        SetBranchLoading(true);
         try
         {
-            await _branchRepo.DeleteBranchAsync(branchId);
+            var progress = new Progress<string>(msg => txtBranchSubtitle.Text = msg);
+            await _branchRepo.DeleteBranchAsync(branchId, progress);
 
             _branchCache.Remove(fi.Id);
             await LoadBranchesForFinanceAsync(fi.Id, fi.Name);
         }
         catch (Exception ex)
         {
+            txtBranchSubtitle.Text = prevSubtitle;
             MessageBox.Show($"Failed to delete branch: {ex.Message}",
                 "Finances", MessageBoxButton.OK, MessageBoxImage.Error);
         }
+        finally { SetBranchLoading(false); }
     }
 
     // ─────────────────────────────────────────────────────
