@@ -58,12 +58,13 @@ namespace VRASDesktopApp.Properties
             set => this[nameof(ContactNos)] = value;
         }
 
-        [ApplicationScopedSetting]
+        [UserScopedSetting]
         [DebuggerNonUserCode]
         [DefaultSettingValue("12")]
         public string ApiKey
         {
             get => (string)this[nameof(ApiKey)];
+            set => this[nameof(ApiKey)] = value;
         }
 
         [UserScopedSetting]
