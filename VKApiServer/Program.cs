@@ -396,7 +396,296 @@ app.MapGet("/", () => Results.Ok(new
     port
 }));
 
+// ── Desktop Manager endpoints (/api/mgr/*) ──────────────────────────────────
+// All SQL runs server-side at loopback speed — eliminates WAN round-trips
+// for every query the desktop previously issued directly to MySQL.
+
+static bool MgrAuth(HttpContext ctx, string key) =>
+    ctx.Request.Headers.TryGetValue("X-Api-Key", out var v) && v == key;
+
+static async Task MgrExec(string sql, MySqlConnection c, int timeout = 30,
+    params (string n, object v)[] ps)
+{
+    await using var cmd = new MySqlCommand(sql, c) { CommandTimeout = timeout };
+    foreach (var (n, v) in ps) cmd.Parameters.AddWithValue(n, v);
+    await cmd.ExecuteNonQueryAsync();
+}
+
+// ── Finances ──────────────────────────────────────────────────────────────
+
+app.MapGet("/api/mgr/finances", async (HttpContext ctx) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        await using var conn = new MySqlConnection(connStr);
+        await conn.OpenAsync();
+        const string sql = @"
+            SELECT f.id, f.name,
+                   COALESCE(b.branch_cnt,0)  AS branch_count,
+                   COALESCE(b.record_cnt,0)  AS total_records
+            FROM finances f
+            LEFT JOIN (
+                SELECT finance_id, COUNT(*) AS branch_cnt, SUM(total_records) AS record_cnt
+                FROM   branches WHERE is_active=1 GROUP BY finance_id
+            ) b ON b.finance_id = f.id
+            ORDER BY f.name LIMIT 100";
+        await using var cmd = new MySqlCommand(sql, conn) { CommandTimeout = 60 };
+        var list = new List<object>();
+        await using var rdr = await cmd.ExecuteReaderAsync();
+        while (await rdr.ReadAsync())
+            list.Add(new { id = rdr.GetInt32(0), name = rdr.GetString(1),
+                           branchCount = rdr.IsDBNull(2) ? 0L : rdr.GetInt64(2),
+                           totalRecords = rdr.IsDBNull(3) ? 0L : rdr.GetInt64(3) });
+        return Results.Ok(list);
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+app.MapPost("/api/mgr/finances", async (HttpContext ctx, MgrCreateFinanceDto dto) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        await using var conn = new MySqlConnection(connStr);
+        await conn.OpenAsync();
+        await using var cmd = new MySqlCommand(
+            "INSERT INTO finances (name,description) VALUES (@n,@d); SELECT LAST_INSERT_ID();", conn);
+        cmd.Parameters.AddWithValue("@n", dto.Name);
+        cmd.Parameters.AddWithValue("@d", dto.Description ?? "");
+        var id = Convert.ToInt32(await cmd.ExecuteScalarAsync());
+        return Results.Ok(new { id });
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+app.MapPut("/api/mgr/finances/{id:int}", async (HttpContext ctx, int id, MgrUpdateNameDto dto) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        await using var conn = new MySqlConnection(connStr);
+        await conn.OpenAsync();
+        await MgrExec("UPDATE finances SET name=@n WHERE id=@id", conn, 30, ("@n", dto.Name), ("@id", id));
+        return Results.Ok();
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+app.MapDelete("/api/mgr/finances/{id:int}", async (HttpContext ctx, int id) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        await using var conn = new MySqlConnection(connStr);
+        await conn.OpenAsync();
+        await MgrExec("DELETE FROM finances WHERE id=@id", conn, 30, ("@id", id));
+        return Results.Ok();
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+// ── Branches ──────────────────────────────────────────────────────────────
+
+app.MapGet("/api/mgr/branches", async (HttpContext ctx, int? financeId) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        await using var conn = new MySqlConnection(connStr);
+        await conn.OpenAsync();
+        string sql; MySqlCommand cmd;
+        if (financeId.HasValue)
+        {
+            sql = @"SELECT b.id, b.name,
+                           COALESCE(b.contact1,'') AS c1, COALESCE(b.contact2,'') AS c2,
+                           COALESCE(b.contact3,'') AS c3, COALESCE(b.address,'')  AS addr,
+                           b.total_records,
+                           IFNULL(DATE_FORMAT(b.uploaded_at,'%d %b %y %h:%i %p'),'') AS up,
+                           '' AS finance_name
+                    FROM branches b
+                    WHERE b.finance_id=@fid AND b.is_active=1
+                    ORDER BY b.total_records DESC LIMIT 100";
+            cmd = new MySqlCommand(sql, conn) { CommandTimeout = 60 };
+            cmd.Parameters.AddWithValue("@fid", financeId.Value);
+        }
+        else
+        {
+            sql = @"SELECT b.id, b.name,
+                           COALESCE(b.contact1,'') AS c1, COALESCE(b.contact2,'') AS c2,
+                           COALESCE(b.contact3,'') AS c3, COALESCE(b.address,'')  AS addr,
+                           b.total_records,
+                           IFNULL(DATE_FORMAT(b.uploaded_at,'%d %b %y %h:%i %p'),'') AS up,
+                           COALESCE(f.name,'') AS finance_name
+                    FROM branches b LEFT JOIN finances f ON f.id=b.finance_id
+                    WHERE b.is_active=1 ORDER BY f.name, b.name LIMIT 500";
+            cmd = new MySqlCommand(sql, conn) { CommandTimeout = 60 };
+        }
+        var list = new List<object>();
+        await using var rdr = await cmd.ExecuteReaderAsync();
+        while (await rdr.ReadAsync())
+            list.Add(new { id = rdr.GetInt32(0), name = rdr.GetString(1),
+                           contact1 = rdr.GetString(2), contact2 = rdr.GetString(3),
+                           contact3 = rdr.GetString(4), address = rdr.GetString(5),
+                           totalRecords = rdr.IsDBNull(6) ? 0L : rdr.GetInt64(6),
+                           uploadedAt = rdr.GetString(7), financeName = rdr.GetString(8) });
+        return Results.Ok(list);
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+app.MapGet("/api/mgr/branches/{id:int}", async (HttpContext ctx, int id) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        await using var conn = new MySqlConnection(connStr);
+        await conn.OpenAsync();
+        await using var cmd = new MySqlCommand(
+            "SELECT id,name,COALESCE(contact1,''),COALESCE(contact2,''),COALESCE(contact3,''),COALESCE(address,''),COALESCE(branch_code,'') FROM branches WHERE id=@id LIMIT 1", conn);
+        cmd.Parameters.AddWithValue("@id", id);
+        await using var rdr = await cmd.ExecuteReaderAsync();
+        if (!await rdr.ReadAsync()) return Results.NotFound();
+        return Results.Ok(new { id = rdr.GetInt32(0), name = rdr.GetString(1),
+                                contact1 = rdr.GetString(2), contact2 = rdr.GetString(3),
+                                contact3 = rdr.GetString(4), address = rdr.GetString(5),
+                                branchCode = rdr.GetString(6) });
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+app.MapPost("/api/mgr/branches", async (HttpContext ctx, MgrCreateBranchDto dto) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        await using var conn = new MySqlConnection(connStr);
+        await conn.OpenAsync();
+        await using var cmd = new MySqlCommand(@"
+            INSERT INTO branches (finance_id,name,contact1,contact2,contact3,address,branch_code,city,state,postal_code,notes)
+            VALUES (@fid,@n,@c1,@c2,@c3,@addr,@bcode,@city,@state,@postal,@notes);
+            SELECT LAST_INSERT_ID();", conn);
+        cmd.Parameters.AddWithValue("@fid",   dto.FinanceId);
+        cmd.Parameters.AddWithValue("@n",     dto.Name);
+        cmd.Parameters.AddWithValue("@c1",    dto.Contact1  ?? "");
+        cmd.Parameters.AddWithValue("@c2",    dto.Contact2  ?? "");
+        cmd.Parameters.AddWithValue("@c3",    dto.Contact3  ?? "");
+        cmd.Parameters.AddWithValue("@addr",  dto.Address   ?? "");
+        cmd.Parameters.AddWithValue("@bcode", dto.BranchCode ?? "");
+        cmd.Parameters.AddWithValue("@city",  dto.City  ?? "");
+        cmd.Parameters.AddWithValue("@state", dto.State ?? "");
+        cmd.Parameters.AddWithValue("@postal",dto.Postal ?? "");
+        cmd.Parameters.AddWithValue("@notes", dto.Notes  ?? "");
+        var id = Convert.ToInt32(await cmd.ExecuteScalarAsync());
+        return Results.Ok(new { id });
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+app.MapPut("/api/mgr/branches/{id:int}", async (HttpContext ctx, int id, MgrUpdateBranchDto dto) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        await using var conn = new MySqlConnection(connStr);
+        await conn.OpenAsync();
+        await using var cmd = new MySqlCommand(
+            "UPDATE branches SET name=@n,contact1=@c1,contact2=@c2,contact3=@c3,address=@addr,branch_code=@bcode WHERE id=@id", conn);
+        cmd.Parameters.AddWithValue("@n",    dto.Name);
+        cmd.Parameters.AddWithValue("@c1",   dto.Contact1   ?? "");
+        cmd.Parameters.AddWithValue("@c2",   dto.Contact2   ?? "");
+        cmd.Parameters.AddWithValue("@c3",   dto.Contact3   ?? "");
+        cmd.Parameters.AddWithValue("@addr", dto.Address    ?? "");
+        cmd.Parameters.AddWithValue("@bcode",dto.BranchCode ?? "");
+        cmd.Parameters.AddWithValue("@id",   id);
+        await cmd.ExecuteNonQueryAsync();
+        return Results.Ok();
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+// Clear: chunked delete server-side — all SQL at loopback, 1 HTTP call from desktop
+app.MapPost("/api/mgr/branches/{id:int}/clear", async (HttpContext ctx, int id) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        await using var conn = new MySqlConnection(connStr);
+        await conn.OpenAsync();
+        await MgrExec("SET foreign_key_checks=0", conn);
+        await MgrExec("SET unique_checks=0", conn);
+        int total = 0;
+        while (true)
+        {
+            var ids = new List<long>(5000);
+            await using (var sel = new MySqlCommand(
+                "SELECT id FROM vehicle_records WHERE branch_id=@bid LIMIT 5000", conn) { CommandTimeout = 30 })
+            {
+                sel.Parameters.AddWithValue("@bid", id);
+                await using var rdr = await sel.ExecuteReaderAsync();
+                while (await rdr.ReadAsync()) ids.Add(rdr.GetInt64(0));
+            }
+            if (ids.Count == 0) break;
+            var il = string.Join(",", ids);
+            await MgrExec($"DELETE FROM rc_info      WHERE vehicle_record_id IN ({il})", conn, 60);
+            await MgrExec($"DELETE FROM chassis_info WHERE vehicle_record_id IN ({il})", conn, 60);
+            await MgrExec($"DELETE FROM vehicle_records WHERE id IN ({il})", conn, 60);
+            total += ids.Count;
+        }
+        await MgrExec("SET foreign_key_checks=1", conn);
+        await MgrExec("SET unique_checks=1", conn);
+        await MgrExec("UPDATE branches SET total_records=0,uploaded_at=NOW() WHERE id=@id",
+            conn, 30, ("@id", id));
+        return Results.Ok(new { deletedCount = total });
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+// Delete: chunked purge then drop branch — all server-side
+app.MapDelete("/api/mgr/branches/{id:int}", async (HttpContext ctx, int id) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        await using var conn = new MySqlConnection(connStr);
+        await conn.OpenAsync();
+        await MgrExec("SET foreign_key_checks=0", conn);
+        while (true)
+        {
+            var ids = new List<long>(5000);
+            await using (var sel = new MySqlCommand(
+                "SELECT id FROM vehicle_records WHERE branch_id=@bid LIMIT 5000", conn) { CommandTimeout = 30 })
+            {
+                sel.Parameters.AddWithValue("@bid", id);
+                await using var rdr = await sel.ExecuteReaderAsync();
+                while (await rdr.ReadAsync()) ids.Add(rdr.GetInt64(0));
+            }
+            if (ids.Count == 0) break;
+            var il = string.Join(",", ids);
+            await MgrExec($"DELETE FROM rc_info      WHERE vehicle_record_id IN ({il})", conn, 60);
+            await MgrExec($"DELETE FROM chassis_info WHERE vehicle_record_id IN ({il})", conn, 60);
+            await MgrExec($"DELETE FROM vehicle_records WHERE id IN ({il})", conn, 60);
+        }
+        await MgrExec("SET foreign_key_checks=1", conn);
+        await MgrExec("DELETE FROM branches WHERE id=@id", conn, 30, ("@id", id));
+        return Results.Ok();
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+// ── DTOs ──────────────────────────────────────────────────────────────────
+
 app.Run($"http://localhost:{port}");
+
+record MgrCreateFinanceDto(string Name, string? Description);
+record MgrUpdateNameDto(string Name);
+record MgrCreateBranchDto(int FinanceId, string Name,
+    string? Contact1, string? Contact2, string? Contact3,
+    string? Address, string? BranchCode,
+    string? City, string? State, string? Postal, string? Notes);
+record MgrUpdateBranchDto(string Name,
+    string? Contact1, string? Contact2, string? Contact3,
+    string? Address, string? BranchCode);
 
 static async Task<T> GetCachedAsync<T>(IMemoryCache cache, string key, Func<Task<T>> factory, int seconds)
 {

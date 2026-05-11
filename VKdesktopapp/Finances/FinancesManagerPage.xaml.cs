@@ -32,7 +32,7 @@ public partial class FinancesManagerPage : Page
 
     private readonly FinanceRepository _financeRepo;
     private readonly BranchRepository  _branchRepo;
-    private readonly ExportRepository  _exportRepo = new();
+    private readonly ExportRepository  _exportRepo = new(); // kept for Excel export (direct DB — BulkCopy path)
 
     private Task<List<(int Id, string Name, long BranchCount, long TotalRecords)>>? _preloadFinancesTask;
 
@@ -427,19 +427,17 @@ public partial class FinancesManagerPage : Page
             "Delete Branch", MessageBoxButton.YesNo, MessageBoxImage.Warning);
         if (result != MessageBoxResult.Yes) return;
 
-        var prevSubtitle = txtBranchSubtitle.Text;
+        txtBranchSubtitle.Text = "Deleting branch…";
         SetBranchLoading(true);
         try
         {
-            var progress = new Progress<string>(msg => txtBranchSubtitle.Text = msg);
-            await _branchRepo.DeleteBranchAsync(branchId, progress);
+            await _branchRepo.DeleteBranchAsync(branchId);  // 1 HTTP call, server does all SQL
 
             _branchCache.Remove(fi.Id);
             await LoadBranchesForFinanceAsync(fi.Id, fi.Name);
         }
         catch (Exception ex)
         {
-            txtBranchSubtitle.Text = prevSubtitle;
             MessageBox.Show($"Failed to delete branch: {ex.Message}",
                 "Finances", MessageBoxButton.OK, MessageBoxImage.Error);
         }
@@ -524,21 +522,18 @@ public partial class FinancesManagerPage : Page
             "Clear Records", MessageBoxButton.YesNo, MessageBoxImage.Warning);
         if (result != MessageBoxResult.Yes) return;
 
-        var prevSubtitle = txtBranchSubtitle.Text;
+        txtBranchSubtitle.Text = "Clearing records…";
         SetBranchLoading(true);
         try
         {
-            // Live progress: subtitle updates per 5 000-row chunk
-            var progress = new Progress<string>(msg => txtBranchSubtitle.Text = msg);
-            await _exportRepo.ClearBranchRecordsAsync(branchId, progress);
+            await DesktopApiClient.ClearBranchRecordsAsync(branchId);  // 1 HTTP call, server does all SQL
 
             _branchCache.Remove(fi.Id);
             await LoadBranchesForFinanceAsync(fi.Id, fi.Name);
-            await ReloadFinancesAsync(fi.Id);  // refresh left column totals
+            await ReloadFinancesAsync(fi.Id);
         }
         catch (Exception ex)
         {
-            txtBranchSubtitle.Text = prevSubtitle;
             MessageBox.Show($"Failed to clear records: {ex.Message}", "Error",
                 MessageBoxButton.OK, MessageBoxImage.Error);
         }
