@@ -700,6 +700,198 @@ app.MapDelete("/api/mgr/branches/{id:int}", async (HttpContext ctx, int id) =>
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
 
+// ── App Users ─────────────────────────────────────────────────────────────
+
+app.MapGet("/api/mgr/users", async (HttpContext ctx) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        await using var conn = new MySqlConnection(connStr);
+        await conn.OpenAsync();
+
+        const string statsSql = @"
+            SELECT COUNT(*) AS total,
+                   SUM(is_active) AS active,
+                   SUM(is_admin) AS admins,
+                   (SELECT COUNT(DISTINCT user_id) FROM subscriptions WHERE end_date >= CURDATE()) AS with_sub
+            FROM app_users";
+        int total = 0, active = 0, admins = 0, withSub = 0;
+        await using (var cmd = new MySqlCommand(statsSql, conn) { CommandTimeout = 10 })
+        {
+            await using var rdr = await cmd.ExecuteReaderAsync();
+            if (await rdr.ReadAsync())
+            {
+                total   = rdr.GetInt32(0);
+                active  = rdr.IsDBNull(1) ? 0 : Convert.ToInt32(rdr.GetValue(1));
+                admins  = rdr.IsDBNull(2) ? 0 : Convert.ToInt32(rdr.GetValue(2));
+                withSub = rdr.GetInt32(3);
+            }
+        }
+
+        const string usersSql = @"
+            SELECT u.id, u.name, u.mobile, u.address, u.pincode,
+                   u.pfp, u.device_id, u.is_active, u.is_admin,
+                   u.balance, u.created_at,
+                   (SELECT MAX(s.end_date) FROM subscriptions s WHERE s.user_id = u.id) AS sub_end
+            FROM app_users u ORDER BY u.created_at DESC";
+        var users = new List<object>();
+        await using (var cmd = new MySqlCommand(usersSql, conn) { CommandTimeout = 30 })
+        {
+            await using var rdr = await cmd.ExecuteReaderAsync();
+            while (await rdr.ReadAsync())
+                users.Add(new
+                {
+                    id         = rdr.GetInt64(0),
+                    name       = rdr.GetString(1),
+                    mobile     = rdr.GetString(2),
+                    address    = rdr.IsDBNull(3) ? null : rdr.GetString(3),
+                    pincode    = rdr.IsDBNull(4) ? null : rdr.GetString(4),
+                    pfpBase64  = rdr.IsDBNull(5) ? null : rdr.GetString(5),
+                    deviceId   = rdr.IsDBNull(6) ? null : rdr.GetString(6),
+                    isActive   = rdr.GetBoolean(7),
+                    isAdmin    = rdr.GetBoolean(8),
+                    balance    = rdr.GetDecimal(9),
+                    createdAt  = rdr.GetDateTime(10),
+                    subEndDate = rdr.IsDBNull(11) ? null : rdr.GetDateTime(11).ToString("yyyy-MM-dd"),
+                });
+        }
+        return Results.Ok(new { stats = new { total, active, admins, withSub }, users });
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+app.MapGet("/api/mgr/users/stats", async (HttpContext ctx) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        await using var conn = new MySqlConnection(connStr);
+        await conn.OpenAsync();
+        const string sql = @"
+            SELECT COUNT(*) AS total,
+                   SUM(is_active) AS active,
+                   SUM(is_admin) AS admins,
+                   (SELECT COUNT(DISTINCT user_id) FROM subscriptions WHERE end_date >= CURDATE()) AS with_sub
+            FROM app_users";
+        await using var cmd = new MySqlCommand(sql, conn) { CommandTimeout = 10 };
+        await using var rdr = await cmd.ExecuteReaderAsync();
+        if (!await rdr.ReadAsync()) return Results.Ok(new { total = 0, active = 0, admins = 0, withSub = 0 });
+        return Results.Ok(new
+        {
+            total   = rdr.GetInt32(0),
+            active  = rdr.IsDBNull(1) ? 0 : Convert.ToInt32(rdr.GetValue(1)),
+            admins  = rdr.IsDBNull(2) ? 0 : Convert.ToInt32(rdr.GetValue(2)),
+            withSub = rdr.GetInt32(3),
+        });
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+app.MapMethods("/api/mgr/users/{id:long}/active", new[] { "PATCH" }, async (HttpContext ctx, long id, MgrSetActiveDto dto) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        await using var conn = new MySqlConnection(connStr);
+        await conn.OpenAsync();
+        await MgrExec("UPDATE app_users SET is_active=@v WHERE id=@id", conn, 10,
+            ("@v", dto.Active ? 1 : 0), ("@id", id));
+        return Results.Ok();
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+app.MapMethods("/api/mgr/users/{id:long}/admin", new[] { "PATCH" }, async (HttpContext ctx, long id, MgrSetAdminDto dto) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        await using var conn = new MySqlConnection(connStr);
+        await conn.OpenAsync();
+        await MgrExec("UPDATE app_users SET is_admin=@v WHERE id=@id", conn, 10,
+            ("@v", dto.Admin ? 1 : 0), ("@id", id));
+        return Results.Ok();
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+app.MapPost("/api/mgr/users/{id:long}/reset-device", async (HttpContext ctx, long id) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        await using var conn = new MySqlConnection(connStr);
+        await conn.OpenAsync();
+        await MgrExec("UPDATE app_users SET device_id=NULL WHERE id=@id", conn, 10, ("@id", id));
+        return Results.Ok();
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+app.MapGet("/api/mgr/users/{id:long}/subscriptions", async (HttpContext ctx, long id) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        await using var conn = new MySqlConnection(connStr);
+        await conn.OpenAsync();
+        const string sql = @"
+            SELECT id, start_date, end_date, amount, notes, created_at
+            FROM subscriptions WHERE user_id=@uid ORDER BY created_at DESC";
+        await using var cmd = new MySqlCommand(sql, conn) { CommandTimeout = 10 };
+        cmd.Parameters.AddWithValue("@uid", id);
+        var list = new List<object>();
+        await using var rdr = await cmd.ExecuteReaderAsync();
+        while (await rdr.ReadAsync())
+            list.Add(new
+            {
+                id        = rdr.GetInt64(0),
+                startDate = rdr.GetDateTime(1).ToString("yyyy-MM-dd"),
+                endDate   = rdr.GetDateTime(2).ToString("yyyy-MM-dd"),
+                amount    = rdr.IsDBNull(3) ? 0m : rdr.GetDecimal(3),
+                notes     = rdr.IsDBNull(4) ? null : rdr.GetString(4),
+                createdAt = rdr.GetDateTime(5),
+            });
+        return Results.Ok(list);
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+app.MapPost("/api/mgr/users/{id:long}/subscriptions", async (HttpContext ctx, long id, MgrAddSubscriptionDto dto) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        await using var conn = new MySqlConnection(connStr);
+        await conn.OpenAsync();
+        await using var cmd = new MySqlCommand(
+            "INSERT INTO subscriptions (user_id,start_date,end_date,amount,notes) VALUES (@uid,@s,@e,@a,@n)",
+            conn) { CommandTimeout = 10 };
+        cmd.Parameters.AddWithValue("@uid", id);
+        cmd.Parameters.AddWithValue("@s",   dto.StartDate);
+        cmd.Parameters.AddWithValue("@e",   dto.EndDate);
+        cmd.Parameters.AddWithValue("@a",   dto.Amount);
+        cmd.Parameters.AddWithValue("@n",   (object?)dto.Notes ?? DBNull.Value);
+        await cmd.ExecuteNonQueryAsync();
+        return Results.Ok();
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+app.MapDelete("/api/mgr/subscriptions/{id:long}", async (HttpContext ctx, long id) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        await using var conn = new MySqlConnection(connStr);
+        await conn.OpenAsync();
+        await MgrExec("DELETE FROM subscriptions WHERE id=@id", conn, 10, ("@id", id));
+        return Results.Ok();
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
 app.Run($"http://localhost:{port}");
 
 // Local functions must appear before type declarations (CS8803)
@@ -723,3 +915,6 @@ record MgrCreateBranchDto(int FinanceId, string Name,
 record MgrUpdateBranchDto(string Name,
     string? Contact1, string? Contact2, string? Contact3,
     string? Address, string? BranchCode);
+record MgrSetActiveDto(bool Active);
+record MgrSetAdminDto(bool Admin);
+record MgrAddSubscriptionDto(string StartDate, string EndDate, decimal Amount, string? Notes);

@@ -31,13 +31,11 @@ public partial class AppUsersManagerPage : Page
         usersLoadingBar.Visibility = Visibility.Visible;
         try
         {
-            var (total, active, admins, withSub) = await _repo.GetStatsAsync();
+            var (users, total, active, admins, withSub) = await _repo.GetUsersWithStatsAsync();
             lblTotal.Text   = total.ToString("N0");
             lblActive.Text  = active.ToString("N0");
             lblAdmins.Text  = admins.ToString("N0");
             lblWithSub.Text = withSub.ToString("N0");
-
-            var users = await _repo.GetUsersAsync();
             _allUsers = new ObservableCollection<AppUserListItem>(users);
             ApplyFilter();
         }
