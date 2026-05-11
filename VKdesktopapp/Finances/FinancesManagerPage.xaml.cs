@@ -61,6 +61,14 @@ public partial class FinancesManagerPage : Page
         await LoadDashboardAsync();
     }
 
+    protected override async void OnNavigatedTo(System.Windows.Navigation.NavigationEventArgs e)
+    {
+        base.OnNavigatedTo(e);
+        // Page_Loaded fires only once; this fires every time the user navigates back to this page
+        if (_allFinances.Count > 0)
+            await ReloadFinancesAsync();
+    }
+
     private async Task LoadDashboardAsync()
     {
         SetFinanceLoading(true);

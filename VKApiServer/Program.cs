@@ -422,12 +422,17 @@ app.MapGet("/api/mgr/finances", async (HttpContext ctx) =>
         await conn.OpenAsync();
         const string sql = @"
             SELECT f.id, f.name,
-                   COALESCE(b.branch_cnt,0)  AS branch_count,
-                   COALESCE(b.record_cnt,0)  AS total_records
+                   COALESCE(b.branch_cnt, 0) AS branch_count,
+                   COALESCE(b.record_cnt, 0) AS total_records
             FROM finances f
             LEFT JOIN (
-                SELECT finance_id, COUNT(*) AS branch_cnt, SUM(total_records) AS record_cnt
-                FROM   branches WHERE is_active=1 GROUP BY finance_id
+                SELECT br.finance_id,
+                       COUNT(DISTINCT br.id) AS branch_cnt,
+                       COUNT(vr.id)          AS record_cnt
+                FROM   branches br
+                LEFT JOIN vehicle_records vr ON vr.branch_id = br.id
+                WHERE  br.is_active = 1
+                GROUP BY br.finance_id
             ) b ON b.finance_id = f.id
             ORDER BY f.name LIMIT 100";
         await using var cmd = new MySqlCommand(sql, conn) { CommandTimeout = 60 };
@@ -500,12 +505,12 @@ app.MapGet("/api/mgr/branches", async (HttpContext ctx, int? financeId) =>
             sql = @"SELECT b.id, b.name,
                            COALESCE(b.contact1,'') AS c1, COALESCE(b.contact2,'') AS c2,
                            COALESCE(b.contact3,'') AS c3, COALESCE(b.address,'')  AS addr,
-                           b.total_records,
+                           (SELECT COUNT(*) FROM vehicle_records WHERE branch_id = b.id) AS total_records,
                            IFNULL(DATE_FORMAT(b.uploaded_at,'%d %b %y %h:%i %p'),'') AS up,
                            '' AS finance_name
                     FROM branches b
                     WHERE b.finance_id=@fid AND b.is_active=1
-                    ORDER BY b.total_records DESC LIMIT 100";
+                    ORDER BY total_records DESC LIMIT 100";
             cmd = new MySqlCommand(sql, conn) { CommandTimeout = 60 };
             cmd.Parameters.AddWithValue("@fid", financeId.Value);
         }
@@ -514,7 +519,7 @@ app.MapGet("/api/mgr/branches", async (HttpContext ctx, int? financeId) =>
             sql = @"SELECT b.id, b.name,
                            COALESCE(b.contact1,'') AS c1, COALESCE(b.contact2,'') AS c2,
                            COALESCE(b.contact3,'') AS c3, COALESCE(b.address,'')  AS addr,
-                           b.total_records,
+                           (SELECT COUNT(*) FROM vehicle_records WHERE branch_id = b.id) AS total_records,
                            IFNULL(DATE_FORMAT(b.uploaded_at,'%d %b %y %h:%i %p'),'') AS up,
                            COALESCE(f.name,'') AS finance_name
                     FROM branches b LEFT JOIN finances f ON f.id=b.finance_id
