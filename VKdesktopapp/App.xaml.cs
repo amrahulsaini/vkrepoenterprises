@@ -37,6 +37,13 @@ public partial class App : Application
         }
         catch { }
 
+        // If the stored ApiKey is the old default, reset it to the current default
+        if (Settings.Default.ApiKey == "vk@kunal.admin")
+        {
+            Settings.Default.ApiKey = "12";
+            Settings.Default.Save();
+        }
+
         HttpClient = new HttpClient();
         HttpClient.DefaultRequestHeaders.Add("Connection", "keep-alive");
         HttpClient.Timeout = TimeSpan.FromMinutes(20.0);
