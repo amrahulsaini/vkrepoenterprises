@@ -155,7 +155,7 @@ public class MobileRepository
         await using var conn = DbFactory.Create();
         await conn.OpenAsync();
         await using var cmd = new MySqlCommand(
-            "UPDATE app_users SET last_seen=NOW(), last_lat=@lat, last_lng=@lng WHERE id=@uid",
+            "UPDATE app_users SET last_seen=NOW(), last_lat=COALESCE(@lat, last_lat), last_lng=COALESCE(@lng, last_lng) WHERE id=@uid",
             conn) { CommandTimeout = 5 };
         cmd.Parameters.AddWithValue("@uid", userId);
         cmd.Parameters.AddWithValue("@lat", lat.HasValue ? (object)lat.Value : DBNull.Value);
