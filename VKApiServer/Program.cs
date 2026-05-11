@@ -517,7 +517,8 @@ app.MapGet("/api/mgr/branches", async (HttpContext ctx, int? financeId) =>
                            COALESCE(b.contact3,'') AS c3, COALESCE(b.address,'')  AS addr,
                            (SELECT COUNT(*) FROM vehicle_records WHERE branch_id = b.id) AS total_records,
                            IFNULL(DATE_FORMAT(b.uploaded_at,'%d %b %y %h:%i %p'),'') AS up,
-                           '' AS finance_name
+                           '' AS finance_name,
+                           b.finance_id
                     FROM branches b
                     WHERE b.finance_id=@fid AND b.is_active=1
                     ORDER BY total_records DESC LIMIT 100";
