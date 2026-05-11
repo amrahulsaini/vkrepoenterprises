@@ -118,9 +118,27 @@ public class MobileRepository
 
         if (!string.IsNullOrEmpty(dbDevice) &&
             !string.Equals(dbDevice, deviceId, StringComparison.OrdinalIgnoreCase))
+        {
+            // Store a device-change request so the admin can approve on the desktop
+            try
+            {
+                await rdr.CloseAsync();
+                await using var upsert = new MySqlCommand(@"
+                    INSERT INTO device_change_requests (user_id,user_name,user_mobile,new_device_id,requested_at)
+                    VALUES (@uid,@name,@mob,@dev,NOW())
+                    ON DUPLICATE KEY UPDATE new_device_id=@dev, requested_at=NOW()",
+                    conn);
+                upsert.Parameters.AddWithValue("@uid",  id);
+                upsert.Parameters.AddWithValue("@name", name);
+                upsert.Parameters.AddWithValue("@mob",  dbMobile);
+                upsert.Parameters.AddWithValue("@dev",  deviceId);
+                await upsert.ExecuteNonQueryAsync();
+            }
+            catch { /* don't block login response on logging failure */ }
             return new AuthResponse(false,
                 "This mobile number is registered on another device. Ask admin to reset your device.",
                 "device_mismatch", null, null, null, false, null, null);
+        }
 
         if (!isActive)
             return new AuthResponse(false,
@@ -129,6 +147,53 @@ public class MobileRepository
 
         return new AuthResponse(true, "Login successful.", "ok",
             id, name, dbMobile, isAdmin, pfp, subEnd == "" ? null : subEnd);
+    }
+
+    // ── Heartbeat / live-user location ────────────────────────────────────
+    public async Task HeartbeatAsync(long userId, double? lat, double? lng)
+    {
+        await using var conn = DbFactory.Create();
+        await conn.OpenAsync();
+        await using var cmd = new MySqlCommand(
+            "UPDATE app_users SET last_seen=NOW(), last_lat=@lat, last_lng=@lng WHERE id=@uid",
+            conn) { CommandTimeout = 5 };
+        cmd.Parameters.AddWithValue("@uid", userId);
+        cmd.Parameters.AddWithValue("@lat", lat.HasValue ? (object)lat.Value : DBNull.Value);
+        cmd.Parameters.AddWithValue("@lng", lng.HasValue ? (object)lng.Value : DBNull.Value);
+        await cmd.ExecuteNonQueryAsync();
+    }
+
+    public async Task<List<LiveUserItem>> GetLiveUsersAsync()
+    {
+        await using var conn = DbFactory.Create();
+        await conn.OpenAsync();
+        const string sql = @"
+            SELECT id, name, mobile, last_seen, last_lat, last_lng
+            FROM app_users
+            WHERE last_seen >= NOW() - INTERVAL 15 MINUTE
+            ORDER BY last_seen DESC LIMIT 100";
+        await using var cmd = new MySqlCommand(sql, conn) { CommandTimeout = 5 };
+        var list = new List<LiveUserItem>();
+        await using var rdr = await cmd.ExecuteReaderAsync();
+        while (await rdr.ReadAsync())
+            list.Add(new LiveUserItem(
+                rdr.GetInt64(0), rdr.GetString(1), rdr.GetString(2),
+                rdr.GetDateTime(3).ToString("yyyy-MM-dd HH:mm:ss"),
+                rdr.IsDBNull(4) ? null : (double?)rdr.GetDouble(4),
+                rdr.IsDBNull(5) ? null : (double?)rdr.GetDouble(5)));
+        return list;
+    }
+
+    // ── Admin check ───────────────────────────────────────────────────────
+    public async Task<bool> IsAdminAsync(long userId)
+    {
+        await using var conn = DbFactory.Create();
+        await conn.OpenAsync();
+        await using var cmd = new MySqlCommand(
+            "SELECT is_admin FROM app_users WHERE id=@id LIMIT 1", conn) { CommandTimeout = 5 };
+        cmd.Parameters.AddWithValue("@id", userId);
+        var v = await cmd.ExecuteScalarAsync();
+        return v is not (null or DBNull) && Convert.ToInt32(v) == 1;
     }
 
     // ── Subscription check (cached 5 min) ─────────────────────────────────

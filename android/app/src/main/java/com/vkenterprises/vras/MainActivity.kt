@@ -96,5 +96,10 @@ fun VKNavHost() {
             val settingsVm: SettingsViewModel = hiltViewModel()
             SettingsScreen(settingsVm, searchVm, authVm, navController)
         }
+
+        composable(Screen.LiveUsers.route) {
+            val userId by authVm.userId.collectAsState(initial = -1L)
+            LiveUsersScreen(userId = userId, navController = navController)
+        }
     }
 }

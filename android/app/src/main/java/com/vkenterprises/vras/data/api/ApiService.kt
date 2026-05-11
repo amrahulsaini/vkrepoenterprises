@@ -45,4 +45,12 @@ interface ApiService {
 
     @GET("api/mobile/stats")
     suspend fun getStats(): Response<StatsResponse>
+
+    @POST("api/mobile/heartbeat")
+    suspend fun heartbeat(@Body request: HeartbeatRequest): Response<Map<String, Any>>
+
+    @GET("api/mobile/live-users")
+    suspend fun getLiveUsers(
+        @Header("X-User-Id") userId: Long
+    ): Response<LiveUsersResponse>
 }

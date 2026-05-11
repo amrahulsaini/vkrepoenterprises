@@ -34,6 +34,18 @@ internal static class DesktopApiClient
     internal record MgrUsersResponseDto(MgrStatsDto Stats, List<MgrUserDto> Users);
     internal record MgrSubDto(long Id, string StartDate, string EndDate, decimal Amount, string? Notes, DateTime CreatedAt);
 
+    internal record DashboardStatsDto(long TotalRecords, int TotalFinances, int TotalBranches);
+
+    internal record DeviceRequestDto(
+        long   Id, long UserId,
+        string UserName, string UserMobile,
+        string NewDeviceId, string RequestedAt);
+
+    internal record LiveUserDto(
+        long    Id, string Name, string Mobile,
+        string  LastSeen,
+        double? Lat, double? Lng);
+
     // JSON options — case-insensitive to tolerate camelCase from server
     private static readonly JsonSerializerOptions _json =
         new() { PropertyNameCaseInsensitive = true };
@@ -194,6 +206,45 @@ internal static class DesktopApiClient
     {
         var resp = await Send(HttpMethod.Delete, $"api/mgr/subscriptions/{subId}");
         resp.EnsureSuccessStatusCode();
+    }
+
+    // ── Dashboard stats ─────────────────────────────────────────────────────
+
+    internal static async Task<DashboardStatsDto> GetDashboardStatsAsync()
+    {
+        var resp = await Send(HttpMethod.Get, "api/mgr/dashboard-stats");
+        resp.EnsureSuccessStatusCode();
+        return (await resp.Content.ReadFromJsonAsync<DashboardStatsDto>(_json))!;
+    }
+
+    // ── Device change requests ──────────────────────────────────────────────
+
+    internal static async Task<List<DeviceRequestDto>> GetDeviceRequestsAsync()
+    {
+        var resp = await Send(HttpMethod.Get, "api/mgr/device-requests");
+        resp.EnsureSuccessStatusCode();
+        return (await resp.Content.ReadFromJsonAsync<List<DeviceRequestDto>>(_json))!;
+    }
+
+    internal static async Task ApproveDeviceRequestAsync(long requestId)
+    {
+        var resp = await Send(HttpMethod.Post, $"api/mgr/device-requests/{requestId}/approve");
+        resp.EnsureSuccessStatusCode();
+    }
+
+    internal static async Task DenyDeviceRequestAsync(long requestId)
+    {
+        var resp = await Send(HttpMethod.Delete, $"api/mgr/device-requests/{requestId}");
+        resp.EnsureSuccessStatusCode();
+    }
+
+    // ── Live users ──────────────────────────────────────────────────────────
+
+    internal static async Task<List<LiveUserDto>> GetLiveUsersAsync()
+    {
+        var resp = await Send(HttpMethod.Get, "api/mgr/live-users");
+        resp.EnsureSuccessStatusCode();
+        return (await resp.Content.ReadFromJsonAsync<List<LiveUserDto>>(_json))!;
     }
 
     // ── HTTP helper ─────────────────────────────────────────────────────────

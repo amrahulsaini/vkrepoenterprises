@@ -124,6 +124,26 @@ data class ProfileResponse(
     val subscriptions: List<SubscriptionRecord>
 )
 
+data class HeartbeatRequest(
+    val userId: Long,
+    val lat: Double?,
+    val lng: Double?
+)
+
+data class LiveUser(
+    val id: Long,
+    val name: String,
+    val mobile: String,
+    val lastSeen: String,
+    val lat: Double?,
+    val lng: Double?
+)
+
+data class LiveUsersResponse(
+    val success: Boolean,
+    val users: List<LiveUser>
+)
+
 // Local session stored in DataStore
 data class SessionUser(
     val userId: Long,
