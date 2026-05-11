@@ -26,6 +26,14 @@ internal static class DesktopApiClient
         string Contact1, string Contact2, string Contact3,
         string Address, string BranchCode);
 
+    internal record MgrStatsDto(int Total, int Active, int Admins, int WithSub);
+    internal record MgrUserDto(
+        long Id, string Name, string Mobile,
+        string? Address, string? Pincode, string? PfpBase64, string? DeviceId,
+        bool IsActive, bool IsAdmin, decimal Balance, DateTime CreatedAt, string? SubEndDate);
+    internal record MgrUsersResponseDto(MgrStatsDto Stats, List<MgrUserDto> Users);
+    internal record MgrSubDto(long Id, string StartDate, string EndDate, decimal Amount, string? Notes, DateTime CreatedAt);
+
     // JSON options — case-insensitive to tolerate camelCase from server
     private static readonly JsonSerializerOptions _json =
         new() { PropertyNameCaseInsensitive = true };
@@ -130,6 +138,61 @@ internal static class DesktopApiClient
     internal static async Task DeleteBranchAsync(int id)
     {
         var resp = await Send(HttpMethod.Delete, $"api/mgr/branches/{id}");
+        resp.EnsureSuccessStatusCode();
+    }
+
+    // ── App Users ────────────────────────────────────────────────────────────
+
+    internal static async Task<MgrUsersResponseDto> GetUsersWithStatsAsync()
+    {
+        var resp = await Send(HttpMethod.Get, "api/mgr/users");
+        resp.EnsureSuccessStatusCode();
+        return (await resp.Content.ReadFromJsonAsync<MgrUsersResponseDto>(_json))!;
+    }
+
+    internal static async Task<MgrStatsDto> GetUserStatsAsync()
+    {
+        var resp = await Send(HttpMethod.Get, "api/mgr/users/stats");
+        resp.EnsureSuccessStatusCode();
+        return (await resp.Content.ReadFromJsonAsync<MgrStatsDto>(_json))!;
+    }
+
+    internal static async Task SetUserActiveAsync(long userId, bool active)
+    {
+        var resp = await Send(HttpMethod.Patch, $"api/mgr/users/{userId}/active", new { Active = active });
+        resp.EnsureSuccessStatusCode();
+    }
+
+    internal static async Task SetUserAdminAsync(long userId, bool admin)
+    {
+        var resp = await Send(HttpMethod.Patch, $"api/mgr/users/{userId}/admin", new { Admin = admin });
+        resp.EnsureSuccessStatusCode();
+    }
+
+    internal static async Task ResetUserDeviceAsync(long userId)
+    {
+        var resp = await Send(HttpMethod.Post, $"api/mgr/users/{userId}/reset-device");
+        resp.EnsureSuccessStatusCode();
+    }
+
+    internal static async Task<List<MgrSubDto>> GetSubscriptionsAsync(long userId)
+    {
+        var resp = await Send(HttpMethod.Get, $"api/mgr/users/{userId}/subscriptions");
+        resp.EnsureSuccessStatusCode();
+        return (await resp.Content.ReadFromJsonAsync<List<MgrSubDto>>(_json))!;
+    }
+
+    internal static async Task AddSubscriptionAsync(
+        long userId, string startDate, string endDate, decimal amount, string? notes)
+    {
+        var resp = await Send(HttpMethod.Post, $"api/mgr/users/{userId}/subscriptions",
+            new { StartDate = startDate, EndDate = endDate, Amount = amount, Notes = notes });
+        resp.EnsureSuccessStatusCode();
+    }
+
+    internal static async Task DeleteSubscriptionAsync(long subId)
+    {
+        var resp = await Send(HttpMethod.Delete, $"api/mgr/subscriptions/{subId}");
         resp.EnsureSuccessStatusCode();
     }
 
