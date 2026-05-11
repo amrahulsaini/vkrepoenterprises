@@ -650,32 +650,64 @@ app.MapDelete("/api/mgr/branches/{id:int}", async (HttpContext ctx, int id) =>
         await using var conn = new MySqlConnection(connStr);
         await conn.OpenAsync();
         await MgrExec("SET foreign_key_checks=0", conn);
-        while (true)
+
+        // Skip the SELECT loop when the branch is already empty.
+        // Without an index on vehicle_records.branch_id the SELECT does a full table
+        // scan; for 0-record branches that scan plus the FK-check scan on the final
+        // DELETE caused a ~60 s stall.  total_records is kept accurate by the upload
+        // pipeline, so this fast-path is safe.
+        long totalRec = 0;
+        await using (var chk = new MySqlCommand(
+            "SELECT COALESCE(total_records,0) FROM branches WHERE id=@id LIMIT 1", conn)
+            { CommandTimeout = 10 })
         {
-            var ids = new List<long>(5000);
-            await using (var sel = new MySqlCommand(
-                "SELECT id FROM vehicle_records WHERE branch_id=@bid LIMIT 5000", conn) { CommandTimeout = 30 })
-            {
-                sel.Parameters.AddWithValue("@bid", id);
-                await using var rdr = await sel.ExecuteReaderAsync();
-                while (await rdr.ReadAsync()) ids.Add(rdr.GetInt64(0));
-            }
-            if (ids.Count == 0) break;
-            var il = string.Join(",", ids);
-            await MgrExec($"DELETE FROM rc_info      WHERE vehicle_record_id IN ({il})", conn, 60);
-            await MgrExec($"DELETE FROM chassis_info WHERE vehicle_record_id IN ({il})", conn, 60);
-            await MgrExec($"DELETE FROM vehicle_records WHERE id IN ({il})", conn, 60);
+            chk.Parameters.AddWithValue("@id", id);
+            var v = await chk.ExecuteScalarAsync();
+            if (v != null && v != DBNull.Value) totalRec = Convert.ToInt64(v);
         }
-        await MgrExec("SET foreign_key_checks=1", conn);
+
+        if (totalRec > 0)
+        {
+            while (true)
+            {
+                var ids = new List<long>(5000);
+                await using (var sel = new MySqlCommand(
+                    "SELECT id FROM vehicle_records WHERE branch_id=@bid LIMIT 5000", conn) { CommandTimeout = 60 })
+                {
+                    sel.Parameters.AddWithValue("@bid", id);
+                    await using var rdr = await sel.ExecuteReaderAsync();
+                    while (await rdr.ReadAsync()) ids.Add(rdr.GetInt64(0));
+                }
+                if (ids.Count == 0) break;
+                var il = string.Join(",", ids);
+                await MgrExec($"DELETE FROM rc_info      WHERE vehicle_record_id IN ({il})", conn, 60);
+                await MgrExec($"DELETE FROM chassis_info WHERE vehicle_record_id IN ({il})", conn, 60);
+                await MgrExec($"DELETE FROM vehicle_records WHERE id IN ({il})", conn, 60);
+            }
+        }
+
+        // Delete branch row while FK checks are still OFF — prevents MySQL from doing
+        // a full table scan on vehicle_records to verify the constraint.
         await MgrExec("DELETE FROM branches WHERE id=@id", conn, 30, ("@id", id));
+        await MgrExec("SET foreign_key_checks=1", conn);
         return Results.Ok();
     }
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
 
-// ── DTOs ──────────────────────────────────────────────────────────────────
-
 app.Run($"http://localhost:{port}");
+
+// Local functions must appear before type declarations (CS8803)
+static async Task<T> GetCachedAsync<T>(IMemoryCache cache, string key, Func<Task<T>> factory, int seconds)
+{
+    if (cache.TryGetValue(key, out T? cached) && cached is not null)
+        return cached;
+    var result = await factory();
+    cache.Set(key, result, TimeSpan.FromSeconds(seconds));
+    return result;
+}
+
+// ── DTOs ──────────────────────────────────────────────────────────────────
 
 record MgrCreateFinanceDto(string Name, string? Description);
 record MgrUpdateNameDto(string Name);
@@ -686,12 +718,3 @@ record MgrCreateBranchDto(int FinanceId, string Name,
 record MgrUpdateBranchDto(string Name,
     string? Contact1, string? Contact2, string? Contact3,
     string? Address, string? BranchCode);
-
-static async Task<T> GetCachedAsync<T>(IMemoryCache cache, string key, Func<Task<T>> factory, int seconds)
-{
-    if (cache.TryGetValue(key, out T? cached) && cached is not null)
-        return cached;
-    var result = await factory();
-    cache.Set(key, result, TimeSpan.FromSeconds(seconds));
-    return result;
-}
