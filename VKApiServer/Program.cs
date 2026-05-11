@@ -875,7 +875,7 @@ app.MapGet("/api/mgr/dashboard-stats", async (HttpContext ctx) =>
         await conn.OpenAsync();
         const string sql = @"
             SELECT
-                COALESCE((SELECT SUM(total_records) FROM branches WHERE is_active=1), 0),
+                (SELECT COUNT(*) FROM records),
                 (SELECT COUNT(*) FROM finances),
                 (SELECT COUNT(*) FROM branches WHERE is_active=1)";
         await using var cmd = new MySqlCommand(sql, conn) { CommandTimeout = 10 };
