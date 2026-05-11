@@ -1,5 +1,9 @@
 using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Text.Json;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Threading;
@@ -10,9 +14,20 @@ namespace VRASDesktopApp;
 public partial class HomePage : Page
 {
     private DispatcherTimer? _refreshTimer;
+    private bool _mapReady = false;
+    private List<DesktopApiClient.LiveUserDto> _lastLiveUsers = new();
 
-    private record DeviceRequestRow(long Id, long UserId, string UserName, string UserMobile, string RequestedAt);
-    private record LiveUserRow(long Id, string Name, string Mobile, string LastSeen, string GpsStatus);
+    private record DeviceRequestRow(
+        long Id, long UserId,
+        string UserName, string UserMobile,
+        string NewDeviceId, string RequestedAt)
+    {
+        public string Initials => string.Concat(
+            UserName.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                    .Take(2)
+                    .Select(w => char.ToUpper(w[0]).ToString()));
+        public string ReqLabel => $"Req. On: {RequestedAt}";
+    }
 
     public HomePage()
     {
@@ -21,6 +36,7 @@ public partial class HomePage : Page
 
     private async void Page_Loaded(object sender, RoutedEventArgs e)
     {
+        await InitMapAsync();
         await LoadDashboardAsync();
 
         _refreshTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(30) };
@@ -28,54 +44,93 @@ public partial class HomePage : Page
         _refreshTimer.Start();
     }
 
-    private async System.Threading.Tasks.Task LoadDashboardAsync()
+    private async Task InitMapAsync()
     {
         try
         {
-            var statsTask = DesktopApiClient.GetDashboardStatsAsync();
-            var usersTask = DesktopApiClient.GetUserStatsAsync();
-            var reqTask   = DesktopApiClient.GetDeviceRequestsAsync();
-            var liveTask  = DesktopApiClient.GetLiveUsersAsync();
+            await mapView.EnsureCoreWebView2Async(null);
 
-            await System.Threading.Tasks.Task.WhenAll(statsTask, usersTask, reqTask, liveTask);
+            mapView.CoreWebView2.NavigationCompleted += (_, _) =>
+            {
+                _mapReady = true;
+                PushMarkersToMap(_lastLiveUsers);
+            };
 
-            var stats    = statsTask.Result;
-            var uStats   = usersTask.Result;
-            var requests = reqTask.Result;
-            var live     = liveTask.Result;
+            // Load map HTML from file next to the exe
+            var mapPath = Path.Combine(
+                AppDomain.CurrentDomain.BaseDirectory,
+                "public", "map_live.html");
 
-            lblRecords.Text     = stats.TotalRecords.ToString("N0");
-            lblFinances.Text    = stats.TotalFinances.ToString("N0");
-            lblBranches.Text    = stats.TotalBranches.ToString("N0");
-
-            var seizers = Math.Max(0, uStats.Total - uStats.Admins);
-            lblSeizers.Text     = seizers.ToString("N0");
-            lblActiveUsers.Text = uStats.Active.ToString("N0");
-            lblAdmins.Text      = uStats.Admins.ToString("N0");
-
-            var reqRows = requests
-                .Select(r => new DeviceRequestRow(r.Id, r.UserId, r.UserName, r.UserMobile, r.RequestedAt))
-                .ToList();
-            lvDeviceRequests.ItemsSource = reqRows;
-            lblDeviceReqCount.Text = $"{reqRows.Count} pending";
-            txtNoRequests.Visibility    = reqRows.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
-            lvDeviceRequests.Visibility = reqRows.Count > 0  ? Visibility.Visible : Visibility.Collapsed;
-
-            var liveRows = live
-                .Select(u => new LiveUserRow(
-                    u.Id, u.Name, u.Mobile, u.LastSeen,
-                    (u.Lat.HasValue && u.Lng.HasValue) ? "📍 GPS" : "No GPS"))
-                .ToList();
-            lvLiveUsers.ItemsSource = liveRows;
-            lblLiveCount.Text = $"{liveRows.Count} online in last 15 min";
-            txtNoLiveUsers.Visibility = liveRows.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
-            lvLiveUsers.Visibility    = liveRows.Count > 0  ? Visibility.Visible : Visibility.Collapsed;
+            if (File.Exists(mapPath))
+                mapView.CoreWebView2.Navigate(new Uri(mapPath).AbsoluteUri);
+            else
+                mapView.CoreWebView2.NavigateToString(FallbackMapHtml);
         }
-        catch (Exception ex)
+        catch
         {
-            MessageBox.Show($"Failed to load dashboard: {ex.Message}", "Dashboard",
-                MessageBoxButton.OK, MessageBoxImage.Warning);
+            // WebView2 runtime not installed — map panel will be blank
         }
+    }
+
+    private async void RefreshBtn_Click(object sender, RoutedEventArgs e) =>
+        await LoadDashboardAsync();
+
+    private async Task LoadDashboardAsync()
+    {
+        // Each call is individually wrapped — a 404 or network error shows 0/empty
+        // instead of crashing the whole dashboard.
+        var stats    = new DesktopApiClient.DashboardStatsDto(0, 0, 0);
+        var uStats   = new DesktopApiClient.MgrStatsDto(0, 0, 0, 0);
+        var requests = new List<DesktopApiClient.DeviceRequestDto>();
+        var live     = new List<DesktopApiClient.LiveUserDto>();
+
+        await Task.WhenAll(
+            Safe(async () => stats    = await DesktopApiClient.GetDashboardStatsAsync()),
+            Safe(async () => uStats   = await DesktopApiClient.GetUserStatsAsync()),
+            Safe(async () => requests = await DesktopApiClient.GetDeviceRequestsAsync()),
+            Safe(async () => live     = await DesktopApiClient.GetLiveUsersAsync())
+        );
+
+        // Records / Finances / Branches
+        lblRecords.Text  = stats.TotalRecords.ToString("N0");
+        lblFinances.Text = stats.TotalFinances.ToString("N0");
+        lblBranches.Text = stats.TotalBranches.ToString("N0");
+
+        // App users
+        var seizers = Math.Max(0, uStats.Total - uStats.Admins);
+        lblSeizers.Text     = seizers.ToString("N0");
+        lblActiveUsers.Text = uStats.Active.ToString("N0");
+        lblAdmins.Text      = uStats.Admins.ToString("N0");
+
+        // Device requests
+        var reqRows = requests
+            .Select(r => new DeviceRequestRow(r.Id, r.UserId, r.UserName, r.UserMobile, r.NewDeviceId, r.RequestedAt))
+            .ToList();
+        lvDeviceRequests.ItemsSource = reqRows;
+        lblDeviceReqCount.Text       = reqRows.Count.ToString();
+        txtNoRequests.Visibility     = reqRows.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        lvDeviceRequests.Visibility  = reqRows.Count > 0  ? Visibility.Visible : Visibility.Collapsed;
+
+        // Live users
+        _lastLiveUsers   = live;
+        lblLiveCount.Text    = $"{live.Count} online in last 15 min";
+        lblLastRefresh.Text  = DateTime.Now.ToString("hh:mm tt");
+        PushMarkersToMap(live);
+    }
+
+    private static async Task Safe(Func<Task> fn)
+    {
+        try { await fn(); } catch { }
+    }
+
+    private void PushMarkersToMap(List<DesktopApiClient.LiveUserDto> users)
+    {
+        if (!_mapReady || mapView.CoreWebView2 == null) return;
+        var payload = users
+            .Where(u => u.Lat.HasValue && u.Lng.HasValue)
+            .Select(u => new { name = u.Name, mobile = u.Mobile, lastSeen = u.LastSeen, lat = u.Lat!.Value, lng = u.Lng!.Value });
+        var json = JsonSerializer.Serialize(payload);
+        _ = mapView.CoreWebView2.ExecuteScriptAsync($"updateMarkers({json})");
     }
 
     private async void AcceptDevice_Click(object sender, RoutedEventArgs e)
@@ -103,7 +158,7 @@ public partial class HomePage : Page
     {
         if (sender is not Button btn || btn.Tag is not DeviceRequestRow row) return;
         var confirm = MessageBox.Show(
-            $"Deny (delete) device change request for {row.UserName}?",
+            $"Deny device change request for {row.UserName}?",
             "Confirm Deny", MessageBoxButton.YesNo, MessageBoxImage.Question);
         if (confirm != MessageBoxResult.Yes) return;
         try
@@ -119,4 +174,11 @@ public partial class HomePage : Page
             btn.IsEnabled = true;
         }
     }
+
+    // Shown if map_live.html is missing from the output directory
+    private const string FallbackMapHtml =
+        "<!DOCTYPE html><html><head><meta charset=\"utf-8\"/>" +
+        "<style>html,body{width:100%;height:100%;margin:0;display:flex;align-items:center;" +
+        "justify-content:center;background:#f5f5f5;font-family:Segoe UI,sans-serif;color:#888;}</style>" +
+        "</head><body><div>Map file not found — rebuild the project.</div></body></html>";
 }
