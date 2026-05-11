@@ -484,7 +484,17 @@ app.MapDelete("/api/mgr/finances/{id:int}", async (HttpContext ctx, int id) =>
     {
         await using var conn = new MySqlConnection(connStr);
         await conn.OpenAsync();
+        await MgrExec("SET foreign_key_checks=0", conn);
+        // Multi-table DELETE: removes rc_info + chassis_info + vehicle_records for all branches of this finance
+        await MgrExec(@"DELETE vr, rc, ci
+            FROM vehicle_records vr
+            INNER JOIN branches b ON vr.branch_id = b.id
+            LEFT JOIN rc_info rc ON rc.vehicle_record_id = vr.id
+            LEFT JOIN chassis_info ci ON ci.vehicle_record_id = vr.id
+            WHERE b.finance_id = @id", conn, 300, ("@id", id));
+        await MgrExec("DELETE FROM branches WHERE finance_id=@id", conn, 30, ("@id", id));
         await MgrExec("DELETE FROM finances WHERE id=@id", conn, 30, ("@id", id));
+        await MgrExec("SET foreign_key_checks=1", conn);
         return Results.Ok();
     }
     catch (Exception ex) { return Results.Problem(ex.Message); }
@@ -521,7 +531,8 @@ app.MapGet("/api/mgr/branches", async (HttpContext ctx, int? financeId) =>
                            COALESCE(b.contact3,'') AS c3, COALESCE(b.address,'')  AS addr,
                            (SELECT COUNT(*) FROM vehicle_records WHERE branch_id = b.id) AS total_records,
                            IFNULL(DATE_FORMAT(b.uploaded_at,'%d %b %y %h:%i %p'),'') AS up,
-                           COALESCE(f.name,'') AS finance_name
+                           COALESCE(f.name,'') AS finance_name,
+                           b.finance_id
                     FROM branches b LEFT JOIN finances f ON f.id=b.finance_id
                     WHERE b.is_active=1 ORDER BY f.name, b.name LIMIT 500";
             cmd = new MySqlCommand(sql, conn) { CommandTimeout = 60 };
@@ -533,7 +544,8 @@ app.MapGet("/api/mgr/branches", async (HttpContext ctx, int? financeId) =>
                            contact1 = rdr.GetString(2), contact2 = rdr.GetString(3),
                            contact3 = rdr.GetString(4), address = rdr.GetString(5),
                            totalRecords = rdr.IsDBNull(6) ? 0L : rdr.GetInt64(6),
-                           uploadedAt = rdr.GetString(7), financeName = rdr.GetString(8) });
+                           uploadedAt = rdr.GetString(7), financeName = rdr.GetString(8),
+                           financeId = rdr.IsDBNull(9) ? 0 : rdr.GetInt32(9) });
         return Results.Ok(list);
     }
     catch (Exception ex) { return Results.Problem(ex.Message); }
@@ -609,7 +621,7 @@ app.MapPut("/api/mgr/branches/{id:int}", async (HttpContext ctx, int id, MgrUpda
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
 
-// Clear: chunked delete server-side — all SQL at loopback, 1 HTTP call from desktop
+// Clear: single multi-table DELETE — no chunking, fast with FK checks off
 app.MapPost("/api/mgr/branches/{id:int}/clear", async (HttpContext ctx, int id) =>
 {
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
@@ -617,36 +629,28 @@ app.MapPost("/api/mgr/branches/{id:int}/clear", async (HttpContext ctx, int id) 
     {
         await using var conn = new MySqlConnection(connStr);
         await conn.OpenAsync();
-        await MgrExec("SET foreign_key_checks=0", conn);
-        await MgrExec("SET unique_checks=0", conn);
-        int total = 0;
-        while (true)
+
+        int deletedCount = 0;
+        await using (var cnt = new MySqlCommand(
+            "SELECT COUNT(*) FROM vehicle_records WHERE branch_id=@id", conn) { CommandTimeout = 10 })
         {
-            var ids = new List<long>(5000);
-            await using (var sel = new MySqlCommand(
-                "SELECT id FROM vehicle_records WHERE branch_id=@bid LIMIT 5000", conn) { CommandTimeout = 30 })
-            {
-                sel.Parameters.AddWithValue("@bid", id);
-                await using var rdr = await sel.ExecuteReaderAsync();
-                while (await rdr.ReadAsync()) ids.Add(rdr.GetInt64(0));
-            }
-            if (ids.Count == 0) break;
-            var il = string.Join(",", ids);
-            await MgrExec($"DELETE FROM rc_info      WHERE vehicle_record_id IN ({il})", conn, 60);
-            await MgrExec($"DELETE FROM chassis_info WHERE vehicle_record_id IN ({il})", conn, 60);
-            await MgrExec($"DELETE FROM vehicle_records WHERE id IN ({il})", conn, 60);
-            total += ids.Count;
+            cnt.Parameters.AddWithValue("@id", id);
+            deletedCount = Convert.ToInt32(await cnt.ExecuteScalarAsync());
         }
+
+        await MgrExec("SET foreign_key_checks=0", conn);
+        await MgrExec(@"DELETE vr, rc, ci
+            FROM vehicle_records vr
+            LEFT JOIN rc_info rc ON rc.vehicle_record_id = vr.id
+            LEFT JOIN chassis_info ci ON ci.vehicle_record_id = vr.id
+            WHERE vr.branch_id = @id", conn, 300, ("@id", id));
         await MgrExec("SET foreign_key_checks=1", conn);
-        await MgrExec("SET unique_checks=1", conn);
-        await MgrExec("UPDATE branches SET total_records=0,uploaded_at=NOW() WHERE id=@id",
-            conn, 30, ("@id", id));
-        return Results.Ok(new { deletedCount = total });
+        return Results.Ok(new { deletedCount });
     }
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
 
-// Delete: chunked purge then drop branch — all server-side
+// Delete: single multi-table DELETE then drop branch — no chunking
 app.MapDelete("/api/mgr/branches/{id:int}", async (HttpContext ctx, int id) =>
 {
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
@@ -655,44 +659,11 @@ app.MapDelete("/api/mgr/branches/{id:int}", async (HttpContext ctx, int id) =>
         await using var conn = new MySqlConnection(connStr);
         await conn.OpenAsync();
         await MgrExec("SET foreign_key_checks=0", conn);
-
-        // Skip the SELECT loop when the branch is already empty.
-        // Without an index on vehicle_records.branch_id the SELECT does a full table
-        // scan; for 0-record branches that scan plus the FK-check scan on the final
-        // DELETE caused a ~60 s stall.  total_records is kept accurate by the upload
-        // pipeline, so this fast-path is safe.
-        long totalRec = 0;
-        await using (var chk = new MySqlCommand(
-            "SELECT COALESCE(total_records,0) FROM branches WHERE id=@id LIMIT 1", conn)
-            { CommandTimeout = 10 })
-        {
-            chk.Parameters.AddWithValue("@id", id);
-            var v = await chk.ExecuteScalarAsync();
-            if (v != null && v != DBNull.Value) totalRec = Convert.ToInt64(v);
-        }
-
-        if (totalRec > 0)
-        {
-            while (true)
-            {
-                var ids = new List<long>(5000);
-                await using (var sel = new MySqlCommand(
-                    "SELECT id FROM vehicle_records WHERE branch_id=@bid LIMIT 5000", conn) { CommandTimeout = 60 })
-                {
-                    sel.Parameters.AddWithValue("@bid", id);
-                    await using var rdr = await sel.ExecuteReaderAsync();
-                    while (await rdr.ReadAsync()) ids.Add(rdr.GetInt64(0));
-                }
-                if (ids.Count == 0) break;
-                var il = string.Join(",", ids);
-                await MgrExec($"DELETE FROM rc_info      WHERE vehicle_record_id IN ({il})", conn, 60);
-                await MgrExec($"DELETE FROM chassis_info WHERE vehicle_record_id IN ({il})", conn, 60);
-                await MgrExec($"DELETE FROM vehicle_records WHERE id IN ({il})", conn, 60);
-            }
-        }
-
-        // Delete branch row while FK checks are still OFF — prevents MySQL from doing
-        // a full table scan on vehicle_records to verify the constraint.
+        await MgrExec(@"DELETE vr, rc, ci
+            FROM vehicle_records vr
+            LEFT JOIN rc_info rc ON rc.vehicle_record_id = vr.id
+            LEFT JOIN chassis_info ci ON ci.vehicle_record_id = vr.id
+            WHERE vr.branch_id = @id", conn, 300, ("@id", id));
         await MgrExec("DELETE FROM branches WHERE id=@id", conn, 30, ("@id", id));
         await MgrExec("SET foreign_key_checks=1", conn);
         return Results.Ok();

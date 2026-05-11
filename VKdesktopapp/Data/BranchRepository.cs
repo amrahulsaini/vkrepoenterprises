@@ -44,12 +44,12 @@ public class BranchRepository
         await DesktopApiClient.DeleteBranchAsync(id);
     }
 
-    public async Task<List<(int Id, string Name, string FinanceName, long TotalRecords, string UploadedAt)>> GetAllBranchesWithFinanceAsync()
+    public async Task<List<(int Id, string Name, string FinanceName, int FinanceId, long TotalRecords, string UploadedAt)>> GetAllBranchesWithFinanceAsync()
     {
         var dtos = await DesktopApiClient.GetAllBranchesAsync();
-        var list = new List<(int, string, string, long, string)>(dtos.Count);
+        var list = new List<(int, string, string, int, long, string)>(dtos.Count);
         foreach (var d in dtos)
-            list.Add((d.Id, d.Name, d.FinanceName, d.TotalRecords, d.UploadedAt));
+            list.Add((d.Id, d.Name, d.FinanceName, d.FinanceId, d.TotalRecords, d.UploadedAt));
         return list;
     }
 }

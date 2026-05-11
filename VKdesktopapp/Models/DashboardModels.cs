@@ -59,6 +59,7 @@ public class BranchSummaryItem
     public string BranchId { get; set; } = string.Empty;
     public string BranchName { get; set; } = string.Empty;
     public string HeadOfficeName { get; set; } = string.Empty;
+    public int FinanceId { get; set; }
     public long Records { get; set; }
     public string ContactPerson { get; set; } = string.Empty;
     public string ContactMobile { get; set; } = string.Empty;

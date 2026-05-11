@@ -19,7 +19,7 @@ internal static class DesktopApiClient
         int Id, string Name,
         string Contact1, string Contact2, string Contact3,
         string Address, long TotalRecords, string UploadedAt,
-        string FinanceName = "");
+        string FinanceName = "", int FinanceId = 0);
 
     internal record BranchDetailDto(
         int Id, string Name,
