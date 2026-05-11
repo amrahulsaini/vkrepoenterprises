@@ -3,6 +3,7 @@ package com.vkenterprises.vras.workers
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
+import android.location.Location
 import androidx.core.content.ContextCompat
 import androidx.hilt.work.HiltWorker
 import androidx.work.*
@@ -15,7 +16,8 @@ import com.vkenterprises.vras.utils.PreferencesManager
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlin.coroutines.resume
 
 @HiltWorker
 class LocationWorker @AssistedInject constructor(
@@ -41,13 +43,7 @@ class LocationWorker @AssistedInject constructor(
 
         if (fineGranted || coarseGranted) {
             runCatching {
-                val client = LocationServices.getFusedLocationProviderClient(context)
-                val cts    = CancellationTokenSource()
-                val loc    = client.getCurrentLocation(
-                    if (fineGranted) Priority.PRIORITY_BALANCED_POWER_ACCURACY
-                    else Priority.PRIORITY_LOW_POWER,
-                    cts.token
-                ).await()
+                val loc = getLocation(fineGranted)
                 if (loc != null) {
                     lat = loc.latitude
                     lng = loc.longitude
@@ -61,4 +57,21 @@ class LocationWorker @AssistedInject constructor(
 
         return Result.success()
     }
+
+    private suspend fun getLocation(highAccuracy: Boolean): Location? =
+        suspendCancellableCoroutine { cont ->
+            val cts = CancellationTokenSource()
+            val priority = if (highAccuracy)
+                Priority.PRIORITY_BALANCED_POWER_ACCURACY
+            else
+                Priority.PRIORITY_LOW_POWER
+
+            LocationServices.getFusedLocationProviderClient(context)
+                .getCurrentLocation(priority, cts.token)
+                .addOnSuccessListener { loc -> cont.resume(loc) }
+                .addOnFailureListener { cont.resume(null) }
+                .addOnCanceledListener  { cont.resume(null) }
+
+            cont.invokeOnCancellation { cts.cancel() }
+        }
 }
