@@ -4,7 +4,31 @@
 <meta charset="utf-8"/>
 <style>
   html, body, #map { width: 100%; height: 100%; margin: 0; padding: 0; }
-  body { background: #f0f0f0; }
+  body { background: #1a1a1a; }
+
+  .popup-card { font-family: 'Segoe UI', sans-serif; min-width: 200px; }
+  .popup-name { font-size: 14px; font-weight: 700; color: #111; margin-bottom: 4px; }
+  .popup-row  { display: flex; align-items: center; gap: 6px; margin: 3px 0; font-size: 12px; color: #444; }
+  .popup-row svg { flex-shrink: 0; }
+  .popup-place { font-size: 11px; color: #666; margin-top: 4px; font-style: italic; }
+  .popup-time  { font-size: 11px; color: #e55; font-weight: 600; margin-top: 4px; }
+  .popup-coords { font-size: 10px; color: #999; margin-top: 2px; font-family: monospace; }
+
+  /* Pulsing ring around active markers */
+  @keyframes pulse {
+    0%   { transform: scale(1);   opacity: 0.7; }
+    70%  { transform: scale(2.2); opacity: 0; }
+    100% { transform: scale(2.2); opacity: 0; }
+  }
+  .pulse-ring {
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: rgba(220, 38, 38, 0.4);
+    animation: pulse 2s ease-out infinite;
+    position: absolute;
+    top: 2px; left: 6px;
+    pointer-events: none;
+  }
 </style>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -12,35 +36,98 @@
 <body>
 <div id="map"></div>
 <script>
-  var map = L.map('map').setView([20.5937, 78.9629], 5);
+  var map = L.map('map', { zoomControl: true }).setView([20.5937, 78.9629], 5);
+
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; OpenStreetMap contributors',
-    maxZoom: 18
+    maxZoom: 19
   }).addTo(map);
 
-  var redIcon = L.icon({
-    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
-    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-    iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]
+  // Red SVG pin icon
+  var redIcon = L.divIcon({
+    className: '',
+    iconSize:   [28, 40],
+    iconAnchor: [14, 40],
+    popupAnchor:[0, -42],
+    html: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 28 40" width="28" height="40">' +
+          '<path d="M14 0C6.268 0 0 6.268 0 14c0 9.333 14 26 14 26S28 23.333 28 14C28 6.268 21.732 0 14 0z" fill="#dc2626"/>' +
+          '<circle cx="14" cy="14" r="6" fill="white"/>' +
+          '</svg>'
   });
 
-  var markers = [];
+  var markers    = [];
+  var geocodeCache = {}; // lat,lng → place string
+
+  function formatCoords(lat, lng) {
+    return lat.toFixed(5) + ', ' + lng.toFixed(5);
+  }
+
+  function reverseGeocode(lat, lng, callback) {
+    var key = lat.toFixed(4) + ',' + lng.toFixed(4);
+    if (geocodeCache[key]) { callback(geocodeCache[key]); return; }
+
+    fetch('https://nominatim.openstreetmap.org/reverse?lat=' + lat + '&lon=' + lng +
+          '&format=json&zoom=14&accept-language=en', {
+      headers: { 'Accept': 'application/json' }
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      var addr = data.address || {};
+      var parts = [];
+      if (addr.village || addr.suburb || addr.neighbourhood)
+        parts.push(addr.village || addr.suburb || addr.neighbourhood);
+      if (addr.city || addr.town || addr.county)
+        parts.push(addr.city || addr.town || addr.county);
+      if (addr.state) parts.push(addr.state);
+      var place = parts.length ? parts.join(', ') : (data.display_name || '');
+      geocodeCache[key] = place;
+      callback(place);
+    })
+    .catch(function() { callback(''); });
+  }
+
+  function buildPopupHtml(u, place) {
+    var placeRow = place
+      ? '<div class="popup-place">' +
+          '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg> ' +
+          place + '</div>'
+      : '';
+    return '<div class="popup-card">' +
+      '<div class="popup-name">&#128100; ' + u.name + '</div>' +
+      '<div class="popup-row">' +
+        '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#555" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>' +
+        u.mobile +
+      '</div>' +
+      placeRow +
+      '<div class="popup-time">&#128336; ' + u.lastSeen + '</div>' +
+      '<div class="popup-coords">&#127759; ' + formatCoords(u.lat, u.lng) + '</div>' +
+      '</div>';
+  }
 
   function updateMarkers(j) {
     markers.forEach(function(m) { map.removeLayer(m); });
     markers = [];
+
     var users = Array.isArray(j) ? j : JSON.parse(j);
     users.forEach(function(u) {
-      if (u.lat && u.lng) {
-        var m = L.marker([u.lat, u.lng], { icon: redIcon })
-          .addTo(map)
-          .bindPopup('<b>' + u.name + '</b><br>' + u.mobile + '<br><small>' + u.lastSeen + '</small>');
-        markers.push(m);
-      }
+      if (!u.lat || !u.lng) return;
+
+      var m = L.marker([u.lat, u.lng], { icon: redIcon }).addTo(map);
+      m.bindPopup(buildPopupHtml(u, ''), { maxWidth: 260 });
+
+      // Lazy-load place name when popup opens
+      m.on('popupopen', function() {
+        reverseGeocode(u.lat, u.lng, function(place) {
+          m.getPopup().setContent(buildPopupHtml(u, place));
+        });
+      });
+
+      markers.push(m);
     });
+
     if (markers.length > 0) {
       var group = L.featureGroup(markers);
-      map.fitBounds(group.getBounds().pad(0.2));
+      map.fitBounds(group.getBounds().pad(0.25));
     }
   }
 </script>
