@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #1a1a2e; }
+        #map { width: 100vw; height: 100vh; }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        var map = L.map('map', { zoomControl: true }).setView([22.9734, 78.6569], 5);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap',
+            maxZoom: 18
+        }).addTo(map);
+
+        var markers = [];
+
+        function updateMarkers(jsonStr) {
+            markers.forEach(function(m) { map.removeLayer(m); });
+            markers = [];
+
+            var users = JSON.parse(jsonStr);
+            users.forEach(function(u) {
+                if (u.lat != null && u.lng != null) {
+                    var dot = L.divIcon({
+                        html: '<div style="width:12px;height:12px;border-radius:50%;background:#00e676;border:2px solid #fff;box-shadow:0 0 6px #00e676"></div>',
+                        iconSize: [12, 12],
+                        iconAnchor: [6, 6],
+                        className: ''
+                    });
+                    var m = L.marker([u.lat, u.lng], { icon: dot })
+                        .bindPopup(
+                            '<b>' + u.name + '</b><br>' +
+                            u.mobile + '<br>' +
+                            '<small>' + u.lastSeen + '</small>'
+                        );
+                    m.addTo(map);
+                    markers.push(m);
+                }
+            });
+
+            if (markers.length > 0) {
+                var group = L.featureGroup(markers);
+                map.fitBounds(group.getBounds().pad(0.2));
+            }
+        }
+    </script>
+</body>
+</html>

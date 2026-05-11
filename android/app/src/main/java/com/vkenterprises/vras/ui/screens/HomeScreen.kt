@@ -42,6 +42,7 @@ fun HomeScreen(
     val ui       by searchVm.ui.collectAsState()
     val userId   by authVm.userId.collectAsState(initial = -1L)
     val userName by authVm.userName.collectAsState(initial = "")
+    val isAdmin  by authVm.isAdmin.collectAsState(initial = false)
 
     LaunchedEffect(ui.subscriptionExpired) {
         if (ui.subscriptionExpired) {
@@ -52,6 +53,16 @@ fun HomeScreen(
     }
 
     Scaffold(
+        floatingActionButton = {
+            if (isAdmin) {
+                ExtendedFloatingActionButton(
+                    onClick = { nav.navigate(Screen.LiveUsers.route) },
+                    icon = { Icon(Icons.Default.LocationOn, contentDescription = null) },
+                    text = { Text("Live Users") },
+                    containerColor = MaterialTheme.colorScheme.primary
+                )
+            }
+        },
         topBar = {
             TopAppBar(
                 title = {

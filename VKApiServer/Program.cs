@@ -864,6 +864,136 @@ app.MapDelete("/api/mgr/subscriptions/{id:long}", async (HttpContext ctx, long i
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
 
+// ── Dashboard quick stats ──────────────────────────────────────────────────
+
+app.MapGet("/api/mgr/dashboard-stats", async (HttpContext ctx) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        await using var conn = new MySqlConnection(connStr);
+        await conn.OpenAsync();
+        const string sql = @"
+            SELECT
+                COALESCE((SELECT SUM(total_records) FROM branches WHERE is_active=1), 0),
+                (SELECT COUNT(*) FROM finances),
+                (SELECT COUNT(*) FROM branches WHERE is_active=1)";
+        await using var cmd = new MySqlCommand(sql, conn) { CommandTimeout = 10 };
+        await using var rdr = await cmd.ExecuteReaderAsync();
+        if (!await rdr.ReadAsync()) return Results.Ok(new { totalRecords = 0L, totalFinances = 0, totalBranches = 0 });
+        return Results.Ok(new
+        {
+            totalRecords  = rdr.IsDBNull(0) ? 0L : rdr.GetInt64(0),
+            totalFinances = rdr.IsDBNull(1) ? 0  : rdr.GetInt32(1),
+            totalBranches = rdr.IsDBNull(2) ? 0  : rdr.GetInt32(2),
+        });
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+// ── Device change requests ─────────────────────────────────────────────────
+
+app.MapGet("/api/mgr/device-requests", async (HttpContext ctx) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        await using var conn = new MySqlConnection(connStr);
+        await conn.OpenAsync();
+        const string sql = @"
+            SELECT id, user_id, user_name, user_mobile, new_device_id,
+                   DATE_FORMAT(requested_at,'%d %b %H:%i') AS req_at
+            FROM device_change_requests ORDER BY requested_at DESC LIMIT 100";
+        await using var cmd = new MySqlCommand(sql, conn) { CommandTimeout = 10 };
+        var list = new List<object>();
+        await using var rdr = await cmd.ExecuteReaderAsync();
+        while (await rdr.ReadAsync())
+            list.Add(new
+            {
+                id          = rdr.GetInt64(0),
+                userId      = rdr.GetInt64(1),
+                userName    = rdr.GetString(2),
+                userMobile  = rdr.GetString(3),
+                newDeviceId = rdr.GetString(4),
+                requestedAt = rdr.GetString(5),
+            });
+        return Results.Ok(list);
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+app.MapPost("/api/mgr/device-requests/{id:long}/approve", async (HttpContext ctx, long id) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        await using var conn = new MySqlConnection(connStr);
+        await conn.OpenAsync();
+        long userId = 0; string newDev = "";
+        await using (var sel = new MySqlCommand(
+            "SELECT user_id, new_device_id FROM device_change_requests WHERE id=@id LIMIT 1", conn))
+        {
+            sel.Parameters.AddWithValue("@id", id);
+            await using var rdr = await sel.ExecuteReaderAsync();
+            if (!await rdr.ReadAsync()) return Results.NotFound();
+            userId = rdr.GetInt64(0);
+            newDev = rdr.GetString(1);
+        }
+        await MgrExec("UPDATE app_users SET device_id=@d WHERE id=@uid", conn, 10,
+            ("@d", newDev), ("@uid", userId));
+        await MgrExec("DELETE FROM device_change_requests WHERE id=@id", conn, 10, ("@id", id));
+        return Results.Ok();
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+app.MapDelete("/api/mgr/device-requests/{id:long}", async (HttpContext ctx, long id) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        await using var conn = new MySqlConnection(connStr);
+        await conn.OpenAsync();
+        await MgrExec("DELETE FROM device_change_requests WHERE id=@id", conn, 10, ("@id", id));
+        return Results.Ok();
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+// ── Live users (active in last 15 min) ────────────────────────────────────
+
+app.MapGet("/api/mgr/live-users", async (HttpContext ctx) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        await using var conn = new MySqlConnection(connStr);
+        await conn.OpenAsync();
+        const string sql = @"
+            SELECT id, name, mobile,
+                   DATE_FORMAT(last_seen,'%H:%i • %d %b') AS seen,
+                   last_lat, last_lng
+            FROM app_users
+            WHERE last_seen >= NOW() - INTERVAL 15 MINUTE
+            ORDER BY last_seen DESC LIMIT 100";
+        await using var cmd = new MySqlCommand(sql, conn) { CommandTimeout = 10 };
+        var list = new List<object>();
+        await using var rdr = await cmd.ExecuteReaderAsync();
+        while (await rdr.ReadAsync())
+            list.Add(new
+            {
+                id      = rdr.GetInt64(0),
+                name    = rdr.GetString(1),
+                mobile  = rdr.GetString(2),
+                lastSeen = rdr.GetString(3),
+                lat     = rdr.IsDBNull(4) ? (double?)null : rdr.GetDouble(4),
+                lng     = rdr.IsDBNull(5) ? (double?)null : rdr.GetDouble(5),
+            });
+        return Results.Ok(list);
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
 app.Run($"http://localhost:{port}");
 
 // Local functions must appear before type declarations (CS8803)

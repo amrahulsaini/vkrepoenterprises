@@ -19,6 +19,8 @@ public record LoginRequest(
     string Mobile,
     string DeviceId);
 
+public record HeartbeatRequest(long UserId, double? Lat, double? Lng);
+
 public record AuthResponse(
     bool   Success,
     string Message,
@@ -149,3 +151,16 @@ public record StatsResponse(
     long VehicleRecords,
     long RcRecords,
     long ChassisRecords);
+
+// ── Live users ───────────────────────────────────────────
+public record LiveUserItem(
+    long    Id,
+    string  Name,
+    string  Mobile,
+    string  LastSeen,
+    double? Lat,
+    double? Lng);
+
+public record LiveUsersResponse(
+    bool               Success,
+    List<LiveUserItem> Users);

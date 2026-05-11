@@ -194,6 +194,39 @@ public class MobileController : ControllerBase
         }
     }
 
+    // POST /api/mobile/heartbeat  — updates last_seen + GPS for the user
+    [HttpPost("heartbeat")]
+    public async Task<IActionResult> Heartbeat([FromBody] HeartbeatRequest req)
+    {
+        try
+        {
+            await _repo.HeartbeatAsync(req.UserId, req.Lat, req.Lng);
+            return Ok(new { success = true });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new ApiError(false, $"Heartbeat failed: {ex.Message}"));
+        }
+    }
+
+    // GET /api/mobile/live-users  — admin only; users active in last 15 min
+    [HttpGet("live-users")]
+    public async Task<IActionResult> GetLiveUsers(
+        [FromHeader(Name = "X-User-Id")] long userId)
+    {
+        try
+        {
+            if (!await _repo.IsAdminAsync(userId))
+                return StatusCode(403, new ApiError(false, "Admin access required."));
+            var users = await _repo.GetLiveUsersAsync();
+            return Ok(new LiveUsersResponse(true, users));
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new ApiError(false, $"Live users failed: {ex.Message}"));
+        }
+    }
+
     // GET /api/mobile/sync/records/{branchId}?page=0&size=500
     [HttpGet("sync/records/{branchId}")]
     public async Task<IActionResult> GetSyncRecords(

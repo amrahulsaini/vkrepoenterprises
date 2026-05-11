@@ -3,6 +3,7 @@ package com.vkenterprises.vras
 import android.app.Application
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.*
+import com.vkenterprises.vras.workers.LocationWorker
 import com.vkenterprises.vras.workers.SyncWorker
 import dagger.hilt.android.HiltAndroidApp
 import java.util.concurrent.TimeUnit
@@ -19,6 +20,22 @@ class VKApp : Application(), Configuration.Provider {
     override fun onCreate() {
         super.onCreate()
         scheduleSyncWork()
+        scheduleLocationWork()
+    }
+
+    private fun scheduleLocationWork() {
+        val request = PeriodicWorkRequestBuilder<LocationWorker>(15, TimeUnit.MINUTES)
+            .setConstraints(
+                Constraints.Builder()
+                    .setRequiredNetworkType(NetworkType.CONNECTED)
+                    .build()
+            )
+            .build()
+        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+            "location_heartbeat",
+            ExistingPeriodicWorkPolicy.KEEP,
+            request
+        )
     }
 
     private fun scheduleSyncWork() {
