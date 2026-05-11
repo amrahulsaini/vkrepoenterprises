@@ -131,6 +131,39 @@
             <Setter Property="Foreground" Value="{StaticResource Gray500}" />
         </Style>
 
+        <!-- Outline button used for View All -->
+        <Style x:Key="OutlineButton" TargetType="Button">
+            <Setter Property="Background" Value="White" />
+            <Setter Property="BorderBrush" Value="{StaticResource Orange500}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Foreground" Value="{StaticResource Orange500}" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Padding" Value="10,5" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="brd"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="5"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="brd" Property="Background" Value="#1AFF9800" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="brd" Property="Background" Value="#30FF9800" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
     </Page.Resources>
 
     <Grid Margin="24,20,24,8">
@@ -164,15 +197,39 @@
                             BorderThickness="0,0,0,1"
                             CornerRadius="8,8,0,0"
                             Padding="16,14">
-                        <DockPanel>
+                        <DockPanel LastChildFill="True">
                             <Button Name="btnAddFinance"
                                     DockPanel.Dock="Right"
                                     Style="{StaticResource PlusIconButton}"
                                     ToolTip="New Finance"
                                     Click="btnAddFinance_Click" />
-                            <TextBlock Text="Finance / Head Offices"
-                                       Style="{StaticResource Heading6}"
-                                       VerticalAlignment="Center" />
+                            <Button Name="btnViewAll"
+                                    DockPanel.Dock="Right"
+                                    Margin="0,0,10,0"
+                                    Content="View All"
+                                    Style="{StaticResource OutlineButton}"
+                                    ToolTip="Show all branches across all finances"
+                                    Click="btnViewAll_Click" />
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <TextBlock Text="Finance / Head Offices"
+                                           Style="{StaticResource Heading6}"
+                                           VerticalAlignment="Center" />
+                                <Grid x:Name="financeSpinner"
+                                      Visibility="Collapsed"
+                                      Width="16" Height="16"
+                                      Margin="8,0,0,0"
+                                      VerticalAlignment="Center">
+                                    <Ellipse Stroke="{StaticResource Gray200}" StrokeThickness="2.5" />
+                                    <Ellipse Stroke="{StaticResource Orange500}"
+                                             StrokeThickness="2.5"
+                                             StrokeDashArray="4 13"
+                                             RenderTransformOrigin="0.5,0.5">
+                                        <Ellipse.RenderTransform>
+                                            <RotateTransform x:Name="financeSpinnerRt" />
+                                        </Ellipse.RenderTransform>
+                                    </Ellipse>
+                                </Grid>
+                            </StackPanel>
                         </DockPanel>
                     </Border>
 
@@ -264,16 +321,6 @@
                             </DataGrid.Columns>
                         </DataGrid>
 
-                        <!-- Loading indicator: thin progress bar at top, no content blocking -->
-                        <ProgressBar x:Name="financeLoadingGrid"
-                                     Visibility="Collapsed"
-                                     IsIndeterminate="True"
-                                     Height="3"
-                                     VerticalAlignment="Top"
-                                     Panel.ZIndex="100"
-                                     Foreground="{StaticResource Orange500}"
-                                     Background="Transparent"
-                                     BorderThickness="0" />
                     </Grid>
                 </DockPanel>
             </Border>
@@ -288,14 +335,33 @@
                             BorderThickness="0,0,0,1"
                             CornerRadius="8,8,0,0"
                             Padding="16,14">
-                        <DockPanel>
+                        <DockPanel LastChildFill="True">
                             <Button Name="btnAddBranch"
                                     DockPanel.Dock="Right"
                                     Style="{StaticResource PlusIconButton}"
                                     ToolTip="New Branch"
                                     Click="btnAddBranch_Click" />
                             <StackPanel VerticalAlignment="Center">
-                                <TextBlock Text="Branches" Style="{StaticResource Heading6}" />
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="Branches"
+                                               Style="{StaticResource Heading6}"
+                                               VerticalAlignment="Center" />
+                                    <Grid x:Name="branchSpinner"
+                                          Visibility="Collapsed"
+                                          Width="16" Height="16"
+                                          Margin="8,0,0,0"
+                                          VerticalAlignment="Center">
+                                        <Ellipse Stroke="{StaticResource Gray200}" StrokeThickness="2.5" />
+                                        <Ellipse Stroke="{StaticResource Orange500}"
+                                                 StrokeThickness="2.5"
+                                                 StrokeDashArray="4 13"
+                                                 RenderTransformOrigin="0.5,0.5">
+                                            <Ellipse.RenderTransform>
+                                                <RotateTransform x:Name="branchSpinnerRt" />
+                                            </Ellipse.RenderTransform>
+                                        </Ellipse>
+                                    </Grid>
+                                </StackPanel>
                                 <TextBlock Name="txtBranchSubtitle"
                                            Text="Select a finance to view branches"
                                            Style="{StaticResource Caption}"
@@ -397,16 +463,6 @@
                             </DataGrid.Columns>
                         </DataGrid>
 
-                        <!-- Loading indicator: thin progress bar at top, no content blocking -->
-                        <ProgressBar x:Name="branchLoadingGrid"
-                                     Visibility="Collapsed"
-                                     IsIndeterminate="True"
-                                     Height="3"
-                                     VerticalAlignment="Top"
-                                     Panel.ZIndex="100"
-                                     Foreground="{StaticResource Orange500}"
-                                     Background="Transparent"
-                                     BorderThickness="0" />
                     </Grid>
                 </DockPanel>
             </Border>

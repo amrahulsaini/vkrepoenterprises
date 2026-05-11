@@ -58,15 +58,30 @@ public class ExportRepository
     {
         await using var conn = MySqlFactory.CreateConnection();
         await conn.OpenAsync();
-        await using var del = new MySqlCommand(
-            "DELETE FROM vehicle_records WHERE branch_id = @bid", conn);
-        del.Parameters.AddWithValue("@bid", branchId);
-        del.CommandTimeout = 300; // large branches can take a while to delete
-        await del.ExecuteNonQueryAsync();
-        await using var upd = new MySqlCommand(
-            "UPDATE branches SET total_records = 0, uploaded_at = NOW() WHERE id = @bid", conn);
-        upd.Parameters.AddWithValue("@bid", branchId);
-        await upd.ExecuteNonQueryAsync();
+
+        static async Task Exec(string sql, MySqlConnection c, int timeout = 30,
+            params (string n, object v)[] ps)
+        {
+            await using var cmd = new MySqlCommand(sql, c) { CommandTimeout = timeout };
+            foreach (var (n, v) in ps) cmd.Parameters.AddWithValue(n, v);
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        // Disable FK/unique checks so the multi-table delete skips per-row cascade overhead
+        await Exec("SET foreign_key_checks=0", conn);
+        await Exec("SET unique_checks=0", conn);
+        // Delete vehicle_records + rc_info + chassis_info in one pass (same pattern as upload)
+        await Exec(@"
+            DELETE vr, ri, ci
+            FROM   vehicle_records vr
+            LEFT JOIN rc_info      ri ON ri.vehicle_record_id = vr.id
+            LEFT JOIN chassis_info ci ON ci.vehicle_record_id = vr.id
+            WHERE  vr.branch_id = @bid",
+            conn, timeout: 300, ("@bid", branchId));
+        await Exec("SET foreign_key_checks=1", conn);
+        await Exec("SET unique_checks=1", conn);
+        await Exec("UPDATE branches SET total_records=0, uploaded_at=NOW() WHERE id=@bid",
+            conn, timeout: 30, ("@bid", branchId));
     }
 
     private static async Task<DataTable> ExecuteAsync(string sql, (string name, object value) param)
