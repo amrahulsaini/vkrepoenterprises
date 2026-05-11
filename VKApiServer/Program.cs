@@ -1035,32 +1035,54 @@ app.MapDelete("/api/mgr/device-requests/{id:long}", async (HttpContext ctx, long
 
 // ── Live users (active in last 15 min) ────────────────────────────────────
 
-app.MapGet("/api/mgr/live-users", async (HttpContext ctx) =>
+app.MapGet("/api/mgr/live-users", async (HttpContext ctx, string? since) =>
 {
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
     try
     {
         await using var conn = new MySqlConnection(connStr);
         await conn.OpenAsync();
-        const string sql = @"
-            SELECT id, name, mobile,
-                   DATE_FORMAT(last_seen,'%H:%i • %d %b') AS seen,
-                   last_lat, last_lng
-            FROM app_users
-            WHERE last_seen >= NOW() - INTERVAL 15 MINUTE
-            ORDER BY last_seen DESC LIMIT 100";
-        await using var cmd = new MySqlCommand(sql, conn) { CommandTimeout = 10 };
+
+        // since = "HH:mm" 24h — show all users seen after that time today
+        // omitted = last 15 minutes
+        string where;
+        MySqlCommand cmd;
+        if (!string.IsNullOrWhiteSpace(since) &&
+            System.Text.RegularExpressions.Regex.IsMatch(since.Trim(), @"^\d{2}:\d{2}$"))
+        {
+            const string sql = @"
+                SELECT id, name, mobile,
+                       DATE_FORMAT(last_seen,'%H:%i • %d %b') AS seen,
+                       last_lat, last_lng
+                FROM app_users
+                WHERE last_seen >= CONCAT(CURDATE(), ' ', @since, ':00')
+                ORDER BY last_seen DESC LIMIT 500";
+            cmd = new MySqlCommand(sql, conn) { CommandTimeout = 10 };
+            cmd.Parameters.AddWithValue("@since", since.Trim());
+        }
+        else
+        {
+            const string sql = @"
+                SELECT id, name, mobile,
+                       DATE_FORMAT(last_seen,'%H:%i • %d %b') AS seen,
+                       last_lat, last_lng
+                FROM app_users
+                WHERE last_seen >= NOW() - INTERVAL 15 MINUTE
+                ORDER BY last_seen DESC LIMIT 200";
+            cmd = new MySqlCommand(sql, conn) { CommandTimeout = 10 };
+        }
+
         var list = new List<object>();
         await using var rdr = await cmd.ExecuteReaderAsync();
         while (await rdr.ReadAsync())
             list.Add(new
             {
-                id      = rdr.GetInt64(0),
-                name    = rdr.GetString(1),
-                mobile  = rdr.GetString(2),
+                id       = rdr.GetInt64(0),
+                name     = rdr.GetString(1),
+                mobile   = rdr.GetString(2),
                 lastSeen = rdr.GetString(3),
-                lat     = rdr.IsDBNull(4) ? (double?)null : rdr.GetDouble(4),
-                lng     = rdr.IsDBNull(5) ? (double?)null : rdr.GetDouble(5),
+                lat      = rdr.IsDBNull(4) ? (double?)null : rdr.GetDouble(4),
+                lng      = rdr.IsDBNull(5) ? (double?)null : rdr.GetDouble(5),
             });
         return Results.Ok(list);
     }
