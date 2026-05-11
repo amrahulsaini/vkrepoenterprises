@@ -49,6 +49,9 @@ fi
 section "Building VKmobileapi"
 cd "$MOBILE_SRC"
 dotnet publish -c Release -o "$MOBILE_OUT" --nologo -v quiet
+# Copy env file so VKmobileapi can read MySQL credentials
+mkdir -p "$MOBILE_OUT/db"
+cp /home/vkapp/db/.env.local "$MOBILE_OUT/db/.env.local" 2>/dev/null || true
 info "VKmobileapi built → $MOBILE_OUT"
 
 section "Restarting vkmobileapi service"

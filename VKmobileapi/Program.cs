@@ -1,5 +1,8 @@
 using MySqlConnector;
+using VKmobileapi;
 using VKmobileapi.Data;
+
+LocalEnv.LoadBestEffort();
 
 var builder = WebApplication.CreateBuilder(args);
 

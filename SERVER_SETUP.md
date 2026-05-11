@@ -162,6 +162,22 @@ extprocessor dotnetapi {
   respBuffer              0
 }
 
+extprocessor mobileapi {
+  type                    proxy
+  address                 127.0.0.1:5001
+  maxConns                100
+  pcKeepAliveTimeout      60
+  initTimeout             60
+  retryTimeout            0
+  respBuffer              0
+}
+
+context /api/mobile {
+  type                    proxy
+  handler                 mobileapi
+  addDefaultCharset       off
+}
+
 context / {
   type                    proxy
   handler                 dotnetapi
@@ -222,6 +238,21 @@ https://api.YOUR_DOMAIN/
 Or to permanently change the default for new installs, edit:
 `VKdesktopapp/Properties/Settings.settings` and `Settings.Designer.cs`
 — change `https://api.characterverse.tech/` to your new domain.
+
+---
+
+## DB migration — add GPS columns to app_users
+
+Run this once on the server if `last_lat`, `last_lng`, `last_seen` columns don't exist yet:
+
+```bash
+mysql -u vkre_db1 -pdb1 vkre_db1 -e "
+ALTER TABLE app_users
+  ADD COLUMN IF NOT EXISTS last_seen DATETIME NULL,
+  ADD COLUMN IF NOT EXISTS last_lat  DOUBLE    NULL,
+  ADD COLUMN IF NOT EXISTS last_lng  DOUBLE    NULL;
+"
+```
 
 ---
 
