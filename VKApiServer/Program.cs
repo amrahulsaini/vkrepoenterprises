@@ -1,3 +1,5 @@
+using System.Data;
+using System.Diagnostics;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Caching.Memory;
 using MySqlConnector;
@@ -15,6 +17,7 @@ builder.Services.AddCors(options =>
 });
 
 builder.Services.AddMemoryCache();
+builder.WebHost.ConfigureKestrel(opts => opts.Limits.MaxRequestBodySize = 200 * 1024 * 1024); // 200 MB for bulk uploads
 
 var connStr = new MySqlConnectionStringBuilder
 {
@@ -25,9 +28,10 @@ var connStr = new MySqlConnectionStringBuilder
     Port     = uint.TryParse(Environment.GetEnvironmentVariable("MYSQL_PORT"), out var p) ? p : 3306u,
     SslMode  = MySqlSslMode.None,
     Pooling  = true,
-    MaximumPoolSize      = 20,
-    ConnectionTimeout    = 10,
-    DefaultCommandTimeout = 30
+    MaximumPoolSize       = 20,
+    ConnectionTimeout     = 10,
+    DefaultCommandTimeout = 30,
+    AllowLoadLocalInfile  = true
 }.ConnectionString;
 
 var desktopLoginPassword = Environment.GetEnvironmentVariable("DESKTOP_LOGIN_PASSWORD") ?? "vk@kunal.admin";
@@ -1170,6 +1174,136 @@ app.MapPost("/api/mgr/column-types", async (HttpContext ctx, MgrCreateColumnType
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
 
+// ── Bulk upload records from desktop app ─────────────────────────────────────
+app.MapPost("/api/mgr/records/upload", async (HttpContext ctx, MgrUploadBatchDto dto) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    if (dto.BranchId <= 0) return Results.BadRequest(new { message = "Invalid branchId." });
+    if (dto.Records == null || dto.Records.Count == 0)
+        return Results.BadRequest(new { message = "No records provided." });
+    try
+    {
+        var sw = Stopwatch.StartNew();
+
+        await using var conn = new MySqlConnection(connStr);
+        await conn.OpenAsync();
+
+        await MgrExec("SET foreign_key_checks = 0", conn);
+        await MgrExec("SET unique_checks = 0", conn);
+
+        await using var existCmd = new MySqlCommand(
+            "SELECT EXISTS(SELECT 1 FROM vehicle_records WHERE branch_id = @bid LIMIT 1)", conn);
+        existCmd.Parameters.AddWithValue("@bid", dto.BranchId);
+        var hasRecords = Convert.ToInt64(await existCmd.ExecuteScalarAsync()) == 1;
+
+        if (hasRecords)
+            await MgrExec(@"
+                DELETE vr, ri, ci
+                FROM   vehicle_records vr
+                LEFT JOIN rc_info      ri ON ri.vehicle_record_id = vr.id
+                LEFT JOIN chassis_info ci ON ci.vehicle_record_id = vr.id
+                WHERE  vr.branch_id = @bid",
+                conn, 300, ("@bid", dto.BranchId));
+
+        static string Tr(string? v, int max) =>
+            string.IsNullOrEmpty(v) ? "" : (v.Length > max ? v[..max] : v);
+
+        var dt = new DataTable();
+        dt.Columns.Add("branch_id",        typeof(int));
+        dt.Columns.Add("vehicle_no",       typeof(string));
+        dt.Columns.Add("chassis_no",       typeof(string));
+        dt.Columns.Add("engine_no",        typeof(string));
+        dt.Columns.Add("model",            typeof(string));
+        dt.Columns.Add("agreement_no",     typeof(string));
+        dt.Columns.Add("bucket",           typeof(string));
+        dt.Columns.Add("gv",               typeof(string));
+        dt.Columns.Add("od",               typeof(string));
+        dt.Columns.Add("seasoning",        typeof(string));
+        dt.Columns.Add("tbr_flag",         typeof(string));
+        dt.Columns.Add("sec9_available",   typeof(string));
+        dt.Columns.Add("sec17_available",  typeof(string));
+        dt.Columns.Add("customer_name",    typeof(string));
+        dt.Columns.Add("customer_address", typeof(string));
+        dt.Columns.Add("customer_contact", typeof(string));
+        dt.Columns.Add("region",           typeof(string));
+        dt.Columns.Add("area",             typeof(string));
+        dt.Columns.Add("branch_name_raw",  typeof(string));
+        dt.Columns.Add("level1",           typeof(string));
+        dt.Columns.Add("level1_contact",   typeof(string));
+        dt.Columns.Add("level2",           typeof(string));
+        dt.Columns.Add("level2_contact",   typeof(string));
+        dt.Columns.Add("level3",           typeof(string));
+        dt.Columns.Add("level3_contact",   typeof(string));
+        dt.Columns.Add("level4",           typeof(string));
+        dt.Columns.Add("level4_contact",   typeof(string));
+        dt.Columns.Add("sender_mail1",     typeof(string));
+        dt.Columns.Add("sender_mail2",     typeof(string));
+        dt.Columns.Add("executive_name",   typeof(string));
+        dt.Columns.Add("pos",              typeof(string));
+        dt.Columns.Add("toss",             typeof(string));
+        dt.Columns.Add("remark",           typeof(string));
+        dt.MinimumCapacity = dto.Records.Count;
+
+        foreach (var r in dto.Records)
+            dt.Rows.Add(
+                dto.BranchId,
+                Tr(r.VehicleNo,50), Tr(r.ChasisNo,100), Tr(r.EngineNo,100), Tr(r.Model,200),
+                Tr(r.AgreementNo,100), Tr(r.Bucket,50), Tr(r.GV,50), Tr(r.OD,50),
+                Tr(r.Seasoning,50), Tr(r.TBRFlag,20), Tr(r.Sec9Available,20), Tr(r.Sec17Available,20),
+                Tr(r.CustomerName,200), r.CustomerAddress ?? "", Tr(r.CustomerContact,100),
+                Tr(r.Region,100), Tr(r.Area,100), Tr(r.BranchNameRaw,200),
+                Tr(r.Level1,200), Tr(r.Level1Contact,100),
+                Tr(r.Level2,200), Tr(r.Level2Contact,100),
+                Tr(r.Level3,200), Tr(r.Level3Contact,100),
+                Tr(r.Level4,200), Tr(r.Level4Contact,100),
+                Tr(r.SenderMail1,200), Tr(r.SenderMail2,200),
+                Tr(r.ExecutiveName,200), Tr(r.Pos,100), Tr(r.Toss,100),
+                r.Remark ?? "");
+
+        var bc = new MySqlBulkCopy(conn) { DestinationTableName = "vehicle_records", BulkCopyTimeout = 600 };
+        for (int i = 0; i < dt.Columns.Count; i++)
+            bc.ColumnMappings.Add(new MySqlBulkCopyColumnMapping(i, dt.Columns[i].ColumnName));
+        var bcResult = await bc.WriteToServerAsync(dt);
+        dt.Dispose();
+        int inserted = (int)bcResult.RowsInserted;
+
+        await MgrExec("UPDATE branches SET total_records=@cnt, uploaded_at=NOW() WHERE id=@bid",
+            conn, 30, ("@cnt", inserted), ("@bid", dto.BranchId));
+        await MgrExec("SET foreign_key_checks = 1", conn);
+        await MgrExec("SET unique_checks = 1", conn);
+
+        sw.Stop();
+
+        // Rebuild rc_info / chassis_info on background threads — mobile sync can start immediately
+        _ = Task.WhenAll(
+            Task.Run(async () =>
+            {
+                await using var c = new MySqlConnection(connStr);
+                await c.OpenAsync();
+                await MgrExec("SET foreign_key_checks=0", c); await MgrExec("SET unique_checks=0", c);
+                await MgrExec(@"INSERT INTO rc_info (vehicle_record_id,rc_number,model,last4)
+                    SELECT id,vehicle_no,COALESCE(model,''),RIGHT(vehicle_no,4)
+                    FROM vehicle_records WHERE branch_id=@bid AND vehicle_no IS NOT NULL AND vehicle_no!=''",
+                    c, 300, ("@bid", dto.BranchId));
+                await MgrExec("SET foreign_key_checks=1", c); await MgrExec("SET unique_checks=1", c);
+            }),
+            Task.Run(async () =>
+            {
+                await using var c = new MySqlConnection(connStr);
+                await c.OpenAsync();
+                await MgrExec("SET foreign_key_checks=0", c); await MgrExec("SET unique_checks=0", c);
+                await MgrExec(@"INSERT INTO chassis_info (vehicle_record_id,chassis_number,model,last5)
+                    SELECT id,chassis_no,COALESCE(model,''),RIGHT(chassis_no,5)
+                    FROM vehicle_records WHERE branch_id=@bid AND chassis_no IS NOT NULL AND chassis_no!=''",
+                    c, 300, ("@bid", dto.BranchId));
+                await MgrExec("SET foreign_key_checks=1", c); await MgrExec("SET unique_checks=1", c);
+            }));
+
+        return Results.Ok(new { inserted, elapsedSeconds = sw.Elapsed.TotalSeconds });
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
 // ── Forward /api/mobile/* → VKmobileapi on port 5001 ─────────────────────────
 app.Map("/api/mobile/{**rest}", async (HttpContext ctx) =>
 {
@@ -1232,3 +1366,16 @@ record MgrSetAdminDto(bool Admin);
 record MgrAddSubscriptionDto(string StartDate, string EndDate, decimal Amount, string? Notes);
 record MgrCreateMappingDto(int ColumnTypeId, string RawName);
 record MgrCreateColumnTypeDto(string Name);
+record MgrUploadRecordDto(
+    string VehicleNo, string ChasisNo, string EngineNo, string Model,
+    string AgreementNo, string Bucket, string GV, string OD, string Seasoning,
+    string TBRFlag, string Sec9Available, string Sec17Available,
+    string CustomerName, string CustomerAddress, string CustomerContact,
+    string Region, string Area, string BranchNameRaw,
+    string Level1, string Level1Contact,
+    string Level2, string Level2Contact,
+    string Level3, string Level3Contact,
+    string Level4, string Level4Contact,
+    string SenderMail1, string SenderMail2, string ExecutiveName,
+    string Pos, string Toss, string Remark);
+record MgrUploadBatchDto(int BranchId, List<MgrUploadRecordDto> Records);
