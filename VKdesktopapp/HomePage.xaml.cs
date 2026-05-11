@@ -36,6 +36,19 @@ public partial class HomePage : Page
 
     private async void Page_Loaded(object sender, RoutedEventArgs e)
     {
+        // Populate time pickers
+        for (int h = 1; h <= 12; h++)
+            cmbHour.Items.Add(h.ToString("D2"));
+        for (int m = 0; m < 60; m += 5)
+            cmbMinute.Items.Add(m.ToString("D2"));
+        cmbAmPm.Items.Add("AM");
+        cmbAmPm.Items.Add("PM");
+
+        // Default: 12:00 AM = midnight = show all of today
+        cmbHour.SelectedItem   = "12";
+        cmbMinute.SelectedItem = "00";
+        cmbAmPm.SelectedItem   = "AM";
+
         await InitMapAsync();
         await LoadDashboardAsync();
 
@@ -88,7 +101,7 @@ public partial class HomePage : Page
         var requests = new List<DesktopApiClient.DeviceRequestDto>();
         var live     = new List<DesktopApiClient.LiveUserDto>();
 
-        var since = txtSinceTime.Text.Trim();
+        var since = GetSince24h();
         await Task.WhenAll(
             Safe(async () => stats    = await DesktopApiClient.GetDashboardStatsAsync()),
             Safe(async () => uStats   = await DesktopApiClient.GetUserStatsAsync()),
@@ -117,11 +130,20 @@ public partial class HomePage : Page
         lvDeviceRequests.Visibility  = reqRows.Count > 0  ? Visibility.Visible : Visibility.Collapsed;
 
         // Live users
-        _lastLiveUsers  = live;
+        _lastLiveUsers = live;
         lblLiveCount.Text = since == "00:00" || string.IsNullOrWhiteSpace(since)
             ? $"{live.Count} users seen today"
             : $"{live.Count} users seen since {since}";
         PushMarkersToMap(live);
+    }
+
+    private string GetSince24h()
+    {
+        if (cmbHour.SelectedItem is not string hStr   || !int.TryParse(hStr, out var h)) return "00:00";
+        if (cmbMinute.SelectedItem is not string mStr || !int.TryParse(mStr, out var m)) return "00:00";
+        var isPm = cmbAmPm.SelectedItem as string == "PM";
+        var hour24 = h == 12 ? (isPm ? 12 : 0) : (isPm ? h + 12 : h);
+        return $"{hour24:D2}:{m:D2}";
     }
 
     private static async Task Safe(Func<Task> fn)
