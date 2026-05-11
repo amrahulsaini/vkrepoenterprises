@@ -443,15 +443,12 @@ public class MobileRepository
     {
         await using var conn = DbFactory.Create();
         await conn.OpenAsync();
-        // Read pre-computed total_records from branches (stored on every upload) —
-        // avoids full InnoDB COUNT(*) scan which takes seconds on large tables.
         const string sql = @"
             SELECT
-                COALESCE(SUM(total_records), 0),
-                COALESCE(SUM(total_records), 0),
-                COALESCE(SUM(total_records), 0)
-            FROM branches WHERE is_active = 1";
-        await using var cmd = new MySqlCommand(sql, conn);
+                (SELECT COUNT(*) FROM vehicle_records),
+                (SELECT COUNT(*) FROM rc_info),
+                (SELECT COUNT(*) FROM chassis_info)";
+        await using var cmd = new MySqlCommand(sql, conn) { CommandTimeout = 15 };
         await using var r   = await cmd.ExecuteReaderAsync();
         await r.ReadAsync();
         return (r.GetInt64(0), r.GetInt64(1), r.GetInt64(2));
