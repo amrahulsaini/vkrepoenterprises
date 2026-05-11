@@ -1,15 +1,17 @@
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Data;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using Microsoft.Win32;
 using Syncfusion.XlsIO;
 using VRASDesktopApp.Models;
 using VRASDesktopApp.Data;
-using System.Collections.Generic;
 
 namespace VRASDesktopApp.Finances;
 
@@ -41,7 +43,14 @@ public partial class FinancesManagerPage : Page
     private readonly ObservableCollection<BranchSummaryItem> _displayedBranches = new();
     private List<BranchSummaryItem> _allCurrentBranches = new();
 
+    // Cache: branchId→ list so re-selecting a finance is instant
+    private readonly Dictionary<int, List<BranchSummaryItem>> _branchCache = new();
+
     private int _loadingForFinanceId = -1;
+
+    // Spinner storyboards — created once, reused
+    private Storyboard? _financeSpinSb;
+    private Storyboard? _branchSpinSb;
 
     // ─────────────────────────────────────────────────────
     //  Page load
@@ -174,17 +183,24 @@ public partial class FinancesManagerPage : Page
     {
         txtBranchSubtitle.Text = financeName;
         _loadingForFinanceId   = financeId;
+
+        // Show cached data instantly — feels ~0 ms on repeat selection
+        if (_branchCache.TryGetValue(financeId, out var cached))
+            SetBranchItemsSource(cached);
+
         SetBranchLoading(true);
         try
         {
             var list = await FetchBranchesAsync(financeId);
+            _branchCache[financeId] = list;
             if (_loadingForFinanceId == financeId)
                 SetBranchItemsSource(list);
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Failed to load branches: {ex.Message}",
-                "Finances", MessageBoxButton.OK, MessageBoxImage.Error);
+            if (!_branchCache.ContainsKey(financeId))
+                MessageBox.Show($"Failed to load branches: {ex.Message}",
+                    "Finances", MessageBoxButton.OK, MessageBoxImage.Error);
         }
         finally
         {
@@ -208,6 +224,36 @@ public partial class FinancesManagerPage : Page
             });
         }
         return list;
+    }
+
+    // ─────────────────────────────────────────────────────
+    //  View All — shows every branch across all finances
+    // ─────────────────────────────────────────────────────
+
+    private async void btnViewAll_Click(object sender, RoutedEventArgs e)
+    {
+        txtBranchSubtitle.Text = "All Finances";
+        _loadingForFinanceId   = -1;
+        SetBranchLoading(true);
+        try
+        {
+            var items = await _branchRepo.GetAllBranchesWithFinanceAsync();
+            var list = items.Select(it => new BranchSummaryItem
+            {
+                BranchId       = it.Id.ToString(),
+                BranchName     = it.Name,
+                HeadOfficeName = it.FinanceName,
+                Records        = it.TotalRecords,
+                UpdatedOn      = it.UploadedAt
+            }).ToList();
+            SetBranchItemsSource(list);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Failed to load all branches: {ex.Message}", "Error",
+                MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally { SetBranchLoading(false); }
     }
 
     // ─────────────────────────────────────────────────────
@@ -252,7 +298,7 @@ public partial class FinancesManagerPage : Page
         var w = new BranchEditorWindow(fi.Id, fi.Name) { Owner = Window.GetWindow(this) };
         if (w.ShowDialog() == true)
         {
-
+            _branchCache.Remove(fi.Id);
             await LoadBranchesForFinanceAsync(fi.Id, fi.Name);
         }
     }
@@ -323,6 +369,7 @@ public partial class FinancesManagerPage : Page
         {
             await _financeRepo.DeleteFinanceAsync(fi.Id);
 
+            _branchCache.Remove(fi.Id);
             SetBranchItemsSource(null);
             txtBranchSubtitle.Text = "Select a finance to view branches";
             await ReloadFinancesAsync();
@@ -358,7 +405,7 @@ public partial class FinancesManagerPage : Page
 
             if (w.ShowDialog() == true)
             {
-    
+                _branchCache.Remove(fi.Id);
                 await LoadBranchesForFinanceAsync(fi.Id, fi.Name);
             }
         }
@@ -384,6 +431,7 @@ public partial class FinancesManagerPage : Page
         {
             await _branchRepo.DeleteBranchAsync(branchId);
 
+            _branchCache.Remove(fi.Id);
             await LoadBranchesForFinanceAsync(fi.Id, fi.Name);
         }
         catch (Exception ex)
@@ -476,6 +524,7 @@ public partial class FinancesManagerPage : Page
         {
             await _exportRepo.ClearBranchRecordsAsync(branchId);
 
+            _branchCache.Remove(fi.Id);
             await LoadBranchesForFinanceAsync(fi.Id, fi.Name);
             await ReloadFinancesAsync(fi.Id);  // refresh left column totals
         }
@@ -524,12 +573,41 @@ public partial class FinancesManagerPage : Page
     }
 
     // ─────────────────────────────────────────────────────
-    //  Scoped loading helpers
+    //  Spinner helpers
     // ─────────────────────────────────────────────────────
 
+    private static Storyboard MakeSpinSb(RotateTransform rt)
+    {
+        var anim = new DoubleAnimation(0, 360, new Duration(TimeSpan.FromSeconds(0.8)))
+            { RepeatBehavior = RepeatBehavior.Forever };
+        Storyboard.SetTarget(anim, rt);
+        Storyboard.SetTargetProperty(anim, new PropertyPath(RotateTransform.AngleProperty));
+        var sb = new Storyboard();
+        sb.Children.Add(anim);
+        return sb;
+    }
+
     private void SetFinanceLoading(bool loading)
-        => financeLoadingGrid.Visibility = loading ? Visibility.Visible : Visibility.Collapsed;
+    {
+        financeSpinner.Visibility = loading ? Visibility.Visible : Visibility.Collapsed;
+        if (loading)
+        {
+            _financeSpinSb ??= MakeSpinSb(financeSpinnerRt);
+            _financeSpinSb.Begin();
+        }
+        else
+            _financeSpinSb?.Stop();
+    }
 
     private void SetBranchLoading(bool loading)
-        => branchLoadingGrid.Visibility = loading ? Visibility.Visible : Visibility.Collapsed;
+    {
+        branchSpinner.Visibility = loading ? Visibility.Visible : Visibility.Collapsed;
+        if (loading)
+        {
+            _branchSpinSb ??= MakeSpinSb(branchSpinnerRt);
+            _branchSpinSb.Begin();
+        }
+        else
+            _branchSpinSb?.Stop();
+    }
 }

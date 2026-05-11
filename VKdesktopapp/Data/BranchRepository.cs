@@ -104,4 +104,34 @@ VALUES (@fid, @name, @c1, @c2, @c3, @addr, @bcode, @city, @state, @postal, @note
         cmd.Parameters.AddWithValue("@id", id);
         await cmd.ExecuteNonQueryAsync();
     }
+
+    public async Task<List<(int Id, string Name, string FinanceName, long TotalRecords, string UploadedAt)>> GetAllBranchesWithFinanceAsync()
+    {
+        var list = new List<(int, string, string, long, string)>();
+        await using var conn = MySqlFactory.CreateConnection();
+        await conn.OpenAsync();
+        const string sql = @"
+            SELECT b.id, b.name,
+                   COALESCE(f.name,'')  AS finance_name,
+                   b.total_records,
+                   IFNULL(DATE_FORMAT(b.uploaded_at,'%d %b %y %h:%i %p'),'') AS uploaded_at
+            FROM   branches b
+            LEFT JOIN finances f ON f.id = b.finance_id
+            WHERE  b.is_active = 1
+            ORDER  BY f.name, b.name
+            LIMIT  500";
+        await using var cmd = new MySqlCommand(sql, conn) { CommandTimeout = 60 };
+        await using var rdr = await cmd.ExecuteReaderAsync();
+        while (await rdr.ReadAsync())
+        {
+            list.Add((
+                rdr.GetInt32(0),
+                rdr.GetString(1),
+                rdr.GetString(2),
+                rdr.IsDBNull(3) ? 0 : rdr.GetInt64(3),
+                rdr.GetString(4)
+            ));
+        }
+        return list;
+    }
 }
