@@ -63,10 +63,13 @@ public partial class HomePage : Page
         {
             await mapView.EnsureCoreWebView2Async(null);
 
-            mapView.CoreWebView2.NavigationCompleted += (_, _) =>
+            mapView.CoreWebView2.WebMessageReceived += (_, args) =>
             {
-                _mapReady = true;
-                PushMarkersToMap(_lastLiveUsers);
+                if (args.TryGetWebMessageAsString() == "map-ready")
+                {
+                    _mapReady = true;
+                    PushMarkersToMap(_lastLiveUsers);
+                }
             };
 
             // Serve the public folder as http://vkapp.local/ so CDN resources load correctly

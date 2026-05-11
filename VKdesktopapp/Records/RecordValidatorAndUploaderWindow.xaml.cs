@@ -199,7 +199,7 @@ public partial class RecordValidatorAndUploaderWindow : Window
     }
 
     // ──────────────────────────────────────────────────────────────
-    //  Branch loading — direct from MySQL
+    //  Branch loading — via API
     // ──────────────────────────────────────────────────────────────
 
     private async Task LoadBranchesAsync()
@@ -207,9 +207,16 @@ public partial class RecordValidatorAndUploaderWindow : Window
         btnUpload.IsEnabled = false;
         try
         {
-            var branches = await _recordsRepo.GetAllBranchesAsync();
+            var dtos = await DesktopApiClient.GetAllBranchesAsync();
             Branches.Clear();
-            Branches.AddRange(branches);
+            Branches.AddRange(dtos.Select(d => new Branch
+            {
+                BranchId       = d.Id.ToString(),
+                BranchName     = d.Name,
+                HeadOfficeName = d.FinanceName,
+                BranchCode     = "",
+                Address        = d.Address
+            }));
             btnUpload.IsEnabled = true;
         }
         catch (Exception ex)
