@@ -12,7 +12,6 @@ public class BranchRepository
         var list = new List<(int, string, string, string, string, string, long, string)>();
         await using var conn = MySqlFactory.CreateConnection();
         await conn.OpenAsync();
-        // COUNT(*) from vehicle_records directly — never trusts the denormalized total_records column
         var sql = @"
             SELECT b.id,
                    b.name,
@@ -20,15 +19,13 @@ public class BranchRepository
                    COALESCE(b.contact2,'') AS contact2,
                    COALESCE(b.contact3,'') AS contact3,
                    COALESCE(b.address,'')  AS address,
-                   COUNT(vr.id)            AS live_count,
+                   b.total_records         AS live_count,
                    IFNULL(DATE_FORMAT(b.uploaded_at,'%d %b %y %h:%i %p'),'') AS uploaded_at
             FROM branches b
-            LEFT JOIN vehicle_records vr ON vr.branch_id = b.id
             WHERE b.finance_id = @fid AND b.is_active = 1
-            GROUP BY b.id
-            ORDER BY live_count DESC
+            ORDER BY b.total_records DESC
             LIMIT 100";
-        await using var cmd = new MySqlCommand(sql, conn);
+        await using var cmd = new MySqlCommand(sql, conn) { CommandTimeout = 120 };
         cmd.Parameters.AddWithValue("@fid", financeId);
         await using var rdr = await cmd.ExecuteReaderAsync();
         while (await rdr.ReadAsync())
