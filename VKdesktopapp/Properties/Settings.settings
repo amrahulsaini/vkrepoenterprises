@@ -18,7 +18,7 @@
       <Value Profile="(Default)">9850637363</Value>
     </Setting>
     <Setting Name="ApiKey" Type="System.String" Scope="User">
-      <Value Profile="(Default)">vk@kunal.admin</Value>
+      <Value Profile="(Default)">12</Value>
     </Setting>
     <Setting Name="FeedbackPortalFirmId" Type="System.Int32" Scope="User">
       <Value Profile="(Default)">0</Value>
