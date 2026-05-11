@@ -56,15 +56,19 @@ public partial class HomePage : Page
                 PushMarkersToMap(_lastLiveUsers);
             };
 
-            // Load map HTML from file next to the exe
-            var mapPath = Path.Combine(
-                AppDomain.CurrentDomain.BaseDirectory,
-                "public", "map_live.html");
-
-            if (File.Exists(mapPath))
-                mapView.CoreWebView2.Navigate(new Uri(mapPath).AbsoluteUri);
+            // Serve the public folder as http://vkapp.local/ so CDN resources load correctly
+            var publicDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "public");
+            if (Directory.Exists(publicDir))
+            {
+                mapView.CoreWebView2.SetVirtualHostNameToFolderMapping(
+                    "vkapp.local", publicDir,
+                    Microsoft.Web.WebView2.Core.CoreWebView2HostResourceAccessKind.Allow);
+                mapView.CoreWebView2.Navigate("http://vkapp.local/map_live.html");
+            }
             else
+            {
                 mapView.CoreWebView2.NavigateToString(FallbackMapHtml);
+            }
         }
         catch
         {

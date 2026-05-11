@@ -29,7 +29,7 @@
   function updateMarkers(j) {
     markers.forEach(function(m) { map.removeLayer(m); });
     markers = [];
-    var users = JSON.parse(j);
+    var users = Array.isArray(j) ? j : JSON.parse(j);
     users.forEach(function(u) {
       if (u.lat && u.lng) {
         var m = L.marker([u.lat, u.lng], { icon: redIcon })
