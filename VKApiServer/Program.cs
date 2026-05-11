@@ -37,6 +37,13 @@ var port = Environment.GetEnvironmentVariable("PORT") ?? "5002";
 var app = builder.Build();
 app.UseCors();
 
+// Shared HttpClient for forwarding mobile requests to VKmobileapi (port 5001)
+var mobileHttp = new HttpClient
+{
+    BaseAddress = new Uri("http://localhost:5001/"),
+    Timeout     = TimeSpan.FromSeconds(60)
+};
+
 app.MapPost("/api/AppUsers/Login", async (LoginRequest request) =>
 {
     if (!Regex.IsMatch(request.mobileno ?? string.Empty, @"^\d{10}$"))
@@ -1087,6 +1094,40 @@ app.MapGet("/api/mgr/live-users", async (HttpContext ctx, string? since) =>
         return Results.Ok(list);
     }
     catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+// ── Forward /api/mobile/* → VKmobileapi on port 5001 ─────────────────────────
+app.Map("/api/mobile/{**rest}", async (HttpContext ctx) =>
+{
+    var target = ctx.Request.Path + ctx.Request.QueryString;
+    var req    = new HttpRequestMessage(new HttpMethod(ctx.Request.Method), target.Value);
+
+    foreach (var (k, v) in ctx.Request.Headers)
+    {
+        if (k.Equals("Host",              StringComparison.OrdinalIgnoreCase)) continue;
+        if (k.Equals("Content-Length",    StringComparison.OrdinalIgnoreCase)) continue;
+        if (k.Equals("Transfer-Encoding", StringComparison.OrdinalIgnoreCase)) continue;
+        req.Headers.TryAddWithoutValidation(k, (IEnumerable<string?>)v);
+    }
+
+    if (ctx.Request.ContentLength > 0)
+    {
+        req.Content = new StreamContent(ctx.Request.Body);
+        if (ctx.Request.ContentType is { } ct)
+            req.Content.Headers.TryAddWithoutValidation("Content-Type", ct);
+    }
+
+    using var resp = await mobileHttp.SendAsync(req, HttpCompletionOption.ResponseHeadersRead);
+    ctx.Response.StatusCode = (int)resp.StatusCode;
+
+    foreach (var (k, v) in resp.Headers)
+        ctx.Response.Headers[k] = v.ToArray();
+    foreach (var (k, v) in resp.Content.Headers)
+        if (!k.Equals("Transfer-Encoding", StringComparison.OrdinalIgnoreCase))
+            ctx.Response.Headers[k] = v.ToArray();
+    ctx.Response.Headers.Remove("Transfer-Encoding");
+
+    await resp.Content.CopyToAsync(ctx.Response.Body);
 });
 
 app.Run($"http://localhost:{port}");
