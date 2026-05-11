@@ -23,7 +23,6 @@ public partial class RecordValidatorAndUploaderWindow : Window
     private MappedColumns MappedColumns { get; }
     private Branch? SelectedBranch { get; set; }
 
-    private readonly RecordsRepository _recordsRepo = new();
 
     public bool IsRecordsLoading
     {
@@ -240,7 +239,7 @@ public partial class RecordValidatorAndUploaderWindow : Window
     }
 
     // ──────────────────────────────────────────────────────────────
-    //  Upload — direct MySQL, overwrite per branch
+    //  Upload — via API
     // ──────────────────────────────────────────────────────────────
 
     private async void btnUpload_Click(object sender, RoutedEventArgs e)
@@ -266,32 +265,40 @@ public partial class RecordValidatorAndUploaderWindow : Window
             return;
         }
 
-        btnUpload.IsEnabled  = false;
-        txtPBR.Visibility    = Visibility.Visible;
-        txtPBRPct.Visibility = Visibility.Visible;
-        pbr.Visibility       = Visibility.Visible;
-        pbr.IsIndeterminate  = false;
-        pbr.Minimum          = 0;
-        pbr.Maximum          = 100;
-        pbr.Value            = 0;
-        txtPBR.Text          = "Preparing records...";
-        txtPBRPct.Text       = "0%";
-
         var validRecords = _records.Where(r => RcRegex.IsMatch(r.FormatedVehicleNo)).ToList();
         var skipped      = _records.Count - validRecords.Count;
 
-        var progress = new Progress<(int pct, string msg)>(p =>
-        {
-            pbr.Value      = p.pct;
-            txtPBR.Text    = p.msg;
-            txtPBRPct.Text = $"{p.pct}%";
-        });
+        btnUpload.IsEnabled  = false;
+        txtPBR.Visibility    = Visibility.Visible;
+        txtPBRPct.Visibility = Visibility.Collapsed;
+        pbr.Visibility       = Visibility.Visible;
+        pbr.IsIndeterminate  = true;
+        txtPBR.Text          = $"Uploading {validRecords.Count:N0} records…";
 
         try
         {
-            var (inserted, elapsed) = await _recordsRepo.UploadRecordsAsync(branchId, validRecords, progress);
-            pbr.Value   = 100;
-            txtPBR.Text = $"✓ {inserted:N0} records saved in {elapsed:F1}s";
+            var dtos = validRecords.Select(r => new DesktopApiClient.UploadRecordDto(
+                r.FormatedVehicleNo, r.ChasisNo, r.EngineNo, r.Model,
+                r.AgreementNo, r.Bucket, r.GV, r.OD, r.Seasoning,
+                r.TBRFlag, r.Sec9Available, r.Sec17Available,
+                r.CustomerName, r.CustomerAddress, r.CustomerContactNos,
+                r.Region, r.Area, r.BranchName,
+                r.Level1, r.Level1ContactNos,
+                r.Level2, r.Level2ContactNos,
+                r.Level3, r.Level3ContactNos,
+                r.Level4, r.Level4ContactNos,
+                r.SenderMailId1, r.SenderMailId2, r.ExecutiveName,
+                r.POS, r.TOSS, r.Remark
+            )).ToList();
+
+            var (inserted, elapsed) = await DesktopApiClient.UploadRecordsAsync(branchId, dtos);
+
+            pbr.IsIndeterminate = false;
+            pbr.Minimum = 0; pbr.Maximum = 100; pbr.Value = 100;
+            txtPBRPct.Visibility = Visibility.Visible;
+            txtPBRPct.Text = "100%";
+            txtPBR.Text    = $"✓ {inserted:N0} records saved in {elapsed:F1}s";
+
             var skipNote = skipped > 0 ? $"\n\n{skipped} invalid record(s) were skipped." : string.Empty;
             MessageBox.Show(
                 $"{inserted:N0} records saved to \"{SelectedBranch.BranchName}\".\n" +
@@ -301,6 +308,7 @@ public partial class RecordValidatorAndUploaderWindow : Window
         }
         catch (Exception ex)
         {
+            pbr.IsIndeterminate = false;
             pbr.Value   = 0;
             txtPBR.Text = "Upload failed";
             MessageBox.Show($"Upload error: {ex.Message}", "Upload Failed",

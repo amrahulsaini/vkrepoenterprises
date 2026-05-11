@@ -252,6 +252,32 @@ internal static class DesktopApiClient
 
     // ── Column mappings ─────────────────────────────────────────────────────
 
+    // ── Records upload ──────────────────────────────────────────────────────
+
+    internal record UploadRecordDto(
+        string VehicleNo, string ChasisNo, string EngineNo, string Model,
+        string AgreementNo, string Bucket, string GV, string OD, string Seasoning,
+        string TBRFlag, string Sec9Available, string Sec17Available,
+        string CustomerName, string CustomerAddress, string CustomerContact,
+        string Region, string Area, string BranchNameRaw,
+        string Level1, string Level1Contact,
+        string Level2, string Level2Contact,
+        string Level3, string Level3Contact,
+        string Level4, string Level4Contact,
+        string SenderMail1, string SenderMail2, string ExecutiveName,
+        string Pos, string Toss, string Remark);
+
+    internal static async Task<(int Inserted, double ElapsedSeconds)> UploadRecordsAsync(
+        int branchId, List<UploadRecordDto> records)
+    {
+        var resp = await Send(HttpMethod.Post, "api/mgr/records/upload",
+            new { BranchId = branchId, Records = records });
+        resp.EnsureSuccessStatusCode();
+        var r = await resp.Content.ReadFromJsonAsync<JsonElement>(_json);
+        return (r.GetProperty("inserted").GetInt32(),
+                r.GetProperty("elapsedSeconds").GetDouble());
+    }
+
     internal record ColumnTypeDto(int Id, string Name);
     internal record MappingDto(int Id, int ColumnTypeId, string Name);
     internal record ColumnMappingsDto(List<ColumnTypeDto> ColumnTypes, List<MappingDto> Mappings);
