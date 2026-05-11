@@ -47,6 +47,8 @@ public partial class FinancesManagerPage : Page
     private readonly Dictionary<int, List<BranchSummaryItem>> _branchCache = new();
 
     private int _loadingForFinanceId = -1;
+    private bool _isViewAll = false;
+    private bool _suppressSelectionChange = false;
 
     // Spinner storyboards — created once, reused
     private Storyboard? _financeSpinSb;
@@ -115,16 +117,22 @@ public partial class FinancesManagerPage : Page
         try
         {
             var finances = await _financeRepo.GetFinancesAsync();
+            _suppressSelectionChange = true;
             RebuildFinanceList(finances);
             if (selectId.HasValue)
             {
                 var idx = _allFinances.FindIndex(x => x.Id == selectId.Value);
-                if (idx >= 0) { dgFinances.SelectedIndex = idx; return; }
+                if (idx >= 0) dgFinances.SelectedIndex = idx;
             }
-            if (_allFinances.Count > 0) dgFinances.SelectedIndex = 0;
+            else if (!_isViewAll && _allFinances.Count > 0)
+            {
+                dgFinances.SelectedIndex = 0;
+            }
+            _suppressSelectionChange = false;
         }
         catch (Exception ex)
         {
+            _suppressSelectionChange = false;
             MessageBox.Show($"Failed to refresh: {ex.Message}", "Finances", MessageBoxButton.OK, MessageBoxImage.Error);
         }
         finally
@@ -176,6 +184,8 @@ public partial class FinancesManagerPage : Page
 
     private async void dgFinances_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
+        if (_suppressSelectionChange) return;
+        _isViewAll = false;
         if (dgFinances.SelectedItem is FinanceListItem fi)
             await LoadBranchesForFinanceAsync(fi.Id, fi.Name);
     }
@@ -232,9 +242,13 @@ public partial class FinancesManagerPage : Page
     // ─────────────────────────────────────────────────────
 
     private async void btnViewAll_Click(object sender, RoutedEventArgs e)
+        => await LoadViewAllAsync();
+
+    private async Task LoadViewAllAsync()
     {
-        txtBranchSubtitle.Text = "All Finances";
+        _isViewAll             = true;
         _loadingForFinanceId   = -1;
+        txtBranchSubtitle.Text = "All Finances";
         SetBranchLoading(true);
         try
         {
@@ -244,6 +258,7 @@ public partial class FinancesManagerPage : Page
                 BranchId       = it.Id.ToString(),
                 BranchName     = it.Name,
                 HeadOfficeName = it.FinanceName,
+                FinanceId      = it.FinanceId,
                 Records        = it.TotalRecords,
                 UpdatedOn      = it.UploadedAt
             }).ToList();
@@ -362,23 +377,27 @@ public partial class FinancesManagerPage : Page
         if (dgFinances.SelectedItem is not FinanceListItem fi) return;
 
         var result = MessageBox.Show(
-            $"Delete \"{fi.Name}\"?\n\nThis will permanently delete the finance. Branches must be deleted first.",
+            $"Delete \"{fi.Name}\"?\n\nThis will permanently delete the finance, ALL its branches, and ALL vehicle records.",
             "Delete Finance", MessageBoxButton.YesNo, MessageBoxImage.Warning);
         if (result != MessageBoxResult.Yes) return;
 
+        var dlg = new BulkOperationDialog($"Deleting \"{fi.Name}\" and all associated data…")
+        { Owner = Window.GetWindow(this) };
+        dlg.Show();
         try
         {
             await _financeRepo.DeleteFinanceAsync(fi.Id);
+            dlg.SignalSuccess($"\"{fi.Name}\" and all its data deleted.");
 
             _branchCache.Remove(fi.Id);
+            _isViewAll = false;
             SetBranchItemsSource(null);
             txtBranchSubtitle.Text = "Select a finance to view branches";
             await ReloadFinancesAsync();
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Failed to delete finance: {ex.Message}",
-                "Finances", MessageBoxButton.OK, MessageBoxImage.Error);
+            dlg.SignalError($"Failed to delete finance: {ex.Message}");
         }
     }
 
@@ -389,8 +408,11 @@ public partial class FinancesManagerPage : Page
     private async void BranchEdit_Click(object sender, RoutedEventArgs e)
     {
         if (dgBranches.SelectedItem is not BranchSummaryItem bi) return;
-        if (dgFinances.SelectedItem is not FinanceListItem fi) return;
         if (!int.TryParse(bi.BranchId, out int branchId)) return;
+
+        int financeId = GetFinanceIdForBranch(bi);
+        if (financeId == 0) return;
+        string financeName = _allFinances.FirstOrDefault(f => f.Id == financeId)?.Name ?? bi.HeadOfficeName;
 
         try
         {
@@ -398,7 +420,7 @@ public partial class FinancesManagerPage : Page
             if (branch == null) return;
 
             var w = new BranchEditorWindow(
-                fi.Id, fi.Name, branchId,
+                financeId, financeName, branchId,
                 branch.Value.Name,
                 branch.Value.Contact1, branch.Value.Contact2, branch.Value.Contact3,
                 branch.Value.Address, branch.Value.BranchCode)
@@ -406,8 +428,9 @@ public partial class FinancesManagerPage : Page
 
             if (w.ShowDialog() == true)
             {
-                _branchCache.Remove(fi.Id);
-                await LoadBranchesForFinanceAsync(fi.Id, fi.Name);
+                _branchCache.Remove(financeId);
+                if (_isViewAll) await LoadViewAllAsync();
+                else await LoadBranchesForFinanceAsync(financeId, financeName);
             }
         }
         catch (Exception ex)
@@ -420,30 +443,40 @@ public partial class FinancesManagerPage : Page
     private async void BranchDelete_Click(object sender, RoutedEventArgs e)
     {
         if (dgBranches.SelectedItem is not BranchSummaryItem bi) return;
-        if (dgFinances.SelectedItem is not FinanceListItem fi) return;
         if (!int.TryParse(bi.BranchId, out int branchId)) return;
+
+        int financeId = GetFinanceIdForBranch(bi);
+        string financeName = _allFinances.FirstOrDefault(f => f.Id == financeId)?.Name ?? bi.HeadOfficeName;
 
         var result = MessageBox.Show(
             $"Delete branch \"{bi.BranchName}\"?\n\nThis will permanently delete the branch and ALL its vehicle records.",
             "Delete Branch", MessageBoxButton.YesNo, MessageBoxImage.Warning);
         if (result != MessageBoxResult.Yes) return;
 
-        txtBranchSubtitle.Text = "Deleting branch…";
-        SetBranchLoading(true);
+        var dlg = new BulkOperationDialog($"Deleting \"{bi.BranchName}\" and all its records…")
+        { Owner = Window.GetWindow(this) };
+        dlg.Show();
         try
         {
-            await _branchRepo.DeleteBranchAsync(branchId);  // 1 HTTP call, server does all SQL
+            await _branchRepo.DeleteBranchAsync(branchId);
+            dlg.SignalSuccess($"\"{bi.BranchName}\" deleted.");
 
-            _branchCache.Remove(fi.Id);
-            await LoadBranchesForFinanceAsync(fi.Id, fi.Name);
-            await ReloadFinancesAsync(fi.Id);
+            if (financeId > 0) _branchCache.Remove(financeId);
+            if (_isViewAll)
+            {
+                await ReloadFinancesAsync();
+                await LoadViewAllAsync();
+            }
+            else
+            {
+                await LoadBranchesForFinanceAsync(financeId, financeName);
+                await ReloadFinancesAsync(financeId);
+            }
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Failed to delete branch: {ex.Message}",
-                "Finances", MessageBoxButton.OK, MessageBoxImage.Error);
+            dlg.SignalError($"Failed to delete branch: {ex.Message}");
         }
-        finally { SetBranchLoading(false); }
     }
 
     // ─────────────────────────────────────────────────────
@@ -516,30 +549,48 @@ public partial class FinancesManagerPage : Page
     private async void BranchClearRecords_Click(object sender, RoutedEventArgs e)
     {
         if (dgBranches.SelectedItem is not BranchSummaryItem bi) return;
-        if (dgFinances.SelectedItem is not FinanceListItem fi) return;
         if (!int.TryParse(bi.BranchId, out int branchId)) return;
+
+        int financeId = GetFinanceIdForBranch(bi);
+        string financeName = _allFinances.FirstOrDefault(f => f.Id == financeId)?.Name ?? bi.HeadOfficeName;
 
         var result = MessageBox.Show(
             $"Clear ALL records from \"{bi.BranchName}\"?\n\nThis deletes every vehicle record for this branch. The branch itself is kept.",
             "Clear Records", MessageBoxButton.YesNo, MessageBoxImage.Warning);
         if (result != MessageBoxResult.Yes) return;
 
-        txtBranchSubtitle.Text = "Clearing records…";
-        SetBranchLoading(true);
+        var dlg = new BulkOperationDialog($"Clearing all records from \"{bi.BranchName}\"…")
+        { Owner = Window.GetWindow(this) };
+        dlg.Show();
         try
         {
-            await DesktopApiClient.ClearBranchRecordsAsync(branchId);  // 1 HTTP call, server does all SQL
+            var deleted = await DesktopApiClient.ClearBranchRecordsAsync(branchId);
+            dlg.SignalSuccess($"Cleared {deleted:N0} records from \"{bi.BranchName}\".");
 
-            _branchCache.Remove(fi.Id);
-            await LoadBranchesForFinanceAsync(fi.Id, fi.Name);
-            await ReloadFinancesAsync(fi.Id);
+            if (financeId > 0) _branchCache.Remove(financeId);
+            if (_isViewAll)
+            {
+                await ReloadFinancesAsync();
+                await LoadViewAllAsync();
+            }
+            else
+            {
+                await LoadBranchesForFinanceAsync(financeId, financeName);
+                await ReloadFinancesAsync(financeId);
+            }
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Failed to clear records: {ex.Message}", "Error",
-                MessageBoxButton.OK, MessageBoxImage.Error);
+            dlg.SignalError($"Failed to clear records: {ex.Message}");
         }
-        finally { SetBranchLoading(false); }
+    }
+
+    // Returns the finance ID for a branch — from the branch item (View All) or selected finance
+    private int GetFinanceIdForBranch(BranchSummaryItem bi)
+    {
+        if (bi.FinanceId > 0) return bi.FinanceId;
+        if (dgFinances.SelectedItem is FinanceListItem fi) return fi.Id;
+        return 0;
     }
 
     // ─────────────────────────────────────────────────────
