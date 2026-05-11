@@ -6,10 +6,10 @@ public static class DbFactory
 {
     public static MySqlConnection Create()
     {
-        var host = Environment.GetEnvironmentVariable("MYSQL_HOST")     ?? "localhost";
-        var user = Environment.GetEnvironmentVariable("MYSQL_USER")     ?? "root";
-        var pass = Environment.GetEnvironmentVariable("MYSQL_PASSWORD") ?? "";
-        var db   = Environment.GetEnvironmentVariable("MYSQL_DATABASE") ?? "test";
+        var host = Environment.GetEnvironmentVariable("MYSQL_HOST")     ?? "127.0.0.1";
+        var user = Environment.GetEnvironmentVariable("MYSQL_USER")     ?? "vkre_db1";
+        var pass = Environment.GetEnvironmentVariable("MYSQL_PASSWORD") ?? "db1";
+        var db   = Environment.GetEnvironmentVariable("MYSQL_DATABASE") ?? "vkre_db1";
         var port = Environment.GetEnvironmentVariable("MYSQL_PORT")     ?? "3306";
 
         var cs = new MySqlConnectionStringBuilder

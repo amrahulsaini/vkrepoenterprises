@@ -6,7 +6,7 @@ namespace VRASDesktopApp.Data;
 
 public static class MySqlFactory
 {
-    private const string Host = "34.59.75.191";
+    private const string Host = "127.0.0.1";
     private const string User = "vkre_db1";
     private const string Pass = "db1";
     private const string Db   = "vkre_db1";
