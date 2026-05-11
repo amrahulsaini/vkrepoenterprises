@@ -61,6 +61,7 @@ public class ExportRepository
         await using var del = new MySqlCommand(
             "DELETE FROM vehicle_records WHERE branch_id = @bid", conn);
         del.Parameters.AddWithValue("@bid", branchId);
+        del.CommandTimeout = 300; // large branches can take a while to delete
         await del.ExecuteNonQueryAsync();
         await using var upd = new MySqlCommand(
             "UPDATE branches SET total_records = 0, uploaded_at = NOW() WHERE id = @bid", conn);
