@@ -435,6 +435,7 @@ public partial class FinancesManagerPage : Page
 
             _branchCache.Remove(fi.Id);
             await LoadBranchesForFinanceAsync(fi.Id, fi.Name);
+            await ReloadFinancesAsync(fi.Id);
         }
         catch (Exception ex)
         {
