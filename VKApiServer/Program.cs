@@ -94,12 +94,12 @@ app.MapPost("/api/Records/MarkReleased/{id}", async (string id) =>
         await using var conn = new MySqlConnection(connStr);
         await conn.OpenAsync();
         await using var getCmd = new MySqlCommand(
-            "SELECT is_released FROM records WHERE id = @id LIMIT 1", conn);
+            "SELECT is_released FROM vehicle_records WHERE id = @id LIMIT 1", conn);
         getCmd.Parameters.AddWithValue("@id", id);
         var current = (await getCmd.ExecuteScalarAsync())?.ToString()?.ToUpperInvariant();
         var newStatus = current == "YES" ? "NO" : "YES";
         await using var upd = new MySqlCommand(
-            "UPDATE records SET is_released = @s, updated_at = @d WHERE id = @id", conn);
+            "UPDATE vehicle_records SET is_released = @s, updated_at = @d WHERE id = @id", conn);
         upd.Parameters.AddWithValue("@s", newStatus);
         upd.Parameters.AddWithValue("@d", DateTime.UtcNow);
         upd.Parameters.AddWithValue("@id", id);
@@ -115,7 +115,7 @@ app.MapDelete("/api/Records/Delete/{id}", async (string id) =>
     {
         await using var conn = new MySqlConnection(connStr);
         await conn.OpenAsync();
-        await using var cmd = new MySqlCommand("DELETE FROM records WHERE id = @id", conn);
+        await using var cmd = new MySqlCommand("DELETE FROM vehicle_records WHERE id = @id", conn);
         cmd.Parameters.AddWithValue("@id", id);
         await cmd.ExecuteNonQueryAsync();
         return Results.Ok();
@@ -860,6 +860,79 @@ app.MapDelete("/api/mgr/subscriptions/{id:long}", async (HttpContext ctx, long i
         await conn.OpenAsync();
         await MgrExec("DELETE FROM subscriptions WHERE id=@id", conn, 10, ("@id", id));
         return Results.Ok();
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+// ── Vehicle search (desktop) ───────────────────────────────────────────────
+
+app.MapGet("/api/mgr/search", async (HttpContext ctx, string? q, string? mode) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    if (string.IsNullOrWhiteSpace(q)) return Results.Ok(new List<object>());
+    try
+    {
+        var isChassis = string.Equals(mode, "chassis", StringComparison.OrdinalIgnoreCase);
+        const string fields = @"
+            vr.id, vr.vehicle_no, vr.chassis_no, vr.engine_no, vr.model,
+            vr.agreement_no, vr.bucket, vr.gv, vr.od, vr.seasoning, vr.tbr_flag,
+            vr.sec9_available, vr.sec17_available, vr.customer_name, vr.customer_address, vr.customer_contact,
+            vr.region, vr.area, vr.branch_name_raw,
+            vr.level1, vr.level1_contact, vr.level2, vr.level2_contact,
+            vr.level3, vr.level3_contact, vr.level4, vr.level4_contact,
+            vr.sender_mail1, vr.sender_mail2, vr.executive_name, vr.pos, vr.toss, vr.remark,
+            COALESCE(DATE_FORMAT(vr.created_at,'%d %b %Y'),'') AS created_on,
+            b.name AS branch_name,
+            COALESCE(f.name,'') AS financer,
+            COALESCE(b.contact1,'') AS b_c1,
+            COALESCE(b.contact2,'') AS b_c2,
+            COALESCE(b.contact3,'') AS b_c3,
+            COALESCE(b.address,'') AS b_addr";
+
+        var sql = isChassis
+            ? $@"SELECT {fields}
+                 FROM chassis_info ci
+                 INNER JOIN vehicle_records vr ON vr.id = ci.vehicle_record_id
+                 INNER JOIN branches b ON b.id = vr.branch_id
+                 LEFT  JOIN finances f ON f.id = b.finance_id
+                 WHERE ci.last5 = @q
+                 ORDER BY b.name, vr.chassis_no LIMIT 500"
+            : $@"SELECT {fields}
+                 FROM rc_info ri
+                 INNER JOIN vehicle_records vr ON vr.id = ri.vehicle_record_id
+                 INNER JOIN branches b ON b.id = vr.branch_id
+                 LEFT  JOIN finances f ON f.id = b.finance_id
+                 WHERE ri.last4 = @q
+                 ORDER BY b.name, vr.vehicle_no LIMIT 500";
+
+        await using var conn = new MySqlConnection(connStr);
+        await conn.OpenAsync();
+        await using var cmd = new MySqlCommand(sql, conn) { CommandTimeout = 15 };
+        cmd.Parameters.AddWithValue("@q", q.ToUpper().Trim());
+        await using var rdr = await cmd.ExecuteReaderAsync();
+
+        var results = new List<object>();
+        while (await rdr.ReadAsync())
+        {
+            string S(int i) => rdr.IsDBNull(i) ? "" : rdr.GetString(i);
+            results.Add(new
+            {
+                Id = rdr.GetInt64(0).ToString(),
+                VehicleNo = S(1), ChassisNo = S(2), EngineNo = S(3), Model = S(4),
+                AgreementNo = S(5), Bucket = S(6), GV = S(7), OD = S(8),
+                Seasoning = S(9), TBRFlag = S(10), Sec9Available = S(11), Sec17Available = S(12),
+                CustomerName = S(13), CustomerAddress = S(14), CustomerContactNos = S(15),
+                Region = S(16), Area = S(17), BranchFromExcel = S(18),
+                Level1 = S(19), Level1ContactNos = S(20), Level2 = S(21), Level2ContactNos = S(22),
+                Level3 = S(23), Level3ContactNos = S(24), Level4 = S(25), Level4ContactNos = S(26),
+                SenderMailId1 = S(27), SenderMailId2 = S(28), ExecutiveName = S(29),
+                POS = S(30), TOSS = S(31), Remark = S(32), CreatedOn = S(33),
+                BranchName = S(34), Financer = S(35),
+                FirstContactDetails = S(36), SecondContactDetails = S(37),
+                ThirdContactDetails = S(38), Address = S(39)
+            });
+        }
+        return Results.Ok(results);
     }
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
