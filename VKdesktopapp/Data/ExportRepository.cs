@@ -54,7 +54,8 @@ public class ExportRepository
         return await ExecuteAsync(sql, ("@fid", financeId));
     }
 
-    public async Task ClearBranchRecordsAsync(int branchId)
+    // progress callback receives "Clearing… X removed" messages for live UI updates
+    public async Task ClearBranchRecordsAsync(int branchId, IProgress<string>? progress = null)
     {
         await using var conn = MySqlFactory.CreateConnection();
         await conn.OpenAsync();
@@ -67,21 +68,38 @@ public class ExportRepository
             await cmd.ExecuteNonQueryAsync();
         }
 
-        // Disable FK/unique checks so the multi-table delete skips per-row cascade overhead
         await Exec("SET foreign_key_checks=0", conn);
         await Exec("SET unique_checks=0", conn);
-        // Delete vehicle_records + rc_info + chassis_info in one pass (same pattern as upload)
-        await Exec(@"
-            DELETE vr, ri, ci
-            FROM   vehicle_records vr
-            LEFT JOIN rc_info      ri ON ri.vehicle_record_id = vr.id
-            LEFT JOIN chassis_info ci ON ci.vehicle_record_id = vr.id
-            WHERE  vr.branch_id = @bid",
-            conn, timeout: 300, ("@bid", branchId));
+
+        // Chunked delete: 5 000 rows per round-trip keeps each InnoDB transaction
+        // tiny — avoids undo-log bloat that caused the single-DELETE timeout.
+        int totalDeleted = 0;
+        while (true)
+        {
+            var ids = new System.Collections.Generic.List<long>(5000);
+            await using (var sel = new MySqlCommand(
+                "SELECT id FROM vehicle_records WHERE branch_id = @bid LIMIT 5000", conn)
+                { CommandTimeout = 30 })
+            {
+                sel.Parameters.AddWithValue("@bid", branchId);
+                await using var rdr = await sel.ExecuteReaderAsync();
+                while (await rdr.ReadAsync()) ids.Add(rdr.GetInt64(0));
+            }
+            if (ids.Count == 0) break;
+
+            var idList = string.Join(",", ids);
+            await Exec($"DELETE FROM rc_info      WHERE vehicle_record_id IN ({idList})", conn, 60);
+            await Exec($"DELETE FROM chassis_info WHERE vehicle_record_id IN ({idList})", conn, 60);
+            await Exec($"DELETE FROM vehicle_records WHERE id IN ({idList})", conn, 60);
+
+            totalDeleted += ids.Count;
+            progress?.Report($"Clearing… {totalDeleted:N0} records removed");
+        }
+
         await Exec("SET foreign_key_checks=1", conn);
         await Exec("SET unique_checks=1", conn);
         await Exec("UPDATE branches SET total_records=0, uploaded_at=NOW() WHERE id=@bid",
-            conn, timeout: 30, ("@bid", branchId));
+            conn, 30, ("@bid", branchId));
     }
 
     private static async Task<DataTable> ExecuteAsync(string sql, (string name, object value) param)
