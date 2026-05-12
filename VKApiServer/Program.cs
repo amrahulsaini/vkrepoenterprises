@@ -1320,12 +1320,20 @@ app.MapPost("/api/mgr/records/upload", async (HttpContext ctx) =>
         await Push(100, $"Done", inserted, sw.Elapsed.TotalSeconds);
 
         // ── 7. Background index rebuild ───────────────────────────────────
+        // DELETE before INSERT makes each task idempotent: if a previous upload's
+        // background task is still running when a new upload starts, the stale INSERT
+        // targets the same vehicle_record rows and would double rc_info/chassis_info
+        // (unique_checks=0 lets duplicates slip through). Deleting first ensures only
+        // one set of rows exists regardless of overlapping executions.
         _ = Task.WhenAll(
             Task.Run(async () =>
             {
                 await using var c = new MySqlConnection(connStr);
                 await c.OpenAsync();
                 await MgrExec("SET foreign_key_checks=0", c); await MgrExec("SET unique_checks=0", c);
+                await MgrExec(@"DELETE ri FROM rc_info ri
+                    INNER JOIN vehicle_records vr ON vr.id = ri.vehicle_record_id
+                    WHERE vr.branch_id = @bid", c, 300, ("@bid", branchId));
                 await MgrExec(@"INSERT INTO rc_info (vehicle_record_id,rc_number,model,last4)
                     SELECT id,vehicle_no,COALESCE(model,''),RIGHT(vehicle_no,4)
                     FROM vehicle_records WHERE branch_id=@bid AND vehicle_no IS NOT NULL AND vehicle_no!=''",
@@ -1337,6 +1345,9 @@ app.MapPost("/api/mgr/records/upload", async (HttpContext ctx) =>
                 await using var c = new MySqlConnection(connStr);
                 await c.OpenAsync();
                 await MgrExec("SET foreign_key_checks=0", c); await MgrExec("SET unique_checks=0", c);
+                await MgrExec(@"DELETE ci FROM chassis_info ci
+                    INNER JOIN vehicle_records vr ON vr.id = ci.vehicle_record_id
+                    WHERE vr.branch_id = @bid", c, 300, ("@bid", branchId));
                 await MgrExec(@"INSERT INTO chassis_info (vehicle_record_id,chassis_number,model,last5)
                     SELECT id,chassis_no,COALESCE(model,''),RIGHT(chassis_no,5)
                     FROM vehicle_records WHERE branch_id=@bid AND chassis_no IS NOT NULL AND chassis_no!=''",
