@@ -58,20 +58,32 @@ class LocationWorker @AssistedInject constructor(
         return Result.success()
     }
 
-    private suspend fun getLocation(highAccuracy: Boolean): Location? =
-        suspendCancellableCoroutine { cont ->
-            val cts = CancellationTokenSource()
-            val priority = if (highAccuracy)
-                Priority.PRIORITY_BALANCED_POWER_ACCURACY
-            else
-                Priority.PRIORITY_LOW_POWER
+    private suspend fun getLocation(highAccuracy: Boolean): Location? {
+        val client = LocationServices.getFusedLocationProviderClient(context)
+        val priority = if (highAccuracy)
+            Priority.PRIORITY_BALANCED_POWER_ACCURACY
+        else
+            Priority.PRIORITY_LOW_POWER
 
-            LocationServices.getFusedLocationProviderClient(context)
-                .getCurrentLocation(priority, cts.token)
+        // Try a fresh fix first; background workers often can't warm the GPS chip
+        // in time, so getCurrentLocation returns null → fall back to last known.
+        val fresh = suspendCancellableCoroutine<Location?> { cont ->
+            val cts = CancellationTokenSource()
+            client.getCurrentLocation(priority, cts.token)
                 .addOnSuccessListener { loc -> cont.resume(loc) }
                 .addOnFailureListener { cont.resume(null) }
                 .addOnCanceledListener  { cont.resume(null) }
-
             cont.invokeOnCancellation { cts.cancel() }
         }
+        if (fresh != null) return fresh
+
+        // lastLocation is the system-cached position (any app); always available
+        // as long as the device has had a fix at any point.
+        return suspendCancellableCoroutine { cont ->
+            client.lastLocation
+                .addOnSuccessListener { loc -> cont.resume(loc) }
+                .addOnFailureListener { cont.resume(null) }
+                .addOnCanceledListener  { cont.resume(null) }
+        }
+    }
 }
