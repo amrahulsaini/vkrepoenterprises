@@ -131,11 +131,6 @@
     }
   }
 
-  // Notify C# host once Leaflet and the map are fully ready
-  window.addEventListener('load', function() {
-    if (window.chrome && window.chrome.webview)
-      window.chrome.webview.postMessage('map-ready');
-  });
 </script>
 </body>
 </html>

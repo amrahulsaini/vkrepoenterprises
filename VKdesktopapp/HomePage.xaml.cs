@@ -63,16 +63,6 @@ public partial class HomePage : Page
         {
             await mapView.EnsureCoreWebView2Async(null);
 
-            mapView.CoreWebView2.WebMessageReceived += (_, args) =>
-            {
-                if (args.TryGetWebMessageAsString() == "map-ready")
-                {
-                    _mapReady = true;
-                    PushMarkersToMap(_lastLiveUsers);
-                }
-            };
-
-            // Serve the public folder as http://vkapp.local/ so CDN resources load correctly
             var publicDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "public");
             if (Directory.Exists(publicDir))
             {
@@ -85,10 +75,35 @@ public partial class HomePage : Page
             {
                 mapView.CoreWebView2.NavigateToString(FallbackMapHtml);
             }
+
+            // Don't await — polling runs in background so LoadDashboardAsync starts immediately
+            _ = PollForMapReadyAsync();
         }
         catch
         {
             // WebView2 runtime not installed — map panel will be blank
+        }
+    }
+
+    // Polls every 250 ms until Leaflet has finished loading and updateMarkers is callable.
+    // Needed because window.load postMessage is unreliable when the CDN script is slow.
+    private async Task PollForMapReadyAsync()
+    {
+        for (int i = 0; i < 80; i++)   // up to 20 s
+        {
+            await Task.Delay(250);
+            try
+            {
+                var result = await mapView.CoreWebView2.ExecuteScriptAsync(
+                    "typeof updateMarkers === 'function'");
+                if (result == "true")
+                {
+                    _mapReady = true;
+                    PushMarkersToMap(_lastLiveUsers);
+                    return;
+                }
+            }
+            catch { }
         }
     }
 
