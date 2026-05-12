@@ -1,9 +1,14 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.IO.Compression;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
+using VRASDesktopApp.Models;
 
 namespace VRASDesktopApp.Data;
 
@@ -253,29 +258,72 @@ internal static class DesktopApiClient
     // ── Column mappings ─────────────────────────────────────────────────────
 
     // ── Records upload ──────────────────────────────────────────────────────
-
-    internal record UploadRecordDto(
-        string VehicleNo, string ChasisNo, string EngineNo, string Model,
-        string AgreementNo, string Bucket, string GV, string OD, string Seasoning,
-        string TBRFlag, string Sec9Available, string Sec17Available,
-        string CustomerName, string CustomerAddress, string CustomerContact,
-        string Region, string Area, string BranchNameRaw,
-        string Level1, string Level1Contact,
-        string Level2, string Level2Contact,
-        string Level3, string Level3Contact,
-        string Level4, string Level4Contact,
-        string SenderMail1, string SenderMail2, string ExecutiveName,
-        string Pos, string Toss, string Remark);
-
+    // Wire format: gzip-compressed UTF-8 text
+    //   Line 0 : branchId
+    //   Line 1…: 32 pipe-delimited fields per record (| already stripped from values)
     internal static async Task<(int Inserted, double ElapsedSeconds)> UploadRecordsAsync(
-        int branchId, List<UploadRecordDto> records)
+        int branchId, List<UploadRecord> records)
     {
-        var resp = await Send(HttpMethod.Post, "api/mgr/records/upload",
-            new { BranchId = branchId, Records = records });
+        // Build pipe-delimited text (~300 bytes/row for 100k = ~30 MB raw)
+        var sb = new StringBuilder(records.Count * 300 + 16);
+        sb.AppendLine(branchId.ToString());
+        foreach (var r in records)
+        {
+            sb.Append(r.FormatedVehicleNo).Append('|')
+              .Append(r.ChasisNo).Append('|')
+              .Append(r.EngineNo).Append('|')
+              .Append(r.Model).Append('|')
+              .Append(r.AgreementNo).Append('|')
+              .Append(r.Bucket).Append('|')
+              .Append(r.GV).Append('|')
+              .Append(r.OD).Append('|')
+              .Append(r.Seasoning).Append('|')
+              .Append(r.TBRFlag).Append('|')
+              .Append(r.Sec9Available).Append('|')
+              .Append(r.Sec17Available).Append('|')
+              .Append(r.CustomerName).Append('|')
+              .Append(r.CustomerAddress).Append('|')
+              .Append(r.CustomerContactNos).Append('|')
+              .Append(r.Region).Append('|')
+              .Append(r.Area).Append('|')
+              .Append(r.BranchName).Append('|')
+              .Append(r.Level1).Append('|')
+              .Append(r.Level1ContactNos).Append('|')
+              .Append(r.Level2).Append('|')
+              .Append(r.Level2ContactNos).Append('|')
+              .Append(r.Level3).Append('|')
+              .Append(r.Level3ContactNos).Append('|')
+              .Append(r.Level4).Append('|')
+              .Append(r.Level4ContactNos).Append('|')
+              .Append(r.SenderMailId1).Append('|')
+              .Append(r.SenderMailId2).Append('|')
+              .Append(r.ExecutiveName).Append('|')
+              .Append(r.POS).Append('|')
+              .Append(r.TOSS).Append('|')
+              .AppendLine(r.Remark);
+        }
+
+        // Gzip — Fastest gives ~5-10x compression on repetitive text, minimal CPU
+        var raw = Encoding.UTF8.GetBytes(sb.ToString());
+        byte[] compressed;
+        using (var ms = new MemoryStream())
+        {
+            using (var gz = new GZipStream(ms, CompressionLevel.Fastest))
+                gz.Write(raw, 0, raw.Length);
+            compressed = ms.ToArray();
+        }
+
+        var base_ = App.ApiBaseUrl.TrimEnd('/');
+        var req = new HttpRequestMessage(HttpMethod.Post, $"{base_}/api/mgr/records/upload");
+        req.Headers.Add("X-Api-Key", App.ApiKey);
+        req.Content = new ByteArrayContent(compressed);
+        req.Content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
+
+        var resp = await App.HttpClient.SendAsync(req);
         resp.EnsureSuccessStatusCode();
-        var r = await resp.Content.ReadFromJsonAsync<JsonElement>(_json);
-        return (r.GetProperty("inserted").GetInt32(),
-                r.GetProperty("elapsedSeconds").GetDouble());
+        var result = await resp.Content.ReadFromJsonAsync<JsonElement>(_json);
+        return (result.GetProperty("inserted").GetInt32(),
+                result.GetProperty("elapsedSeconds").GetDouble());
     }
 
     internal record ColumnTypeDto(int Id, string Name);

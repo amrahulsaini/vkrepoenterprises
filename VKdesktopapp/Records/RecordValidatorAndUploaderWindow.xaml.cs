@@ -277,21 +277,7 @@ public partial class RecordValidatorAndUploaderWindow : Window
 
         try
         {
-            var dtos = validRecords.Select(r => new DesktopApiClient.UploadRecordDto(
-                r.FormatedVehicleNo, r.ChasisNo, r.EngineNo, r.Model,
-                r.AgreementNo, r.Bucket, r.GV, r.OD, r.Seasoning,
-                r.TBRFlag, r.Sec9Available, r.Sec17Available,
-                r.CustomerName, r.CustomerAddress, r.CustomerContactNos,
-                r.Region, r.Area, r.BranchName,
-                r.Level1, r.Level1ContactNos,
-                r.Level2, r.Level2ContactNos,
-                r.Level3, r.Level3ContactNos,
-                r.Level4, r.Level4ContactNos,
-                r.SenderMailId1, r.SenderMailId2, r.ExecutiveName,
-                r.POS, r.TOSS, r.Remark
-            )).ToList();
-
-            var (inserted, elapsed) = await DesktopApiClient.UploadRecordsAsync(branchId, dtos);
+            var (inserted, elapsed) = await DesktopApiClient.UploadRecordsAsync(branchId, validRecords);
 
             pbr.IsIndeterminate = false;
             pbr.Minimum = 0; pbr.Maximum = 100; pbr.Value = 100;

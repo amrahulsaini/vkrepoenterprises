@@ -1,5 +1,6 @@
 using System.Data;
 using System.Diagnostics;
+using System.IO.Compression;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Caching.Memory;
 using MySqlConnector;
@@ -1175,38 +1176,27 @@ app.MapPost("/api/mgr/column-types", async (HttpContext ctx, MgrCreateColumnType
 });
 
 // ── Bulk upload records from desktop app ─────────────────────────────────────
-app.MapPost("/api/mgr/records/upload", async (HttpContext ctx, MgrUploadBatchDto dto) =>
+// Wire format: gzip-compressed UTF-8 text
+//   Line 0 : branchId
+//   Line 1…: 32 pipe-delimited fields per record (| already stripped from values)
+app.MapPost("/api/mgr/records/upload", async (HttpContext ctx) =>
 {
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
-    if (dto.BranchId <= 0) return Results.BadRequest(new { message = "Invalid branchId." });
-    if (dto.Records == null || dto.Records.Count == 0)
-        return Results.BadRequest(new { message = "No records provided." });
     try
     {
         var sw = Stopwatch.StartNew();
 
-        await using var conn = new MySqlConnection(connStr);
-        await conn.OpenAsync();
+        // Decompress and read the pipe-delimited payload
+        string text;
+        await using (var gz = new GZipStream(ctx.Request.Body, CompressionMode.Decompress))
+        using (var rdr = new System.IO.StreamReader(gz, System.Text.Encoding.UTF8))
+            text = await rdr.ReadToEndAsync();
 
-        await MgrExec("SET foreign_key_checks = 0", conn);
-        await MgrExec("SET unique_checks = 0", conn);
+        var lines = text.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+        if (lines.Length < 2 || !int.TryParse(lines[0].Trim(), out int branchId) || branchId <= 0)
+            return Results.BadRequest(new { message = "Invalid payload." });
 
-        await using var existCmd = new MySqlCommand(
-            "SELECT EXISTS(SELECT 1 FROM vehicle_records WHERE branch_id = @bid LIMIT 1)", conn);
-        existCmd.Parameters.AddWithValue("@bid", dto.BranchId);
-        var hasRecords = Convert.ToInt64(await existCmd.ExecuteScalarAsync()) == 1;
-
-        if (hasRecords)
-            await MgrExec(@"
-                DELETE vr, ri, ci
-                FROM   vehicle_records vr
-                LEFT JOIN rc_info      ri ON ri.vehicle_record_id = vr.id
-                LEFT JOIN chassis_info ci ON ci.vehicle_record_id = vr.id
-                WHERE  vr.branch_id = @bid",
-                conn, 300, ("@bid", dto.BranchId));
-
-        static string Tr(string? v, int max) =>
-            string.IsNullOrEmpty(v) ? "" : (v.Length > max ? v[..max] : v);
+        static string Tr(string v, int max) => v.Length > max ? v[..max] : v;
 
         var dt = new DataTable();
         dt.Columns.Add("branch_id",        typeof(int));
@@ -1242,23 +1232,44 @@ app.MapPost("/api/mgr/records/upload", async (HttpContext ctx, MgrUploadBatchDto
         dt.Columns.Add("pos",              typeof(string));
         dt.Columns.Add("toss",             typeof(string));
         dt.Columns.Add("remark",           typeof(string));
-        dt.MinimumCapacity = dto.Records.Count;
+        dt.MinimumCapacity = lines.Length - 1;
 
-        foreach (var r in dto.Records)
+        for (int i = 1; i < lines.Length; i++)
+        {
+            var f = lines[i].TrimEnd('\r').Split('|', 32);
+            if (f.Length < 32) continue;
             dt.Rows.Add(
-                dto.BranchId,
-                Tr(r.VehicleNo,50), Tr(r.ChasisNo,100), Tr(r.EngineNo,100), Tr(r.Model,200),
-                Tr(r.AgreementNo,100), Tr(r.Bucket,50), Tr(r.GV,50), Tr(r.OD,50),
-                Tr(r.Seasoning,50), Tr(r.TBRFlag,20), Tr(r.Sec9Available,20), Tr(r.Sec17Available,20),
-                Tr(r.CustomerName,200), r.CustomerAddress ?? "", Tr(r.CustomerContact,100),
-                Tr(r.Region,100), Tr(r.Area,100), Tr(r.BranchNameRaw,200),
-                Tr(r.Level1,200), Tr(r.Level1Contact,100),
-                Tr(r.Level2,200), Tr(r.Level2Contact,100),
-                Tr(r.Level3,200), Tr(r.Level3Contact,100),
-                Tr(r.Level4,200), Tr(r.Level4Contact,100),
-                Tr(r.SenderMail1,200), Tr(r.SenderMail2,200),
-                Tr(r.ExecutiveName,200), Tr(r.Pos,100), Tr(r.Toss,100),
-                r.Remark ?? "");
+                branchId,
+                Tr(f[0],50),  Tr(f[1],100), Tr(f[2],100), Tr(f[3],200),
+                Tr(f[4],100), Tr(f[5],50),  Tr(f[6],50),  Tr(f[7],50),
+                Tr(f[8],50),  Tr(f[9],20),  Tr(f[10],20), Tr(f[11],20),
+                Tr(f[12],200),f[13],         Tr(f[14],100),
+                Tr(f[15],100),Tr(f[16],100), Tr(f[17],200),
+                Tr(f[18],200),Tr(f[19],100),
+                Tr(f[20],200),Tr(f[21],100),
+                Tr(f[22],200),Tr(f[23],100),
+                Tr(f[24],200),Tr(f[25],100),
+                Tr(f[26],200),Tr(f[27],200),
+                Tr(f[28],200),Tr(f[29],100), Tr(f[30],100),
+                f[31]);
+        }
+
+        await using var conn = new MySqlConnection(connStr);
+        await conn.OpenAsync();
+        await MgrExec("SET foreign_key_checks = 0", conn);
+        await MgrExec("SET unique_checks = 0", conn);
+
+        await using var existCmd = new MySqlCommand(
+            "SELECT EXISTS(SELECT 1 FROM vehicle_records WHERE branch_id = @bid LIMIT 1)", conn);
+        existCmd.Parameters.AddWithValue("@bid", branchId);
+        if (Convert.ToInt64(await existCmd.ExecuteScalarAsync()) == 1)
+            await MgrExec(@"
+                DELETE vr, ri, ci
+                FROM   vehicle_records vr
+                LEFT JOIN rc_info      ri ON ri.vehicle_record_id = vr.id
+                LEFT JOIN chassis_info ci ON ci.vehicle_record_id = vr.id
+                WHERE  vr.branch_id = @bid",
+                conn, 300, ("@bid", branchId));
 
         var bc = new MySqlBulkCopy(conn) { DestinationTableName = "vehicle_records", BulkCopyTimeout = 600 };
         for (int i = 0; i < dt.Columns.Count; i++)
@@ -1268,13 +1279,11 @@ app.MapPost("/api/mgr/records/upload", async (HttpContext ctx, MgrUploadBatchDto
         int inserted = (int)bcResult.RowsInserted;
 
         await MgrExec("UPDATE branches SET total_records=@cnt, uploaded_at=NOW() WHERE id=@bid",
-            conn, 30, ("@cnt", inserted), ("@bid", dto.BranchId));
+            conn, 30, ("@cnt", inserted), ("@bid", branchId));
         await MgrExec("SET foreign_key_checks = 1", conn);
         await MgrExec("SET unique_checks = 1", conn);
-
         sw.Stop();
 
-        // Rebuild rc_info / chassis_info on background threads — mobile sync can start immediately
         _ = Task.WhenAll(
             Task.Run(async () =>
             {
@@ -1284,7 +1293,7 @@ app.MapPost("/api/mgr/records/upload", async (HttpContext ctx, MgrUploadBatchDto
                 await MgrExec(@"INSERT INTO rc_info (vehicle_record_id,rc_number,model,last4)
                     SELECT id,vehicle_no,COALESCE(model,''),RIGHT(vehicle_no,4)
                     FROM vehicle_records WHERE branch_id=@bid AND vehicle_no IS NOT NULL AND vehicle_no!=''",
-                    c, 300, ("@bid", dto.BranchId));
+                    c, 300, ("@bid", branchId));
                 await MgrExec("SET foreign_key_checks=1", c); await MgrExec("SET unique_checks=1", c);
             }),
             Task.Run(async () =>
@@ -1295,7 +1304,7 @@ app.MapPost("/api/mgr/records/upload", async (HttpContext ctx, MgrUploadBatchDto
                 await MgrExec(@"INSERT INTO chassis_info (vehicle_record_id,chassis_number,model,last5)
                     SELECT id,chassis_no,COALESCE(model,''),RIGHT(chassis_no,5)
                     FROM vehicle_records WHERE branch_id=@bid AND chassis_no IS NOT NULL AND chassis_no!=''",
-                    c, 300, ("@bid", dto.BranchId));
+                    c, 300, ("@bid", branchId));
                 await MgrExec("SET foreign_key_checks=1", c); await MgrExec("SET unique_checks=1", c);
             }));
 
@@ -1366,16 +1375,3 @@ record MgrSetAdminDto(bool Admin);
 record MgrAddSubscriptionDto(string StartDate, string EndDate, decimal Amount, string? Notes);
 record MgrCreateMappingDto(int ColumnTypeId, string RawName);
 record MgrCreateColumnTypeDto(string Name);
-record MgrUploadRecordDto(
-    string VehicleNo, string ChasisNo, string EngineNo, string Model,
-    string AgreementNo, string Bucket, string GV, string OD, string Seasoning,
-    string TBRFlag, string Sec9Available, string Sec17Available,
-    string CustomerName, string CustomerAddress, string CustomerContact,
-    string Region, string Area, string BranchNameRaw,
-    string Level1, string Level1Contact,
-    string Level2, string Level2Contact,
-    string Level3, string Level3Contact,
-    string Level4, string Level4Contact,
-    string SenderMail1, string SenderMail2, string ExecutiveName,
-    string Pos, string Toss, string Remark);
-record MgrUploadBatchDto(int BranchId, List<MgrUploadRecordDto> Records);
