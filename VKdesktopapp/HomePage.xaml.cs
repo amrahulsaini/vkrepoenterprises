@@ -149,9 +149,9 @@ public partial class HomePage : Page
 
         // Live users
         _lastLiveUsers = live;
-        lblLiveCount.Text = since == "00:00" || string.IsNullOrWhiteSpace(since)
-            ? $"{live.Count} users seen today"
-            : $"{live.Count} users seen since {since}";
+        var pinned = live.Count(u => u.Lat.HasValue && u.Lng.HasValue);
+        var period = since == "00:00" || string.IsNullOrWhiteSpace(since) ? "today" : $"since {since}";
+        lblLiveCount.Text = $"{live.Count} users seen {period}  •  {pinned} pinned";
         PushMarkersToMap(live);
     }
 
