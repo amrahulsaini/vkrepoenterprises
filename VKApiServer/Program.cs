@@ -1175,26 +1175,48 @@ app.MapPost("/api/mgr/column-types", async (HttpContext ctx, MgrCreateColumnType
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
 
-// ── Bulk upload records from desktop app ─────────────────────────────────────
-// Wire format: gzip-compressed UTF-8 text
-//   Line 0 : branchId
-//   Line 1…: 32 pipe-delimited fields per record (| already stripped from values)
+// ── Bulk upload records from desktop app (streaming ndjson progress) ──────────
+// Wire format in: gzip-compressed UTF-8 text — line 0 = branchId, rest = 32 pipe-delimited fields
+// Wire format out: newline-delimited JSON  {"pct":N,"msg":"..."} … {"pct":100,"msg":"…","inserted":N,"elapsedSeconds":N}
 app.MapPost("/api/mgr/records/upload", async (HttpContext ctx) =>
 {
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+
+    // ── 1. Decompress + parse BEFORE touching the response ────────────────
+    string text;
     try
     {
-        var sw = Stopwatch.StartNew();
+        await using var gz = new GZipStream(ctx.Request.Body, CompressionMode.Decompress);
+        using var rdr = new System.IO.StreamReader(gz, System.Text.Encoding.UTF8);
+        text = await rdr.ReadToEndAsync();
+    }
+    catch (Exception ex) { return Results.BadRequest(new { message = "Decompress failed: " + ex.Message }); }
 
-        // Decompress and read the pipe-delimited payload
-        string text;
-        await using (var gz = new GZipStream(ctx.Request.Body, CompressionMode.Decompress))
-        using (var rdr = new System.IO.StreamReader(gz, System.Text.Encoding.UTF8))
-            text = await rdr.ReadToEndAsync();
+    var lines = text.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+    if (lines.Length < 2 || !int.TryParse(lines[0].Trim(), out int branchId) || branchId <= 0)
+        return Results.BadRequest(new { message = "Invalid payload." });
 
-        var lines = text.Split('\n', StringSplitOptions.RemoveEmptyEntries);
-        if (lines.Length < 2 || !int.TryParse(lines[0].Trim(), out int branchId) || branchId <= 0)
-            return Results.BadRequest(new { message = "Invalid payload." });
+    // ── 2. Switch to streaming ndjson ─────────────────────────────────────
+    ctx.Response.StatusCode  = 200;
+    ctx.Response.ContentType = "application/x-ndjson";
+    ctx.Response.Headers["Cache-Control"]      = "no-cache";
+    ctx.Response.Headers["X-Accel-Buffering"]  = "no";
+
+    async Task Push(int pct, string msg, int? inserted = null, double? elapsed = null)
+    {
+        string line;
+        if (inserted.HasValue)
+            line = $"{{\"pct\":{pct},\"msg\":\"{msg}\",\"inserted\":{inserted.Value},\"elapsedSeconds\":{elapsed!.Value:F2}}}";
+        else
+            line = $"{{\"pct\":{pct},\"msg\":\"{msg}\"}}";
+        await ctx.Response.WriteAsync(line + "\n");
+        await ctx.Response.Body.FlushAsync();
+    }
+
+    try
+    {
+        // ── 3. Build DataTable ────────────────────────────────────────────
+        await Push(5, $"Parsing {lines.Length - 1:N0} records…");
 
         static string Tr(string v, int max) => v.Length > max ? v[..max] : v;
 
@@ -1254,15 +1276,20 @@ app.MapPost("/api/mgr/records/upload", async (HttpContext ctx) =>
                 f[31]);
         }
 
+        // ── 4. Open DB, clear old records ─────────────────────────────────
+        await Push(15, "Connecting to database…");
         await using var conn = new MySqlConnection(connStr);
         await conn.OpenAsync();
         await MgrExec("SET foreign_key_checks = 0", conn);
         await MgrExec("SET unique_checks = 0", conn);
 
+        await Push(20, "Checking existing records…");
         await using var existCmd = new MySqlCommand(
             "SELECT EXISTS(SELECT 1 FROM vehicle_records WHERE branch_id = @bid LIMIT 1)", conn);
         existCmd.Parameters.AddWithValue("@bid", branchId);
         if (Convert.ToInt64(await existCmd.ExecuteScalarAsync()) == 1)
+        {
+            await Push(25, "Clearing old records…");
             await MgrExec(@"
                 DELETE vr, ri, ci
                 FROM   vehicle_records vr
@@ -1270,20 +1297,29 @@ app.MapPost("/api/mgr/records/upload", async (HttpContext ctx) =>
                 LEFT JOIN chassis_info ci ON ci.vehicle_record_id = vr.id
                 WHERE  vr.branch_id = @bid",
                 conn, 300, ("@bid", branchId));
+        }
 
+        // ── 5. BulkCopy ───────────────────────────────────────────────────
+        await Push(35, $"Uploading {dt.Rows.Count:N0} records to database…");
+        var sw = Stopwatch.StartNew();
         var bc = new MySqlBulkCopy(conn) { DestinationTableName = "vehicle_records", BulkCopyTimeout = 600 };
         for (int i = 0; i < dt.Columns.Count; i++)
             bc.ColumnMappings.Add(new MySqlBulkCopyColumnMapping(i, dt.Columns[i].ColumnName));
         var bcResult = await bc.WriteToServerAsync(dt);
         dt.Dispose();
+        sw.Stop();
         int inserted = (int)bcResult.RowsInserted;
 
+        // ── 6. Finalize ───────────────────────────────────────────────────
+        await Push(88, "Updating branch stats…");
         await MgrExec("UPDATE branches SET total_records=@cnt, uploaded_at=NOW() WHERE id=@bid",
             conn, 30, ("@cnt", inserted), ("@bid", branchId));
         await MgrExec("SET foreign_key_checks = 1", conn);
         await MgrExec("SET unique_checks = 1", conn);
-        sw.Stop();
 
+        await Push(100, $"Done", inserted, sw.Elapsed.TotalSeconds);
+
+        // ── 7. Background index rebuild ───────────────────────────────────
         _ = Task.WhenAll(
             Task.Run(async () =>
             {
@@ -1307,10 +1343,15 @@ app.MapPost("/api/mgr/records/upload", async (HttpContext ctx) =>
                     c, 300, ("@bid", branchId));
                 await MgrExec("SET foreign_key_checks=1", c); await MgrExec("SET unique_checks=1", c);
             }));
-
-        return Results.Ok(new { inserted, elapsedSeconds = sw.Elapsed.TotalSeconds });
     }
-    catch (Exception ex) { return Results.Problem(ex.Message); }
+    catch (Exception ex)
+    {
+        await ctx.Response.WriteAsync($"{{\"pct\":-1,\"msg\":\"{ex.Message.Replace("\"", "'")}\"}}\n");
+        await ctx.Response.Body.FlushAsync();
+    }
+
+    // Response already written above; returning Ok() is a no-op once HasStarted=true
+    return Results.Ok();
 });
 
 // ── Forward /api/mobile/* → VKmobileapi on port 5001 ─────────────────────────

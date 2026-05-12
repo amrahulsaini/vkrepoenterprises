@@ -262,7 +262,8 @@ internal static class DesktopApiClient
     //   Line 0 : branchId
     //   Line 1…: 32 pipe-delimited fields per record (| already stripped from values)
     internal static async Task<(int Inserted, double ElapsedSeconds)> UploadRecordsAsync(
-        int branchId, List<UploadRecord> records)
+        int branchId, List<UploadRecord> records,
+        IProgress<(int pct, string msg)>? progress = null)
     {
         // Build pipe-delimited text (~300 bytes/row for 100k = ~30 MB raw)
         var sb = new StringBuilder(records.Count * 300 + 16);
@@ -319,11 +320,38 @@ internal static class DesktopApiClient
         req.Content = new ByteArrayContent(compressed);
         req.Content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
 
-        var resp = await App.HttpClient.SendAsync(req);
+        // ResponseHeadersRead lets us stream the ndjson chunks as they arrive
+        using var resp = await App.HttpClient.SendAsync(req, HttpCompletionOption.ResponseHeadersRead);
         resp.EnsureSuccessStatusCode();
-        var result = await resp.Content.ReadFromJsonAsync<JsonElement>(_json);
-        return (result.GetProperty("inserted").GetInt32(),
-                result.GetProperty("elapsedSeconds").GetDouble());
+
+        using var stream = await resp.Content.ReadAsStreamAsync();
+        using var reader = new StreamReader(stream, Encoding.UTF8);
+
+        int inserted = 0;
+        double elapsedSeconds = 0;
+
+        while (!reader.EndOfStream)
+        {
+            var line = await reader.ReadLineAsync();
+            if (string.IsNullOrWhiteSpace(line)) continue;
+
+            using var doc = JsonDocument.Parse(line);
+            var root = doc.RootElement;
+            int pct   = root.GetProperty("pct").GetInt32();
+            string msg = root.GetProperty("msg").GetString() ?? "";
+
+            if (pct == -1) throw new Exception(msg);
+
+            if (pct == 100)
+            {
+                inserted       = root.GetProperty("inserted").GetInt32();
+                elapsedSeconds = root.GetProperty("elapsedSeconds").GetDouble();
+            }
+
+            progress?.Report((pct, msg));
+        }
+
+        return (inserted, elapsedSeconds);
     }
 
     internal record ColumnTypeDto(int Id, string Name);

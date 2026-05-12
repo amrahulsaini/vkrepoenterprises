@@ -270,18 +270,30 @@ public partial class RecordValidatorAndUploaderWindow : Window
 
         btnUpload.IsEnabled  = false;
         txtPBR.Visibility    = Visibility.Visible;
-        txtPBRPct.Visibility = Visibility.Collapsed;
+        txtPBRPct.Visibility = Visibility.Visible;
         pbr.Visibility       = Visibility.Visible;
-        pbr.IsIndeterminate  = true;
-        txtPBR.Text          = $"Uploading {validRecords.Count:N0} records…";
+        pbr.IsIndeterminate  = false;
+        pbr.Minimum          = 0;
+        pbr.Maximum          = 100;
+        pbr.Value            = 0;
+        txtPBR.Text          = "Starting upload…";
+        txtPBRPct.Text       = "0%";
+
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+
+        var progress = new Progress<(int pct, string msg)>(p =>
+        {
+            pbr.Value      = p.pct;
+            txtPBRPct.Text = $"{p.pct}%";
+            txtPBR.Text    = $"{p.msg}  ({sw.Elapsed.TotalSeconds:F0}s)";
+        });
 
         try
         {
-            var (inserted, elapsed) = await DesktopApiClient.UploadRecordsAsync(branchId, validRecords);
+            var (inserted, elapsed) = await DesktopApiClient.UploadRecordsAsync(branchId, validRecords, progress);
+            sw.Stop();
 
-            pbr.IsIndeterminate = false;
-            pbr.Minimum = 0; pbr.Maximum = 100; pbr.Value = 100;
-            txtPBRPct.Visibility = Visibility.Visible;
+            pbr.Value      = 100;
             txtPBRPct.Text = "100%";
             txtPBR.Text    = $"✓ {inserted:N0} records saved in {elapsed:F1}s";
 
@@ -294,9 +306,10 @@ public partial class RecordValidatorAndUploaderWindow : Window
         }
         catch (Exception ex)
         {
-            pbr.IsIndeterminate = false;
-            pbr.Value   = 0;
-            txtPBR.Text = "Upload failed";
+            sw.Stop();
+            pbr.Value      = 0;
+            txtPBRPct.Text = "0%";
+            txtPBR.Text    = "Upload failed";
             MessageBox.Show($"Upload error: {ex.Message}", "Upload Failed",
                 MessageBoxButton.OK, MessageBoxImage.Error);
         }
