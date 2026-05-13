@@ -298,11 +298,7 @@ public class MobileRepository
     // ── RC search (instant — indexed last4) ───────────────────────────────
     public async Task<List<SearchResult>> SearchByRcAsync(string last4)
     {
-        var key = $"rc:{last4.ToUpper()}";
-        if (_cache.TryGetValue(key, out var cached) && DateTime.UtcNow - cached.At < CacheTtl)
-            return cached.Results;
-
-        var results = await SearchAsync($@"
+        return await SearchAsync($@"
             SELECT {SelectFields}
             FROM rc_info ri
             INNER JOIN vehicle_records vr ON vr.id = ri.vehicle_record_id
@@ -311,19 +307,12 @@ public class MobileRepository
             WHERE ri.last4 = @q
             ORDER BY b.name, vr.vehicle_no LIMIT 500",
             last4.ToUpper());
-
-        _cache[key] = (results, DateTime.UtcNow);
-        return results;
     }
 
     // ── Chassis search (instant — indexed last5) ──────────────────────────
     public async Task<List<SearchResult>> SearchByChassisAsync(string last5)
     {
-        var key = $"ch:{last5.ToUpper()}";
-        if (_cache.TryGetValue(key, out var cached) && DateTime.UtcNow - cached.At < CacheTtl)
-            return cached.Results;
-
-        var results = await SearchAsync($@"
+        return await SearchAsync($@"
             SELECT {SelectFields}
             FROM chassis_info ci
             INNER JOIN vehicle_records vr ON vr.id = ci.vehicle_record_id
@@ -332,9 +321,6 @@ public class MobileRepository
             WHERE ci.last5 = @q
             ORDER BY b.name, vr.chassis_no LIMIT 500",
             last5.ToUpper());
-
-        _cache[key] = (results, DateTime.UtcNow);
-        return results;
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────
