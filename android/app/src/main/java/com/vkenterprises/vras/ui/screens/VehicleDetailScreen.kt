@@ -254,7 +254,12 @@ private fun AdminDetailView(item: SearchResult, results: List<SearchResult>) {
     // Deduplicate branches by (branchName, financer) so the same branch uploaded
     // multiple times only appears once. Keep all unique (branch, financer) pairs.
     data class BranchEntry(val branch: String, val financer: String)
-    val uniqueBranches = results
+    // Only show branches for THIS vehicle — filter by vehicleNo or chassisNo match
+    val vehicleRecords = results.filter { r ->
+        (item.vehicleNo.isNotBlank() && r.vehicleNo == item.vehicleNo) ||
+        (item.chassisNo.isNotBlank() && r.chassisNo == item.chassisNo)
+    }.ifEmpty { listOf(item) }  // fallback to the item itself if no matches
+    val uniqueBranches = vehicleRecords
         .map { r ->
             val bn  = r.branchName.orEmpty().ifBlank { r.branchFromExcel.orEmpty() }
             val fin = r.financer.orEmpty()
@@ -284,10 +289,10 @@ private fun AdminDetailView(item: SearchResult, results: List<SearchResult>) {
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             modifier = Modifier.fillMaxWidth()
         ) {
-            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 uniqueBranches.forEachIndexed { idx, entry ->
                     Row(
-                        verticalAlignment = Alignment.CenterVertically,
+                        verticalAlignment = Alignment.Top,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Surface(
@@ -301,20 +306,21 @@ private fun AdminDetailView(item: SearchResult, results: List<SearchResult>) {
                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
                             )
                         }
-                        Column {
+                        Column(Modifier.weight(1f)) {
+                            // Financer = primary (bold, larger) — matches desktop layout
                             Text(
-                                entry.branch.ifBlank { "—" },
-                                style = MaterialTheme.typography.bodySmall,
-                                fontWeight = FontWeight.SemiBold,
+                                entry.financer.ifBlank { "—" },
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Medium,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
-                            if (entry.financer.isNotBlank()) {
-                                Text(
-                                    entry.financer,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
+                            // Branch name = secondary (caption)
+                            Text(
+                                entry.branch.ifBlank { "—" },
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
                     }
                     if (idx < uniqueBranches.lastIndex)
@@ -353,9 +359,10 @@ private fun AdminDetailView(item: SearchResult, results: List<SearchResult>) {
 
     // ── Branch & Finance ────────────────────────────────────────────────
     InfoCard("Branch & Finance") {
-        DRow("Branch (xlsx)", item.branchFromExcel)
-        DRow("Branch",        item.branchName)
         DRow("Finance",       item.financer)
+        DRow("Branch",        item.branchName)
+        DRow("Branch (xlsx)", item.branchFromExcel)
+        DRow("Address",       item.address)
         DRow("Contact 1",     item.firstContact)
         DRow("Contact 2",     item.secondContact)
         DRow("Contact 3",     item.thirdContact)
@@ -363,10 +370,14 @@ private fun AdminDetailView(item: SearchResult, results: List<SearchResult>) {
 
     // ── Level Contacts ──────────────────────────────────────────────────
     InfoCard("Level Contacts") {
-        DRow("Level 1", buildLevelStr(item.level1, item.level1Contact))
-        DRow("Level 2", buildLevelStr(item.level2, item.level2Contact))
-        DRow("Level 3", buildLevelStr(item.level3, item.level3Contact))
-        DRow("Level 4", buildLevelStr(item.level4, item.level4Contact))
+        DRow("Level 1",          item.level1)
+        DRow("Level 1 Contact",  item.level1Contact, mono = true)
+        DRow("Level 2",          item.level2)
+        DRow("Level 2 Contact",  item.level2Contact, mono = true)
+        DRow("Level 3",          item.level3)
+        DRow("Level 3 Contact",  item.level3Contact, mono = true)
+        DRow("Level 4",          item.level4)
+        DRow("Level 4 Contact",  item.level4Contact, mono = true)
     }
 
     // ── Additional Info ─────────────────────────────────────────────────
