@@ -185,17 +185,17 @@
                       SelectionChanged="dgLogs_SelectionChanged"
                       MouseDoubleClick="dgLogs_MouseDoubleClick">
                 <DataGrid.Columns>
-                    <DataGridTextColumn Header="VRN"         Binding="{Binding VehicleNo}"  Width="115" />
-                    <DataGridTextColumn Header="Chassis"     Binding="{Binding ChassisNo}"  Width="130" />
-                    <DataGridTextColumn Header="Model"       Binding="{Binding Model}"      Width="130" />
-                    <DataGridTextColumn Header="Agent"        Binding="{Binding UserName}"    Width="120" />
-                    <DataGridTextColumn Header="Mobile"       Binding="{Binding UserMobile}"  Width="108" />
-                    <DataGridTextColumn Header="Agent Addr"   Binding="{Binding UserAddress}" Width="160" />
-                    <DataGridTextColumn Header="Search Addr"  Binding="{Binding Address}"     Width="*"   />
-                    <DataGridTextColumn Header="Lat"         Binding="{Binding Lat,StringFormat=N5}"  Width="82" />
-                    <DataGridTextColumn Header="Lng"         Binding="{Binding Lng,StringFormat=N5}"  Width="82" />
-                    <DataGridTextColumn Header="Device Time" Binding="{Binding DeviceTime}" Width="135" />
-                    <DataGridTextColumn Header="Server Time" Binding="{Binding ServerTime}" Width="135" />
+                    <DataGridTextColumn Header="VRN"         Binding="{Binding VehicleNo}"              Width="115" />
+                    <DataGridTextColumn Header="Chassis"     Binding="{Binding ChassisNo}"              Width="130" />
+                    <DataGridTextColumn Header="Model"       Binding="{Binding Model}"                  Width="130" />
+                    <DataGridTextColumn Header="Agent"       Binding="{Binding UserName}"               Width="120" />
+                    <DataGridTextColumn Header="Mobile"      Binding="{Binding UserMobile}"             Width="108" />
+                    <DataGridTextColumn Header="Agent Addr"  Binding="{Binding UserAddress}"            Width="180" />
+                    <DataGridTextColumn Header="Search Addr" Binding="{Binding Address}"                Width="220" />
+                    <DataGridTextColumn Header="Lat"         Binding="{Binding Lat,StringFormat=N5}"    Width="82"  />
+                    <DataGridTextColumn Header="Lng"         Binding="{Binding Lng,StringFormat=N5}"    Width="82"  />
+                    <DataGridTextColumn Header="Device Time" Binding="{Binding DeviceTime}"             Width="135" />
+                    <DataGridTextColumn Header="Server Time" Binding="{Binding ServerTime}"             Width="135" />
                 </DataGrid.Columns>
             </DataGrid>
         </Border>

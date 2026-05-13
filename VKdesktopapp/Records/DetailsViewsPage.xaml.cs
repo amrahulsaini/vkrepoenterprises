@@ -66,7 +66,7 @@ public partial class DetailsViewsPage : Page
 
     private void ApplyFilter()
     {
-        var search  = txtSearch.Text.Trim();
+        var search   = txtSearch.Text.Trim();
         var filtered = _allLogs.AsEnumerable();
 
         if (_pickedUserId.HasValue)
@@ -74,11 +74,12 @@ public partial class DetailsViewsPage : Page
 
         if (!string.IsNullOrEmpty(search))
             filtered = filtered.Where(r =>
-                r.VehicleNo.Contains(search, StringComparison.OrdinalIgnoreCase)  ||
-                r.ChassisNo.Contains(search, StringComparison.OrdinalIgnoreCase)  ||
-                r.UserName.Contains(search, StringComparison.OrdinalIgnoreCase)   ||
-                r.UserMobile.Contains(search, StringComparison.OrdinalIgnoreCase) ||
-                (r.Address ?? "").Contains(search, StringComparison.OrdinalIgnoreCase));
+                r.VehicleNo.Contains(search, StringComparison.OrdinalIgnoreCase)    ||
+                r.ChassisNo.Contains(search, StringComparison.OrdinalIgnoreCase)    ||
+                r.UserName.Contains(search, StringComparison.OrdinalIgnoreCase)     ||
+                r.UserMobile.Contains(search, StringComparison.OrdinalIgnoreCase)   ||
+                (r.Address     ?? "").Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                (r.UserAddress ?? "").Contains(search, StringComparison.OrdinalIgnoreCase));
 
         _displayed.Clear();
         foreach (var row in filtered) _displayed.Add(row);
@@ -102,8 +103,8 @@ public partial class DetailsViewsPage : Page
         var win = new UserPickerWindow { Owner = Window.GetWindow(this) };
         if (win.ShowDialog() == true)
         {
-            _pickedUserId        = win.SelectedUserId;
-            txtPickedUser.Text   = win.SelectedUserName.Length > 0
+            _pickedUserId      = win.SelectedUserId;
+            txtPickedUser.Text = win.SelectedUserName.Length > 0
                 ? win.SelectedUserName : "All Agents";
             ApplyFilter();
         }
@@ -143,11 +144,61 @@ public partial class DetailsViewsPage : Page
         win.Show();
     }
 
-    // ── Export Excel ─────────────────────────────────────────────────────────
-    private void btnExportExcel_Click(object sender, RoutedEventArgs e)
-    {
-        if (_displayed.Count == 0) { MessageBox.Show("No records to export."); return; }
+    // ── Shared export helpers ────────────────────────────────────────────────
 
+    private void SetExportBusy(bool busy, string? status = null)
+    {
+        btnExportExcel.IsEnabled = !busy;
+        btnExportPdf.IsEnabled   = !busy;
+        icnLoading.Visibility    = busy ? Visibility.Visible : Visibility.Collapsed;
+        lblCount.Text            = busy ? (status ?? "Working…") : $"{_displayed.Count:N0} records";
+    }
+
+    private static readonly string[] ExportHeaders =
+        { "VRN", "Chassis", "Model", "Agent", "Mobile",
+          "Agent Address", "Search Address",
+          "Latitude", "Longitude", "Device Time", "Server Time" };
+
+    private async Task<List<DesktopApiClient.SearchLogRow>?> FetchExportRowsAsync()
+    {
+        var from   = dpFrom.SelectedDate?.ToString("yyyy-MM-dd");
+        var to     = dpTo.SelectedDate?.ToString("yyyy-MM-dd");
+        var search = txtSearch.Text.Trim();
+
+        SetExportBusy(true, "Fetching all records from server…");
+        var rows = await DesktopApiClient.GetSearchLogsAsync(from, to, _pickedUserId, export: true);
+
+        if (!string.IsNullOrEmpty(search))
+            rows = rows.Where(r =>
+                r.VehicleNo.Contains(search, StringComparison.OrdinalIgnoreCase)    ||
+                r.ChassisNo.Contains(search, StringComparison.OrdinalIgnoreCase)    ||
+                r.UserName.Contains(search, StringComparison.OrdinalIgnoreCase)     ||
+                r.UserMobile.Contains(search, StringComparison.OrdinalIgnoreCase)   ||
+                (r.Address     ?? "").Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                (r.UserAddress ?? "").Contains(search, StringComparison.OrdinalIgnoreCase)).ToList();
+
+        return rows;
+    }
+
+    private static void FillRow(DesktopApiClient.SearchLogRow r, Action<int, string> set)
+    {
+        set(0,  r.VehicleNo);
+        set(1,  r.ChassisNo);
+        set(2,  r.Model);
+        set(3,  r.UserName);
+        set(4,  r.UserMobile);
+        set(5,  r.UserAddress ?? "");
+        set(6,  r.Address ?? "");
+        set(7,  r.Lat?.ToString("F5") ?? "");
+        set(8,  r.Lng?.ToString("F5") ?? "");
+        set(9,  r.DeviceTime);
+        set(10, r.ServerTime);
+    }
+
+    // ── Export Excel ─────────────────────────────────────────────────────────
+
+    private async void btnExportExcel_Click(object sender, RoutedEventArgs e)
+    {
         var dlg = new SaveFileDialog
         {
             Filter   = "Excel Workbook (*.xlsx)|*.xlsx",
@@ -155,57 +206,72 @@ public partial class DetailsViewsPage : Page
         };
         if (dlg.ShowDialog() != true) return;
 
+        List<DesktopApiClient.SearchLogRow> rows;
+        try   { rows = await FetchExportRowsAsync() ?? new(); }
+        catch (Exception ex)
+        {
+            SetExportBusy(false);
+            MessageBox.Show($"Failed to fetch export data:\n{ex.Message}", "Export Error",
+                MessageBoxButton.OK, MessageBoxImage.Error);
+            return;
+        }
+
+        if (rows.Count == 0)
+        {
+            SetExportBusy(false);
+            MessageBox.Show("No records match the current filters.", "Export",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        SetExportBusy(true, $"Writing {rows.Count:N0} records to Excel…");
         try
         {
-            using var engine = new ExcelEngine();
-            var app  = engine.Excel;
-            app.DefaultVersion = ExcelVersion.Xlsx;
-            var wb   = app.Workbooks.Create(1);
-            var ws   = wb.Worksheets[0];
-            ws.Name  = "Search Logs";
-
-            string[] headers = { "VRN","Chassis","Model","Agent","Mobile","Agent Address","Search Address","Latitude","Longitude","Device Time","Server Time" };
-            for (int c = 0; c < headers.Length; c++)
+            var filePath = dlg.FileName;
+            await Task.Run(() =>
             {
-                ws[1, c + 1].Text = headers[c];
-                ws[1, c + 1].CellStyle.Font.Bold = true;
-                ws[1, c + 1].CellStyle.Color     = System.Drawing.Color.FromArgb(0x1A, 0x1A, 0x1A);
-                ws[1, c + 1].CellStyle.Font.RGBColor = System.Drawing.Color.White;
-            }
+                using var engine = new ExcelEngine();
+                var app = engine.Excel;
+                app.DefaultVersion = ExcelVersion.Xlsx;
+                var wb = app.Workbooks.Create(1);
+                var ws = wb.Worksheets[0];
+                ws.Name = "Search Logs";
 
-            int row = 2;
-            foreach (var r in _displayed)
-            {
-                ws[row, 1].Text  = r.VehicleNo;
-                ws[row, 2].Text  = r.ChassisNo;
-                ws[row, 3].Text  = r.Model;
-                ws[row, 4].Text  = r.UserName;
-                ws[row, 5].Text  = r.UserMobile;
-                ws[row, 6].Text  = r.UserAddress ?? "";
-                ws[row, 7].Text  = r.Address ?? "";
-                ws[row, 8].Text  = r.Lat?.ToString("F5") ?? "";
-                ws[row, 9].Text  = r.Lng?.ToString("F5") ?? "";
-                ws[row, 10].Text = r.DeviceTime;
-                ws[row, 11].Text = r.ServerTime;
-                row++;
-            }
+                for (int c = 0; c < ExportHeaders.Length; c++)
+                {
+                    ws[1, c + 1].Text                     = ExportHeaders[c];
+                    ws[1, c + 1].CellStyle.Font.Bold      = true;
+                    ws[1, c + 1].CellStyle.Color          = System.Drawing.Color.FromArgb(0x1A, 0x1A, 0x1A);
+                    ws[1, c + 1].CellStyle.Font.RGBColor  = System.Drawing.Color.White;
+                }
 
-            ws.UsedRange.AutofitColumns();
-            wb.SaveAs(dlg.FileName);
-            MessageBox.Show($"Exported {_displayed.Count:N0} records.", "Export Complete",
+                int rowIdx = 2;
+                foreach (var r in rows)
+                {
+                    FillRow(r, (col, val) => ws[rowIdx, col + 1].Text = val);
+                    rowIdx++;
+                }
+
+                ws.UsedRange.AutofitColumns();
+                wb.SaveAs(filePath);
+            });
+
+            MessageBox.Show($"Exported {rows.Count:N0} records successfully.", "Export Complete",
                 MessageBoxButton.OK, MessageBoxImage.Information);
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Export failed: {ex.Message}", "Export Error",
+            MessageBox.Show($"Excel export failed:\n{ex.Message}", "Export Error",
                 MessageBoxButton.OK, MessageBoxImage.Error);
         }
+        finally { SetExportBusy(false); }
     }
 
     // ── Export PDF ───────────────────────────────────────────────────────────
-    private void btnExportPdf_Click(object sender, RoutedEventArgs e)
+
+    private async void btnExportPdf_Click(object sender, RoutedEventArgs e)
     {
-        if (_displayed.Count == 0) { MessageBox.Show("No records to export."); return; }
+        const int PdfRowCap = 50_000;
 
         var dlg = new SaveFileDialog
         {
@@ -214,60 +280,100 @@ public partial class DetailsViewsPage : Page
         };
         if (dlg.ShowDialog() != true) return;
 
+        List<DesktopApiClient.SearchLogRow> rows;
+        try   { rows = await FetchExportRowsAsync() ?? new(); }
+        catch (Exception ex)
+        {
+            SetExportBusy(false);
+            MessageBox.Show($"Failed to fetch export data:\n{ex.Message}", "Export Error",
+                MessageBoxButton.OK, MessageBoxImage.Error);
+            return;
+        }
+
+        if (rows.Count == 0)
+        {
+            SetExportBusy(false);
+            MessageBox.Show("No records match the current filters.", "Export",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        bool capped = rows.Count > PdfRowCap;
+        if (capped)
+        {
+            var ans = MessageBox.Show(
+                $"PDF is limited to {PdfRowCap:N0} rows to keep file size manageable.\n" +
+                $"Total matching records: {rows.Count:N0}.\n\n" +
+                $"The latest {PdfRowCap:N0} rows will be included.\n" +
+                $"Use Excel export to get the full dataset.\n\nContinue with PDF?",
+                "Large Export Warning", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+            if (ans != MessageBoxResult.Yes) { SetExportBusy(false); return; }
+            rows = rows.Take(PdfRowCap).ToList();
+        }
+
+        SetExportBusy(true, $"Writing {rows.Count:N0} records to PDF…");
         try
         {
-            using var doc  = new PdfDocument();
-            doc.PageSettings.Orientation = PdfPageOrientation.Landscape;
-            var page  = doc.Pages.Add();
-            var gfx   = page.Graphics;
-            var bold  = new PdfStandardFont(PdfFontFamily.Helvetica, 10, PdfFontStyle.Bold);
-            var font  = new PdfStandardFont(PdfFontFamily.Helvetica, 7);
-            var hdr   = new PdfStandardFont(PdfFontFamily.Helvetica, 7, PdfFontStyle.Bold);
-
-            gfx.DrawString($"VK Enterprises — Search Logs  ({DateTime.Today:dd MMM yyyy})",
-                bold, PdfBrushes.Black, new Syncfusion.Drawing.PointF(0, 0));
-
-            var grid = new PdfGrid();
-            grid.Style.Font = font;
-            grid.Columns.Add(11);
-
-            var hRow = grid.Headers.Add(1)[0];
-            string[] headers = { "VRN","Chassis","Model","Agent","Mobile","Agent Address","Search Address","Lat","Lng","Device Time","Server Time" };
-            for (int c = 0; c < headers.Length; c++)
+            var filePath = dlg.FileName;
+            var snapshot = rows;
+            await Task.Run(() =>
             {
-                hRow.Cells[c].Value                   = headers[c];
-                hRow.Cells[c].Style.Font              = hdr;
-                hRow.Cells[c].Style.BackgroundBrush   = new PdfSolidBrush(Syncfusion.Drawing.Color.FromArgb(255, 26, 26, 26));
-                hRow.Cells[c].Style.TextBrush         = PdfBrushes.White;
-            }
+                using var doc = new PdfDocument();
+                doc.PageSettings.Orientation = PdfPageOrientation.Landscape;
+                doc.PageSettings.Margins.All = 18;
 
-            foreach (var r in _displayed)
-            {
-                var pRow = grid.Rows.Add();
-                pRow.Cells[0].Value = r.VehicleNo;
-                pRow.Cells[1].Value = r.ChassisNo;
-                pRow.Cells[2].Value = r.Model;
-                pRow.Cells[3].Value = r.UserName;
-                pRow.Cells[4].Value = r.UserMobile;
-                pRow.Cells[5].Value = r.UserAddress ?? "";
-                pRow.Cells[6].Value = r.Address ?? "";
-                pRow.Cells[7].Value = r.Lat?.ToString("F4") ?? "";
-                pRow.Cells[8].Value = r.Lng?.ToString("F4") ?? "";
-                pRow.Cells[9].Value = r.DeviceTime;
-                pRow.Cells[10].Value = r.ServerTime;
-            }
+                var titleFont = new PdfStandardFont(PdfFontFamily.Helvetica, 9, PdfFontStyle.Bold);
+                var dataFont  = new PdfStandardFont(PdfFontFamily.Helvetica, 6.5f);
+                var hdrFont   = new PdfStandardFont(PdfFontFamily.Helvetica, 6.5f, PdfFontStyle.Bold);
 
-            grid.Draw(page, new Syncfusion.Drawing.PointF(0, 24));
+                var firstPage = doc.Pages.Add();
+                var title = $"VK Enterprises — Search Logs  ({DateTime.Today:dd MMM yyyy})  •  {snapshot.Count:N0} records" +
+                            (capped ? $"  [showing latest {PdfRowCap:N0}]" : "");
+                firstPage.Graphics.DrawString(title, titleFont, PdfBrushes.Black,
+                    new Syncfusion.Drawing.PointF(0, 0));
 
-            using var fs = new FileStream(dlg.FileName, FileMode.Create, FileAccess.Write);
-            doc.Save(fs);
-            MessageBox.Show($"Exported {_displayed.Count:N0} records.", "Export Complete",
+                var grid = new PdfGrid();
+                grid.Style.Font = dataFont;
+                grid.Columns.Add(11);
+
+                var headerRow = grid.Headers.Add(1)[0];
+                string[] pdfHeaders = { "VRN","Chassis","Model","Agent","Mobile","Agent Addr","Search Addr","Lat","Lng","Device Time","Server Time" };
+                for (int c = 0; c < pdfHeaders.Length; c++)
+                {
+                    headerRow.Cells[c].Value                 = pdfHeaders[c];
+                    headerRow.Cells[c].Style.Font            = hdrFont;
+                    headerRow.Cells[c].Style.BackgroundBrush = new PdfSolidBrush(
+                        Syncfusion.Drawing.Color.FromArgb(255, 26, 26, 26));
+                    headerRow.Cells[c].Style.TextBrush       = PdfBrushes.White;
+                }
+
+                foreach (var r in snapshot)
+                {
+                    var pRow = grid.Rows.Add();
+                    FillRow(r, (col, val) => pRow.Cells[col].Value = val);
+                    // PDF uses 4 decimal places for coords
+                    pRow.Cells[7].Value = r.Lat?.ToString("F4") ?? "";
+                    pRow.Cells[8].Value = r.Lng?.ToString("F4") ?? "";
+                }
+
+                var clientSize = firstPage.GetClientSize();
+                var layoutFmt  = new PdfLayoutFormat { Layout = PdfLayoutType.Paginate };
+                grid.Draw(firstPage,
+                    new Syncfusion.Drawing.RectangleF(0, 18, clientSize.Width, clientSize.Height - 18),
+                    layoutFmt);
+
+                using var fs = new FileStream(filePath, FileMode.Create, FileAccess.Write);
+                doc.Save(fs);
+            });
+
+            MessageBox.Show($"Exported {rows.Count:N0} records successfully.", "Export Complete",
                 MessageBoxButton.OK, MessageBoxImage.Information);
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"PDF export failed: {ex.Message}", "Export Error",
+            MessageBox.Show($"PDF export failed:\n{ex.Message}", "Export Error",
                 MessageBoxButton.OK, MessageBoxImage.Error);
         }
+        finally { SetExportBusy(false); }
     }
 }

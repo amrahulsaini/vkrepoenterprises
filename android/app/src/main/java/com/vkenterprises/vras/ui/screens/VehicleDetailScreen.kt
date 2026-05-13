@@ -161,20 +161,30 @@ fun VehicleDetailScreen(
 
 private suspend fun reverseGeocode(context: Context, lat: Double?, lng: Double?): String? {
     if (lat == null || lng == null) return null
+
+    // Primary: Android Geocoder (instant if cached, requires Play Services)
+    val fromGeocoder = withContext(Dispatchers.IO) {
+        runCatching {
+            if (!android.location.Geocoder.isPresent()) return@runCatching null
+            val gc = android.location.Geocoder(context, java.util.Locale.getDefault())
+            @Suppress("DEPRECATION")
+            gc.getFromLocation(lat, lng, 1)?.firstOrNull()?.getAddressLine(0)
+        }.getOrNull()
+    }
+    if (!fromGeocoder.isNullOrBlank()) return fromGeocoder
+
+    // Fallback: Nominatim (always available, needs internet)
     return withContext(Dispatchers.IO) {
         runCatching {
-            val geocoder = android.location.Geocoder(context, java.util.Locale.getDefault())
-            @Suppress("DEPRECATION")
-            val addresses = geocoder.getFromLocation(lat, lng, 1)
-            addresses?.firstOrNull()?.let { addr ->
-                val line0 = addr.getAddressLine(0)
-                if (!line0.isNullOrBlank()) line0
-                else listOfNotNull(
-                    addr.subLocality ?: addr.locality,
-                    addr.subAdminArea ?: addr.adminArea,
-                    addr.countryName
-                ).filter { it.isNotBlank() }.joinToString(", ")
-            }
+            val conn = java.net.URL(
+                "https://nominatim.openstreetmap.org/reverse?lat=$lat&lon=$lng&format=json&zoom=16&accept-language=en"
+            ).openConnection() as java.net.HttpURLConnection
+            conn.setRequestProperty("User-Agent", "VKRepoCar/1.0")
+            conn.connectTimeout = 6000
+            conn.readTimeout    = 6000
+            val json = conn.inputStream.bufferedReader().readText()
+            conn.disconnect()
+            org.json.JSONObject(json).optString("display_name").takeIf { it.isNotBlank() }
         }.getOrNull()
     }
 }

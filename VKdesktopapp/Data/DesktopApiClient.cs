@@ -282,13 +282,14 @@ internal static class DesktopApiClient
 
     internal static async Task<List<SearchLogRow>> GetSearchLogsAsync(
         string? fromDate = null, string? toDate = null,
-        long? userId = null, string? q = null)
+        long? userId = null, string? q = null, bool export = false)
     {
         var qs = new List<string>();
         if (!string.IsNullOrWhiteSpace(fromDate)) qs.Add($"fromDate={Uri.EscapeDataString(fromDate)}");
         if (!string.IsNullOrWhiteSpace(toDate))   qs.Add($"toDate={Uri.EscapeDataString(toDate)}");
         if (userId.HasValue)                       qs.Add($"userId={userId.Value}");
         if (!string.IsNullOrWhiteSpace(q))         qs.Add($"q={Uri.EscapeDataString(q)}");
+        if (export)                                qs.Add("export=true");
         var url = "api/mgr/search-logs" + (qs.Count > 0 ? "?" + string.Join("&", qs) : "");
         var resp = await Send(HttpMethod.Get, url);
         resp.EnsureSuccessStatusCode();

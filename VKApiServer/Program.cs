@@ -1131,7 +1131,7 @@ app.MapGet("/api/mgr/live-users", async (HttpContext ctx, string? since) =>
 
 // ── Search logs (vehicle views from mobile agents) ────────────────────────────
 app.MapGet("/api/mgr/search-logs", async (HttpContext ctx,
-    string? fromDate, string? toDate, long? userId, string? q) =>
+    string? fromDate, string? toDate, long? userId, string? q, bool export = false) =>
 {
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
     try
@@ -1171,7 +1171,9 @@ app.MapGet("/api/mgr/search-logs", async (HttpContext ctx,
             sql += " AND (sl.vehicle_no LIKE @q OR sl.chassis_no LIKE @q)";
             cmd.Parameters.AddWithValue("@q", $"%{q.Trim()}%");
         }
-        sql += " ORDER BY sl.server_time DESC LIMIT 2000";
+        sql += export
+            ? " ORDER BY sl.server_time DESC"
+            : " ORDER BY sl.server_time DESC LIMIT 5000";
 
         cmd.CommandText    = sql;
         cmd.Connection     = conn;
