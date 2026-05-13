@@ -745,6 +745,34 @@ app.MapGet("/api/mgr/users", async (HttpContext ctx) =>
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
 
+// Lightweight user list for picker — no pfp, fast load
+app.MapGet("/api/mgr/users/picker", async (HttpContext ctx) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        await using var conn = new MySqlConnection(connStr);
+        await conn.OpenAsync();
+        const string sql = @"
+            SELECT id, name, mobile, COALESCE(address,'') AS address, is_active
+            FROM app_users ORDER BY name ASC";
+        var list = new List<object>();
+        await using var cmd = new MySqlCommand(sql, conn) { CommandTimeout = 10 };
+        await using var rdr = await cmd.ExecuteReaderAsync();
+        while (await rdr.ReadAsync())
+            list.Add(new
+            {
+                id       = rdr.GetInt64(0),
+                name     = rdr.GetString(1),
+                mobile   = rdr.GetString(2),
+                address  = rdr.GetString(3),
+                isActive = rdr.GetBoolean(4)
+            });
+        return Results.Ok(list);
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
 app.MapGet("/api/mgr/users/stats", async (HttpContext ctx) =>
 {
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();

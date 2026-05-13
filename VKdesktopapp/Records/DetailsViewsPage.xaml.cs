@@ -31,7 +31,7 @@ public partial class DetailsViewsPage : Page
     private async void Page_Loaded(object sender, RoutedEventArgs e)
     {
         _filterSuspended = true;
-        dpFrom.SelectedDate = DateTime.Today.AddDays(-30);
+        dpFrom.SelectedDate = DateTime.Today;
         dpTo.SelectedDate   = DateTime.Today;
         _filterSuspended    = false;
         await RefreshLogsAsync();
