@@ -136,7 +136,11 @@ public partial class DetailsViewsPage : Page
 
     private void OpenMapWindow(DesktopApiClient.SearchLogRow row)
     {
-        var win = new MapPointWindow(row) { Owner = Window.GetWindow(this) };
+        var win = new MapPointWindow(
+            row.VehicleNo, row.ChassisNo, row.Model,
+            row.UserName, row.UserMobile, row.ServerTime,
+            row.Lat, row.Lng)
+        { Owner = Window.GetWindow(this) };
         win.Show();
     }
 
@@ -253,7 +257,8 @@ public partial class DetailsViewsPage : Page
 
             grid.Draw(page, new Syncfusion.Drawing.PointF(0, 24));
 
-            doc.Save(dlg.FileName);
+            using var fs = new FileStream(dlg.FileName, FileMode.Create, FileAccess.Write);
+            doc.Save(fs);
             MessageBox.Show($"Exported {_displayed.Count:N0} records.", "Export Complete",
                 MessageBoxButton.OK, MessageBoxImage.Information);
         }

@@ -24,7 +24,8 @@ import com.vkenterprises.vras.navigation.Screen
 import com.vkenterprises.vras.viewmodel.AuthViewModel
 import com.vkenterprises.vras.viewmodel.SearchViewModel
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlin.coroutines.resume
 
 private val RC_REGEX = Regex("^[A-Z]{2}[0-9]{2}[A-Z]{1,3}[0-9]{4}$")
 private fun String.isValidRc(): Boolean =
@@ -156,14 +157,22 @@ fun VehicleDetailScreen(
 }
 
 @SuppressLint("MissingPermission")
-private suspend fun getLocationOnce(context: Context): android.location.Location? {
-    val fused = LocationServices.getFusedLocationProviderClient(context)
-    return runCatching {
-        fused.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null).await()
-    }.getOrNull() ?: runCatching {
-        fused.lastLocation.await()
-    }.getOrNull()
-}
+private suspend fun getLocationOnce(context: Context): android.location.Location? =
+    suspendCancellableCoroutine { cont ->
+        val fused = LocationServices.getFusedLocationProviderClient(context)
+        fused.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
+            .addOnSuccessListener { loc ->
+                if (loc != null) { cont.resume(loc); return@addOnSuccessListener }
+                fused.lastLocation
+                    .addOnSuccessListener { last -> cont.resume(last) }
+                    .addOnFailureListener { cont.resume(null) }
+            }
+            .addOnFailureListener {
+                fused.lastLocation
+                    .addOnSuccessListener { last -> cont.resume(last) }
+                    .addOnFailureListener { cont.resume(null) }
+            }
+    }
 
 @Composable
 private fun DetailRow(
