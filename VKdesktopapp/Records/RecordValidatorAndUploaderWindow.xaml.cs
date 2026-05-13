@@ -265,6 +265,14 @@ public partial class RecordValidatorAndUploaderWindow : Window
             return;
         }
 
+        var validRecords = FilterRecords(RecordFilters.Valid);
+        if (validRecords.Count == 0)
+        {
+            MessageBox.Show("No valid records to upload.", "No Valid Records",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
         btnUpload.IsEnabled  = false;
         txtPBR.Visibility    = Visibility.Visible;
         txtPBRPct.Visibility = Visibility.Visible;
@@ -274,7 +282,7 @@ public partial class RecordValidatorAndUploaderWindow : Window
         pbr.Maximum          = 100;
         pbr.Value            = 0;
         txtPBR.Text          = "Starting upload…";
-        txtPBRPct.Text       = $"0 / {_records.Count:N0}";
+        txtPBRPct.Text       = $"0 / {validRecords.Count:N0}";
 
         var sw = System.Diagnostics.Stopwatch.StartNew();
 
@@ -296,17 +304,16 @@ public partial class RecordValidatorAndUploaderWindow : Window
 
         try
         {
-            // Upload ALL records — RC validation in the grid is for review only, not a filter
-            var (inserted, _) = await DesktopApiClient.UploadRecordsAsync(branchId, _records, progress);
+            var (inserted, _) = await DesktopApiClient.UploadRecordsAsync(branchId, validRecords, progress);
             sw.Stop();
             var totalSec = sw.Elapsed.TotalSeconds;
 
             pbr.Value      = 100;
-            txtPBRPct.Text = $"{inserted:N0} / {_records.Count:N0}";
+            txtPBRPct.Text = $"{inserted:N0} / {validRecords.Count:N0}";
             txtPBR.Text    = $"✓ {inserted:N0} records saved in {totalSec:F1}s";
 
             MessageBox.Show(
-                $"{inserted:N0} records saved to \"{SelectedBranch.BranchName}\".\n" +
+                $"{inserted:N0} of {validRecords.Count:N0} valid records saved to \"{SelectedBranch.BranchName}\".\n" +
                 $"Upload completed in {totalSec:F1} seconds.\n\n" +
                 $"Previous records for this branch were replaced.",
                 "Upload Success", MessageBoxButton.OK, MessageBoxImage.Information);
