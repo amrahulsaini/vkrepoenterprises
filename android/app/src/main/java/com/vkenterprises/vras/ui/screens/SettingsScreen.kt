@@ -3,11 +3,13 @@ package com.vkenterprises.vras.ui.screens
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.*
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.*
@@ -27,6 +29,7 @@ fun SettingsScreen(
 ) {
     val ui       by settingsVm.ui.collectAsState()
     val searchUi by searchVm.ui.collectAsState()
+    val isAdmin  by authVm.isAdmin.collectAsState(initial = false)
 
     Scaffold(
         topBar = {
@@ -48,6 +51,57 @@ fun SettingsScreen(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+
+            // ── Role banner ──────────────────────────────────────────────
+            item {
+                val bgColor    = if (isAdmin) Color(0xFF1A237E) else MaterialTheme.colorScheme.primaryContainer
+                val textColor  = if (isAdmin) Color.White else MaterialTheme.colorScheme.onPrimaryContainer
+                val roleLabel  = if (isAdmin) "Administrator" else "Agent"
+                val roleDesc   = if (isAdmin) "You are Admin" else "You are a user of VK Enterprises"
+                val roleIcon   = if (isAdmin) Icons.Default.AdminPanelSettings else Icons.Default.Person
+                Surface(
+                    color  = bgColor,
+                    shape  = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        Icon(roleIcon, null, tint = textColor, modifier = Modifier.size(36.dp))
+                        Column {
+                            Text(roleDesc,
+                                color = textColor,
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.titleSmall)
+                            Text(roleLabel,
+                                color = textColor.copy(alpha = 0.75f),
+                                style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                }
+            }
+
+            // ── Admin tools ──────────────────────────────────────────────
+            if (isAdmin) {
+                item {
+                    SectionCard(title = "Admin Tools") {
+                        Button(
+                            onClick = { nav.navigate(Screen.LiveUsers.route) },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFF1A237E),
+                                contentColor   = Color.White
+                            )
+                        ) {
+                            Icon(Icons.Default.LocationOn, null, Modifier.size(18.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text("View Live Users", fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+                }
+            }
 
             // ── Server DB Stats ──────────────────────────────────────────
             item {

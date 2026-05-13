@@ -133,16 +133,6 @@ fun HomeScreen(
     }
 
     Scaffold(
-        floatingActionButton = {
-            if (isAdmin) {
-                ExtendedFloatingActionButton(
-                    onClick = { nav.navigate(Screen.LiveUsers.route) },
-                    icon = { Icon(Icons.Default.LocationOn, contentDescription = null) },
-                    text = { Text("Live Users") },
-                    containerColor = MaterialTheme.colorScheme.primary
-                )
-            }
-        },
         topBar = {
             TopAppBar(
                 title = {
