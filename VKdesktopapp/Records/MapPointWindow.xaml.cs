@@ -7,14 +7,21 @@ namespace VRASDesktopApp.Records;
 
 public partial class MapPointWindow : Window
 {
-    private readonly DesktopApiClient.SearchLogRow _row;
+    private readonly double? _lat, _lng;
+    private readonly string _vrn, _chassis, _model, _userName, _userMobile, _serverTime;
 
-    public MapPointWindow(DesktopApiClient.SearchLogRow row)
+    public MapPointWindow(
+        string vrn, string chassis, string model,
+        string userName, string userMobile, string serverTime,
+        double? lat, double? lng)
     {
         InitializeComponent();
-        _row = row;
-        txtTitle.Text    = $"{row.VehicleNo}  —  {row.UserName}";
-        txtSubtitle.Text = $"{row.Model}  |  {row.ServerTime}  |  {row.UserMobile}";
+        _vrn = vrn; _chassis = chassis; _model = model;
+        _userName = userName; _userMobile = userMobile; _serverTime = serverTime;
+        _lat = lat; _lng = lng;
+
+        txtTitle.Text    = $"{vrn}  —  {userName}";
+        txtSubtitle.Text = $"{model}  |  {serverTime}  |  {userMobile}";
     }
 
     private async void Window_Loaded(object sender, RoutedEventArgs e)
@@ -40,14 +47,14 @@ public partial class MapPointWindow : Window
     private string BuildQueryString()
     {
         var parts = new System.Collections.Generic.List<string>();
-        if (_row.Lat.HasValue) parts.Add($"lat={_row.Lat.Value:F6}");
-        if (_row.Lng.HasValue) parts.Add($"lng={_row.Lng.Value:F6}");
-        parts.Add($"name={Uri.EscapeDataString(_row.UserName)}");
-        parts.Add($"mobile={Uri.EscapeDataString(_row.UserMobile)}");
-        parts.Add($"vrn={Uri.EscapeDataString(_row.VehicleNo)}");
-        parts.Add($"chassis={Uri.EscapeDataString(_row.ChassisNo)}");
-        parts.Add($"model={Uri.EscapeDataString(_row.Model)}");
-        parts.Add($"time={Uri.EscapeDataString(_row.ServerTime)}");
+        if (_lat.HasValue) parts.Add($"lat={_lat.Value:F6}");
+        if (_lng.HasValue) parts.Add($"lng={_lng.Value:F6}");
+        parts.Add($"name={Uri.EscapeDataString(_userName)}");
+        parts.Add($"mobile={Uri.EscapeDataString(_userMobile)}");
+        parts.Add($"vrn={Uri.EscapeDataString(_vrn)}");
+        parts.Add($"chassis={Uri.EscapeDataString(_chassis)}");
+        parts.Add($"model={Uri.EscapeDataString(_model)}");
+        parts.Add($"time={Uri.EscapeDataString(_serverTime)}");
         return parts.Count > 0 ? "?" + string.Join("&", parts) : "";
     }
 
