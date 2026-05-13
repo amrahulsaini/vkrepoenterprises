@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -142,6 +143,7 @@ fun VehicleDetailScreen(
                     Row(
                         Modifier
                             .fillMaxWidth()
+                            .navigationBarsPadding()
                             .padding(horizontal = 12.dp, vertical = 10.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
@@ -330,7 +332,7 @@ private fun AdminDetailView(item: SearchResult, results: List<SearchResult>) {
         }
     }
 
-    // ── Vehicle Info ────────────────────────────────────────────────────
+    // ── 1. Vehicle Details ──────────────────────────────────────────────
     InfoCard("Vehicle Details") {
         DRow("Vehicle No",       item.vehicleNo, mono = true,
             invalid = !item.vehicleNo.isNullOrBlank() && !item.vehicleNo.isValidRc())
@@ -343,32 +345,32 @@ private fun AdminDetailView(item: SearchResult, results: List<SearchResult>) {
         DRow("Cust Contact Nos", item.customerContact)
     }
 
-    // ── Financial ───────────────────────────────────────────────────────
-    InfoCard("Financial Info") {
+    // ── 2. Key Numbers ──────────────────────────────────────────────────
+    InfoCard("Key Numbers") {
         DRow("Bucket",    item.bucket)
         DRow("GV",        item.gv)
         DRow("OD",        item.od)
-        DRow("Region",    item.region)
-        DRow("Area",      item.area)
-        DRow("Seasoning", item.seasoning)
-        DRow("TBR Flag",  item.tbrFlag)
-        DRow("Sec9 Available",  item.sec9)
-        DRow("Sec17 Available", item.sec17)
-        DRow("Remark",    item.remark)
     }
 
-    // ── Branch & Finance ────────────────────────────────────────────────
-    InfoCard("Branch & Finance") {
-        DRow("Finance",       item.financer)
+    // ── 3. POS / TOSS ───────────────────────────────────────────────────
+    InfoCard("POS / TOSS") {
+        DRow("POS",  item.pos)
+        DRow("TOSS", item.toss)
+    }
+
+    // ── 4. Branch ───────────────────────────────────────────────────────
+    InfoCard("Branch") {
         DRow("Branch",        item.branchName)
         DRow("Branch (xlsx)", item.branchFromExcel)
-        DRow("Address",       item.address)
-        DRow("Contact 1",     item.firstContact)
-        DRow("Contact 2",     item.secondContact)
-        DRow("Contact 3",     item.thirdContact)
     }
 
-    // ── Level Contacts ──────────────────────────────────────────────────
+    // ── 5. Region & Area ────────────────────────────────────────────────
+    InfoCard("Region & Area") {
+        DRow("Region", item.region)
+        DRow("Area",   item.area)
+    }
+
+    // ── 6. Level Contacts ───────────────────────────────────────────────
     InfoCard("Level Contacts") {
         DRow("Level 1",          item.level1)
         DRow("Level 1 Contact",  item.level1Contact, mono = true)
@@ -380,14 +382,42 @@ private fun AdminDetailView(item: SearchResult, results: List<SearchResult>) {
         DRow("Level 4 Contact",  item.level4Contact, mono = true)
     }
 
-    // ── Additional Info ─────────────────────────────────────────────────
-    InfoCard("Additional Info") {
+    // ── 7. Finance ──────────────────────────────────────────────────────
+    InfoCard("Finance") {
+        DRow("Finance", item.financer)
+        DRow("Address", item.address)
+    }
+
+    // ── 8. Contacts ─────────────────────────────────────────────────────
+    InfoCard("Contacts") {
+        DRow("Contact 1", item.firstContact, mono = true)
+        DRow("Contact 2", item.secondContact, mono = true)
+        DRow("Contact 3", item.thirdContact,  mono = true)
+    }
+
+    // ── 9. Compliance ───────────────────────────────────────────────────
+    InfoCard("Compliance") {
+        DRow("Sec9 Available",  item.sec9)
+        DRow("Sec17 Available", item.sec17)
+        DRow("TBR Flag",        item.tbrFlag)
+        DRow("Seasoning",       item.seasoning)
+    }
+
+    // ── 10. Executive & Mails ───────────────────────────────────────────
+    InfoCard("Executive & Mails") {
         DRow("Executive Name", item.executiveName)
         DRow("Mail Id 1",      item.senderMail1)
         DRow("Mail Id 2",      item.senderMail2)
-        DRow("POS",            item.pos)
-        DRow("TOSS",           item.toss)
-        DRow("Uploaded On",    item.createdOn)
+    }
+
+    // ── 11. Remark ──────────────────────────────────────────────────────
+    InfoCard("Remark") {
+        DRow("Remark", item.remark)
+    }
+
+    // ── 12. Meta ────────────────────────────────────────────────────────
+    InfoCard("Uploaded On") {
+        DRow("Uploaded On", item.createdOn)
     }
 }
 
