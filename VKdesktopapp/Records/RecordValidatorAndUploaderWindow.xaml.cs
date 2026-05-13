@@ -171,8 +171,13 @@ public partial class RecordValidatorAndUploaderWindow : Window
     {
         _filteredRecords.Clear();
         IsRecordsLoading = true;
-        foreach (var r in FilterRecords(RecordFilters.Valid)) _filteredRecords.Add(r);
-        mnFilterHeader.Text = $"Valid: {_filteredRecords.Count}/{_records.Count}";
+        var validList = FilterRecords(RecordFilters.Valid);
+        foreach (var r in validList) _filteredRecords.Add(r);
+        int deduped = DeduplicateRecords(validList).Count;
+        int trueDups = validList.Count - deduped;
+        mnFilterHeader.Text = trueDups > 0
+            ? $"Valid: {validList.Count}/{_records.Count}  •  Upload will insert: {deduped:N0} ({trueDups:N0} exact dups removed)"
+            : $"Valid: {validList.Count}/{_records.Count}";
         IsRecordsLoading = false;
     }
 
@@ -195,6 +200,38 @@ public partial class RecordValidatorAndUploaderWindow : Window
             _filteredRecords.Remove(item);
             _records.Remove(item);
         }
+    }
+
+    // ──────────────────────────────────────────────────────────────
+    //  De-duplication
+    //  Same RC + same data → 1 row.  Same RC + different data → keep all.
+    // ──────────────────────────────────────────────────────────────
+
+    private static string GetRecordSignature(UploadRecord r) =>
+        string.Join('\x01',
+            r.FormatedVehicleNo, r.ChasisNo, r.EngineNo, r.Model,
+            r.AgreementNo, r.CustomerName, r.CustomerAddress,
+            r.Region, r.Area, r.Bucket, r.GV, r.OD,
+            r.BranchName, r.Level1, r.Level1ContactNos,
+            r.Level2, r.Level2ContactNos, r.Level3, r.Level3ContactNos,
+            r.Level4, r.Level4ContactNos, r.Sec9Available, r.Sec17Available,
+            r.TBRFlag, r.Seasoning, r.SenderMailId1, r.SenderMailId2,
+            r.ExecutiveName, r.POS, r.TOSS, r.CustomerContactNos, r.Remark);
+
+    private static List<UploadRecord> DeduplicateRecords(List<UploadRecord> records)
+    {
+        var result = new List<UploadRecord>(records.Count);
+        foreach (var group in records.GroupBy(r => r.FormatedVehicleNo))
+        {
+            var list = group.ToList();
+            if (list.Count == 1) { result.Add(list[0]); continue; }
+            // Same RC, multiple rows — drop rows that are byte-for-byte identical to an earlier row
+            var seen = new HashSet<string>();
+            foreach (var r in list)
+                if (seen.Add(GetRecordSignature(r)))
+                    result.Add(r);
+        }
+        return result;
     }
 
     // ──────────────────────────────────────────────────────────────
@@ -273,6 +310,9 @@ public partial class RecordValidatorAndUploaderWindow : Window
             return;
         }
 
+        var uploadRecords  = DeduplicateRecords(validRecords);
+        int trueDuplicates = validRecords.Count - uploadRecords.Count;
+
         btnUpload.IsEnabled  = false;
         txtPBR.Visibility    = Visibility.Visible;
         txtPBRPct.Visibility = Visibility.Visible;
@@ -281,8 +321,10 @@ public partial class RecordValidatorAndUploaderWindow : Window
         pbr.Minimum          = 0;
         pbr.Maximum          = 100;
         pbr.Value            = 0;
-        txtPBR.Text          = "Starting upload…";
-        txtPBRPct.Text       = $"0 / {validRecords.Count:N0}";
+        txtPBR.Text          = trueDuplicates > 0
+            ? $"Removed {trueDuplicates:N0} exact duplicates — uploading {uploadRecords.Count:N0} records…"
+            : "Starting upload…";
+        txtPBRPct.Text       = $"0 / {uploadRecords.Count:N0}";
 
         var sw = System.Diagnostics.Stopwatch.StartNew();
 
@@ -304,17 +346,20 @@ public partial class RecordValidatorAndUploaderWindow : Window
 
         try
         {
-            var (inserted, _) = await DesktopApiClient.UploadRecordsAsync(branchId, validRecords, progress);
+            var (inserted, _) = await DesktopApiClient.UploadRecordsAsync(branchId, uploadRecords, progress);
             sw.Stop();
             var totalSec = sw.Elapsed.TotalSeconds;
 
             pbr.Value      = 100;
-            txtPBRPct.Text = $"{inserted:N0} / {validRecords.Count:N0}";
+            txtPBRPct.Text = $"{inserted:N0} / {uploadRecords.Count:N0}";
             txtPBR.Text    = $"✓ {inserted:N0} records saved in {totalSec:F1}s";
 
+            var dupLine = trueDuplicates > 0
+                ? $"\n({trueDuplicates:N0} exact duplicates skipped out of {validRecords.Count:N0} valid records)"
+                : "";
             MessageBox.Show(
-                $"{inserted:N0} of {validRecords.Count:N0} valid records saved to \"{SelectedBranch.BranchName}\".\n" +
-                $"Upload completed in {totalSec:F1} seconds.\n\n" +
+                $"{inserted:N0} records saved to \"{SelectedBranch.BranchName}\".\n" +
+                $"Upload completed in {totalSec:F1} seconds.{dupLine}\n\n" +
                 $"Previous records for this branch were replaced.",
                 "Upload Success", MessageBoxButton.OK, MessageBoxImage.Information);
         }
