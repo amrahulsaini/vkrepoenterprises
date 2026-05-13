@@ -3,12 +3,14 @@ package com.vkenterprises.vras.viewmodel
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.vkenterprises.vras.data.api.ApiClient
 import com.vkenterprises.vras.data.models.LoginRequest
 import com.vkenterprises.vras.data.models.RegisterRequest
 import com.vkenterprises.vras.data.repository.AuthRepository
 import com.vkenterprises.vras.data.repository.AuthResult
 import com.vkenterprises.vras.utils.DeviceIdUtil
 import com.vkenterprises.vras.utils.PreferencesManager
+import kotlinx.coroutines.flow.first
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.*
@@ -105,6 +107,18 @@ class AuthViewModel @Inject constructor(
                 "pending_approval" -> AuthUiState.PendingApproval(result.message)
                 "device_mismatch"  -> AuthUiState.DeviceMismatch(result.message)
                 else               -> AuthUiState.Error(result.message)
+            }
+        }
+    }
+
+    fun refreshSession() = viewModelScope.launch {
+        val uid = prefs.userId.first()
+        if (uid <= 0L) return@launch
+        runCatching {
+            val resp = ApiClient.api.getProfile(uid)
+            if (resp.isSuccessful) {
+                val p = resp.body() ?: return@launch
+                prefs.updateAdminStatus(p.isAdmin)
             }
         }
     }
