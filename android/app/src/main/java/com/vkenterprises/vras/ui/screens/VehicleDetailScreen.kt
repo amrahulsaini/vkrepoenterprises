@@ -324,32 +324,34 @@ private fun AdminDetailView(item: SearchResult, results: List<SearchResult>) {
         }
     }
 
-    // Vehicle details
+    // ── Vehicle Info ────────────────────────────────────────────────────
     InfoCard("Vehicle Details") {
-        DRow("Vehicle No",    item.vehicleNo,       mono = true,
-            invalid = item.vehicleNo.isNotBlank() && !item.vehicleNo.isValidRc())
-        DRow("Chassis No",    item.chassisNo,       mono = true)
-        DRow("Engine No",     item.engineNo,        mono = true)
-        DRow("Model / Make",  item.model)
-        DRow("Agreement No",  item.agreementNo)
-        DRow("Cust. Name",    item.customerName)
-        DRow("Cust. Address", item.customerAddress)
-        DRow("Cust. Contact", item.customerContact)
+        DRow("Vehicle No",       item.vehicleNo, mono = true,
+            invalid = !item.vehicleNo.isNullOrBlank() && !item.vehicleNo.isValidRc())
+        DRow("Chassis No",       item.chassisNo,       mono = true)
+        DRow("Model / Make",     item.model)
+        DRow("Engine No",        item.engineNo,        mono = true)
+        DRow("Agreement No",     item.agreementNo,     mono = true)
+        DRow("Cust. Name",       item.customerName)
+        DRow("Cust. Address",    item.customerAddress)
+        DRow("Cust Contact Nos", item.customerContact)
     }
 
-    // Financial
+    // ── Financial ───────────────────────────────────────────────────────
     InfoCard("Financial Info") {
         DRow("Bucket",    item.bucket)
         DRow("GV",        item.gv)
         DRow("OD",        item.od)
-        DRow("Seasoning", item.seasoning)
-        DRow("TBR Flag",  item.tbrFlag)
         DRow("Region",    item.region)
         DRow("Area",      item.area)
+        DRow("Seasoning", item.seasoning)
+        DRow("TBR Flag",  item.tbrFlag)
+        DRow("Sec9 Available",  item.sec9)
+        DRow("Sec17 Available", item.sec17)
         DRow("Remark",    item.remark)
     }
 
-    // Branch & Finance
+    // ── Branch & Finance ────────────────────────────────────────────────
     InfoCard("Branch & Finance") {
         DRow("Branch (xlsx)", item.branchFromExcel)
         DRow("Branch",        item.branchName)
@@ -359,28 +361,22 @@ private fun AdminDetailView(item: SearchResult, results: List<SearchResult>) {
         DRow("Contact 3",     item.thirdContact)
     }
 
-    // Levels
+    // ── Level Contacts ──────────────────────────────────────────────────
     InfoCard("Level Contacts") {
-        if (!item.level1.isNullOrBlank() || !item.level1Contact.isNullOrBlank())
-            DRow("Level 1", "${item.level1.orEmpty()}  ${item.level1Contact.orEmpty()}".trim())
-        if (!item.level2.isNullOrBlank() || !item.level2Contact.isNullOrBlank())
-            DRow("Level 2", "${item.level2.orEmpty()}  ${item.level2Contact.orEmpty()}".trim())
-        if (!item.level3.isNullOrBlank() || !item.level3Contact.isNullOrBlank())
-            DRow("Level 3", "${item.level3.orEmpty()}  ${item.level3Contact.orEmpty()}".trim())
-        if (!item.level4.isNullOrBlank() || !item.level4Contact.isNullOrBlank())
-            DRow("Level 4", "${item.level4.orEmpty()}  ${item.level4Contact.orEmpty()}".trim())
+        DRow("Level 1", buildLevelStr(item.level1, item.level1Contact))
+        DRow("Level 2", buildLevelStr(item.level2, item.level2Contact))
+        DRow("Level 3", buildLevelStr(item.level3, item.level3Contact))
+        DRow("Level 4", buildLevelStr(item.level4, item.level4Contact))
     }
 
-    // Additional
+    // ── Additional Info ─────────────────────────────────────────────────
     InfoCard("Additional Info") {
-        DRow("Sec9 Available",  item.sec9)
-        DRow("Sec17 Available", item.sec17)
-        DRow("Executive",       item.executiveName)
-        DRow("POS",             item.pos)
-        DRow("TOSS",            item.toss)
-        DRow("Mail 1",          item.senderMail1)
-        DRow("Mail 2",          item.senderMail2)
-        DRow("Uploaded On",     item.createdOn)
+        DRow("Executive Name", item.executiveName)
+        DRow("Mail Id 1",      item.senderMail1)
+        DRow("Mail Id 2",      item.senderMail2)
+        DRow("POS",            item.pos)
+        DRow("TOSS",           item.toss)
+        DRow("Uploaded On",    item.createdOn)
     }
 }
 
@@ -522,6 +518,17 @@ private fun CopyDialog(item: SearchResult, onDismiss: () -> Unit, context: Conte
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
+private fun buildLevelStr(name: String?, contact: String?): String {
+    val n = name.orEmpty().trim()
+    val c = contact.orEmpty().trim()
+    return when {
+        n.isNotBlank() && c.isNotBlank() -> "$n  |  $c"
+        n.isNotBlank() -> n
+        c.isNotBlank() -> c
+        else -> ""
+    }
+}
+
 private fun buildQuickWaMessage(
     item: SearchResult, status: String,
     agentName: String, agentPhone: String
@@ -568,7 +575,7 @@ private fun InfoCard(title: String, content: @Composable ColumnScope.() -> Unit)
 
 @Composable
 private fun DRow(label: String, value: String?, mono: Boolean = false, invalid: Boolean = false) {
-    if (value.isNullOrBlank()) return
+    val display = value.orEmpty()
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically) {
         Text(label,
@@ -577,11 +584,13 @@ private fun DRow(label: String, value: String?, mono: Boolean = false, invalid: 
             modifier = Modifier.weight(0.38f))
         Row(Modifier.weight(0.62f), verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(value,
+            Text(
+                display,
                 style = MaterialTheme.typography.bodySmall,
-                fontWeight = FontWeight.SemiBold,
+                fontWeight = if (display.isBlank()) FontWeight.Normal else FontWeight.SemiBold,
                 fontFamily = if (mono) FontFamily.Monospace else FontFamily.Default,
                 color = if (invalid) MaterialTheme.colorScheme.error
+                        else if (display.isBlank()) MaterialTheme.colorScheme.outlineVariant
                         else MaterialTheme.colorScheme.onSurface)
             if (invalid) {
                 Surface(shape = RoundedCornerShape(4.dp),
