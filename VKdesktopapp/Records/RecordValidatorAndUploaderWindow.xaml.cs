@@ -290,17 +290,18 @@ public partial class RecordValidatorAndUploaderWindow : Window
 
         try
         {
-            var (inserted, elapsed) = await DesktopApiClient.UploadRecordsAsync(branchId, validRecords, progress);
+            var (inserted, _) = await DesktopApiClient.UploadRecordsAsync(branchId, validRecords, progress);
             sw.Stop();
+            var totalSec = sw.Elapsed.TotalSeconds;
 
             pbr.Value      = 100;
             txtPBRPct.Text = "100%";
-            txtPBR.Text    = $"✓ {inserted:N0} records saved in {elapsed:F1}s";
+            txtPBR.Text    = $"✓ {inserted:N0} records saved in {totalSec:F1}s";
 
             var skipNote = skipped > 0 ? $"\n\n{skipped} invalid record(s) were skipped." : string.Empty;
             MessageBox.Show(
                 $"{inserted:N0} records saved to \"{SelectedBranch.BranchName}\".\n" +
-                $"Upload completed in {elapsed:F1} seconds.\n\n" +
+                $"Upload completed in {totalSec:F1} seconds.\n\n" +
                 $"Previous records for this branch were replaced.{skipNote}",
                 "Upload Success", MessageBoxButton.OK, MessageBoxImage.Information);
         }
