@@ -114,6 +114,33 @@ class SearchViewModel @Inject constructor(
         _ui.update { it.copy(actionType = type) }
     }
 
+    // For admin: current selectedResult came from local cache (most fields blank).
+    // Re-fetch the same vehicle from server to get full field data.
+    fun refetchSelectedFromServer(userId: Long) {
+        val current = _ui.value.selectedResult ?: return
+        viewModelScope.launch {
+            val (q, mode) = if (current.vehicleNo.isNotBlank()) {
+                val clean = current.vehicleNo.replace(Regex("[^A-Z0-9]"), "").uppercase()
+                clean.takeLast(4) to SearchMode.RC
+            } else {
+                val clean = current.chassisNo.replace(Regex("[^A-Z0-9]"), "").uppercase()
+                clean.takeLast(5) to SearchMode.CHASSIS
+            }
+            val result = withContext(Dispatchers.IO) {
+                if (mode == SearchMode.RC) serverRepo.searchRc(q, userId)
+                else serverRepo.searchChassis(q, userId)
+            }
+            if (result is SearchResult2.Success) {
+                val match = result.data.firstOrNull {
+                    it.vehicleNo == current.vehicleNo || it.chassisNo == current.chassisNo
+                }
+                if (match != null) {
+                    _ui.update { it.copy(selectedResult = match, results = result.data) }
+                }
+            }
+        }
+    }
+
     private suspend fun executeSearch(q: String, mode: SearchMode, userId: Long) {
         if (!_ui.value.onlineOnly) {
             val local = withContext(Dispatchers.IO) {

@@ -58,10 +58,16 @@ fun VehicleDetailScreen(
     var showCopyDialog by remember { mutableStateOf(false) }
     var showMoreMenu  by remember { mutableStateOf(false) }
 
-    LaunchedEffect(item) {
+    LaunchedEffect(item?.vehicleNo) {
         if (item == null) return@LaunchedEffect
         val userId = authVm.userId.first()
         if (userId == 0L) return@LaunchedEffect
+
+        // Admin: if data came from local cache (most fields blank), fetch full details from server
+        if (isAdmin && item.agreementNo.isBlank()) {
+            searchVm.refetchSelectedFromServer(userId)
+        }
+
         val loc     = getLocationOnce(context)
         val address = reverseGeocode(context, loc?.latitude, loc?.longitude)
         runCatching {
