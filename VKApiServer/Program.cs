@@ -1093,7 +1093,8 @@ app.MapGet("/api/mgr/live-users", async (HttpContext ctx, string? since) =>
             const string sql = @"
                 SELECT id, name, mobile,
                        DATE_FORMAT(last_seen,'%H:%i • %d %b') AS seen,
-                       last_lat, last_lng
+                       COALESCE(last_lat, (SELECT lat FROM search_logs WHERE user_id=id AND lat IS NOT NULL ORDER BY server_time DESC LIMIT 1)) AS lat,
+                       COALESCE(last_lng, (SELECT lng FROM search_logs WHERE user_id=id AND lng IS NOT NULL ORDER BY server_time DESC LIMIT 1)) AS lng
                 FROM app_users
                 WHERE last_seen >= CONCAT(CURDATE(), ' ', @since, ':00')
                 ORDER BY last_seen DESC LIMIT 500";
@@ -1105,7 +1106,8 @@ app.MapGet("/api/mgr/live-users", async (HttpContext ctx, string? since) =>
             const string sql = @"
                 SELECT id, name, mobile,
                        DATE_FORMAT(last_seen,'%H:%i • %d %b') AS seen,
-                       last_lat, last_lng
+                       COALESCE(last_lat, (SELECT lat FROM search_logs WHERE user_id=id AND lat IS NOT NULL ORDER BY server_time DESC LIMIT 1)) AS lat,
+                       COALESCE(last_lng, (SELECT lng FROM search_logs WHERE user_id=id AND lng IS NOT NULL ORDER BY server_time DESC LIMIT 1)) AS lng
                 FROM app_users
                 WHERE last_seen >= NOW() - INTERVAL 15 MINUTE
                 ORDER BY last_seen DESC LIMIT 200";
