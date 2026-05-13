@@ -1101,6 +1101,76 @@ app.MapGet("/api/mgr/live-users", async (HttpContext ctx, string? since) =>
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
 
+// ── Search logs (vehicle views from mobile agents) ────────────────────────────
+app.MapGet("/api/mgr/search-logs", async (HttpContext ctx,
+    string? fromDate, string? toDate, long? userId, string? q) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        await using var conn = new MySqlConnection(connStr);
+        await conn.OpenAsync();
+
+        var sql = @"
+            SELECT sl.id, sl.user_id, u.name, u.mobile,
+                   sl.vehicle_no, sl.chassis_no, sl.model,
+                   sl.lat, sl.lng, sl.address,
+                   DATE_FORMAT(sl.device_time, '%Y-%m-%d %H:%i:%s') AS device_time,
+                   DATE_FORMAT(sl.server_time, '%Y-%m-%d %H:%i:%s') AS server_time
+            FROM search_logs sl
+            JOIN app_users u ON u.id = sl.user_id
+            WHERE 1=1";
+
+        var cmd = new MySqlCommand();
+        if (!string.IsNullOrWhiteSpace(fromDate))
+        {
+            sql += " AND DATE(sl.server_time) >= @fd";
+            cmd.Parameters.AddWithValue("@fd", fromDate);
+        }
+        if (!string.IsNullOrWhiteSpace(toDate))
+        {
+            sql += " AND DATE(sl.server_time) <= @td";
+            cmd.Parameters.AddWithValue("@td", toDate);
+        }
+        if (userId.HasValue)
+        {
+            sql += " AND sl.user_id = @uid";
+            cmd.Parameters.AddWithValue("@uid", userId.Value);
+        }
+        if (!string.IsNullOrWhiteSpace(q))
+        {
+            sql += " AND (sl.vehicle_no LIKE @q OR sl.chassis_no LIKE @q)";
+            cmd.Parameters.AddWithValue("@q", $"%{q.Trim()}%");
+        }
+        sql += " ORDER BY sl.server_time DESC LIMIT 2000";
+
+        cmd.CommandText    = sql;
+        cmd.Connection     = conn;
+        cmd.CommandTimeout = 15;
+
+        var list = new List<object>();
+        await using var rdr = await cmd.ExecuteReaderAsync();
+        while (await rdr.ReadAsync())
+            list.Add(new
+            {
+                id          = rdr.GetInt64(0),
+                userId      = rdr.GetInt64(1),
+                userName    = rdr.GetString(2),
+                userMobile  = rdr.GetString(3),
+                vehicleNo   = rdr.GetString(4),
+                chassisNo   = rdr.GetString(5),
+                model       = rdr.GetString(6),
+                lat         = rdr.IsDBNull(7)  ? (double?)null : rdr.GetDouble(7),
+                lng         = rdr.IsDBNull(8)  ? (double?)null : rdr.GetDouble(8),
+                address     = rdr.IsDBNull(9)  ? null : rdr.GetString(9),
+                deviceTime  = rdr.GetString(10),
+                serverTime  = rdr.GetString(11)
+            });
+        return Results.Ok(list);
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
 // ── Column types & mappings (Excel column mapping config) ─────────────────────
 app.MapGet("/api/mgr/column-mappings", async (HttpContext ctx) =>
 {

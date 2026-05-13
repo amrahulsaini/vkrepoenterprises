@@ -438,6 +438,29 @@ public class MobileRepository
         return list;
     }
 
+    // ── Search log ────────────────────────────────────────────────────────
+    public async Task LogSearchAsync(
+        long userId, string vehicleNo, string chassisNo, string model,
+        double? lat, double? lng, string? address, DateTime deviceTime)
+    {
+        await using var conn = DbFactory.Create();
+        await conn.OpenAsync();
+        const string sql = @"
+            INSERT INTO search_logs
+                (user_id, vehicle_no, chassis_no, model, lat, lng, address, device_time)
+            VALUES (@uid, @vno, @cno, @mdl, @lat, @lng, @addr, @dt)";
+        await using var cmd = new MySqlCommand(sql, conn) { CommandTimeout = 5 };
+        cmd.Parameters.AddWithValue("@uid",  userId);
+        cmd.Parameters.AddWithValue("@vno",  vehicleNo);
+        cmd.Parameters.AddWithValue("@cno",  chassisNo);
+        cmd.Parameters.AddWithValue("@mdl",  model);
+        cmd.Parameters.AddWithValue("@lat",  lat.HasValue  ? (object)lat.Value  : DBNull.Value);
+        cmd.Parameters.AddWithValue("@lng",  lng.HasValue  ? (object)lng.Value  : DBNull.Value);
+        cmd.Parameters.AddWithValue("@addr", (object?)address ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@dt",   deviceTime);
+        await cmd.ExecuteNonQueryAsync();
+    }
+
     // ── Stats ──────────────────────────────────────────────────────────────
     public async Task<(long vehicleRecords, long rcRecords, long chassisRecords)> GetStatsAsync()
     {

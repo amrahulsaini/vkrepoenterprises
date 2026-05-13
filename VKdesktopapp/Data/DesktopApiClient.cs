@@ -51,6 +51,20 @@ internal static class DesktopApiClient
         string  LastSeen,
         double? Lat, double? Lng);
 
+    internal record SearchLogRow(
+        long    Id,
+        long    UserId,
+        string  UserName,
+        string  UserMobile,
+        string  VehicleNo,
+        string  ChassisNo,
+        string  Model,
+        double? Lat,
+        double? Lng,
+        string? Address,
+        string  DeviceTime,
+        string  ServerTime);
+
     // JSON options — case-insensitive to tolerate camelCase from server
     private static readonly JsonSerializerOptions _json =
         new() { PropertyNameCaseInsensitive = true };
@@ -253,6 +267,23 @@ internal static class DesktopApiClient
         var resp = await Send(HttpMethod.Get, url);
         resp.EnsureSuccessStatusCode();
         return (await resp.Content.ReadFromJsonAsync<List<LiveUserDto>>(_json))!;
+    }
+
+    // ── Search logs ─────────────────────────────────────────────────────────
+
+    internal static async Task<List<SearchLogRow>> GetSearchLogsAsync(
+        string? fromDate = null, string? toDate = null,
+        long? userId = null, string? q = null)
+    {
+        var qs = new List<string>();
+        if (!string.IsNullOrWhiteSpace(fromDate)) qs.Add($"fromDate={Uri.EscapeDataString(fromDate)}");
+        if (!string.IsNullOrWhiteSpace(toDate))   qs.Add($"toDate={Uri.EscapeDataString(toDate)}");
+        if (userId.HasValue)                       qs.Add($"userId={userId.Value}");
+        if (!string.IsNullOrWhiteSpace(q))         qs.Add($"q={Uri.EscapeDataString(q)}");
+        var url = "api/mgr/search-logs" + (qs.Count > 0 ? "?" + string.Join("&", qs) : "");
+        var resp = await Send(HttpMethod.Get, url);
+        resp.EnsureSuccessStatusCode();
+        return (await resp.Content.ReadFromJsonAsync<List<SearchLogRow>>(_json))!;
     }
 
     // ── Column mappings ─────────────────────────────────────────────────────

@@ -144,6 +144,17 @@ data class LiveUsersResponse(
     val users: List<LiveUser>
 )
 
+data class SearchLogRequest(
+    val userId: Long,
+    val vehicleNo: String,
+    val chassisNo: String,
+    val model: String,
+    val lat: Double?,
+    val lng: Double?,
+    val address: String?,
+    val deviceTimeIso: String
+)
+
 // Local session stored in DataStore
 data class SessionUser(
     val userId: Long,

@@ -21,6 +21,16 @@ public record LoginRequest(
 
 public record HeartbeatRequest(long UserId, double? Lat, double? Lng);
 
+public record SearchLogRequest(
+    long    UserId,
+    string  VehicleNo,
+    string  ChassisNo,
+    string  Model,
+    double? Lat,
+    double? Lng,
+    string? Address,
+    string  DeviceTimeIso);
+
 public record AuthResponse(
     bool   Success,
     string Message,
