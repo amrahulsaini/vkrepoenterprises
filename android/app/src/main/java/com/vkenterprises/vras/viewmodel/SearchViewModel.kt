@@ -26,7 +26,8 @@ data class SearchUiState(
     val syncCurrent: Long             = 0L,
     val syncTotal: Long               = 0L,
     val onlineOnly: Boolean           = false,
-    val twoColumnView: Boolean        = true
+    val twoColumnView: Boolean        = true,
+    val actionType: String            = "confirm"
 )
 
 @HiltViewModel
@@ -107,6 +108,10 @@ class SearchViewModel @Inject constructor(
 
     fun setTwoColumnView(v: Boolean) {
         _ui.update { it.copy(twoColumnView = v) }
+    }
+
+    fun setActionType(type: String) {
+        _ui.update { it.copy(actionType = type) }
     }
 
     private suspend fun executeSearch(q: String, mode: SearchMode, userId: Long) {

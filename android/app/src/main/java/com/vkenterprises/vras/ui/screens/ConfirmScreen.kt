@@ -30,39 +30,107 @@ fun ConfirmScreen(
     val context    = LocalContext.current
     val ui         by searchVm.ui.collectAsState()
     val item       = ui.selectedResult
+    val actionType = ui.actionType
     val agentName  by authVm.userName.collectAsState(initial = "")
     val agentPhone by authVm.userMobile.collectAsState(initial = "")
+
+    // SMS recipient checkboxes — pre-tick any contact that has a number
+    var chkL1 by remember { mutableStateOf(item?.level1Contact?.isNotBlank() == true) }
+    var chkL2 by remember { mutableStateOf(item?.level2Contact?.isNotBlank() == true) }
+    var chkL3 by remember { mutableStateOf(item?.level3Contact?.isNotBlank() == true) }
+    var chkL4 by remember { mutableStateOf(item?.level4Contact?.isNotBlank() == true) }
+    var chkC1 by remember { mutableStateOf(item?.firstContact?.isNotBlank()  == true) }
+    var chkC2 by remember { mutableStateOf(item?.secondContact?.isNotBlank() == true) }
 
     var vehicleAddress by remember { mutableStateOf("") }
     var carriesGoods   by remember { mutableStateOf("") }
 
+    val screenTitle = when (actionType) {
+        "okrepo" -> "OK for Repo"
+        "cancel" -> "Send Cancellation"
+        else     -> "Send Confirmation"
+    }
+
     fun buildMessage(): String = buildString {
-        appendLine("Respected sir,")
-        appendLine("Customer Name: ${item?.customerName ?: ""}")
-        appendLine("Vehicle No: ${item?.vehicleNo ?: ""}")
-        appendLine("Model/Maker: ${item?.model ?: ""}")
-        appendLine("Chassis No: ${item?.chassisNo ?: ""}")
-        appendLine("Engine No: ${item?.engineNo ?: ""}")
-        appendLine("Vehicle location: *${vehicleAddress.trim()}*")
-        appendLine("Load details: ${carriesGoods.trim().ifEmpty { "—" }}")
+        when (actionType) {
+            "cancel" -> {
+                appendLine("*Respected sir,*")
+                appendLine("We regret to inform you that the above traced vehicle has been *CANCELLED*.")
+                appendLine()
+            }
+            "okrepo" -> {
+                appendLine("*Respected sir,*")
+                appendLine("The above traced vehicle has been confirmed for *OK for Repo*. Please proceed accordingly.")
+                appendLine()
+            }
+            else -> {
+                appendLine("*Respected sir,*")
+                appendLine("A Vehicle has been traced out by our ground team. The details of the vehicle and customer are as below.")
+                appendLine()
+            }
+        }
+
+        if (item?.agreementNo?.isNotBlank() == true)
+            appendLine("Loan No: *${item.agreementNo}*")
+        if (item?.customerName?.isNotBlank() == true)
+            appendLine("Customer Name: *${item.customerName}*")
+        if (item?.branchName?.isNotBlank() == true)
+            appendLine("Branch: *${item.branchName}*")
+        if (item?.vehicleNo?.isNotBlank() == true)
+            appendLine("Vehicle No: *${item.vehicleNo}*")
+        if (item?.model?.isNotBlank() == true)
+            appendLine("Vehicle Model: *${item.model}*")
+        if (item?.chassisNo?.isNotBlank() == true)
+            appendLine("Chassis No: *${item.chassisNo}*")
+        if (item?.engineNo?.isNotBlank() == true)
+            appendLine("Engine No: *${item.engineNo}*")
+        if (item?.level1?.isNotBlank() == true || item?.level1Contact?.isNotBlank() == true)
+            appendLine("Level1: *${item?.level1 ?: ""} - ${item?.level1Contact ?: ""}*")
+        if (item?.level2?.isNotBlank() == true || item?.level2Contact?.isNotBlank() == true)
+            appendLine("Level2: *${item?.level2 ?: ""} - ${item?.level2Contact ?: ""}*")
+        if (item?.level3?.isNotBlank() == true || item?.level3Contact?.isNotBlank() == true)
+            appendLine("Level3: *${item?.level3 ?: ""} - ${item?.level3Contact ?: ""}*")
+        if (vehicleAddress.isNotBlank())
+            appendLine("Vehicle location: *${vehicleAddress.trim()}*")
+        if (carriesGoods.isNotBlank())
+            appendLine("Load details: *${carriesGoods.trim()}*")
+
         appendLine()
-        appendLine("Status: Please confirm this vehicle.")
-        if (agentName.isNotBlank() && agentPhone.isNotBlank())
-            appendLine("$agentName - $agentPhone")
-        append("Agency Name: V K Enterprises")
+        if (actionType == "confirm") {
+            appendLine("We urgently need you to confirm the status of this vehicle, whether it is to be Repo released.")
+        }
+        append("*V K Enterprises*")
+        if (agentName.isNotBlank()) {
+            append(" contact person")
+            append(" — $agentName")
+        }
+        if (agentPhone.isNotBlank()) append(" | $agentPhone")
+    }
+
+    fun checkedNumbers(): List<String> = buildList {
+        if (chkL1 && item?.level1Contact?.isNotBlank() == true) add(item.level1Contact)
+        if (chkL2 && item?.level2Contact?.isNotBlank() == true) add(item.level2Contact)
+        if (chkL3 && item?.level3Contact?.isNotBlank() == true) add(item.level3Contact)
+        if (chkL4 && item?.level4Contact?.isNotBlank() == true) add(item.level4Contact)
+        if (chkC1 && item?.firstContact?.isNotBlank()  == true) add(item.firstContact)
+        if (chkC2 && item?.secondContact?.isNotBlank() == true) add(item.secondContact)
     }
 
     fun sendWhatsApp() {
-        val msg     = buildMessage()
-        val intent  = Intent(Intent.ACTION_VIEW,
+        val msg    = buildMessage()
+        val intent = Intent(Intent.ACTION_VIEW,
             Uri.parse("https://wa.me/?text=${Uri.encode(msg)}"))
         context.startActivity(intent)
     }
 
     fun sendSms() {
-        // SMS version — strip WhatsApp *bold* markers
-        val msg    = buildMessage().replace("*", "")
-        val intent = Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:"))
+        val msg   = buildMessage().replace("*", "")
+        val nums  = checkedNumbers()
+        val uri   = if (nums.isNotEmpty())
+            Uri.parse("smsto:${nums.joinToString(";")}")
+        else
+            Uri.parse("smsto:")
+        val intent = Intent(Intent.ACTION_SENDTO, uri)
         intent.putExtra("sms_body", msg)
         context.startActivity(intent)
     }
@@ -70,7 +138,7 @@ fun ConfirmScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Send Confirmation", fontWeight = FontWeight.Bold) },
+                title = { Text(screenTitle, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = { nav.popBackStack() }) {
                         Icon(Icons.Default.ArrowBack, null)
@@ -94,68 +162,119 @@ fun ConfirmScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            // ── Vehicle summary ──────────────────────────────────────────
+            // ── Vehicle summary card ──────────────────────────────────────
             Card(
-                shape = RoundedCornerShape(12.dp),
+                shape  = RoundedCornerShape(12.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    SummaryRow("Customer",   item.customerName)
-                    SummaryRow("Vehicle No", item.vehicleNo,  mono = true)
-                    SummaryRow("Chassis",    item.chassisNo,  mono = true)
-                    SummaryRow("Engine",     item.engineNo,   mono = true)
-                    SummaryRow("Model",      item.model)
+                    SummaryRow("Agreement", item.agreementNo, mono = true)
+                    SummaryRow("Customer",  item.customerName)
+                    SummaryRow("Vehicle No",item.vehicleNo,   mono = true)
+                    SummaryRow("Chassis",   item.chassisNo,   mono = true)
+                    SummaryRow("Engine",    item.engineNo,    mono = true)
+                    SummaryRow("Model",     item.model)
+                    SummaryRow("Branch",    item.branchName)
+                    SummaryRow("Financer",  item.financer)
                 }
             }
 
-            // ── Inputs ───────────────────────────────────────────────────
+            // ── SMS recipients ────────────────────────────────────────────
+            val hasAnyContact = listOf(
+                item.level1Contact, item.level2Contact,
+                item.level3Contact, item.level4Contact,
+                item.firstContact,  item.secondContact
+            ).any { it.isNotBlank() }
+
+            Card(
+                shape  = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(
+                        "Select Recipients for SMS",
+                        style    = MaterialTheme.typography.labelMedium,
+                        color    = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(bottom = 4.dp)
+                    )
+
+                    if (!hasAnyContact) {
+                        Text(
+                            "No contact numbers available for this vehicle.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    } else {
+                        if (item.level1Contact.isNotBlank())
+                            ContactCheckRow("Level 1", item.level1, item.level1Contact, chkL1) { chkL1 = it }
+                        if (item.level2Contact.isNotBlank())
+                            ContactCheckRow("Level 2", item.level2, item.level2Contact, chkL2) { chkL2 = it }
+                        if (item.level3Contact.isNotBlank())
+                            ContactCheckRow("Level 3", item.level3, item.level3Contact, chkL3) { chkL3 = it }
+                        if (item.level4Contact.isNotBlank())
+                            ContactCheckRow("Level 4", item.level4, item.level4Contact, chkL4) { chkL4 = it }
+                        if (item.firstContact.isNotBlank())
+                            ContactCheckRow("Contact 1 (Finance/Branch)", item.financer, item.firstContact, chkC1) { chkC1 = it }
+                        if (item.secondContact.isNotBlank())
+                            ContactCheckRow("Contact 2 (Finance/Branch)", item.financer, item.secondContact, chkC2) { chkC2 = it }
+                    }
+                }
+            }
+
+            // ── Inputs ────────────────────────────────────────────────────
             OutlinedTextField(
                 value = vehicleAddress,
                 onValueChange = { vehicleAddress = it },
-                label = { Text("Vehicle Location / Address") },
-                leadingIcon = { Icon(Icons.Default.LocationOn, null) },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(10.dp),
-                maxLines = 3
+                label         = { Text("Vehicle Location / Address") },
+                leadingIcon   = { Icon(Icons.Default.LocationOn, null) },
+                modifier      = Modifier.fillMaxWidth(),
+                shape         = RoundedCornerShape(10.dp),
+                maxLines      = 3
             )
 
             OutlinedTextField(
                 value = carriesGoods,
                 onValueChange = { carriesGoods = it },
-                label = { Text("Carries Goods / Load Details") },
-                leadingIcon = { Icon(Icons.Default.LocalShipping, null) },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(10.dp),
-                maxLines = 2
+                label         = { Text("Carries Goods / Load Details") },
+                leadingIcon   = { Icon(Icons.Default.LocalShipping, null) },
+                modifier      = Modifier.fillMaxWidth(),
+                shape         = RoundedCornerShape(10.dp),
+                maxLines      = 2
             )
 
-            // ── Message preview ──────────────────────────────────────────
+            // ── Message preview ───────────────────────────────────────────
             Card(
-                shape = RoundedCornerShape(10.dp),
+                shape  = RoundedCornerShape(10.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(Modifier.padding(14.dp)) {
-                    Text("Message Preview",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Bold)
+                    Text(
+                        "Message Preview",
+                        style      = MaterialTheme.typography.labelSmall,
+                        color      = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Bold
+                    )
                     Spacer(Modifier.height(8.dp))
-                    Text(buildMessage(),
-                        style = MaterialTheme.typography.bodySmall,
+                    Text(
+                        buildMessage(),
+                        style      = MaterialTheme.typography.bodySmall,
                         fontFamily = FontFamily.Monospace,
-                        lineHeight = 18.sp)
+                        lineHeight = 18.sp
+                    )
                 }
             }
 
-            // ── Send buttons ─────────────────────────────────────────────
+            // ── Send buttons ──────────────────────────────────────────────
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Button(
-                    onClick = { sendWhatsApp() },
+                    onClick  = { sendWhatsApp() },
                     modifier = Modifier.weight(1f).height(52.dp),
-                    shape = RoundedCornerShape(10.dp),
-                    colors = ButtonDefaults.buttonColors(
+                    shape    = RoundedCornerShape(10.dp),
+                    colors   = ButtonDefaults.buttonColors(
                         containerColor = Color(0xFF25D366),
                         contentColor   = Color.White)
                 ) {
@@ -165,10 +284,10 @@ fun ConfirmScreen(
                 }
 
                 Button(
-                    onClick = { sendSms() },
+                    onClick  = { sendSms() },
                     modifier = Modifier.weight(1f).height(52.dp),
-                    shape = RoundedCornerShape(10.dp),
-                    colors = ButtonDefaults.buttonColors(
+                    shape    = RoundedCornerShape(10.dp),
+                    colors   = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.secondary,
                         contentColor   = MaterialTheme.colorScheme.onSecondary)
                 ) {
@@ -184,17 +303,50 @@ fun ConfirmScreen(
 }
 
 @Composable
+private fun ContactCheckRow(
+    label: String,
+    name: String,
+    phone: String,
+    checked: Boolean,
+    onChecked: (Boolean) -> Unit
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier          = Modifier.fillMaxWidth()
+    ) {
+        Checkbox(checked = checked, onCheckedChange = onChecked)
+        Column(Modifier.weight(1f).padding(start = 4.dp)) {
+            Text(
+                "$label${if (name.isNotBlank()) " — $name" else ""}",
+                style      = MaterialTheme.typography.bodySmall,
+                fontWeight = FontWeight.Medium
+            )
+            Text(
+                phone,
+                style      = MaterialTheme.typography.labelSmall,
+                color      = MaterialTheme.colorScheme.primary,
+                fontFamily = FontFamily.Monospace
+            )
+        }
+    }
+}
+
+@Composable
 private fun SummaryRow(label: String, value: String, mono: Boolean = false) {
     if (value.isBlank()) return
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(label,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.weight(0.35f))
-        Text(value,
-            style = MaterialTheme.typography.bodySmall,
+        Text(
+            label,
+            style    = MaterialTheme.typography.labelSmall,
+            color    = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(0.35f)
+        )
+        Text(
+            value,
+            style      = MaterialTheme.typography.bodySmall,
             fontWeight = FontWeight.Medium,
             fontFamily = if (mono) FontFamily.Monospace else FontFamily.Default,
-            modifier = Modifier.weight(0.65f))
+            modifier   = Modifier.weight(0.65f)
+        )
     }
 }
