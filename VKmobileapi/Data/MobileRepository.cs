@@ -9,7 +9,7 @@ public class MobileRepository
     // ── In-memory search cache ─────────────────────────────────────────────
     // Key: "rc:XXXX" or "ch:XXXXX" — value: cached result list with timestamp
     private static readonly ConcurrentDictionary<string, (List<SearchResult> Results, DateTime At)> _cache = new();
-    private static readonly TimeSpan CacheTtl = TimeSpan.FromHours(2);
+    private static readonly TimeSpan CacheTtl = TimeSpan.FromMinutes(1);
 
     // ── Subscription status cache — avoids DB hit on every request ─────────
     // Key: userId — value: (hasActiveSub, cachedAt). TTL 5 min.

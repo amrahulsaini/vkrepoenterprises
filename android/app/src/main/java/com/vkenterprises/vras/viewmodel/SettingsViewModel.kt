@@ -59,6 +59,28 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    fun smartSync() {
+        if (_ui.value.isSyncing) return
+        viewModelScope.launch(Dispatchers.IO) {
+            _ui.update { it.copy(isSyncing = true, syncProgress = "Checking for updates…") }
+            runCatching {
+                syncRepo.sync { p ->
+                    _ui.update {
+                        it.copy(syncProgress = when {
+                            p.started -> "Downloading ${p.total} records…"
+                            p.done    -> "Done!"
+                            else      -> "Synced ${p.current} / ${p.total}…"
+                        })
+                    }
+                }
+            }.onFailure { e ->
+                _ui.update { it.copy(syncProgress = "Error: ${e.message}") }
+            }
+            _ui.update { it.copy(isSyncing = false) }
+            loadAll()
+        }
+    }
+
     fun forceSync() {
         if (_ui.value.isSyncing) return
         viewModelScope.launch(Dispatchers.IO) {
