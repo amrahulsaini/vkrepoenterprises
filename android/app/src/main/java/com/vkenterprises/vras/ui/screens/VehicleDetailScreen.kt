@@ -251,8 +251,19 @@ fun VehicleDetailScreen(
 
 @Composable
 private fun AdminDetailView(item: SearchResult, results: List<SearchResult>) {
-    // Branch count banner
-    if (results.size > 1) {
+    // Deduplicate branches by (branchName, financer) so the same branch uploaded
+    // multiple times only appears once. Keep all unique (branch, financer) pairs.
+    data class BranchEntry(val branch: String, val financer: String)
+    val uniqueBranches = results
+        .map { r ->
+            val bn  = r.branchName.orEmpty().ifBlank { r.branchFromExcel.orEmpty() }
+            val fin = r.financer.orEmpty()
+            BranchEntry(bn, fin)
+        }
+        .distinctBy { "${it.branch}|||${it.financer}" }
+        .filter { it.branch.isNotBlank() || it.financer.isNotBlank() }
+
+    if (uniqueBranches.isNotEmpty()) {
         Card(
             shape  = RoundedCornerShape(10.dp),
             colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF8E1)),
@@ -261,31 +272,53 @@ private fun AdminDetailView(item: SearchResult, results: List<SearchResult>) {
             Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Icon(Icons.Default.AccountBalance, null, tint = Color(0xFFF57F17))
-                Text("Found in ${results.size} branches",
+                Text(
+                    "Found in ${uniqueBranches.size} branch${if (uniqueBranches.size == 1) "" else "es"}",
                     fontWeight = FontWeight.SemiBold,
                     style = MaterialTheme.typography.bodyMedium,
                     color = Color(0xFFF57F17))
             }
         }
-        // List branch names
         Card(
             shape  = RoundedCornerShape(10.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             modifier = Modifier.fillMaxWidth()
         ) {
-            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                results.forEachIndexed { idx, r ->
-                    val branch = r.branchName.orEmpty().ifBlank { r.branchFromExcel.orEmpty().ifBlank { "Branch ${idx + 1}" } }
-                    Row(verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Surface(shape = RoundedCornerShape(4.dp),
-                            color = MaterialTheme.colorScheme.primaryContainer) {
-                            Text("${idx + 1}",
+            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                uniqueBranches.forEachIndexed { idx, entry ->
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(4.dp),
+                            color = MaterialTheme.colorScheme.primaryContainer
+                        ) {
+                            Text(
+                                "${idx + 1}",
                                 style = MaterialTheme.typography.labelSmall,
-                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp))
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
+                            )
                         }
-                        Text(branch, style = MaterialTheme.typography.bodySmall)
+                        Column {
+                            Text(
+                                entry.branch.ifBlank { "—" },
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            if (entry.financer.isNotBlank()) {
+                                Text(
+                                    entry.financer,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
                     }
+                    if (idx < uniqueBranches.lastIndex)
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
                 }
             }
         }
