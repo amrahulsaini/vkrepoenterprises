@@ -1,0 +1,111 @@
+<Window
+    x:Class="VRASDesktopApp.Records.UserPickerWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:fa="http://schemas.fontawesome.com/icons/"
+    Title="Select Agent"
+    Width="480" Height="580"
+    WindowStartupLocation="CenterOwner"
+    FontFamily="Segoe UI"
+    ResizeMode="NoResize"
+    Loaded="Window_Loaded">
+
+    <Window.Resources>
+        <Style x:Key="UserRow" TargetType="Border">
+            <Setter Property="Background" Value="White" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Padding" Value="12,10" />
+            <Setter Property="Margin" Value="0,0,0,6" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{StaticResource Orange50}" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Title bar -->
+        <Border Grid.Row="0" Background="{StaticResource Gray900}" Padding="18,14"
+                MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+            <DockPanel>
+                <Button DockPanel.Dock="Right" Content="✕" Width="32" Height="32"
+                        Background="Transparent" Foreground="White"
+                        BorderThickness="0" FontSize="14"
+                        Click="btnClose_Click" Cursor="Hand" />
+                <StackPanel>
+                    <TextBlock Text="Select Agent" FontSize="15" FontWeight="Bold" Foreground="White" />
+                    <TextBlock Text="Pick a user to filter search logs" FontSize="11"
+                               Foreground="{StaticResource Gray400}" Margin="0,2,0,0" />
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <!-- Search box -->
+        <Border Grid.Row="1" Background="{StaticResource Gray100}"
+                BorderBrush="{StaticResource Gray200}" BorderThickness="0,0,0,1"
+                Padding="14,10">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <fa:FontAwesome Grid.Column="0" Icon="Solid_MagnifyingGlass"
+                                FontSize="13" Foreground="{StaticResource Gray500}"
+                                VerticalAlignment="Center" Margin="0,0,8,0" />
+                <TextBox Grid.Column="1" x:Name="txtSearch"
+                         FontSize="13" Background="Transparent" BorderThickness="0"
+                         VerticalContentAlignment="Center"
+                         TextChanged="txtSearch_TextChanged">
+                    <TextBox.Style>
+                        <Style TargetType="TextBox">
+                            <Style.Resources>
+                                <VisualBrush x:Key="ph" TileMode="None" Opacity="0.4" Stretch="None" AlignmentX="Left">
+                                    <VisualBrush.Visual>
+                                        <TextBlock Text="Search by name or mobile…" FontSize="13"
+                                                   Foreground="{StaticResource Gray500}" />
+                                    </VisualBrush.Visual>
+                                </VisualBrush>
+                            </Style.Resources>
+                            <Style.Triggers>
+                                <Trigger Property="Text" Value="">
+                                    <Setter Property="Background" Value="{StaticResource ph}" />
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBox.Style>
+                </TextBox>
+                <Button Grid.Column="2" x:Name="btnClearSearch"
+                        Content="✕" FontSize="11"
+                        Background="Transparent" BorderThickness="0"
+                        Foreground="{StaticResource Gray500}"
+                        Cursor="Hand" Visibility="Collapsed"
+                        Click="btnClearSearch_Click" />
+            </Grid>
+        </Border>
+
+        <!-- User list -->
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" Padding="14,10,14,0">
+            <StackPanel x:Name="spUsers" />
+        </ScrollViewer>
+
+        <!-- Footer: All Users button -->
+        <Border Grid.Row="3" Background="{StaticResource Gray50}"
+                BorderBrush="{StaticResource Gray200}" BorderThickness="0,1,0,0"
+                Padding="14,10">
+            <Button Content="Show All Users (No Filter)"
+                    Style="{StaticResource SecondaryButton}"
+                    HorizontalAlignment="Stretch"
+                    Click="btnAllUsers_Click" />
+        </Border>
+    </Grid>
+</Window>

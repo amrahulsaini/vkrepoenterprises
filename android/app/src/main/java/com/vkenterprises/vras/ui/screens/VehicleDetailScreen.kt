@@ -48,7 +48,8 @@ fun VehicleDetailScreen(
         if (item == null) return@LaunchedEffect
         val userId = authVm.userId.first()
         if (userId == 0L) return@LaunchedEffect
-        val loc = getLocationOnce(context)
+        val loc     = getLocationOnce(context)
+        val address = reverseGeocode(context, loc?.latitude, loc?.longitude)
         runCatching {
             ApiClient.api.logSearch(
                 SearchLogRequest(
@@ -58,7 +59,7 @@ fun VehicleDetailScreen(
                     model         = item.model,
                     lat           = loc?.latitude,
                     lng           = loc?.longitude,
-                    address       = null,
+                    address       = address,
                     deviceTimeIso = java.time.Instant.now().toString()
                 )
             )
@@ -154,6 +155,22 @@ fun VehicleDetailScreen(
             Spacer(Modifier.height(72.dp)) // space for FAB
         }
     }
+}
+
+private fun reverseGeocode(context: Context, lat: Double?, lng: Double?): String? {
+    if (lat == null || lng == null) return null
+    return runCatching {
+        val geocoder = android.location.Geocoder(context, java.util.Locale.getDefault())
+        @Suppress("DEPRECATION")
+        val addresses = geocoder.getFromLocation(lat, lng, 1)
+        addresses?.firstOrNull()?.let { addr ->
+            listOfNotNull(
+                addr.subLocality ?: addr.locality,
+                addr.subAdminArea ?: addr.adminArea,
+                addr.countryName
+            ).filter { it.isNotBlank() }.joinToString(", ").ifEmpty { addr.getAddressLine(0) }
+        }
+    }.getOrNull()
 }
 
 @SuppressLint("MissingPermission")

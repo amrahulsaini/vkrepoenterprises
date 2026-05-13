@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -21,16 +20,12 @@ public partial class DetailsViewsPage : Page
     private List<DesktopApiClient.SearchLogRow> _allLogs = new();
     private readonly ObservableCollection<DesktopApiClient.SearchLogRow> _displayed = new();
     private bool _filterSuspended;
-
-    // Combo item for user filter
-    private record UserItem(long? UserId, string Display);
+    private long? _pickedUserId;
 
     public DetailsViewsPage()
     {
         InitializeComponent();
         dgLogs.ItemsSource = _displayed;
-        cbUser.ItemsSource = new List<UserItem> { new(null, "All Users") };
-        cbUser.SelectedIndex = 0;
     }
 
     private async void Page_Loaded(object sender, RoutedEventArgs e)
@@ -38,7 +33,7 @@ public partial class DetailsViewsPage : Page
         _filterSuspended = true;
         dpFrom.SelectedDate = DateTime.Today.AddDays(-30);
         dpTo.SelectedDate   = DateTime.Today;
-        _filterSuspended = false;
+        _filterSuspended    = false;
         await RefreshLogsAsync();
     }
 
@@ -47,54 +42,43 @@ public partial class DetailsViewsPage : Page
 
     private async Task RefreshLogsAsync()
     {
-        lblLoading.Visibility = Visibility.Visible;
+        SetLoading(true);
         try
         {
             var from = dpFrom.SelectedDate?.ToString("yyyy-MM-dd");
             var to   = dpTo.SelectedDate?.ToString("yyyy-MM-dd");
             _allLogs = await DesktopApiClient.GetSearchLogsAsync(from, to);
-
-            // Rebuild user dropdown from fresh data
-            _filterSuspended = true;
-            var users = _allLogs
-                .GroupBy(r => r.UserId)
-                .OrderBy(g => g.First().UserName)
-                .Select(g => new UserItem(g.Key, $"{g.First().UserName}  ({g.First().UserMobile})"))
-                .ToList();
-            users.Insert(0, new UserItem(null, "All Users"));
-            cbUser.ItemsSource = users;
-            cbUser.SelectedIndex = 0;
-            _filterSuspended = false;
-
             ApplyFilter();
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Failed to load logs: {ex.Message}", "Search Logs",
+            MessageBox.Show($"Failed to load logs:\n{ex.Message}", "Search Logs",
                 MessageBoxButton.OK, MessageBoxImage.Error);
         }
-        finally
-        {
-            lblLoading.Visibility = Visibility.Collapsed;
-        }
+        finally { SetLoading(false); }
+    }
+
+    private void SetLoading(bool on)
+    {
+        icnLoading.Visibility = on ? Visibility.Visible : Visibility.Collapsed;
+        lblCount.Text         = on ? "Loading…" : "";
     }
 
     private void ApplyFilter()
     {
-        var search  = txtSearch.Text.Trim().ToUpperInvariant();
-        var selUser = cbUser.SelectedItem as UserItem;
-
+        var search  = txtSearch.Text.Trim();
         var filtered = _allLogs.AsEnumerable();
 
-        if (selUser?.UserId.HasValue == true)
-            filtered = filtered.Where(r => r.UserId == selUser.UserId);
+        if (_pickedUserId.HasValue)
+            filtered = filtered.Where(r => r.UserId == _pickedUserId);
 
         if (!string.IsNullOrEmpty(search))
             filtered = filtered.Where(r =>
-                r.VehicleNo.Contains(search, StringComparison.OrdinalIgnoreCase) ||
-                r.ChassisNo.Contains(search, StringComparison.OrdinalIgnoreCase) ||
-                r.UserName.Contains(search, StringComparison.OrdinalIgnoreCase)  ||
-                r.UserMobile.Contains(search, StringComparison.OrdinalIgnoreCase));
+                r.VehicleNo.Contains(search, StringComparison.OrdinalIgnoreCase)  ||
+                r.ChassisNo.Contains(search, StringComparison.OrdinalIgnoreCase)  ||
+                r.UserName.Contains(search, StringComparison.OrdinalIgnoreCase)   ||
+                r.UserMobile.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                (r.Address ?? "").Contains(search, StringComparison.OrdinalIgnoreCase));
 
         _displayed.Clear();
         foreach (var row in filtered) _displayed.Add(row);
@@ -102,15 +86,30 @@ public partial class DetailsViewsPage : Page
         UpdateMapButton();
     }
 
+    // ── Filters ─────────────────────────────────────────────────────────────
+
     private void Filter_Changed(object sender, SelectionChangedEventArgs e)
     {
         if (_filterSuspended) return;
-        // Date range changed → need fresh server data
         _ = RefreshLogsAsync();
     }
 
     private void txtSearch_TextChanged(object sender, TextChangedEventArgs e)
         => ApplyFilter();
+
+    private void btnPickUser_Click(object sender, RoutedEventArgs e)
+    {
+        var win = new UserPickerWindow { Owner = Window.GetWindow(this) };
+        if (win.ShowDialog() == true)
+        {
+            _pickedUserId        = win.SelectedUserId;
+            txtPickedUser.Text   = win.SelectedUserName.Length > 0
+                ? win.SelectedUserName : "All Agents";
+            ApplyFilter();
+        }
+    }
+
+    // ── Grid interactions ────────────────────────────────────────────────────
 
     private void dgLogs_SelectionChanged(object sender, SelectionChangedEventArgs e)
         => UpdateMapButton();
@@ -139,7 +138,7 @@ public partial class DetailsViewsPage : Page
         var win = new MapPointWindow(
             row.VehicleNo, row.ChassisNo, row.Model,
             row.UserName, row.UserMobile, row.ServerTime,
-            row.Lat, row.Lng)
+            row.Lat, row.Lng, row.Address)
         { Owner = Window.GetWindow(this) };
         win.Show();
     }
@@ -170,6 +169,8 @@ public partial class DetailsViewsPage : Page
             {
                 ws[1, c + 1].Text = headers[c];
                 ws[1, c + 1].CellStyle.Font.Bold = true;
+                ws[1, c + 1].CellStyle.Color     = System.Drawing.Color.FromArgb(0x1A, 0x1A, 0x1A);
+                ws[1, c + 1].CellStyle.Font.RGBColor = System.Drawing.Color.White;
             }
 
             int row = 2;
@@ -218,26 +219,25 @@ public partial class DetailsViewsPage : Page
             doc.PageSettings.Orientation = PdfPageOrientation.Landscape;
             var page  = doc.Pages.Add();
             var gfx   = page.Graphics;
+            var bold  = new PdfStandardFont(PdfFontFamily.Helvetica, 10, PdfFontStyle.Bold);
             var font  = new PdfStandardFont(PdfFontFamily.Helvetica, 7);
-            var bold  = new PdfStandardFont(PdfFontFamily.Helvetica, 8, PdfFontStyle.Bold);
-            var brush = PdfBrushes.Black;
+            var hdr   = new PdfStandardFont(PdfFontFamily.Helvetica, 7, PdfFontStyle.Bold);
 
-            // Title
-            gfx.DrawString($"Search Logs — {DateTime.Today:dd MMM yyyy}",
-                new PdfStandardFont(PdfFontFamily.Helvetica, 12, PdfFontStyle.Bold),
-                brush, new Syncfusion.Drawing.PointF(0, 0));
+            gfx.DrawString($"VK Enterprises — Search Logs  ({DateTime.Today:dd MMM yyyy})",
+                bold, PdfBrushes.Black, new Syncfusion.Drawing.PointF(0, 0));
 
             var grid = new PdfGrid();
             grid.Style.Font = font;
             grid.Columns.Add(10);
 
+            var hRow = grid.Headers.Add(1)[0];
             string[] headers = { "VRN","Chassis","Model","Agent","Mobile","Address","Lat","Lng","Device Time","Server Time" };
-            var headerRow = grid.Headers.Add(1)[0];
             for (int c = 0; c < headers.Length; c++)
             {
-                headerRow.Cells[c].Value = headers[c];
-                headerRow.Cells[c].Style.Font = bold;
-                headerRow.Cells[c].Style.BackgroundBrush = PdfBrushes.LightGray;
+                hRow.Cells[c].Value                   = headers[c];
+                hRow.Cells[c].Style.Font              = hdr;
+                hRow.Cells[c].Style.BackgroundBrush   = new PdfSolidBrush(Syncfusion.Drawing.Color.FromArgb(255, 26, 26, 26));
+                hRow.Cells[c].Style.TextBrush         = PdfBrushes.White;
             }
 
             foreach (var r in _displayed)

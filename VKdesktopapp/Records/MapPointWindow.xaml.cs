@@ -8,20 +8,22 @@ namespace VRASDesktopApp.Records;
 public partial class MapPointWindow : Window
 {
     private readonly double? _lat, _lng;
-    private readonly string _vrn, _chassis, _model, _userName, _userMobile, _serverTime;
+    private readonly string _vrn, _chassis, _model, _userName, _userMobile, _serverTime, _address;
 
     public MapPointWindow(
         string vrn, string chassis, string model,
         string userName, string userMobile, string serverTime,
-        double? lat, double? lng)
+        double? lat, double? lng, string? address = null)
     {
         InitializeComponent();
         _vrn = vrn; _chassis = chassis; _model = model;
-        _userName = userName; _userMobile = userMobile; _serverTime = serverTime;
+        _userName = userName; _userMobile = userMobile;
+        _serverTime = serverTime; _address = address ?? "";
         _lat = lat; _lng = lng;
 
         txtTitle.Text    = $"{vrn}  —  {userName}";
-        txtSubtitle.Text = $"{model}  |  {serverTime}  |  {userMobile}";
+        var addrPart     = !string.IsNullOrWhiteSpace(address) ? $"  |  {address}" : "";
+        txtSubtitle.Text = $"{model}  |  {serverTime}  |  {userMobile}{addrPart}";
     }
 
     private async void Window_Loaded(object sender, RoutedEventArgs e)
@@ -55,6 +57,8 @@ public partial class MapPointWindow : Window
         parts.Add($"chassis={Uri.EscapeDataString(_chassis)}");
         parts.Add($"model={Uri.EscapeDataString(_model)}");
         parts.Add($"time={Uri.EscapeDataString(_serverTime)}");
+        if (!string.IsNullOrWhiteSpace(_address))
+            parts.Add($"addr={Uri.EscapeDataString(_address)}");
         return parts.Count > 0 ? "?" + string.Join("&", parts) : "";
     }
 
