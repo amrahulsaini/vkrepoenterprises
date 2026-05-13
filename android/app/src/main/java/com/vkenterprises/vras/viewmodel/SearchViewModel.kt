@@ -47,8 +47,14 @@ class SearchViewModel @Inject constructor(
     val requiredLen get() = if (_ui.value.mode == SearchMode.RC) 4 else 5
 
     init {
+        // Poll every 60s while the ViewModel is alive (app open or in recent apps).
+        // sync() is cheap when nothing changed — just one API call to compare branch
+        // timestamps. Downloads only happen when uploadedAt or record count differs.
         viewModelScope.launch(Dispatchers.IO) {
-            triggerSync()  // Always check on app open; sync() silently skips unchanged branches
+            while (true) {
+                triggerSync()
+                kotlinx.coroutines.delay(60_000L)
+            }
         }
     }
 
