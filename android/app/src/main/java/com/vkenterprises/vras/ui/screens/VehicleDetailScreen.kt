@@ -275,7 +275,7 @@ private fun AdminDetailView(item: SearchResult, results: List<SearchResult>) {
         ) {
             Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 results.forEachIndexed { idx, r ->
-                    val branch = r.branchName.ifBlank { r.branchFromExcel.ifBlank { "Branch ${idx + 1}" } }
+                    val branch = r.branchName.orEmpty().ifBlank { r.branchFromExcel.orEmpty().ifBlank { "Branch ${idx + 1}" } }
                     Row(verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         Surface(shape = RoundedCornerShape(4.dp),
@@ -328,14 +328,14 @@ private fun AdminDetailView(item: SearchResult, results: List<SearchResult>) {
 
     // Levels
     InfoCard("Level Contacts") {
-        if (item.level1.isNotBlank() || item.level1Contact.isNotBlank())
-            DRow("Level 1", "${item.level1}  ${item.level1Contact}".trim())
-        if (item.level2.isNotBlank() || item.level2Contact.isNotBlank())
-            DRow("Level 2", "${item.level2}  ${item.level2Contact}".trim())
-        if (item.level3.isNotBlank() || item.level3Contact.isNotBlank())
-            DRow("Level 3", "${item.level3}  ${item.level3Contact}".trim())
-        if (item.level4.isNotBlank() || item.level4Contact.isNotBlank())
-            DRow("Level 4", "${item.level4}  ${item.level4Contact}".trim())
+        if (!item.level1.isNullOrBlank() || !item.level1Contact.isNullOrBlank())
+            DRow("Level 1", "${item.level1.orEmpty()}  ${item.level1Contact.orEmpty()}".trim())
+        if (!item.level2.isNullOrBlank() || !item.level2Contact.isNullOrBlank())
+            DRow("Level 2", "${item.level2.orEmpty()}  ${item.level2Contact.orEmpty()}".trim())
+        if (!item.level3.isNullOrBlank() || !item.level3Contact.isNullOrBlank())
+            DRow("Level 3", "${item.level3.orEmpty()}  ${item.level3Contact.orEmpty()}".trim())
+        if (!item.level4.isNullOrBlank() || !item.level4Contact.isNullOrBlank())
+            DRow("Level 4", "${item.level4.orEmpty()}  ${item.level4Contact.orEmpty()}".trim())
     }
 
     // Additional
@@ -401,40 +401,40 @@ private fun BasicDetailView(item: SearchResult, agentName: String, agentPhone: S
 private fun CopyDialog(item: SearchResult, onDismiss: () -> Unit, context: Context) {
     val fields = remember {
         listOf(
-            "Vehicle No"       to item.vehicleNo,
-            "Chassis No"       to item.chassisNo,
-            "Engine No"        to item.engineNo,
-            "Model / Make"     to item.model,
-            "Agreement No"     to item.agreementNo,
-            "Cust. Name"       to item.customerName,
-            "Cust. Address"    to item.customerAddress,
-            "Cust. Contact"    to item.customerContact,
-            "Bucket"           to item.bucket,
-            "GV"               to item.gv,
-            "OD"               to item.od,
-            "Seasoning"        to item.seasoning,
-            "TBR Flag"         to item.tbrFlag,
-            "Region"           to item.region,
-            "Area"             to item.area,
-            "Branch (xlsx)"    to item.branchFromExcel,
-            "Branch"           to item.branchName,
-            "Finance"          to item.financer,
-            "Contact 1"        to item.firstContact,
-            "Contact 2"        to item.secondContact,
-            "Contact 3"        to item.thirdContact,
-            "Level 1"          to "${item.level1} - ${item.level1Contact}".trim(' ', '-'),
-            "Level 2"          to "${item.level2} - ${item.level2Contact}".trim(' ', '-'),
-            "Level 3"          to "${item.level3} - ${item.level3Contact}".trim(' ', '-'),
-            "Level 4"          to "${item.level4} - ${item.level4Contact}".trim(' ', '-'),
-            "Sec9 Available"   to item.sec9,
-            "Sec17 Available"  to item.sec17,
-            "Executive"        to item.executiveName,
-            "POS"              to item.pos,
-            "TOSS"             to item.toss,
-            "Mail 1"           to item.senderMail1,
-            "Mail 2"           to item.senderMail2,
-            "Remark"           to item.remark,
-            "Uploaded On"      to item.createdOn,
+            "Vehicle No"       to item.vehicleNo.orEmpty(),
+            "Chassis No"       to item.chassisNo.orEmpty(),
+            "Engine No"        to item.engineNo.orEmpty(),
+            "Model / Make"     to item.model.orEmpty(),
+            "Agreement No"     to item.agreementNo.orEmpty(),
+            "Cust. Name"       to item.customerName.orEmpty(),
+            "Cust. Address"    to item.customerAddress.orEmpty(),
+            "Cust. Contact"    to item.customerContact.orEmpty(),
+            "Bucket"           to item.bucket.orEmpty(),
+            "GV"               to item.gv.orEmpty(),
+            "OD"               to item.od.orEmpty(),
+            "Seasoning"        to item.seasoning.orEmpty(),
+            "TBR Flag"         to item.tbrFlag.orEmpty(),
+            "Region"           to item.region.orEmpty(),
+            "Area"             to item.area.orEmpty(),
+            "Branch (xlsx)"    to item.branchFromExcel.orEmpty(),
+            "Branch"           to item.branchName.orEmpty(),
+            "Finance"          to item.financer.orEmpty(),
+            "Contact 1"        to item.firstContact.orEmpty(),
+            "Contact 2"        to item.secondContact.orEmpty(),
+            "Contact 3"        to item.thirdContact.orEmpty(),
+            "Level 1"          to "${item.level1.orEmpty()} - ${item.level1Contact.orEmpty()}".trim(' ', '-'),
+            "Level 2"          to "${item.level2.orEmpty()} - ${item.level2Contact.orEmpty()}".trim(' ', '-'),
+            "Level 3"          to "${item.level3.orEmpty()} - ${item.level3Contact.orEmpty()}".trim(' ', '-'),
+            "Level 4"          to "${item.level4.orEmpty()} - ${item.level4Contact.orEmpty()}".trim(' ', '-'),
+            "Sec9 Available"   to item.sec9.orEmpty(),
+            "Sec17 Available"  to item.sec17.orEmpty(),
+            "Executive"        to item.executiveName.orEmpty(),
+            "POS"              to item.pos.orEmpty(),
+            "TOSS"             to item.toss.orEmpty(),
+            "Mail 1"           to item.senderMail1.orEmpty(),
+            "Mail 2"           to item.senderMail2.orEmpty(),
+            "Remark"           to item.remark.orEmpty(),
+            "Uploaded On"      to item.createdOn.orEmpty(),
         ).filter { it.second.isNotBlank() }
     }
     val checked = remember { mutableStateMapOf<String, Boolean>().apply { fields.forEach { put(it.first, true) } } }
@@ -494,13 +494,13 @@ private fun buildQuickWaMessage(
     agentName: String, agentPhone: String
 ): String = buildString {
     appendLine("*Respected sir,*")
-    appendLine("Loan No: *${item.agreementNo.ifBlank { "-" }}*")
-    appendLine("Customer Name: *${item.customerName.ifBlank { "-" }}*")
-    appendLine("Branch: *${item.branchName.ifBlank { "-" }}*")
-    appendLine("Vehicle No: *${item.vehicleNo}*")
-    appendLine("Model/Maker: *${item.model.ifBlank { "-" }}*")
-    appendLine("Chassis No: *${item.chassisNo}*")
-    appendLine("Engine No: *${item.engineNo.ifBlank { "-" }}*")
+    appendLine("Loan No: *${item.agreementNo.orEmpty().ifBlank { "-" }}*")
+    appendLine("Customer Name: *${item.customerName.orEmpty().ifBlank { "-" }}*")
+    appendLine("Branch: *${item.branchName.orEmpty().ifBlank { "-" }}*")
+    appendLine("Vehicle No: *${item.vehicleNo.orEmpty()}*")
+    appendLine("Model/Maker: *${item.model.orEmpty().ifBlank { "-" }}*")
+    appendLine("Chassis No: *${item.chassisNo.orEmpty()}*")
+    appendLine("Engine No: *${item.engineNo.orEmpty().ifBlank { "-" }}*")
     appendLine("Status: *$status*")
     appendLine()
     if (agentName.isNotBlank() && agentPhone.isNotBlank())
@@ -534,8 +534,8 @@ private fun InfoCard(title: String, content: @Composable ColumnScope.() -> Unit)
 }
 
 @Composable
-private fun DRow(label: String, value: String, mono: Boolean = false, invalid: Boolean = false) {
-    if (value.isBlank()) return
+private fun DRow(label: String, value: String?, mono: Boolean = false, invalid: Boolean = false) {
+    if (value.isNullOrBlank()) return
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically) {
         Text(label,
@@ -602,11 +602,11 @@ private fun WaOptionButton(label: String, color: Color, onClick: () -> Unit) {
 
 @Composable
 private fun DetailRow(
-    label: String, value: String,
+    label: String, value: String?,
     valueColor: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.onSurface,
     invalid: Boolean = false
 ) {
-    if (value.isBlank()) return
+    if (value.isNullOrBlank()) return
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically) {
         Text(label,
