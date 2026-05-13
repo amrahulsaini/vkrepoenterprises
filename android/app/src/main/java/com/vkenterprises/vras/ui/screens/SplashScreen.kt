@@ -22,6 +22,7 @@ fun SplashScreen(vm: AuthViewModel, navigate: (String) -> Unit) {
     LaunchedEffect(Unit) {
         delay(1200)
         val loggedIn = vm.isLoggedIn.first()
+        if (loggedIn) vm.refreshSession().join()
         navigate(if (loggedIn) Screen.Home.route else Screen.Login.route)
     }
 

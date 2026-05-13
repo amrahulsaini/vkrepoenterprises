@@ -56,6 +56,12 @@ class PreferencesManager(private val context: Context) {
         }
     }
 
+    suspend fun updateAdminStatus(isAdmin: Boolean) {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_IS_ADMIN] = isAdmin
+        }
+    }
+
     suspend fun savePfp(pfp: String?) {
         context.dataStore.edit { prefs ->
             prefs[KEY_PFP] = pfp ?: ""
