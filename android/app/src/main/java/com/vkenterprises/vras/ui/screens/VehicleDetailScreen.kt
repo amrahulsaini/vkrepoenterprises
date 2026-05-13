@@ -23,8 +23,10 @@ import com.vkenterprises.vras.data.models.SearchLogRequest
 import com.vkenterprises.vras.navigation.Screen
 import com.vkenterprises.vras.viewmodel.AuthViewModel
 import com.vkenterprises.vras.viewmodel.SearchViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
 import kotlin.coroutines.resume
 
 private val RC_REGEX = Regex("^[A-Z]{2}[0-9]{2}[A-Z]{1,3}[0-9]{4}$")
@@ -157,20 +159,24 @@ fun VehicleDetailScreen(
     }
 }
 
-private fun reverseGeocode(context: Context, lat: Double?, lng: Double?): String? {
+private suspend fun reverseGeocode(context: Context, lat: Double?, lng: Double?): String? {
     if (lat == null || lng == null) return null
-    return runCatching {
-        val geocoder = android.location.Geocoder(context, java.util.Locale.getDefault())
-        @Suppress("DEPRECATION")
-        val addresses = geocoder.getFromLocation(lat, lng, 1)
-        addresses?.firstOrNull()?.let { addr ->
-            listOfNotNull(
-                addr.subLocality ?: addr.locality,
-                addr.subAdminArea ?: addr.adminArea,
-                addr.countryName
-            ).filter { it.isNotBlank() }.joinToString(", ").ifEmpty { addr.getAddressLine(0) }
-        }
-    }.getOrNull()
+    return withContext(Dispatchers.IO) {
+        runCatching {
+            val geocoder = android.location.Geocoder(context, java.util.Locale.getDefault())
+            @Suppress("DEPRECATION")
+            val addresses = geocoder.getFromLocation(lat, lng, 1)
+            addresses?.firstOrNull()?.let { addr ->
+                val line0 = addr.getAddressLine(0)
+                if (!line0.isNullOrBlank()) line0
+                else listOfNotNull(
+                    addr.subLocality ?: addr.locality,
+                    addr.subAdminArea ?: addr.adminArea,
+                    addr.countryName
+                ).filter { it.isNotBlank() }.joinToString(", ")
+            }
+        }.getOrNull()
+    }
 }
 
 @SuppressLint("MissingPermission")

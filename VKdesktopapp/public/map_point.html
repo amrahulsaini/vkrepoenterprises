@@ -31,7 +31,7 @@
   var chassis= getParam('chassis');
   var model  = getParam('model');
   var time   = getParam('time');
-  var addr   = getParam('addr'); // pre-resolved address from Android Geocoder
+  var addr   = getParam('addr');
 
   var hasPin = getParam('lat') !== '' && getParam('lng') !== '';
 
@@ -41,53 +41,52 @@
     attribution: '&copy; OpenStreetMap contributors', maxZoom: 19
   }).addTo(map);
 
-  if (!hasPin) return;
+  if (hasPin) {
+    var redIcon = L.divIcon({
+      className: '',
+      iconSize:   [28, 40], iconAnchor: [14, 40], popupAnchor: [0, -42],
+      html: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 28 40" width="28" height="40">' +
+            '<path d="M14 0C6.268 0 0 6.268 0 14c0 9.333 14 26 14 26S28 23.333 28 14C28 6.268 21.732 0 14 0z" fill="#dc2626"/>' +
+            '<circle cx="14" cy="14" r="6" fill="white"/>' +
+            '</svg>'
+    });
 
-  var redIcon = L.divIcon({
-    className: '',
-    iconSize:   [28, 40], iconAnchor: [14, 40], popupAnchor: [0, -42],
-    html: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 28 40" width="28" height="40">' +
-          '<path d="M14 0C6.268 0 0 6.268 0 14c0 9.333 14 26 14 26S28 23.333 28 14C28 6.268 21.732 0 14 0z" fill="#dc2626"/>' +
-          '<circle cx="14" cy="14" r="6" fill="white"/>' +
-          '</svg>'
-  });
+    function buildPopup(place) {
+      var placeRow = place
+        ? '<div class="popup-sub">&#128205; ' + place + '</div>' : '';
+      var nameRow  = name   ? '<div class="popup-row">&#128100; ' + name   + (mobile ? ' &nbsp;&#128222; ' + mobile : '') + '</div>' : '';
+      var modelRow = model  ? '<div class="popup-row">&#128664; ' + (vrn ? vrn + ' — ' : '') + model + (chassis ? ' &nbsp;| ' + chassis : '') + '</div>' : '';
+      var timeRow  = time   ? '<div class="popup-time">&#128336; ' + time + '</div>' : '';
+      return '<div class="popup-card">' +
+        '<div class="popup-vrn">' + (vrn || 'Unknown VRN') + '</div>' +
+        nameRow + modelRow + placeRow + timeRow +
+        '<div class="popup-coords">&#127759; ' + lat.toFixed(5) + ', ' + lng.toFixed(5) + '</div>' +
+        '</div>';
+    }
 
-  function buildPopup(place) {
-    var placeRow = place
-      ? '<div class="popup-sub">&#128205; ' + place + '</div>' : '';
-    var nameRow  = name   ? '<div class="popup-row">&#128100; ' + name   + (mobile ? ' &nbsp;&#128222; ' + mobile : '') + '</div>' : '';
-    var modelRow = model  ? '<div class="popup-row">&#128664; ' + (vrn ? vrn + ' — ' : '') + model + (chassis ? ' &nbsp;| ' + chassis : '') + '</div>' : '';
-    var timeRow  = time   ? '<div class="popup-time">&#128336; ' + time + '</div>' : '';
-    return '<div class="popup-card">' +
-      '<div class="popup-vrn">' + (vrn || 'Unknown VRN') + '</div>' +
-      nameRow + modelRow + placeRow + timeRow +
-      '<div class="popup-coords">&#127759; ' + lat.toFixed(5) + ', ' + lng.toFixed(5) + '</div>' +
-      '</div>';
-  }
+    var marker = L.marker([lat, lng], { icon: redIcon }).addTo(map);
 
-  var marker = L.marker([lat, lng], { icon: redIcon }).addTo(map);
-  // If Android already resolved the address, use it directly
-  if (addr) {
-    marker.bindPopup(buildPopup(addr), { maxWidth: 280 }).openPopup();
-  } else {
-    marker.bindPopup(buildPopup(''), { maxWidth: 280 }).openPopup();
-    // Fallback: ask Nominatim
-    fetch('https://nominatim.openstreetmap.org/reverse?lat=' + lat + '&lon=' + lng +
-          '&format=json&zoom=16&accept-language=en', { headers: { 'Accept': 'application/json' } })
-      .then(function(r) { return r.json(); })
-      .then(function(data) {
-        var a = data.address || {};
-        var parts = [];
-        if (a.road) parts.push(a.road);
-        if (a.village || a.suburb || a.neighbourhood)
-          parts.push(a.village || a.suburb || a.neighbourhood);
-        if (a.city || a.town || a.county)
-          parts.push(a.city || a.town || a.county);
-        if (a.state) parts.push(a.state);
-        var place = parts.length ? parts.join(', ') : (data.display_name || '');
-        marker.getPopup().setContent(buildPopup(place));
-      })
-      .catch(function() {});
+    if (addr) {
+      marker.bindPopup(buildPopup(addr), { maxWidth: 280 }).openPopup();
+    } else {
+      marker.bindPopup(buildPopup(''), { maxWidth: 280 }).openPopup();
+      fetch('https://nominatim.openstreetmap.org/reverse?lat=' + lat + '&lon=' + lng +
+            '&format=json&zoom=16&accept-language=en', { headers: { 'Accept': 'application/json' } })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          var a = data.address || {};
+          var parts = [];
+          if (a.road) parts.push(a.road);
+          if (a.village || a.suburb || a.neighbourhood)
+            parts.push(a.village || a.suburb || a.neighbourhood);
+          if (a.city || a.town || a.county)
+            parts.push(a.city || a.town || a.county);
+          if (a.state) parts.push(a.state);
+          var place = parts.length ? parts.join(', ') : (data.display_name || '');
+          marker.getPopup().setContent(buildPopup(place));
+        })
+        .catch(function() {});
+    }
   }
 </script>
 </body>

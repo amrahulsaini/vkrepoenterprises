@@ -32,6 +32,7 @@ internal static class DesktopApiClient
         string Address, string BranchCode);
 
     internal record MgrStatsDto(int Total, int Active, int Admins, int WithSub);
+    internal record PickerUserDto(long Id, string Name, string Mobile, string Address, bool IsActive);
     internal record MgrUserDto(
         long Id, string Name, string Mobile,
         string? Address, string? Pincode, string? PfpBase64, string? DeviceId,
@@ -180,6 +181,13 @@ internal static class DesktopApiClient
         var resp = await Send(HttpMethod.Get, "api/mgr/users");
         resp.EnsureSuccessStatusCode();
         return (await resp.Content.ReadFromJsonAsync<MgrUsersResponseDto>(_json))!;
+    }
+
+    internal static async Task<List<PickerUserDto>> GetPickerUsersAsync()
+    {
+        var resp = await Send(HttpMethod.Get, "api/mgr/users/picker");
+        resp.EnsureSuccessStatusCode();
+        return (await resp.Content.ReadFromJsonAsync<List<PickerUserDto>>(_json))!;
     }
 
     internal static async Task<MgrStatsDto> GetUserStatsAsync()

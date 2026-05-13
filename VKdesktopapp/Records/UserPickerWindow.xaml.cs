@@ -1,12 +1,10 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
-using System.Windows.Media.Imaging;
 using VRASDesktopApp.Data;
 
 namespace VRASDesktopApp.Records;
@@ -16,7 +14,7 @@ public partial class UserPickerWindow : Window
     public long?  SelectedUserId   { get; private set; }
     public string SelectedUserName { get; private set; } = "";
 
-    private List<DesktopApiClient.MgrUserDto> _allUsers = new();
+    private List<DesktopApiClient.PickerUserDto> _allUsers = new();
 
     public UserPickerWindow()
     {
@@ -27,8 +25,7 @@ public partial class UserPickerWindow : Window
     {
         try
         {
-            var data = await DesktopApiClient.GetUsersWithStatsAsync();
-            _allUsers = data.Users.OrderBy(u => u.Name).ToList();
+            _allUsers = await DesktopApiClient.GetPickerUsersAsync();
             RenderUsers(_allUsers);
         }
         catch (Exception ex)
@@ -38,7 +35,7 @@ public partial class UserPickerWindow : Window
         }
     }
 
-    private void RenderUsers(List<DesktopApiClient.MgrUserDto> users)
+    private void RenderUsers(List<DesktopApiClient.PickerUserDto> users)
     {
         spUsers.Children.Clear();
         if (users.Count == 0)
@@ -54,18 +51,13 @@ public partial class UserPickerWindow : Window
         }
 
         foreach (var u in users)
-        {
-            var row = BuildUserRow(u);
-            spUsers.Children.Add(row);
-        }
+            spUsers.Children.Add(BuildUserRow(u));
     }
 
-    private Border BuildUserRow(DesktopApiClient.MgrUserDto u)
+    private Border BuildUserRow(DesktopApiClient.PickerUserDto u)
     {
-        // Avatar (pfp or initials circle)
-        FrameworkElement avatar = BuildAvatar(u);
+        var avatar = BuildInitialsAvatar(u.Name);
 
-        // Name + mobile
         var nameBlock = new TextBlock
         {
             Text       = u.Name,
@@ -80,23 +72,26 @@ public partial class UserPickerWindow : Window
             Foreground = (Brush)FindResource("Gray500"),
             Margin     = new Thickness(0, 2, 0, 0)
         };
-        var addressBlock = !string.IsNullOrWhiteSpace(u.Address)
-            ? new TextBlock
-            {
-                Text       = u.Address,
-                FontSize   = 10,
-                Foreground = (Brush)FindResource("Gray400"),
-                Margin     = new Thickness(0, 1, 0, 0),
-                TextTrimming = System.Windows.TextTrimming.CharacterEllipsis
-            }
-            : null;
 
-        // Status badge
+        var textStack = new StackPanel();
+        textStack.Children.Add(nameBlock);
+        textStack.Children.Add(mobileBlock);
+
+        if (!string.IsNullOrWhiteSpace(u.Address))
+            textStack.Children.Add(new TextBlock
+            {
+                Text         = u.Address,
+                FontSize     = 10,
+                Foreground   = (Brush)FindResource("Gray400"),
+                Margin       = new Thickness(0, 1, 0, 0),
+                TextTrimming = System.Windows.TextTrimming.CharacterEllipsis
+            });
+
         var badge = new Border
         {
-            Background    = u.IsActive ? (Brush)FindResource("Green500") : (Brush)FindResource("Gray300"),
-            CornerRadius  = new CornerRadius(10),
-            Padding       = new Thickness(7, 2, 7, 2),
+            Background        = u.IsActive ? (Brush)FindResource("Green500") : (Brush)FindResource("Gray300"),
+            CornerRadius      = new CornerRadius(10),
+            Padding           = new Thickness(7, 2, 7, 2),
             VerticalAlignment = VerticalAlignment.Center
         };
         badge.Child = new TextBlock
@@ -105,11 +100,6 @@ public partial class UserPickerWindow : Window
             FontSize   = 10,
             Foreground = u.IsActive ? Brushes.White : (Brush)FindResource("Gray600")
         };
-
-        var textStack = new StackPanel();
-        textStack.Children.Add(nameBlock);
-        textStack.Children.Add(mobileBlock);
-        if (addressBlock != null) textStack.Children.Add(addressBlock);
 
         var inner = new DockPanel { LastChildFill = true };
         DockPanel.SetDock(avatar, Dock.Left);
@@ -120,16 +110,16 @@ public partial class UserPickerWindow : Window
 
         var row = new Border
         {
-            Background    = Brushes.White,
-            CornerRadius  = new CornerRadius(8),
-            Padding       = new Thickness(12, 10, 12, 10),
-            Margin        = new Thickness(0, 0, 0, 6),
-            Cursor        = Cursors.Hand,
-            Child         = inner
+            Background   = Brushes.White,
+            CornerRadius = new CornerRadius(8),
+            Padding      = new Thickness(12, 10, 12, 10),
+            Margin       = new Thickness(0, 0, 0, 6),
+            Cursor       = Cursors.Hand,
+            Child        = inner
         };
 
-        row.MouseEnter += (_, _) => row.Background = (Brush)FindResource("Primary50");
-        row.MouseLeave += (_, _) => row.Background = Brushes.White;
+        row.MouseEnter       += (_, _) => row.Background = (Brush)FindResource("Primary50");
+        row.MouseLeave       += (_, _) => row.Background = Brushes.White;
         row.MouseLeftButtonUp += (_, _) =>
         {
             SelectedUserId   = u.Id;
@@ -141,50 +131,15 @@ public partial class UserPickerWindow : Window
         return row;
     }
 
-    private static FrameworkElement BuildAvatar(DesktopApiClient.MgrUserDto u)
+    private static Border BuildInitialsAvatar(string name)
     {
         const double size = 40;
-
-        if (!string.IsNullOrWhiteSpace(u.PfpBase64))
-        {
-            try
-            {
-                var bytes = Convert.FromBase64String(
-                    u.PfpBase64.Contains(',') ? u.PfpBase64.Split(',')[1] : u.PfpBase64);
-                using var ms = new MemoryStream(bytes);
-                var bmp = new BitmapImage();
-                bmp.BeginInit();
-                bmp.StreamSource    = ms;
-                bmp.CacheOption     = BitmapCacheOption.OnLoad;
-                bmp.DecodePixelWidth = 80;
-                bmp.EndInit();
-
-                var img = new Image
-                {
-                    Source  = bmp,
-                    Width   = size, Height  = size,
-                    Stretch = Stretch.UniformToFill,
-                    Margin  = new Thickness(0, 0, 12, 0)
-                };
-                var clip = new Border
-                {
-                    Width = size, Height = size,
-                    CornerRadius = new CornerRadius(size / 2),
-                    Margin = new Thickness(0, 0, 12, 0),
-                    ClipToBounds = true,
-                    Child = img
-                };
-                return clip;
-            }
-            catch { /* fall through to initials */ }
-        }
-
-        var initial = u.Name.Length > 0 ? u.Name[0].ToString().ToUpper() : "?";
+        var initial = name.Length > 0 ? name[0].ToString().ToUpper() : "?";
         var circle = new Border
         {
             Width        = size, Height       = size,
             CornerRadius = new CornerRadius(size / 2),
-            Background   = InitialColor(u.Name),
+            Background   = InitialColor(name),
             Margin       = new Thickness(0, 0, 12, 0)
         };
         circle.Child = new TextBlock

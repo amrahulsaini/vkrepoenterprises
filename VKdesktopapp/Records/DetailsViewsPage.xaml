@@ -179,6 +179,9 @@
                       Style="{StaticResource MaterialDataGrid}"
                       AutoGenerateColumns="False"
                       SelectionMode="Single"
+                      ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                      ScrollViewer.VerticalScrollBarVisibility="Auto"
+                      EnableRowVirtualization="True"
                       SelectionChanged="dgLogs_SelectionChanged"
                       MouseDoubleClick="dgLogs_MouseDoubleClick">
                 <DataGrid.Columns>
