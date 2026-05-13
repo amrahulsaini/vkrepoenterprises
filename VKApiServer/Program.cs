@@ -1091,26 +1091,26 @@ app.MapGet("/api/mgr/live-users", async (HttpContext ctx, string? since) =>
             System.Text.RegularExpressions.Regex.IsMatch(since.Trim(), @"^\d{2}:\d{2}$"))
         {
             const string sql = @"
-                SELECT id, name, mobile,
-                       DATE_FORMAT(last_seen,'%H:%i • %d %b') AS seen,
-                       COALESCE(last_lat, (SELECT lat FROM search_logs WHERE user_id=id AND lat IS NOT NULL ORDER BY server_time DESC LIMIT 1)) AS lat,
-                       COALESCE(last_lng, (SELECT lng FROM search_logs WHERE user_id=id AND lng IS NOT NULL ORDER BY server_time DESC LIMIT 1)) AS lng
-                FROM app_users
-                WHERE last_seen >= CONCAT(CURDATE(), ' ', @since, ':00')
-                ORDER BY last_seen DESC LIMIT 500";
+                SELECT u.id, u.name, u.mobile,
+                       DATE_FORMAT(u.last_seen,'%H:%i • %d %b') AS seen,
+                       COALESCE(u.last_lat, (SELECT sl.lat FROM search_logs sl WHERE sl.user_id=u.id AND sl.lat IS NOT NULL ORDER BY sl.server_time DESC LIMIT 1)) AS lat,
+                       COALESCE(u.last_lng, (SELECT sl.lng FROM search_logs sl WHERE sl.user_id=u.id AND sl.lng IS NOT NULL ORDER BY sl.server_time DESC LIMIT 1)) AS lng
+                FROM app_users u
+                WHERE u.last_seen >= CONCAT(CURDATE(), ' ', @since, ':00')
+                ORDER BY u.last_seen DESC LIMIT 500";
             cmd = new MySqlCommand(sql, conn) { CommandTimeout = 10 };
             cmd.Parameters.AddWithValue("@since", since.Trim());
         }
         else
         {
             const string sql = @"
-                SELECT id, name, mobile,
-                       DATE_FORMAT(last_seen,'%H:%i • %d %b') AS seen,
-                       COALESCE(last_lat, (SELECT lat FROM search_logs WHERE user_id=id AND lat IS NOT NULL ORDER BY server_time DESC LIMIT 1)) AS lat,
-                       COALESCE(last_lng, (SELECT lng FROM search_logs WHERE user_id=id AND lng IS NOT NULL ORDER BY server_time DESC LIMIT 1)) AS lng
-                FROM app_users
-                WHERE last_seen >= NOW() - INTERVAL 15 MINUTE
-                ORDER BY last_seen DESC LIMIT 200";
+                SELECT u.id, u.name, u.mobile,
+                       DATE_FORMAT(u.last_seen,'%H:%i • %d %b') AS seen,
+                       COALESCE(u.last_lat, (SELECT sl.lat FROM search_logs sl WHERE sl.user_id=u.id AND sl.lat IS NOT NULL ORDER BY sl.server_time DESC LIMIT 1)) AS lat,
+                       COALESCE(u.last_lng, (SELECT sl.lng FROM search_logs sl WHERE sl.user_id=u.id AND sl.lng IS NOT NULL ORDER BY sl.server_time DESC LIMIT 1)) AS lng
+                FROM app_users u
+                WHERE u.last_seen >= NOW() - INTERVAL 15 MINUTE
+                ORDER BY u.last_seen DESC LIMIT 200";
             cmd = new MySqlCommand(sql, conn) { CommandTimeout = 10 };
         }
 
