@@ -1258,10 +1258,11 @@ app.MapPost("/api/mgr/records/upload", async (HttpContext ctx) =>
         dt.MinimumCapacity = lines.Length - 1;
         dt.BeginLoadData();   // suppress per-row change events — faster for bulk population
 
+        int skippedRows = 0;
         for (int i = 1; i < lines.Length; i++)
         {
             var f = lines[i].TrimEnd('\r').Split('|', 32);
-            if (f.Length < 32) continue;
+            if (f.Length < 32) { skippedRows++; continue; }
             dt.Rows.Add(
                 branchId,
                 Tr(f[0],50),  Tr(f[1],100), Tr(f[2],100), Tr(f[3],200),
@@ -1278,6 +1279,9 @@ app.MapPost("/api/mgr/records/upload", async (HttpContext ctx) =>
                 f[31]);
         }
         dt.EndLoadData();
+        int parsedRows = dt.Rows.Count;
+        if (skippedRows > 0)
+            Console.WriteLine($"[Upload] branch={branchId} WARNING: {skippedRows} rows had fewer than 32 fields and were skipped");
 
         // ── 4. Open DB, clear old records ─────────────────────────────────
         await Push(15, "Connecting to database…");
@@ -1303,7 +1307,7 @@ app.MapPost("/api/mgr/records/upload", async (HttpContext ctx) =>
         }
 
         // ── 5. BulkCopy with real-time progress ──────────────────────────
-        int totalRows = dt.Rows.Count;
+        int totalRows = parsedRows;
         await Push(35, $"0 / {totalRows:N0}");
 
         var bc = new MySqlBulkCopy(conn)
@@ -1331,18 +1335,31 @@ app.MapPost("/api/mgr/records/upload", async (HttpContext ctx) =>
         }
         var bcResult = await bcTask;  // re-throws on failure
         dt.Dispose();
-        int inserted = (int)bcResult.RowsInserted;
+        long bcInserted = bcResult.RowsInserted;
 
-        // ── 6. Finalize ───────────────────────────────────────────────────
-        await Push(88, "Updating branch stats…");
+        // ── 6. Verify actual DB count ─────────────────────────────────────
+        await Push(88, "Verifying insert count…");
+        long dbCount;
+        await using (var verifCmd = new MySqlCommand(
+            "SELECT COUNT(*) FROM vehicle_records WHERE branch_id = @bid", conn) { CommandTimeout = 30 })
+        {
+            verifCmd.Parameters.AddWithValue("@bid", branchId);
+            dbCount = Convert.ToInt64(await verifCmd.ExecuteScalarAsync());
+        }
+
+        Console.WriteLine($"[Upload] branch={branchId} sent={totalRows} skipped={skippedRows} bcInserted={bcInserted} dbCount={dbCount}");
+
+        // ── 7. Finalize ───────────────────────────────────────────────────
+        await Push(92, "Updating branch stats…");
         await MgrExec("UPDATE branches SET total_records=@cnt, uploaded_at=NOW() WHERE id=@bid",
-            conn, 30, ("@cnt", inserted), ("@bid", branchId));
+            conn, 30, ("@cnt", dbCount), ("@bid", branchId));
         await MgrExec("SET foreign_key_checks = 1", conn);
         await MgrExec("SET unique_checks = 1", conn);
 
+        int inserted = (int)dbCount;
         await Push(100, $"Done", inserted, sw.Elapsed.TotalSeconds);
 
-        // ── 7. Background index rebuild ───────────────────────────────────
+        // ── 8. Background index rebuild ───────────────────────────────────
         // DELETE before INSERT makes each task idempotent: if a previous upload's
         // background task is still running when a new upload starts, the stale INSERT
         // targets the same vehicle_record rows and would double rc_info/chassis_info
