@@ -62,6 +62,7 @@ internal static class DesktopApiClient
         double? Lat,
         double? Lng,
         string? Address,
+        string  UserAddress,
         string  DeviceTime,
         string  ServerTime);
 

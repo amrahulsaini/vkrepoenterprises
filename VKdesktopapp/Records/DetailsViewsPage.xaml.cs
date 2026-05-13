@@ -164,7 +164,7 @@ public partial class DetailsViewsPage : Page
             var ws   = wb.Worksheets[0];
             ws.Name  = "Search Logs";
 
-            string[] headers = { "VRN","Chassis","Model","Agent","Mobile","Address","Latitude","Longitude","Device Time","Server Time" };
+            string[] headers = { "VRN","Chassis","Model","Agent","Mobile","Agent Address","Search Address","Latitude","Longitude","Device Time","Server Time" };
             for (int c = 0; c < headers.Length; c++)
             {
                 ws[1, c + 1].Text = headers[c];
@@ -181,11 +181,12 @@ public partial class DetailsViewsPage : Page
                 ws[row, 3].Text  = r.Model;
                 ws[row, 4].Text  = r.UserName;
                 ws[row, 5].Text  = r.UserMobile;
-                ws[row, 6].Text  = r.Address ?? "";
-                ws[row, 7].Text  = r.Lat?.ToString("F5") ?? "";
-                ws[row, 8].Text  = r.Lng?.ToString("F5") ?? "";
-                ws[row, 9].Text  = r.DeviceTime;
-                ws[row, 10].Text = r.ServerTime;
+                ws[row, 6].Text  = r.UserAddress ?? "";
+                ws[row, 7].Text  = r.Address ?? "";
+                ws[row, 8].Text  = r.Lat?.ToString("F5") ?? "";
+                ws[row, 9].Text  = r.Lng?.ToString("F5") ?? "";
+                ws[row, 10].Text = r.DeviceTime;
+                ws[row, 11].Text = r.ServerTime;
                 row++;
             }
 
@@ -228,10 +229,10 @@ public partial class DetailsViewsPage : Page
 
             var grid = new PdfGrid();
             grid.Style.Font = font;
-            grid.Columns.Add(10);
+            grid.Columns.Add(11);
 
             var hRow = grid.Headers.Add(1)[0];
-            string[] headers = { "VRN","Chassis","Model","Agent","Mobile","Address","Lat","Lng","Device Time","Server Time" };
+            string[] headers = { "VRN","Chassis","Model","Agent","Mobile","Agent Address","Search Address","Lat","Lng","Device Time","Server Time" };
             for (int c = 0; c < headers.Length; c++)
             {
                 hRow.Cells[c].Value                   = headers[c];
@@ -248,11 +249,12 @@ public partial class DetailsViewsPage : Page
                 pRow.Cells[2].Value = r.Model;
                 pRow.Cells[3].Value = r.UserName;
                 pRow.Cells[4].Value = r.UserMobile;
-                pRow.Cells[5].Value = r.Address ?? "";
-                pRow.Cells[6].Value = r.Lat?.ToString("F4") ?? "";
-                pRow.Cells[7].Value = r.Lng?.ToString("F4") ?? "";
-                pRow.Cells[8].Value = r.DeviceTime;
-                pRow.Cells[9].Value = r.ServerTime;
+                pRow.Cells[5].Value = r.UserAddress ?? "";
+                pRow.Cells[6].Value = r.Address ?? "";
+                pRow.Cells[7].Value = r.Lat?.ToString("F4") ?? "";
+                pRow.Cells[8].Value = r.Lng?.ToString("F4") ?? "";
+                pRow.Cells[9].Value = r.DeviceTime;
+                pRow.Cells[10].Value = r.ServerTime;
             }
 
             grid.Draw(page, new Syncfusion.Drawing.PointF(0, 24));

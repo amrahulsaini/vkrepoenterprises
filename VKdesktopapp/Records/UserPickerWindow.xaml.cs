@@ -80,6 +80,16 @@ public partial class UserPickerWindow : Window
             Foreground = (Brush)FindResource("Gray500"),
             Margin     = new Thickness(0, 2, 0, 0)
         };
+        var addressBlock = !string.IsNullOrWhiteSpace(u.Address)
+            ? new TextBlock
+            {
+                Text       = u.Address,
+                FontSize   = 10,
+                Foreground = (Brush)FindResource("Gray400"),
+                Margin     = new Thickness(0, 1, 0, 0),
+                TextTrimming = System.Windows.TextTrimming.CharacterEllipsis
+            }
+            : null;
 
         // Status badge
         var badge = new Border
@@ -99,6 +109,7 @@ public partial class UserPickerWindow : Window
         var textStack = new StackPanel();
         textStack.Children.Add(nameBlock);
         textStack.Children.Add(mobileBlock);
+        if (addressBlock != null) textStack.Children.Add(addressBlock);
 
         var inner = new DockPanel { LastChildFill = true };
         DockPanel.SetDock(avatar, Dock.Left);
@@ -117,7 +128,7 @@ public partial class UserPickerWindow : Window
             Child         = inner
         };
 
-        row.MouseEnter += (_, _) => row.Background = (Brush)FindResource("Orange50");
+        row.MouseEnter += (_, _) => row.Background = (Brush)FindResource("Primary50");
         row.MouseLeave += (_, _) => row.Background = Brushes.White;
         row.MouseLeftButtonUp += (_, _) =>
         {

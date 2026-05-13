@@ -1115,6 +1115,7 @@ app.MapGet("/api/mgr/search-logs", async (HttpContext ctx,
             SELECT sl.id, sl.user_id, u.name, u.mobile,
                    sl.vehicle_no, sl.chassis_no, sl.model,
                    sl.lat, sl.lng, sl.address,
+                   COALESCE(u.address,'') AS user_address,
                    DATE_FORMAT(sl.device_time, '%Y-%m-%d %H:%i:%s') AS device_time,
                    DATE_FORMAT(sl.server_time, '%Y-%m-%d %H:%i:%s') AS server_time
             FROM search_logs sl
@@ -1163,8 +1164,9 @@ app.MapGet("/api/mgr/search-logs", async (HttpContext ctx,
                 lat         = rdr.IsDBNull(7)  ? (double?)null : rdr.GetDouble(7),
                 lng         = rdr.IsDBNull(8)  ? (double?)null : rdr.GetDouble(8),
                 address     = rdr.IsDBNull(9)  ? null : rdr.GetString(9),
-                deviceTime  = rdr.GetString(10),
-                serverTime  = rdr.GetString(11)
+                userAddress = rdr.GetString(10),
+                deviceTime  = rdr.GetString(11),
+                serverTime  = rdr.GetString(12)
             });
         return Results.Ok(list);
     }
