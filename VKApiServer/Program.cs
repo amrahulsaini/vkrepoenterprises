@@ -1256,6 +1256,7 @@ app.MapPost("/api/mgr/records/upload", async (HttpContext ctx) =>
         dt.Columns.Add("toss",             typeof(string));
         dt.Columns.Add("remark",           typeof(string));
         dt.MinimumCapacity = lines.Length - 1;
+        dt.BeginLoadData();   // suppress per-row change events — faster for bulk population
 
         for (int i = 1; i < lines.Length; i++)
         {
@@ -1276,6 +1277,7 @@ app.MapPost("/api/mgr/records/upload", async (HttpContext ctx) =>
                 Tr(f[28],200),Tr(f[29],100), Tr(f[30],100),
                 f[31]);
         }
+        dt.EndLoadData();
 
         // ── 4. Open DB, clear old records ─────────────────────────────────
         await Push(15, "Connecting to database…");
@@ -1302,7 +1304,7 @@ app.MapPost("/api/mgr/records/upload", async (HttpContext ctx) =>
 
         // ── 5. BulkCopy with real-time progress ──────────────────────────
         int totalRows = dt.Rows.Count;
-        await Push(35, $"Uploading {totalRows:N0} records…");
+        await Push(35, $"0 / {totalRows:N0}");
 
         var bc = new MySqlBulkCopy(conn)
         {
@@ -1324,7 +1326,7 @@ app.MapPost("/api/mgr/records/upload", async (HttpContext ctx) =>
             if (copiedQueue.TryDequeue(out long copied))
             {
                 int pct = 35 + (int)((double)copied / totalRows * 50); // 35 → 85
-                await Push(Math.Min(pct, 85), $"Uploading… {copied:N0} / {totalRows:N0}");
+                await Push(Math.Min(pct, 85), $"{copied:N0} / {totalRows:N0}");
             }
         }
         var bcResult = await bcTask;  // re-throws on failure

@@ -265,9 +265,6 @@ public partial class RecordValidatorAndUploaderWindow : Window
             return;
         }
 
-        var validRecords = _records.Where(r => RcRegex.IsMatch(r.FormatedVehicleNo)).ToList();
-        var skipped      = _records.Count - validRecords.Count;
-
         btnUpload.IsEnabled  = false;
         txtPBR.Visibility    = Visibility.Visible;
         txtPBRPct.Visibility = Visibility.Visible;
@@ -277,32 +274,41 @@ public partial class RecordValidatorAndUploaderWindow : Window
         pbr.Maximum          = 100;
         pbr.Value            = 0;
         txtPBR.Text          = "Starting upload…";
-        txtPBRPct.Text       = "0%";
+        txtPBRPct.Text       = $"0 / {_records.Count:N0}";
 
         var sw = System.Diagnostics.Stopwatch.StartNew();
 
         var progress = new Progress<(int pct, string msg)>(p =>
         {
-            pbr.Value      = p.pct;
-            txtPBRPct.Text = $"{p.pct}%";
-            txtPBR.Text    = $"{p.msg}  ({sw.Elapsed.TotalSeconds:F0}s)";
+            pbr.Value = p.pct;
+            // During BulkCopy the server sends "X / Y" — show that as the count label
+            if (p.msg.Contains('/'))
+            {
+                txtPBRPct.Text = p.msg;
+                txtPBR.Text    = $"Uploading…  ({sw.Elapsed.TotalSeconds:F0}s)";
+            }
+            else
+            {
+                txtPBRPct.Text = $"{p.pct}%";
+                txtPBR.Text    = $"{p.msg}  ({sw.Elapsed.TotalSeconds:F0}s)";
+            }
         });
 
         try
         {
-            var (inserted, _) = await DesktopApiClient.UploadRecordsAsync(branchId, validRecords, progress);
+            // Upload ALL records — RC validation in the grid is for review only, not a filter
+            var (inserted, _) = await DesktopApiClient.UploadRecordsAsync(branchId, _records, progress);
             sw.Stop();
             var totalSec = sw.Elapsed.TotalSeconds;
 
             pbr.Value      = 100;
-            txtPBRPct.Text = "100%";
+            txtPBRPct.Text = $"{inserted:N0} / {_records.Count:N0}";
             txtPBR.Text    = $"✓ {inserted:N0} records saved in {totalSec:F1}s";
 
-            var skipNote = skipped > 0 ? $"\n\n{skipped} invalid record(s) were skipped." : string.Empty;
             MessageBox.Show(
                 $"{inserted:N0} records saved to \"{SelectedBranch.BranchName}\".\n" +
                 $"Upload completed in {totalSec:F1} seconds.\n\n" +
-                $"Previous records for this branch were replaced.{skipNote}",
+                $"Previous records for this branch were replaced.",
                 "Upload Success", MessageBoxButton.OK, MessageBoxImage.Information);
         }
         catch (Exception ex)
