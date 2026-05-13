@@ -235,14 +235,38 @@ public class MobileController : ControllerBase
         {
             if (!DateTime.TryParse(req.DeviceTimeIso, out var deviceTime))
                 deviceTime = DateTime.UtcNow;
+
+            var address = req.Address;
+            if (string.IsNullOrWhiteSpace(address) && req.Lat.HasValue && req.Lng.HasValue)
+                address = await NominatimReverseAsync(req.Lat.Value, req.Lng.Value);
+
             await _repo.LogSearchAsync(req.UserId, req.VehicleNo ?? "", req.ChassisNo ?? "",
-                req.Model ?? "", req.Lat, req.Lng, req.Address, deviceTime);
+                req.Model ?? "", req.Lat, req.Lng, address, deviceTime);
             return Ok(new { success = true });
         }
         catch (Exception ex)
         {
             return StatusCode(500, new ApiError(false, $"Log failed: {ex.Message}"));
         }
+    }
+
+    private static readonly HttpClient _geo = new()
+    {
+        Timeout = TimeSpan.FromSeconds(6),
+        DefaultRequestHeaders = { { "User-Agent", "VKRepoCar/1.0" } }
+    };
+
+    private static async Task<string?> NominatimReverseAsync(double lat, double lng)
+    {
+        try
+        {
+            var json = await _geo.GetStringAsync(
+                $"https://nominatim.openstreetmap.org/reverse?lat={lat:F6}&lon={lng:F6}&format=json&zoom=16&accept-language=en");
+            using var doc = System.Text.Json.JsonDocument.Parse(json);
+            return doc.RootElement.TryGetProperty("display_name", out var dp)
+                ? dp.GetString() : null;
+        }
+        catch { return null; }
     }
 
     // GET /api/mobile/sync/records/{branchId}?page=0&size=500
