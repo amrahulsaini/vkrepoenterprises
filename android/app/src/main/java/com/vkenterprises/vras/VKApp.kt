@@ -39,16 +39,19 @@ class VKApp : Application(), Configuration.Provider {
     }
 
     private fun scheduleSyncWork() {
-        val request = PeriodicWorkRequestBuilder<SyncWorker>(6, TimeUnit.HOURS)
+        // Cancel old 6-hour work if it exists from older installs
+        WorkManager.getInstance(this).cancelUniqueWork("vehicle_sync")
+
+        val request = PeriodicWorkRequestBuilder<SyncWorker>(15, TimeUnit.MINUTES)
             .setConstraints(
                 Constraints.Builder()
                     .setRequiredNetworkType(NetworkType.CONNECTED)
                     .build()
             )
-            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 15, TimeUnit.MINUTES)
+            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 5, TimeUnit.MINUTES)
             .build()
         WorkManager.getInstance(this).enqueueUniquePeriodicWork(
-            "vehicle_sync",
+            "vehicle_sync_v2",
             ExistingPeriodicWorkPolicy.KEEP,
             request
         )

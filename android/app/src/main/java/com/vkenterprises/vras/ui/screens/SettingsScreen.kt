@@ -158,13 +158,26 @@ fun SettingsScreen(
                         Spacer(Modifier.height(8.dp))
                     }
                     Button(
-                        onClick = { settingsVm.forceSync() },
+                        onClick = { settingsVm.smartSync() },
                         enabled = !ui.isSyncing,
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Icon(Icons.Default.Sync, null, Modifier.size(18.dp))
                         Spacer(Modifier.width(6.dp))
-                        Text("Force Full Sync")
+                        Text("Sync Now (Check for Updates)")
+                    }
+                    Spacer(Modifier.height(6.dp))
+                    OutlinedButton(
+                        onClick = { settingsVm.forceSync() },
+                        enabled = !ui.isSyncing,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = MaterialTheme.colorScheme.error
+                        )
+                    ) {
+                        Icon(Icons.Default.DeleteSweep, null, Modifier.size(18.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text("Force Full Re-download")
                     }
                 }
             }
