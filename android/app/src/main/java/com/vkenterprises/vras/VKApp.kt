@@ -21,6 +21,7 @@ class VKApp : Application(), Configuration.Provider {
         super.onCreate()
         scheduleSyncWork()
         scheduleLocationWork()
+        kickStartSyncChain()
     }
 
     private fun scheduleLocationWork() {
@@ -35,6 +36,24 @@ class VKApp : Application(), Configuration.Provider {
             "location_heartbeat",
             ExistingPeriodicWorkPolicy.KEEP,
             request
+        )
+    }
+
+    // Start the self-chaining one-time sync immediately so background sync runs
+    // every ~60s even without the ViewModel polling loop (REPLACE so it always
+    // resets the 60s timer on app open rather than waiting for old chain to fire).
+    private fun kickStartSyncChain() {
+        val immediate = OneTimeWorkRequestBuilder<SyncWorker>()
+            .setConstraints(
+                Constraints.Builder()
+                    .setRequiredNetworkType(NetworkType.CONNECTED)
+                    .build()
+            )
+            .build()
+        WorkManager.getInstance(this).enqueueUniqueWork(
+            "vehicle_sync_chain",
+            ExistingWorkPolicy.REPLACE,
+            immediate
         )
     }
 
