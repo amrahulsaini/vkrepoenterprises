@@ -185,7 +185,7 @@ fun ConfirmScreen(
                 item.level1Contact, item.level2Contact,
                 item.level3Contact, item.level4Contact,
                 item.firstContact,  item.secondContact
-            ).any { it.isNotBlank() }
+            ).any { !it.isNullOrBlank() }
 
             Card(
                 shape  = RoundedCornerShape(12.dp),
@@ -208,18 +208,18 @@ fun ConfirmScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     } else {
-                        if (item.level1Contact.isNotBlank())
-                            ContactCheckRow("Level 1", item.level1, item.level1Contact, chkL1) { chkL1 = it }
-                        if (item.level2Contact.isNotBlank())
-                            ContactCheckRow("Level 2", item.level2, item.level2Contact, chkL2) { chkL2 = it }
-                        if (item.level3Contact.isNotBlank())
-                            ContactCheckRow("Level 3", item.level3, item.level3Contact, chkL3) { chkL3 = it }
-                        if (item.level4Contact.isNotBlank())
-                            ContactCheckRow("Level 4", item.level4, item.level4Contact, chkL4) { chkL4 = it }
-                        if (item.firstContact.isNotBlank())
-                            ContactCheckRow("Contact 1 (Finance/Branch)", item.financer, item.firstContact, chkC1) { chkC1 = it }
-                        if (item.secondContact.isNotBlank())
-                            ContactCheckRow("Contact 2 (Finance/Branch)", item.financer, item.secondContact, chkC2) { chkC2 = it }
+                        if (!item.level1Contact.isNullOrBlank())
+                            ContactCheckRow("Level 1", item.level1.orEmpty(), item.level1Contact, chkL1) { chkL1 = it }
+                        if (!item.level2Contact.isNullOrBlank())
+                            ContactCheckRow("Level 2", item.level2.orEmpty(), item.level2Contact, chkL2) { chkL2 = it }
+                        if (!item.level3Contact.isNullOrBlank())
+                            ContactCheckRow("Level 3", item.level3.orEmpty(), item.level3Contact, chkL3) { chkL3 = it }
+                        if (!item.level4Contact.isNullOrBlank())
+                            ContactCheckRow("Level 4", item.level4.orEmpty(), item.level4Contact, chkL4) { chkL4 = it }
+                        if (!item.firstContact.isNullOrBlank())
+                            ContactCheckRow("Contact 1 (Finance/Branch)", item.financer.orEmpty(), item.firstContact, chkC1) { chkC1 = it }
+                        if (!item.secondContact.isNullOrBlank())
+                            ContactCheckRow("Contact 2 (Finance/Branch)", item.financer.orEmpty(), item.secondContact, chkC2) { chkC2 = it }
                     }
                 }
             }
@@ -305,7 +305,7 @@ fun ConfirmScreen(
 @Composable
 private fun ContactCheckRow(
     label: String,
-    name: String,
+    name: String?,
     phone: String,
     checked: Boolean,
     onChecked: (Boolean) -> Unit
@@ -317,7 +317,7 @@ private fun ContactCheckRow(
         Checkbox(checked = checked, onCheckedChange = onChecked)
         Column(Modifier.weight(1f).padding(start = 4.dp)) {
             Text(
-                "$label${if (name.isNotBlank()) " — $name" else ""}",
+                "$label${if (!name.isNullOrBlank()) " — $name" else ""}",
                 style      = MaterialTheme.typography.bodySmall,
                 fontWeight = FontWeight.Medium
             )
@@ -332,8 +332,8 @@ private fun ContactCheckRow(
 }
 
 @Composable
-private fun SummaryRow(label: String, value: String, mono: Boolean = false) {
-    if (value.isBlank()) return
+private fun SummaryRow(label: String, value: String?, mono: Boolean = false) {
+    if (value.isNullOrBlank()) return
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
         Text(
             label,
