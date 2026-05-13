@@ -227,6 +227,24 @@ public class MobileController : ControllerBase
         }
     }
 
+    // POST /api/mobile/search-log  — fire-and-forget from mobile when a vehicle detail is viewed
+    [HttpPost("search-log")]
+    public async Task<IActionResult> LogSearch([FromBody] SearchLogRequest req)
+    {
+        try
+        {
+            if (!DateTime.TryParse(req.DeviceTimeIso, out var deviceTime))
+                deviceTime = DateTime.UtcNow;
+            await _repo.LogSearchAsync(req.UserId, req.VehicleNo ?? "", req.ChassisNo ?? "",
+                req.Model ?? "", req.Lat, req.Lng, req.Address, deviceTime);
+            return Ok(new { success = true });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new ApiError(false, $"Log failed: {ex.Message}"));
+        }
+    }
+
     // GET /api/mobile/sync/records/{branchId}?page=0&size=500
     [HttpGet("sync/records/{branchId}")]
     public async Task<IActionResult> GetSyncRecords(

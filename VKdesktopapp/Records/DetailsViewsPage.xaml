@@ -5,86 +5,108 @@
     Background="{StaticResource Gray50}"
     FontFamily="Segoe UI"
     Loaded="Page_Loaded">
+
     <Grid Margin="20">
-        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
-        <Border Grid.Row="0" Style="{StaticResource DashboardCard}">
-            <StackPanel>
-                <TextBlock Text="DETAILS VIEWS" Style="{StaticResource Heading4}" />
-                <TextBlock Text="User lookups, found vs. not-found results and recent search locations."
-                           Margin="0,6,0,0"
-                           Style="{StaticResource Caption}" />
-            </StackPanel>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <Border Grid.Row="0" Style="{StaticResource DashboardCard}" Margin="0,0,0,12">
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Left">
+                    <TextBlock Text="SEARCH LOGS" Style="{StaticResource Heading4}" />
+                    <TextBlock Text="Every vehicle detail view from mobile agents — with GPS, timestamp and user info."
+                               Margin="0,4,0,0" Style="{StaticResource Caption}" />
+                </StackPanel>
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal"
+                            HorizontalAlignment="Right" VerticalAlignment="Center">
+                    <Button x:Name="btnShowMap" Content="&#x1F5FA; Show on Map"
+                            Margin="0,0,8,0" Padding="12,7"
+                            IsEnabled="False"
+                            Click="btnShowMap_Click"
+                            Style="{StaticResource MaterialButton}" />
+                    <Button x:Name="btnExportExcel" Content="&#x1F4C4; Export Excel"
+                            Margin="0,0,8,0" Padding="12,7"
+                            Click="btnExportExcel_Click"
+                            Style="{StaticResource MaterialButton}" />
+                    <Button x:Name="btnExportPdf" Content="&#x1F4CB; Export PDF"
+                            Padding="12,7"
+                            Click="btnExportPdf_Click"
+                            Style="{StaticResource MaterialButton}" />
+                </StackPanel>
+            </DockPanel>
         </Border>
-        <UniformGrid Grid.Row="1" Columns="4" Margin="0,18,0,18">
-            <Border Style="{StaticResource DashboardCard}" Margin="0,0,12,0"><StackPanel><TextBlock Text="TOTAL VIEWS" Style="{StaticResource FormHeading}" /><TextBlock Name="lblViews" Style="{StaticResource StatValue}" Text="0" /></StackPanel></Border>
-            <Border Style="{StaticResource DashboardCard}" Margin="0,0,12,0"><StackPanel><TextBlock Text="FOUND" Style="{StaticResource FormHeading}" /><TextBlock Name="lblFound" Style="{StaticResource StatValue}" Text="0" /></StackPanel></Border>
-            <Border Style="{StaticResource DashboardCard}" Margin="0,0,12,0"><StackPanel><TextBlock Text="NOT FOUND" Style="{StaticResource FormHeading}" /><TextBlock Name="lblNotFound" Style="{StaticResource StatValue}" Text="0" /></StackPanel></Border>
-            <Border Style="{StaticResource DashboardCard}"><StackPanel><TextBlock Text="UNIQUE USERS" Style="{StaticResource FormHeading}" /><TextBlock Name="lblUsers" Style="{StaticResource StatValue}" Text="0" /></StackPanel></Border>
-        </UniformGrid>
-        <Grid Grid.Row="2">
-            <Grid.ColumnDefinitions><ColumnDefinition Width="1.35*" /><ColumnDefinition Width="16" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-            <Border Grid.Column="0" Style="{StaticResource DashboardCard}">
-                <Grid>
-                    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
-                    <TextBlock Text="DETAIL VIEW LOG" Style="{StaticResource Heading5}" Margin="0,0,0,12" />
-                    <DataGrid Name="dgItems" Grid.Row="1" Style="{StaticResource MaterialDataGrid}" SelectionChanged="dgItems_SelectionChanged" MouseDoubleClick="dgItems_MouseDoubleClick">
-                        <DataGrid.Columns>
-                            <DataGridTextColumn Header="Vehicle" Binding="{Binding VehicleNo}" Width="120" />
-                            <DataGridTextColumn Header="User" Binding="{Binding UserName}" Width="*" />
-                            <DataGridTextColumn Header="Mobile" Binding="{Binding UserMobile}" Width="120" />
-                            <DataGridTextColumn Header="Status" Binding="{Binding VehicleStatus}" Width="90" />
-                            <DataGridTextColumn Header="Location" Binding="{Binding Location}" Width="1.2*" />
-                            <DataGridTextColumn Header="Viewed" Binding="{Binding CreatedOn}" Width="140" />
-                        </DataGrid.Columns>
-                    </DataGrid>
-                </Grid>
-            </Border>
-            <Border Grid.Column="2" Style="{StaticResource DashboardCard}">
-                <Grid>
-                    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
-                    <Border Name="brDetails" Grid.Row="0" Margin="0,0,0,12" Background="White" Visibility="Collapsed" Padding="12" CornerRadius="6" BorderBrush="{StaticResource Gray200}" BorderThickness="1">
-                        <StackPanel>
-                            <TextBlock Text="DETAILS" Style="{StaticResource Heading6}" Margin="0,0,0,8" />
-                            <WrapPanel Margin="0,4,0,0">
-                                <StackPanel Width="220">
-                                    <TextBlock Text="Vehicle" Style="{StaticResource Caption}" />
-                                    <TextBlock Name="txtVehicleNo" Style="{StaticResource Body1}" />
-                                </StackPanel>
-                                <StackPanel Width="220" Margin="16,0,0,0">
-                                    <TextBlock Text="User" Style="{StaticResource Caption}" />
-                                    <TextBlock Name="txtUserName" Style="{StaticResource Body1}" />
-                                </StackPanel>
-                                <StackPanel Width="220" Margin="16,0,0,0">
-                                    <TextBlock Text="Mobile" Style="{StaticResource Caption}" />
-                                    <TextBlock Name="txtMobile" Style="{StaticResource Body1}" />
-                                </StackPanel>
-                            </WrapPanel>
-                            <WrapPanel Margin="0,8,0,0">
-                                <StackPanel Width="220">
-                                    <TextBlock Text="Status" Style="{StaticResource Caption}" />
-                                    <TextBlock Name="txtStatus" Style="{StaticResource Body1}" />
-                                </StackPanel>
-                                <StackPanel Width="320" Margin="16,0,0,0">
-                                    <TextBlock Text="Location" Style="{StaticResource Caption}" />
-                                    <TextBlock Name="txtLocation" Style="{StaticResource Body1}" TextWrapping="Wrap" />
-                                </StackPanel>
-                                <StackPanel Width="200" Margin="16,0,0,0">
-                                    <TextBlock Text="Viewed" Style="{StaticResource Caption}" />
-                                    <TextBlock Name="txtViewed" Style="{StaticResource Body1}" />
-                                </StackPanel>
-                            </WrapPanel>
-                        </StackPanel>
-                    </Border>
-                    <TextBlock Grid.Row="1" Text="TOP LOCATIONS" Style="{StaticResource Heading5}" Margin="0,0,0,12" />
-                    <DataGrid Name="dgLocations" Grid.Row="2" Style="{StaticResource MaterialDataGrid}">
-                        <DataGrid.Columns>
-                            <DataGridTextColumn Header="Location" Binding="{Binding Name}" Width="*" />
-                            <DataGridTextColumn Header="Views" Binding="{Binding Count}" Width="90" />
-                            <DataGridTextColumn Header="Summary" Binding="{Binding Detail}" Width="*" />
-                        </DataGrid.Columns>
-                    </DataGrid>
-                </Grid>
-            </Border>
-        </Grid>
+
+        <!-- Filter bar -->
+        <Border Grid.Row="1" Style="{StaticResource DashboardCard}" Margin="0,0,0,12">
+            <WrapPanel Orientation="Horizontal" VerticalAlignment="Center">
+
+                <StackPanel Orientation="Vertical" Margin="0,0,16,0">
+                    <TextBlock Text="FROM" Style="{StaticResource FormHeading}" Margin="0,0,0,3" />
+                    <DatePicker x:Name="dpFrom" Width="130" SelectedDateFormat="Short"
+                                SelectedDateChanged="Filter_Changed" />
+                </StackPanel>
+
+                <StackPanel Orientation="Vertical" Margin="0,0,16,0">
+                    <TextBlock Text="TO" Style="{StaticResource FormHeading}" Margin="0,0,0,3" />
+                    <DatePicker x:Name="dpTo" Width="130" SelectedDateFormat="Short"
+                                SelectedDateChanged="Filter_Changed" />
+                </StackPanel>
+
+                <StackPanel Orientation="Vertical" Margin="0,0,16,0">
+                    <TextBlock Text="USER" Style="{StaticResource FormHeading}" Margin="0,0,0,3" />
+                    <ComboBox x:Name="cbUser" Width="180" SelectionChanged="Filter_Changed"
+                              DisplayMemberPath="Display" SelectedValuePath="UserId" />
+                </StackPanel>
+
+                <StackPanel Orientation="Vertical" Margin="0,0,16,0">
+                    <TextBlock Text="SEARCH VRN / CHASSIS" Style="{StaticResource FormHeading}" Margin="0,0,0,3" />
+                    <TextBox x:Name="txtSearch" Width="180"
+                             TextChanged="txtSearch_TextChanged"
+                             Padding="6,4" />
+                </StackPanel>
+
+                <Button Content="&#x21BA; Refresh"
+                        VerticalAlignment="Bottom" Padding="12,7"
+                        Click="btnRefresh_Click"
+                        Style="{StaticResource MaterialButton}" />
+
+                <TextBlock x:Name="lblCount" Text=""
+                           VerticalAlignment="Bottom" Margin="12,0,0,6"
+                           Style="{StaticResource Caption}" />
+            </WrapPanel>
+        </Border>
+
+        <!-- Loading indicator -->
+        <TextBlock x:Name="lblLoading" Grid.Row="2"
+                   Text="Loading…" Visibility="Collapsed"
+                   Style="{StaticResource Caption}" Margin="0,0,0,8" />
+
+        <!-- Log grid -->
+        <Border Grid.Row="3" Style="{StaticResource DashboardCard}">
+            <DataGrid x:Name="dgLogs"
+                      Style="{StaticResource MaterialDataGrid}"
+                      AutoGenerateColumns="False"
+                      SelectionMode="Single"
+                      SelectionChanged="dgLogs_SelectionChanged"
+                      MouseDoubleClick="dgLogs_MouseDoubleClick">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="VRN"         Binding="{Binding VehicleNo}"  Width="120" />
+                    <DataGridTextColumn Header="Chassis"     Binding="{Binding ChassisNo}"  Width="130" />
+                    <DataGridTextColumn Header="Model"       Binding="{Binding Model}"      Width="140" />
+                    <DataGridTextColumn Header="Agent"       Binding="{Binding UserName}"   Width="130" />
+                    <DataGridTextColumn Header="Mobile"      Binding="{Binding UserMobile}" Width="110" />
+                    <DataGridTextColumn Header="Address"     Binding="{Binding Address}"    Width="180" />
+                    <DataGridTextColumn Header="Latitude"    Binding="{Binding Lat,StringFormat=N5}"  Width="90" />
+                    <DataGridTextColumn Header="Longitude"   Binding="{Binding Lng,StringFormat=N5}"  Width="90" />
+                    <DataGridTextColumn Header="Device Time" Binding="{Binding DeviceTime}" Width="140" />
+                    <DataGridTextColumn Header="Server Time" Binding="{Binding ServerTime}" Width="140" />
+                </DataGrid.Columns>
+            </DataGrid>
+        </Border>
     </Grid>
 </Page>

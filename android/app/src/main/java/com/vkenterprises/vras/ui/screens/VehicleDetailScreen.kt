@@ -1,5 +1,7 @@
 package com.vkenterprises.vras.ui.screens
 
+import android.annotation.SuppressLint
+import android.content.Context
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -9,13 +11,20 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.*
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.*
 import androidx.navigation.NavController
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
+import com.vkenterprises.vras.data.api.ApiClient
+import com.vkenterprises.vras.data.models.SearchLogRequest
 import com.vkenterprises.vras.navigation.Screen
 import com.vkenterprises.vras.viewmodel.AuthViewModel
 import com.vkenterprises.vras.viewmodel.SearchViewModel
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.tasks.await
 
 private val RC_REGEX = Regex("^[A-Z]{2}[0-9]{2}[A-Z]{1,3}[0-9]{4}$")
 private fun String.isValidRc(): Boolean =
@@ -32,6 +41,28 @@ fun VehicleDetailScreen(
     val item       = ui.selectedResult
     val agentName  by authVm.userName.collectAsState(initial = "")
     val agentPhone by authVm.userMobile.collectAsState(initial = "")
+    val context    = LocalContext.current
+
+    LaunchedEffect(item) {
+        if (item == null) return@LaunchedEffect
+        val userId = authVm.userId.first()
+        if (userId == 0L) return@LaunchedEffect
+        val loc = getLocationOnce(context)
+        runCatching {
+            ApiClient.api.logSearch(
+                SearchLogRequest(
+                    userId        = userId,
+                    vehicleNo     = item.vehicleNo,
+                    chassisNo     = item.chassisNo,
+                    model         = item.model,
+                    lat           = loc?.latitude,
+                    lng           = loc?.longitude,
+                    address       = null,
+                    deviceTimeIso = java.time.Instant.now().toString()
+                )
+            )
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -122,6 +153,16 @@ fun VehicleDetailScreen(
             Spacer(Modifier.height(72.dp)) // space for FAB
         }
     }
+}
+
+@SuppressLint("MissingPermission")
+private suspend fun getLocationOnce(context: Context): android.location.Location? {
+    val fused = LocationServices.getFusedLocationProviderClient(context)
+    return runCatching {
+        fused.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null).await()
+    }.getOrNull() ?: runCatching {
+        fused.lastLocation.await()
+    }.getOrNull()
 }
 
 @Composable

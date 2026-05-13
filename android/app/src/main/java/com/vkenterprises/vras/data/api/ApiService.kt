@@ -49,6 +49,9 @@ interface ApiService {
     @POST("api/mobile/heartbeat")
     suspend fun heartbeat(@Body request: HeartbeatRequest): Response<Map<String, Any>>
 
+    @POST("api/mobile/search-log")
+    suspend fun logSearch(@Body request: SearchLogRequest): Response<Map<String, Any>>
+
     @GET("api/mobile/live-users")
     suspend fun getLiveUsers(
         @Header("X-User-Id") userId: Long

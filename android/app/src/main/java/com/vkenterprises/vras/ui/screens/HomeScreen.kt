@@ -1,7 +1,10 @@
 package com.vkenterprises.vras.ui.screens
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.location.LocationManager
+import android.provider.Settings
 import android.util.Base64
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -52,21 +55,73 @@ fun HomeScreen(
     val context  = LocalContext.current
 
     // Ask for location permission so the worker can send GPS heartbeats
+    // ── Location gate ─────────────────────────────────────────────────────────
+    // App cannot be used without location services enabled + permission granted.
+    var showLocationDialog by remember { mutableStateOf(false) }
+
+    fun isLocationEnabled(): Boolean {
+        val lm = context.getSystemService(android.content.Context.LOCATION_SERVICE) as LocationManager
+        return lm.isProviderEnabled(LocationManager.GPS_PROVIDER) ||
+               lm.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
+    }
+
     val locationPermLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
-    ) { /* Worker already checks grants before using location */ }
+    ) { grants ->
+        val granted = grants.values.any { it }
+        if (!granted || !isLocationEnabled()) showLocationDialog = true
+    }
 
     LaunchedEffect(Unit) {
         val fine   = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION)
         val coarse = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION)
-        if (fine != PackageManager.PERMISSION_GRANTED && coarse != PackageManager.PERMISSION_GRANTED) {
-            locationPermLauncher.launch(
-                arrayOf(
-                    Manifest.permission.ACCESS_FINE_LOCATION,
-                    Manifest.permission.ACCESS_COARSE_LOCATION
-                )
-            )
+        val permGranted = fine == PackageManager.PERMISSION_GRANTED || coarse == PackageManager.PERMISSION_GRANTED
+        if (!permGranted) {
+            locationPermLauncher.launch(arrayOf(
+                Manifest.permission.ACCESS_FINE_LOCATION,
+                Manifest.permission.ACCESS_COARSE_LOCATION
+            ))
+        } else if (!isLocationEnabled()) {
+            showLocationDialog = true
         }
+    }
+
+    // Re-check every time we come back to the screen (user may have toggled GPS in settings)
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val obs = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                val fine   = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION)
+                val coarse = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION)
+                val ok = (fine == PackageManager.PERMISSION_GRANTED || coarse == PackageManager.PERMISSION_GRANTED) && isLocationEnabled()
+                showLocationDialog = !ok
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(obs)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(obs) }
+    }
+
+    if (showLocationDialog) {
+        AlertDialog(
+            onDismissRequest = { /* non-dismissible */ },
+            icon = { Icon(Icons.Default.LocationOff, contentDescription = null,
+                tint = MaterialTheme.colorScheme.error) },
+            title = { Text("Location Required") },
+            text  = { Text("This app requires location access to function. Please enable location services and grant location permission.") },
+            confirmButton = {
+                Button(onClick = {
+                    val fine = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION)
+                    val coarse = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION)
+                    if (fine != PackageManager.PERMISSION_GRANTED && coarse != PackageManager.PERMISSION_GRANTED) {
+                        locationPermLauncher.launch(arrayOf(
+                            Manifest.permission.ACCESS_FINE_LOCATION,
+                            Manifest.permission.ACCESS_COARSE_LOCATION))
+                    } else {
+                        context.startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
+                    }
+                }) { Text("Enable Location") }
+            }
+        )
     }
 
     LaunchedEffect(ui.subscriptionExpired) {
