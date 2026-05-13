@@ -1216,6 +1216,7 @@ app.MapPost("/api/mgr/records/upload", async (HttpContext ctx) =>
     try
     {
         // ── 3. Build DataTable ────────────────────────────────────────────
+        var sw = Stopwatch.StartNew();   // covers entire upload, not just BulkCopy
         await Push(5, $"Parsing {lines.Length - 1:N0} records…");
 
         static string Tr(string v, int max) => v.Length > max ? v[..max] : v;
@@ -1299,15 +1300,35 @@ app.MapPost("/api/mgr/records/upload", async (HttpContext ctx) =>
                 conn, 300, ("@bid", branchId));
         }
 
-        // ── 5. BulkCopy ───────────────────────────────────────────────────
-        await Push(35, $"Uploading {dt.Rows.Count:N0} records to database…");
-        var sw = Stopwatch.StartNew();
-        var bc = new MySqlBulkCopy(conn) { DestinationTableName = "vehicle_records", BulkCopyTimeout = 600 };
+        // ── 5. BulkCopy with real-time progress ──────────────────────────
+        int totalRows = dt.Rows.Count;
+        await Push(35, $"Uploading {totalRows:N0} records…");
+
+        var bc = new MySqlBulkCopy(conn)
+        {
+            DestinationTableName = "vehicle_records",
+            BulkCopyTimeout      = 600,
+            NotifyAfter          = Math.Max(1000, totalRows / 20)  // ~20 events regardless of size
+        };
         for (int i = 0; i < dt.Columns.Count; i++)
             bc.ColumnMappings.Add(new MySqlBulkCopyColumnMapping(i, dt.Columns[i].ColumnName));
-        var bcResult = await bc.WriteToServerAsync(dt);
+
+        // MySqlRowsCopied fires on the BulkCopy thread — queue it, drain in the poll loop
+        var copiedQueue = new System.Collections.Concurrent.ConcurrentQueue<long>();
+        bc.MySqlRowsCopied += (_, e) => copiedQueue.Enqueue(e.RowsCopied);
+
+        var bcTask = bc.WriteToServerAsync(dt);
+        while (!bcTask.IsCompleted)
+        {
+            await Task.Delay(300);
+            if (copiedQueue.TryDequeue(out long copied))
+            {
+                int pct = 35 + (int)((double)copied / totalRows * 50); // 35 → 85
+                await Push(Math.Min(pct, 85), $"Uploading… {copied:N0} / {totalRows:N0}");
+            }
+        }
+        var bcResult = await bcTask;  // re-throws on failure
         dt.Dispose();
-        sw.Stop();
         int inserted = (int)bcResult.RowsInserted;
 
         // ── 6. Finalize ───────────────────────────────────────────────────
