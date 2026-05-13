@@ -31,6 +31,7 @@
   var chassis= getParam('chassis');
   var model  = getParam('model');
   var time   = getParam('time');
+  var addr   = getParam('addr'); // pre-resolved address from Android Geocoder
 
   var hasPin = getParam('lat') !== '' && getParam('lng') !== '';
 
@@ -65,23 +66,29 @@
   }
 
   var marker = L.marker([lat, lng], { icon: redIcon }).addTo(map);
-  marker.bindPopup(buildPopup(''), { maxWidth: 280 }).openPopup();
-
-  fetch('https://nominatim.openstreetmap.org/reverse?lat=' + lat + '&lon=' + lng +
-        '&format=json&zoom=14&accept-language=en', { headers: { 'Accept': 'application/json' } })
-    .then(function(r) { return r.json(); })
-    .then(function(data) {
-      var addr  = data.address || {};
-      var parts = [];
-      if (addr.village || addr.suburb || addr.neighbourhood)
-        parts.push(addr.village || addr.suburb || addr.neighbourhood);
-      if (addr.city || addr.town || addr.county)
-        parts.push(addr.city || addr.town || addr.county);
-      if (addr.state) parts.push(addr.state);
-      var place = parts.length ? parts.join(', ') : (data.display_name || '');
-      marker.getPopup().setContent(buildPopup(place));
-    })
-    .catch(function() {});
+  // If Android already resolved the address, use it directly
+  if (addr) {
+    marker.bindPopup(buildPopup(addr), { maxWidth: 280 }).openPopup();
+  } else {
+    marker.bindPopup(buildPopup(''), { maxWidth: 280 }).openPopup();
+    // Fallback: ask Nominatim
+    fetch('https://nominatim.openstreetmap.org/reverse?lat=' + lat + '&lon=' + lng +
+          '&format=json&zoom=16&accept-language=en', { headers: { 'Accept': 'application/json' } })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        var a = data.address || {};
+        var parts = [];
+        if (a.road) parts.push(a.road);
+        if (a.village || a.suburb || a.neighbourhood)
+          parts.push(a.village || a.suburb || a.neighbourhood);
+        if (a.city || a.town || a.county)
+          parts.push(a.city || a.town || a.county);
+        if (a.state) parts.push(a.state);
+        var place = parts.length ? parts.join(', ') : (data.display_name || '');
+        marker.getPopup().setContent(buildPopup(place));
+      })
+      .catch(function() {});
+  }
 </script>
 </body>
 </html>
