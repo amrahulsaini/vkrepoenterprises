@@ -59,7 +59,7 @@
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
-                <fa:FontAwesome Grid.Column="0" Icon="Solid_MagnifyingGlass"
+                <fa:FontAwesome Grid.Column="0" Icon="Solid_Search"
                                 FontSize="13" Foreground="{StaticResource Gray500}"
                                 VerticalAlignment="Center" Margin="0,0,8,0" />
                 <TextBox Grid.Column="1" x:Name="txtSearch"

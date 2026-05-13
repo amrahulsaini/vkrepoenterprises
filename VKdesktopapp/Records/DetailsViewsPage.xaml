@@ -8,61 +8,54 @@
     Loaded="Page_Loaded">
 
     <Page.Resources>
-        <!-- Icon+text action button -->
         <Style x:Key="ActionBtn" TargetType="Button" BasedOn="{StaticResource PrimaryButton}">
-            <Setter Property="Padding"    Value="14,8" />
-            <Setter Property="FontSize"   Value="12" />
+            <Setter Property="Padding"    Value="12,6" />
+            <Setter Property="FontSize"   Value="12"   />
             <Setter Property="FontWeight" Value="SemiBold" />
         </Style>
-
-        <!-- Outline / secondary action -->
         <Style x:Key="OutlineBtn" TargetType="Button" BasedOn="{StaticResource SecondaryButton}">
-            <Setter Property="Padding"  Value="14,8" />
-            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Padding" Value="12,6" />
+            <Setter Property="FontSize" Value="12"  />
         </Style>
-
-        <!-- Filter label -->
         <Style x:Key="FilterLabel" TargetType="TextBlock">
             <Setter Property="FontSize"   Value="10" />
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="Foreground" Value="{StaticResource Gray600}" />
-            <Setter Property="Margin"     Value="0,0,0,4" />
+            <Setter Property="Margin"     Value="0,0,0,3" />
         </Style>
-
-        <!-- Filter input border -->
         <Style x:Key="FilterInput" TargetType="Border">
             <Setter Property="Background"      Value="White" />
             <Setter Property="BorderBrush"     Value="{StaticResource Gray200}" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius"    Value="6" />
-            <Setter Property="Padding"         Value="8,6" />
+            <Setter Property="CornerRadius"    Value="5" />
+            <Setter Property="Padding"         Value="7,5" />
         </Style>
     </Page.Resources>
 
-    <Grid Margin="20,16,20,16">
+    <Grid Margin="16,10,16,10">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="*"    />
+            <RowDefinition Height="Auto" />  <!-- header  -->
+            <RowDefinition Height="Auto" />  <!-- filters -->
+            <RowDefinition Height="*"    />  <!-- grid — takes ALL remaining height -->
         </Grid.RowDefinitions>
 
         <!-- ── HEADER ─────────────────────────────────────────────────── -->
-        <Border Grid.Row="0" Style="{StaticResource DashboardCard}" Margin="0,0,0,14">
+        <Border Grid.Row="0" Style="{StaticResource DashboardCard}"
+                Padding="14,10" Margin="0,0,0,8">
             <DockPanel VerticalAlignment="Center">
 
                 <StackPanel DockPanel.Dock="Left" VerticalAlignment="Center">
                     <StackPanel Orientation="Horizontal">
-                        <fa:FontAwesome Icon="Solid_MagnifyingGlassLocation"
-                                        FontSize="18" Foreground="{StaticResource Orange500}"
-                                        VerticalAlignment="Center" Margin="0,0,10,0" />
+                        <fa:FontAwesome Icon="Solid_SearchLocation"
+                                        FontSize="16" Foreground="{StaticResource Orange500}"
+                                        VerticalAlignment="Center" Margin="0,0,9,0" />
                         <TextBlock Text="SEARCH LOGS" Style="{StaticResource Heading4}"
                                    VerticalAlignment="Center" />
                     </StackPanel>
                     <TextBlock Text="Every vehicle detail view from mobile agents — GPS location, timestamps and agent info."
-                               Style="{StaticResource Caption}" Margin="28,4,0,0" />
+                               Style="{StaticResource Caption}" Margin="25,3,0,0" />
                 </StackPanel>
 
-                <!-- Action buttons -->
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal"
                             HorizontalAlignment="Right" VerticalAlignment="Center">
 
@@ -70,9 +63,8 @@
                             Margin="0,0,8,0" Style="{StaticResource ActionBtn}"
                             Click="btnShowMap_Click" ToolTip="Show seizer location on map">
                         <StackPanel Orientation="Horizontal">
-                            <fa:FontAwesome Icon="Solid_MapLocationDot"
-                                            FontSize="13" Margin="0,0,6,0"
-                                            VerticalAlignment="Center" />
+                            <fa:FontAwesome Icon="Solid_MapMarkedAlt"
+                                            FontSize="12" Margin="0,0,6,0" VerticalAlignment="Center" />
                             <TextBlock Text="Show on Map" VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
@@ -81,9 +73,8 @@
                             Style="{StaticResource OutlineBtn}"
                             Click="btnExportExcel_Click" ToolTip="Export to Excel">
                         <StackPanel Orientation="Horizontal">
-                            <fa:FontAwesome Icon="Regular_FileExcel"
-                                            FontSize="13" Margin="0,0,6,0"
-                                            VerticalAlignment="Center" />
+                            <fa:FontAwesome Icon="Solid_FileExcel"
+                                            FontSize="12" Margin="0,0,6,0" VerticalAlignment="Center" />
                             <TextBlock Text="Excel" VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
@@ -92,9 +83,8 @@
                             Style="{StaticResource OutlineBtn}"
                             Click="btnExportPdf_Click" ToolTip="Export to PDF">
                         <StackPanel Orientation="Horizontal">
-                            <fa:FontAwesome Icon="Regular_FilePdf"
-                                            FontSize="13" Margin="0,0,6,0"
-                                            VerticalAlignment="Center" />
+                            <fa:FontAwesome Icon="Solid_FilePdf"
+                                            FontSize="12" Margin="0,0,6,0" VerticalAlignment="Center" />
                             <TextBlock Text="PDF" VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
@@ -104,72 +94,56 @@
         </Border>
 
         <!-- ── FILTER BAR ─────────────────────────────────────────────── -->
-        <Border Grid.Row="1" Style="{StaticResource DashboardCard}" Margin="0,0,0,14">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="12"   />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="12"   />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="12"   />
-                    <ColumnDefinition Width="200"  />
-                    <ColumnDefinition Width="12"   />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="*"    />
-                    <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
+        <Border Grid.Row="1" Style="{StaticResource DashboardCard}"
+                Padding="14,10" Margin="0,0,0,8">
+            <WrapPanel Orientation="Horizontal" VerticalAlignment="Center">
 
-                <!-- From date -->
-                <StackPanel Grid.Column="0">
+                <!-- From -->
+                <StackPanel Margin="0,0,12,0">
                     <TextBlock Text="FROM" Style="{StaticResource FilterLabel}" />
                     <Border Style="{StaticResource FilterInput}">
-                        <DatePicker x:Name="dpFrom" Width="120" SelectedDateFormat="Short"
+                        <DatePicker x:Name="dpFrom" Width="116" SelectedDateFormat="Short"
                                     BorderThickness="0" Background="Transparent"
                                     SelectedDateChanged="Filter_Changed" />
                     </Border>
                 </StackPanel>
 
-                <!-- To date -->
-                <StackPanel Grid.Column="2">
+                <!-- To -->
+                <StackPanel Margin="0,0,12,0">
                     <TextBlock Text="TO" Style="{StaticResource FilterLabel}" />
                     <Border Style="{StaticResource FilterInput}">
-                        <DatePicker x:Name="dpTo" Width="120" SelectedDateFormat="Short"
+                        <DatePicker x:Name="dpTo" Width="116" SelectedDateFormat="Short"
                                     BorderThickness="0" Background="Transparent"
                                     SelectedDateChanged="Filter_Changed" />
                     </Border>
                 </StackPanel>
 
-                <!-- User picker button -->
-                <StackPanel Grid.Column="4">
+                <!-- Agent picker -->
+                <StackPanel Margin="0,0,12,0">
                     <TextBlock Text="AGENT" Style="{StaticResource FilterLabel}" />
-                    <Button x:Name="btnPickUser"
-                            MinWidth="160" Height="34"
-                            Style="{StaticResource OutlineBtn}"
-                            Click="btnPickUser_Click">
+                    <Button x:Name="btnPickUser" MinWidth="150" Height="31"
+                            Style="{StaticResource OutlineBtn}" Click="btnPickUser_Click">
                         <StackPanel Orientation="Horizontal">
-                            <fa:FontAwesome Icon="Solid_UserGroup"
-                                            FontSize="11" Margin="0,0,6,0"
-                                            VerticalAlignment="Center" />
-                            <TextBlock x:Name="txtPickedUser" Text="All Agents"
-                                       VerticalAlignment="Center" />
+                            <fa:FontAwesome Icon="Solid_Users"
+                                            FontSize="11" Margin="0,0,6,0" VerticalAlignment="Center" />
+                            <TextBlock x:Name="txtPickedUser" Text="All Agents" VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
                 </StackPanel>
 
-                <!-- VRN search -->
-                <StackPanel Grid.Column="6">
+                <!-- Search -->
+                <StackPanel Margin="0,0,12,0">
                     <TextBlock Text="SEARCH VRN / CHASSIS / NAME" Style="{StaticResource FilterLabel}" />
-                    <Border Style="{StaticResource FilterInput}">
+                    <Border Style="{StaticResource FilterInput}" Width="195">
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
-                            <fa:FontAwesome Grid.Column="0" Icon="Solid_MagnifyingGlass"
-                                            FontSize="11" Foreground="{StaticResource Gray400}"
+                            <fa:FontAwesome Grid.Column="0" Icon="Solid_Search"
+                                            FontSize="10" Foreground="{StaticResource Gray400}"
                                             VerticalAlignment="Center" Margin="0,0,6,0" />
-                            <TextBox Grid.Column="1" x:Name="txtSearch" Width="160"
+                            <TextBox Grid.Column="1" x:Name="txtSearch"
                                      BorderThickness="0" Background="Transparent"
                                      FontSize="12" VerticalContentAlignment="Center"
                                      TextChanged="txtSearch_TextChanged" />
@@ -177,61 +151,49 @@
                     </Border>
                 </StackPanel>
 
-                <!-- Refresh button -->
-                <Button Grid.Column="8" VerticalAlignment="Bottom"
-                        Style="{StaticResource ActionBtn}"
+                <!-- Refresh -->
+                <Button VerticalAlignment="Bottom" Style="{StaticResource ActionBtn}"
                         Click="btnRefresh_Click" ToolTip="Reload from server">
                     <StackPanel Orientation="Horizontal">
-                        <fa:FontAwesome Icon="Solid_ArrowsRotate"
-                                        FontSize="12" Margin="0,0,6,0"
-                                        VerticalAlignment="Center" />
+                        <fa:FontAwesome Icon="Solid_SyncAlt"
+                                        FontSize="11" Margin="0,0,6,0" VerticalAlignment="Center" />
                         <TextBlock Text="Refresh" VerticalAlignment="Center" />
                     </StackPanel>
                 </Button>
 
-                <!-- Record count + loading -->
-                <StackPanel Grid.Column="10" VerticalAlignment="Bottom"
-                            Orientation="Horizontal" Margin="10,0,0,2">
+                <!-- Count / spinner -->
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Bottom" Margin="10,0,0,2">
                     <fa:FontAwesome x:Name="icnLoading" Icon="Solid_CircleNotch"
                                     FontSize="12" Foreground="{StaticResource Orange500}"
-                                    VerticalAlignment="Center" Margin="0,0,6,0"
+                                    VerticalAlignment="Center" Margin="0,0,5,0"
                                     Visibility="Collapsed" />
                     <TextBlock x:Name="lblCount" Text=""
                                Style="{StaticResource Caption}" VerticalAlignment="Center" />
                 </StackPanel>
-            </Grid>
+            </WrapPanel>
         </Border>
 
-        <!-- ── LOG GRID ───────────────────────────────────────────────── -->
+        <!-- ── LOG GRID — fills ALL remaining height, no bottom padding ─ -->
         <Border Grid.Row="2" Style="{StaticResource DashboardCard}" Padding="0">
-            <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="*"    />
-                </Grid.RowDefinitions>
-
-                <!-- Column header row (custom) handled by DataGrid -->
-                <DataGrid x:Name="dgLogs"
-                          Grid.Row="0" Grid.RowSpan="2"
-                          Style="{StaticResource MaterialDataGrid}"
-                          AutoGenerateColumns="False"
-                          SelectionMode="Single"
-                          SelectionChanged="dgLogs_SelectionChanged"
-                          MouseDoubleClick="dgLogs_MouseDoubleClick">
-                    <DataGrid.Columns>
-                        <DataGridTextColumn Header="VRN"         Binding="{Binding VehicleNo}"  Width="115" />
-                        <DataGridTextColumn Header="Chassis"     Binding="{Binding ChassisNo}"  Width="130" />
-                        <DataGridTextColumn Header="Model"       Binding="{Binding Model}"      Width="130" />
-                        <DataGridTextColumn Header="Agent"       Binding="{Binding UserName}"   Width="120" />
-                        <DataGridTextColumn Header="Mobile"      Binding="{Binding UserMobile}" Width="110" />
-                        <DataGridTextColumn Header="Address"     Binding="{Binding Address}"    Width="220" />
-                        <DataGridTextColumn Header="Lat"         Binding="{Binding Lat,StringFormat=N5}"  Width="85" />
-                        <DataGridTextColumn Header="Lng"         Binding="{Binding Lng,StringFormat=N5}"  Width="85" />
-                        <DataGridTextColumn Header="Device Time" Binding="{Binding DeviceTime}" Width="140" />
-                        <DataGridTextColumn Header="Server Time" Binding="{Binding ServerTime}" Width="140" />
-                    </DataGrid.Columns>
-                </DataGrid>
-            </Grid>
+            <DataGrid x:Name="dgLogs"
+                      Style="{StaticResource MaterialDataGrid}"
+                      AutoGenerateColumns="False"
+                      SelectionMode="Single"
+                      SelectionChanged="dgLogs_SelectionChanged"
+                      MouseDoubleClick="dgLogs_MouseDoubleClick">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="VRN"         Binding="{Binding VehicleNo}"  Width="115" />
+                    <DataGridTextColumn Header="Chassis"     Binding="{Binding ChassisNo}"  Width="130" />
+                    <DataGridTextColumn Header="Model"       Binding="{Binding Model}"      Width="130" />
+                    <DataGridTextColumn Header="Agent"       Binding="{Binding UserName}"   Width="120" />
+                    <DataGridTextColumn Header="Mobile"      Binding="{Binding UserMobile}" Width="108" />
+                    <DataGridTextColumn Header="Address"     Binding="{Binding Address}"    Width="*"   />
+                    <DataGridTextColumn Header="Lat"         Binding="{Binding Lat,StringFormat=N5}"  Width="82" />
+                    <DataGridTextColumn Header="Lng"         Binding="{Binding Lng,StringFormat=N5}"  Width="82" />
+                    <DataGridTextColumn Header="Device Time" Binding="{Binding DeviceTime}" Width="135" />
+                    <DataGridTextColumn Header="Server Time" Binding="{Binding ServerTime}" Width="135" />
+                </DataGrid.Columns>
+            </DataGrid>
         </Border>
 
     </Grid>
