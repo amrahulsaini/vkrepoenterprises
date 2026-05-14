@@ -5,94 +5,254 @@
     Background="{StaticResource Gray50}"
     FontFamily="Segoe UI"
     Loaded="Page_Loaded">
+
     <Grid Margin="20">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <Border Grid.Row="0" Style="{StaticResource DashboardCard}">
+        <!-- Page header -->
+        <Border Grid.Row="0" Style="{StaticResource DashboardCard}" Margin="0,0,0,16">
             <StackPanel>
-                <TextBlock Text="REPORTS AND OPERATIONS" Style="{StaticResource Heading4}" />
-                <TextBlock Text="Collection coverage, highest-volume branches and bank upload distribution."
-                           Margin="0,6,0,0"
-                           Style="{StaticResource Caption}" />
+                <TextBlock Text="REPORTS &amp; EXPORT" Style="{StaticResource Heading4}" />
+                <TextBlock Text="Export all data sets to Excel (.xlsx) or PDF. Large exports are fetched in pages and assembled locally."
+                           Margin="0,6,0,0" Style="{StaticResource Caption}" />
             </StackPanel>
         </Border>
 
-        <UniformGrid Grid.Row="1" Columns="4" Margin="0,18,0,18">
-            <Border Style="{StaticResource DashboardCard}" Margin="0,0,12,0"><StackPanel><TextBlock Text="VEHICLES" Style="{StaticResource FormHeading}" /><TextBlock Name="lblVehicles" Style="{StaticResource StatValue}" Text="0" /></StackPanel></Border>
-            <Border Style="{StaticResource DashboardCard}" Margin="0,0,12,0"><StackPanel><TextBlock Text="UPLOADS" Style="{StaticResource FormHeading}" /><TextBlock Name="lblUploads" Style="{StaticResource StatValue}" Text="0" /></StackPanel></Border>
-            <Border Style="{StaticResource DashboardCard}" Margin="0,0,12,0"><StackPanel><TextBlock Text="BRANCHES" Style="{StaticResource FormHeading}" /><TextBlock Name="lblBranches" Style="{StaticResource StatValue}" Text="0" /></StackPanel></Border>
-            <Border Style="{StaticResource DashboardCard}"><StackPanel><TextBlock Text="USERS" Style="{StaticResource FormHeading}" /><TextBlock Name="lblUsers" Style="{StaticResource StatValue}" Text="0" /></StackPanel></Border>
-        </UniformGrid>
-
-        <Grid Grid.Row="2">
+        <!-- Main two-column layout -->
+        <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
+                <!-- Left: export cards (35%) -->
+                <ColumnDefinition Width="35*" />
                 <ColumnDefinition Width="16" />
-                <ColumnDefinition Width="1.1*" />
+                <!-- Right: progress panel (65%) -->
+                <ColumnDefinition Width="65*" />
             </Grid.ColumnDefinitions>
 
-            <Border Grid.Column="0" Style="{StaticResource DashboardCard}">
+            <!-- ── Left: export card list ── -->
+            <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto">
+                <StackPanel>
+
+                    <!-- Card 1: Users -->
+                    <Border Style="{StaticResource DashboardCard}" Margin="0,0,0,12">
+                        <StackPanel>
+                            <TextBlock Text="Users" Style="{StaticResource Heading6}" />
+                            <TextBlock Text="All app users and their account details"
+                                       Style="{StaticResource Caption}" Margin="0,4,0,12" />
+                            <StackPanel Orientation="Horizontal">
+                                <Button Content="Export Excel"
+                                        Tag="Users_Excel"
+                                        Click="btnExport_Click"
+                                        Style="{StaticResource PrimaryButton}"
+                                        x:Name="btnUsersExcel"
+                                        MinWidth="110" Margin="0,0,8,0" />
+                                <Button Content="Export PDF"
+                                        Tag="Users_Pdf"
+                                        Click="btnExport_Click"
+                                        Style="{StaticResource SecondaryButton}"
+                                        x:Name="btnUsersPdf"
+                                        MinWidth="110" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Card 2: Subscriptions -->
+                    <Border Style="{StaticResource DashboardCard}" Margin="0,0,0,12">
+                        <StackPanel>
+                            <TextBlock Text="Subscriptions" Style="{StaticResource Heading6}" />
+                            <TextBlock Text="All subscription records with user info"
+                                       Style="{StaticResource Caption}" Margin="0,4,0,12" />
+                            <StackPanel Orientation="Horizontal">
+                                <Button Content="Export Excel"
+                                        Tag="Subscriptions_Excel"
+                                        Click="btnExport_Click"
+                                        Style="{StaticResource PrimaryButton}"
+                                        x:Name="btnSubsExcel"
+                                        MinWidth="110" Margin="0,0,8,0" />
+                                <Button Content="Export PDF"
+                                        Tag="Subscriptions_Pdf"
+                                        Click="btnExport_Click"
+                                        Style="{StaticResource SecondaryButton}"
+                                        x:Name="btnSubsPdf"
+                                        MinWidth="110" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Card 3: Vehicle Records -->
+                    <Border Style="{StaticResource DashboardCard}" Margin="0,0,0,12">
+                        <StackPanel>
+                            <TextBlock Text="Vehicle Records" Style="{StaticResource Heading6}" />
+                            <TextBlock Text="All vehicle records with finance and branch info"
+                                       Style="{StaticResource Caption}" Margin="0,4,0,12" />
+                            <StackPanel Orientation="Horizontal">
+                                <Button Content="Export Excel"
+                                        Tag="VehicleRecords_Excel"
+                                        Click="btnExport_Click"
+                                        Style="{StaticResource PrimaryButton}"
+                                        x:Name="btnVehicleExcel"
+                                        MinWidth="110" Margin="0,0,8,0" />
+                                <Button Content="Export PDF"
+                                        Tag="VehicleRecords_Pdf"
+                                        Click="btnExport_Click"
+                                        Style="{StaticResource SecondaryButton}"
+                                        x:Name="btnVehiclePdf"
+                                        MinWidth="110" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Card 4: RC Records -->
+                    <Border Style="{StaticResource DashboardCard}" Margin="0,0,0,12">
+                        <StackPanel>
+                            <TextBlock Text="RC Records" Style="{StaticResource Heading6}" />
+                            <TextBlock Text="Vehicle records indexed by RC number"
+                                       Style="{StaticResource Caption}" Margin="0,4,0,12" />
+                            <StackPanel Orientation="Horizontal">
+                                <Button Content="Export Excel"
+                                        Tag="RcRecords_Excel"
+                                        Click="btnExport_Click"
+                                        Style="{StaticResource PrimaryButton}"
+                                        x:Name="btnRcExcel"
+                                        MinWidth="110" Margin="0,0,8,0" />
+                                <Button Content="Export PDF"
+                                        Tag="RcRecords_Pdf"
+                                        Click="btnExport_Click"
+                                        Style="{StaticResource SecondaryButton}"
+                                        x:Name="btnRcPdf"
+                                        MinWidth="110" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Card 5: Chassis Records -->
+                    <Border Style="{StaticResource DashboardCard}" Margin="0,0,0,0">
+                        <StackPanel>
+                            <TextBlock Text="Chassis Records" Style="{StaticResource Heading6}" />
+                            <TextBlock Text="Vehicle records indexed by chassis number"
+                                       Style="{StaticResource Caption}" Margin="0,4,0,12" />
+                            <StackPanel Orientation="Horizontal">
+                                <Button Content="Export Excel"
+                                        Tag="ChassisRecords_Excel"
+                                        Click="btnExport_Click"
+                                        Style="{StaticResource PrimaryButton}"
+                                        x:Name="btnChassisExcel"
+                                        MinWidth="110" Margin="0,0,8,0" />
+                                <Button Content="Export PDF"
+                                        Tag="ChassisRecords_Pdf"
+                                        Click="btnExport_Click"
+                                        Style="{StaticResource SecondaryButton}"
+                                        x:Name="btnChassisPdf"
+                                        MinWidth="110" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- ── Right: progress panel ── -->
+            <Border Grid.Column="2" Style="{StaticResource DashboardCard}">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
-                    <TextBlock Text="COLLECTION COVERAGE" Style="{StaticResource Heading5}" Margin="0,0,0,12" />
-                    <DataGrid Name="dgCollections" Grid.Row="1" Style="{StaticResource MaterialDataGrid}">
-                        <DataGrid.Columns>
-                            <DataGridTextColumn Header="Collection" Binding="{Binding Name}" Width="*" />
-                            <DataGridTextColumn Header="Rows" Binding="{Binding Count}" Width="120" />
-                            <DataGridTextColumn Header="Summary" Binding="{Binding Summary}" Width="*" />
-                        </DataGrid.Columns>
-                    </DataGrid>
+
+                    <TextBlock Text="Export Status" Style="{StaticResource Heading5}" Margin="0,0,0,16" />
+
+                    <!-- Idle placeholder -->
+                    <Border Grid.Row="1" x:Name="panelIdle"
+                            HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <TextBlock Text="Select a report to export"
+                                       Style="{StaticResource Body1}"
+                                       Foreground="{StaticResource Gray400}"
+                                       HorizontalAlignment="Center" />
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Active / complete panel -->
+                    <StackPanel Grid.Row="1" x:Name="panelActive" Visibility="Collapsed">
+
+                        <!-- Current export name -->
+                        <TextBlock x:Name="lblExportName"
+                                   Style="{StaticResource Heading6}"
+                                   Margin="0,0,0,12" />
+
+                        <!-- Progress bar -->
+                        <ProgressBar x:Name="pbExport"
+                                     Minimum="0" Maximum="100"
+                                     Height="8"
+                                     Margin="0,0,0,6">
+                            <ProgressBar.Style>
+                                <Style TargetType="ProgressBar">
+                                    <Setter Property="Foreground" Value="{StaticResource Orange500}" />
+                                    <Setter Property="Background" Value="{StaticResource Gray200}" />
+                                    <Setter Property="BorderThickness" Value="0" />
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="ProgressBar">
+                                                <Border CornerRadius="4"
+                                                        Background="{TemplateBinding Background}"
+                                                        Height="{TemplateBinding Height}">
+                                                    <Border x:Name="PART_Track">
+                                                        <Border x:Name="PART_Indicator"
+                                                                CornerRadius="4"
+                                                                Background="{TemplateBinding Foreground}"
+                                                                HorizontalAlignment="Left" />
+                                                    </Border>
+                                                </Border>
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Style>
+                            </ProgressBar.Style>
+                        </ProgressBar>
+
+                        <!-- Progress label -->
+                        <TextBlock x:Name="lblProgress"
+                                   Style="{StaticResource Caption}"
+                                   Margin="0,0,0,12" />
+
+                        <!-- Log output -->
+                        <TextBox x:Name="txtLog"
+                                 IsReadOnly="True"
+                                 TextWrapping="Wrap"
+                                 AcceptsReturn="True"
+                                 VerticalScrollBarVisibility="Auto"
+                                 Background="{StaticResource Gray50}"
+                                 BorderBrush="{StaticResource Gray200}"
+                                 BorderThickness="1"
+                                 Padding="8"
+                                 Height="220"
+                                 FontSize="12"
+                                 FontFamily="Consolas"
+                                 Foreground="{StaticResource Gray700}" />
+
+                        <!-- Complete row: message + open-file button -->
+                        <StackPanel x:Name="panelComplete"
+                                    Orientation="Horizontal"
+                                    Margin="0,12,0,0"
+                                    Visibility="Collapsed">
+                            <TextBlock Text="Export complete"
+                                       Style="{StaticResource Body1}"
+                                       Foreground="#FF2E7D32"
+                                       VerticalAlignment="Center"
+                                       Margin="0,0,16,0" />
+                            <Button x:Name="btnOpenFile"
+                                    Content="Open File"
+                                    Style="{StaticResource SecondaryButton}"
+                                    Click="btnOpenFile_Click"
+                                    MinWidth="100" />
+                        </StackPanel>
+
+                    </StackPanel>
                 </Grid>
             </Border>
 
-            <Grid Grid.Column="2">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="*" />
-                    <RowDefinition Height="16" />
-                    <RowDefinition Height="*" />
-                </Grid.RowDefinitions>
-
-                <Border Style="{StaticResource DashboardCard}">
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="*" />
-                        </Grid.RowDefinitions>
-                        <TextBlock Text="TOP BRANCHES" Style="{StaticResource Heading5}" Margin="0,0,0,12" />
-                        <DataGrid Name="dgBranches" Grid.Row="1" Style="{StaticResource MaterialDataGrid}">
-                            <DataGrid.Columns>
-                                <DataGridTextColumn Header="Branch" Binding="{Binding BranchName}" Width="*" />
-                                <DataGridTextColumn Header="Head Office" Binding="{Binding HeadOfficeName}" Width="*" />
-                                <DataGridTextColumn Header="Records" Binding="{Binding Records}" Width="100" />
-                            </DataGrid.Columns>
-                        </DataGrid>
-                    </Grid>
-                </Border>
-
-                <Border Grid.Row="2" Style="{StaticResource DashboardCard}">
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="*" />
-                        </Grid.RowDefinitions>
-                        <TextBlock Text="TOP BANKS" Style="{StaticResource Heading5}" Margin="0,0,0,12" />
-                        <DataGrid Name="dgBanks" Grid.Row="1" Style="{StaticResource MaterialDataGrid}">
-                            <DataGrid.Columns>
-                                <DataGridTextColumn Header="Bank" Binding="{Binding Name}" Width="*" />
-                                <DataGridTextColumn Header="Files" Binding="{Binding Count}" Width="120" />
-                                <DataGridTextColumn Header="Summary" Binding="{Binding Detail}" Width="*" />
-                            </DataGrid.Columns>
-                        </DataGrid>
-                    </Grid>
-                </Border>
-            </Grid>
         </Grid>
     </Grid>
 </Page>

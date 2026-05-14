@@ -487,6 +487,63 @@ internal static class DesktopApiClient
         return (await resp.Content.ReadFromJsonAsync<ColumnTypeDto>(_json))!;
     }
 
+    // ── Export DTOs ─────────────────────────────────────────────────────────────
+
+    internal record ExportUserRow(long Id, string Name, string Mobile, string? Address, string? Pincode,
+        bool IsActive, bool IsAdmin, bool IsStopped, bool IsBlacklisted,
+        decimal Balance, string CreatedAt, string? SubEnd);
+
+    internal record ExportSubRow(long Id, long UserId, string UserName, string UserMobile,
+        string StartDate, string EndDate, decimal Amount, string? Notes, string CreatedAt);
+
+    internal record ExportVehicleRow(
+        string VehicleNo, string ChassisNo, string EngineNo, string Model,
+        string AgreementNo, string CustomerName, string CustomerContact, string CustomerAddress,
+        string Financer, string BranchName, string Bucket, string Gv, string Od, string Seasoning,
+        string TbrFlag, string Sec9, string Sec17, string Level1, string Level1Contact,
+        string Level2, string Level2Contact, string Level3, string Level3Contact,
+        string Level4, string Level4Contact, string SenderMail1, string SenderMail2,
+        string ExecutiveName, string Pos, string Toss, string Remark, string Region, string Area, string CreatedOn);
+
+    internal record ExportPage<T>(long Total, int Page, int Size, bool HasMore, List<T> Rows);
+
+    // ── Export methods ──────────────────────────────────────────────────────────
+
+    internal static async Task<List<ExportUserRow>> ExportUsersAsync()
+    {
+        var resp = await Send(HttpMethod.Get, "api/mgr/export/users");
+        resp.EnsureSuccessStatusCode();
+        return (await resp.Content.ReadFromJsonAsync<List<ExportUserRow>>(_json))!;
+    }
+
+    internal static async Task<List<ExportSubRow>> ExportSubscriptionsAsync()
+    {
+        var resp = await Send(HttpMethod.Get, "api/mgr/export/subscriptions");
+        resp.EnsureSuccessStatusCode();
+        return (await resp.Content.ReadFromJsonAsync<List<ExportSubRow>>(_json))!;
+    }
+
+    internal static async Task<ExportPage<ExportVehicleRow>> ExportVehicleRecordsPageAsync(int page, int size = 5000)
+    {
+        var resp = await Send(HttpMethod.Get, $"api/mgr/export/vehicle-records?page={page}&size={size}");
+        resp.EnsureSuccessStatusCode();
+        return (await resp.Content.ReadFromJsonAsync<ExportPage<ExportVehicleRow>>(_json))!;
+    }
+
+    internal static async Task<ExportPage<ExportVehicleRow>> ExportRcRecordsPageAsync(int page, int size = 5000)
+    {
+        var resp = await Send(HttpMethod.Get, $"api/mgr/export/rc-records?page={page}&size={size}");
+        resp.EnsureSuccessStatusCode();
+        return (await resp.Content.ReadFromJsonAsync<ExportPage<ExportVehicleRow>>(_json))!;
+    }
+
+    internal static async Task<ExportPage<ExportVehicleRow>> ExportChassisRecordsPageAsync(int page, int size = 5000)
+    {
+        var resp = await Send(HttpMethod.Get, $"api/mgr/export/chassis-records?page={page}&size={size}");
+        resp.EnsureSuccessStatusCode();
+        return (await resp.Content.ReadFromJsonAsync<ExportPage<ExportVehicleRow>>(_json))!;
+    }
+
     // ── HTTP helper ─────────────────────────────────────────────────────────
 
     private static Task<HttpResponseMessage> Send(

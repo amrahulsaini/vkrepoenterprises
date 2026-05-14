@@ -1649,6 +1649,237 @@ app.MapPost("/api/mgr/records/upload", async (HttpContext ctx) =>
     return Results.Ok();
 });
 
+// ── Export endpoints ──────────────────────────────────────────────────────────
+
+app.MapGet("/api/mgr/export/users", async (HttpContext ctx) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        await using var conn = new MySqlConnection(connStr);
+        await conn.OpenAsync();
+        const string sql = @"
+            SELECT u.id, u.name, u.mobile, u.address, u.pincode,
+                   u.is_active, u.is_admin, u.is_stopped, u.is_blacklisted,
+                   u.balance,
+                   DATE_FORMAT(u.created_at,'%Y-%m-%d %H:%i:%s') AS created_at,
+                   (SELECT DATE_FORMAT(MAX(s.end_date),'%Y-%m-%d')
+                    FROM subscriptions s WHERE s.user_id = u.id) AS sub_end
+            FROM app_users u
+            ORDER BY u.id";
+        await using var cmd = new MySqlCommand(sql, conn) { CommandTimeout = 60 };
+        var list = new List<object>();
+        await using var rdr = await cmd.ExecuteReaderAsync();
+        while (await rdr.ReadAsync())
+            list.Add(new
+            {
+                id             = rdr.GetInt64(0),
+                name           = rdr.GetString(1),
+                mobile         = rdr.GetString(2),
+                address        = rdr.IsDBNull(3)  ? null : rdr.GetString(3),
+                pincode        = rdr.IsDBNull(4)  ? null : rdr.GetString(4),
+                isActive       = rdr.GetBoolean(5),
+                isAdmin        = rdr.GetBoolean(6),
+                isStopped      = rdr.GetBoolean(7),
+                isBlacklisted  = rdr.GetBoolean(8),
+                balance        = rdr.GetDecimal(9),
+                createdAt      = rdr.GetString(10),
+                subEnd         = rdr.IsDBNull(11) ? null : rdr.GetString(11),
+            });
+        return Results.Ok(list);
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+app.MapGet("/api/mgr/export/subscriptions", async (HttpContext ctx) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        await using var conn = new MySqlConnection(connStr);
+        await conn.OpenAsync();
+        const string sql = @"
+            SELECT s.id, s.user_id, u.name, u.mobile,
+                   DATE_FORMAT(s.start_date,'%Y-%m-%d') AS start_date,
+                   DATE_FORMAT(s.end_date,'%Y-%m-%d')   AS end_date,
+                   s.amount, s.notes,
+                   DATE_FORMAT(s.created_at,'%Y-%m-%d %H:%i:%s') AS created_at
+            FROM subscriptions s
+            JOIN app_users u ON u.id = s.user_id
+            ORDER BY s.id";
+        await using var cmd = new MySqlCommand(sql, conn) { CommandTimeout = 60 };
+        var list = new List<object>();
+        await using var rdr = await cmd.ExecuteReaderAsync();
+        while (await rdr.ReadAsync())
+            list.Add(new
+            {
+                id         = rdr.GetInt64(0),
+                userId     = rdr.GetInt64(1),
+                userName   = rdr.GetString(2),
+                userMobile = rdr.GetString(3),
+                startDate  = rdr.GetString(4),
+                endDate    = rdr.GetString(5),
+                amount     = rdr.GetDecimal(6),
+                notes      = rdr.IsDBNull(7) ? null : rdr.GetString(7),
+                createdAt  = rdr.GetString(8),
+            });
+        return Results.Ok(list);
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+app.MapGet("/api/mgr/export/vehicle-records", async (HttpContext ctx, int page = 0, int size = 5000) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        await using var conn = new MySqlConnection(connStr);
+        await conn.OpenAsync();
+        long total;
+        await using (var cntCmd = new MySqlCommand("SELECT COUNT(*) FROM vehicle_records", conn) { CommandTimeout = 30 })
+            total = Convert.ToInt64(await cntCmd.ExecuteScalarAsync());
+
+        const string fields = @"
+            vr.vehicle_no, vr.chassis_no, vr.engine_no, vr.model, vr.agreement_no,
+            vr.customer_name, vr.customer_contact, vr.customer_address,
+            COALESCE(f.name,'') AS financer, COALESCE(b.name,'') AS branch_name,
+            vr.bucket, vr.gv, vr.od, vr.seasoning, vr.tbr_flag,
+            vr.sec9_available, vr.sec17_available,
+            vr.level1, vr.level1_contact, vr.level2, vr.level2_contact,
+            vr.level3, vr.level3_contact, vr.level4, vr.level4_contact,
+            vr.sender_mail1, vr.sender_mail2, vr.executive_name,
+            vr.pos, vr.toss, vr.remark, vr.region, vr.area,
+            COALESCE(DATE_FORMAT(vr.created_at,'%d %b %Y'),'') AS created_on";
+        var sql = $@"SELECT {fields}
+            FROM vehicle_records vr
+            INNER JOIN branches b ON b.id = vr.branch_id
+            LEFT  JOIN finances f ON f.id = b.finance_id
+            ORDER BY vr.id
+            LIMIT {size} OFFSET {page * size}";
+        await using var cmd = new MySqlCommand(sql, conn) { CommandTimeout = 120 };
+        var rows = new List<object>();
+        await using var rdr = await cmd.ExecuteReaderAsync();
+        string S(int i) => rdr.IsDBNull(i) ? "" : rdr.GetString(i);
+        while (await rdr.ReadAsync())
+            rows.Add(new
+            {
+                vehicleNo=S(0),chassisNo=S(1),engineNo=S(2),model=S(3),agreementNo=S(4),
+                customerName=S(5),customerContact=S(6),customerAddress=S(7),
+                financer=S(8),branchName=S(9),
+                bucket=S(10),gv=S(11),od=S(12),seasoning=S(13),tbrFlag=S(14),
+                sec9=S(15),sec17=S(16),
+                level1=S(17),level1Contact=S(18),level2=S(19),level2Contact=S(20),
+                level3=S(21),level3Contact=S(22),level4=S(23),level4Contact=S(24),
+                senderMail1=S(25),senderMail2=S(26),executiveName=S(27),
+                pos=S(28),toss=S(29),remark=S(30),region=S(31),area=S(32),createdOn=S(33)
+            });
+        return Results.Ok(new { total, page, size, hasMore = (page + 1) * size < total, rows });
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+app.MapGet("/api/mgr/export/rc-records", async (HttpContext ctx, int page = 0, int size = 5000) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        await using var conn = new MySqlConnection(connStr);
+        await conn.OpenAsync();
+        long total;
+        await using (var cntCmd = new MySqlCommand("SELECT COUNT(*) FROM rc_info", conn) { CommandTimeout = 30 })
+            total = Convert.ToInt64(await cntCmd.ExecuteScalarAsync());
+
+        const string fields = @"
+            vr.vehicle_no, vr.chassis_no, vr.engine_no, vr.model, vr.agreement_no,
+            vr.customer_name, vr.customer_contact, vr.customer_address,
+            COALESCE(f.name,'') AS financer, COALESCE(b.name,'') AS branch_name,
+            vr.bucket, vr.gv, vr.od, vr.seasoning, vr.tbr_flag,
+            vr.sec9_available, vr.sec17_available,
+            vr.level1, vr.level1_contact, vr.level2, vr.level2_contact,
+            vr.level3, vr.level3_contact, vr.level4, vr.level4_contact,
+            vr.sender_mail1, vr.sender_mail2, vr.executive_name,
+            vr.pos, vr.toss, vr.remark, vr.region, vr.area,
+            COALESCE(DATE_FORMAT(vr.created_at,'%d %b %Y'),'') AS created_on";
+        var sql = $@"SELECT {fields}
+            FROM rc_info ri
+            INNER JOIN vehicle_records vr ON vr.id = ri.vehicle_record_id
+            INNER JOIN branches b ON b.id = vr.branch_id
+            LEFT  JOIN finances f ON f.id = b.finance_id
+            ORDER BY ri.id
+            LIMIT {size} OFFSET {page * size}";
+        await using var cmd = new MySqlCommand(sql, conn) { CommandTimeout = 120 };
+        var rows = new List<object>();
+        await using var rdr = await cmd.ExecuteReaderAsync();
+        string S(int i) => rdr.IsDBNull(i) ? "" : rdr.GetString(i);
+        while (await rdr.ReadAsync())
+            rows.Add(new
+            {
+                vehicleNo=S(0),chassisNo=S(1),engineNo=S(2),model=S(3),agreementNo=S(4),
+                customerName=S(5),customerContact=S(6),customerAddress=S(7),
+                financer=S(8),branchName=S(9),
+                bucket=S(10),gv=S(11),od=S(12),seasoning=S(13),tbrFlag=S(14),
+                sec9=S(15),sec17=S(16),
+                level1=S(17),level1Contact=S(18),level2=S(19),level2Contact=S(20),
+                level3=S(21),level3Contact=S(22),level4=S(23),level4Contact=S(24),
+                senderMail1=S(25),senderMail2=S(26),executiveName=S(27),
+                pos=S(28),toss=S(29),remark=S(30),region=S(31),area=S(32),createdOn=S(33)
+            });
+        return Results.Ok(new { total, page, size, hasMore = (page + 1) * size < total, rows });
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+app.MapGet("/api/mgr/export/chassis-records", async (HttpContext ctx, int page = 0, int size = 5000) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        await using var conn = new MySqlConnection(connStr);
+        await conn.OpenAsync();
+        long total;
+        await using (var cntCmd = new MySqlCommand("SELECT COUNT(*) FROM chassis_info", conn) { CommandTimeout = 30 })
+            total = Convert.ToInt64(await cntCmd.ExecuteScalarAsync());
+
+        const string fields = @"
+            vr.vehicle_no, vr.chassis_no, vr.engine_no, vr.model, vr.agreement_no,
+            vr.customer_name, vr.customer_contact, vr.customer_address,
+            COALESCE(f.name,'') AS financer, COALESCE(b.name,'') AS branch_name,
+            vr.bucket, vr.gv, vr.od, vr.seasoning, vr.tbr_flag,
+            vr.sec9_available, vr.sec17_available,
+            vr.level1, vr.level1_contact, vr.level2, vr.level2_contact,
+            vr.level3, vr.level3_contact, vr.level4, vr.level4_contact,
+            vr.sender_mail1, vr.sender_mail2, vr.executive_name,
+            vr.pos, vr.toss, vr.remark, vr.region, vr.area,
+            COALESCE(DATE_FORMAT(vr.created_at,'%d %b %Y'),'') AS created_on";
+        var sql = $@"SELECT {fields}
+            FROM chassis_info ci
+            INNER JOIN vehicle_records vr ON vr.id = ci.vehicle_record_id
+            INNER JOIN branches b ON b.id = vr.branch_id
+            LEFT  JOIN finances f ON f.id = b.finance_id
+            ORDER BY ci.id
+            LIMIT {size} OFFSET {page * size}";
+        await using var cmd = new MySqlCommand(sql, conn) { CommandTimeout = 120 };
+        var rows = new List<object>();
+        await using var rdr = await cmd.ExecuteReaderAsync();
+        string S(int i) => rdr.IsDBNull(i) ? "" : rdr.GetString(i);
+        while (await rdr.ReadAsync())
+            rows.Add(new
+            {
+                vehicleNo=S(0),chassisNo=S(1),engineNo=S(2),model=S(3),agreementNo=S(4),
+                customerName=S(5),customerContact=S(6),customerAddress=S(7),
+                financer=S(8),branchName=S(9),
+                bucket=S(10),gv=S(11),od=S(12),seasoning=S(13),tbrFlag=S(14),
+                sec9=S(15),sec17=S(16),
+                level1=S(17),level1Contact=S(18),level2=S(19),level2Contact=S(20),
+                level3=S(21),level3Contact=S(22),level4=S(23),level4Contact=S(24),
+                senderMail1=S(25),senderMail2=S(26),executiveName=S(27),
+                pos=S(28),toss=S(29),remark=S(30),region=S(31),area=S(32),createdOn=S(33)
+            });
+        return Results.Ok(new { total, page, size, hasMore = (page + 1) * size < total, rows });
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
 // ── Forward /api/mobile/* → VKmobileapi on port 5001 ─────────────────────────
 app.Map("/api/mobile/{**rest}", async (HttpContext ctx) =>
 {
