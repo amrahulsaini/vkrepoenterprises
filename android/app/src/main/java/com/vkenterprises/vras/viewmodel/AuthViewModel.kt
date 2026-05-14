@@ -26,6 +26,9 @@ sealed class AuthUiState {
     object SubscriptionExpired : AuthUiState()
     data class PendingApproval(val reason: String) : AuthUiState()
     data class DeviceMismatch(val reason: String) : AuthUiState()
+    data class AppStopped(val message: String) : AuthUiState()
+    data class Blacklisted(val message: String) : AuthUiState()
+    data class Inactive(val message: String) : AuthUiState()
     data class Error(val message: String) : AuthUiState()
 }
 
@@ -106,6 +109,9 @@ class AuthViewModel @Inject constructor(
             is AuthResult.Error -> when (result.reason) {
                 "pending_approval" -> AuthUiState.PendingApproval(result.message)
                 "device_mismatch"  -> AuthUiState.DeviceMismatch(result.message)
+                "app_stopped"      -> AuthUiState.AppStopped(result.message)
+                "blacklisted"      -> AuthUiState.Blacklisted(result.message)
+                "inactive"         -> AuthUiState.Inactive(result.message)
                 else               -> AuthUiState.Error(result.message)
             }
         }

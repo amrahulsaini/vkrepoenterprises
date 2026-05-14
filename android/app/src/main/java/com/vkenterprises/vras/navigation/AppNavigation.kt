@@ -10,8 +10,12 @@ sealed class Screen(val route: String) {
     object Home                : Screen("home")
     object VehicleDetail       : Screen("vehicle_detail")
     object SubscriptionExpired : Screen("subscription_expired")
+    object AppStopped          : Screen("app_stopped")
+    object Blacklisted         : Screen("blacklisted")
+    object Inactive            : Screen("inactive")
     object Profile             : Screen("profile")
     object Confirm             : Screen("confirm")
     object Settings            : Screen("settings")
     object LiveUsers           : Screen("live_users")
+    object ManageSubscriptions : Screen("manage_subscriptions")
 }

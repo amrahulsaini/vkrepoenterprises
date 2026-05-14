@@ -163,3 +163,19 @@ data class SessionUser(
     val isAdmin: Boolean,
     val subscriptionEndDate: String?
 )
+
+// Admin subs management
+data class VerifySubsPassRequest(val password: String)
+data class AdminUserItem(
+    val id: Long,
+    val name: String,
+    val mobile: String,
+    val address: String?,
+    val subEnd: String?
+)
+data class AdminAddSubRequest(
+    val startDate: String,
+    val endDate: String,
+    val amount: Double,
+    val notes: String?
+)

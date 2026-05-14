@@ -74,10 +74,16 @@ public class MobileController : ControllerBase
         try
         {
             if (last4.Length != 4) return BadRequest(new ApiError(false, "last4 must be exactly 4 characters."));
+
+            var status = await _repo.GetUserStatusAsync(userId);
+            if (status.IsBlacklisted) return StatusCode(403, new ApiError(false, "blacklisted"));
+            if (!status.IsActive)     return StatusCode(403, new ApiError(false, "inactive"));
+            if (status.IsStopped)     return StatusCode(403, new ApiError(false, "app_stopped"));
+
             if (!await _repo.HasActiveSubscriptionAsync(userId))
                 return StatusCode(402, new ApiError(false, "subscription_expired"));
 
-            var results = await _repo.SearchByRcAsync(last4);
+            var results = await _repo.SearchByRcAsync(last4, userId);
             return Ok(new SearchResponse(true, "rc", last4.ToUpper(), results.Count, results));
         }
         catch (Exception ex)
@@ -95,15 +101,97 @@ public class MobileController : ControllerBase
         try
         {
             if (last5.Length != 5) return BadRequest(new ApiError(false, "last5 must be exactly 5 characters."));
+
+            var status = await _repo.GetUserStatusAsync(userId);
+            if (status.IsBlacklisted) return StatusCode(403, new ApiError(false, "blacklisted"));
+            if (!status.IsActive)     return StatusCode(403, new ApiError(false, "inactive"));
+            if (status.IsStopped)     return StatusCode(403, new ApiError(false, "app_stopped"));
+
             if (!await _repo.HasActiveSubscriptionAsync(userId))
                 return StatusCode(402, new ApiError(false, "subscription_expired"));
 
-            var results = await _repo.SearchByChassisAsync(last5);
+            var results = await _repo.SearchByChassisAsync(last5, userId);
             return Ok(new SearchResponse(true, "chassis", last5.ToUpper(), results.Count, results));
         }
         catch (Exception ex)
         {
             return StatusCode(500, new ApiError(false, $"Search failed: {ex.Message}"));
+        }
+    }
+
+    // POST /api/mobile/admin/verify-subs-pass
+    [HttpPost("admin/verify-subs-pass")]
+    public async Task<IActionResult> VerifySubsPass(
+        [FromHeader(Name = "X-User-Id")] long userId,
+        [FromBody] VerifySubsPassRequest req)
+    {
+        try
+        {
+            if (!await _repo.IsAdminAsync(userId))
+                return StatusCode(403, new ApiError(false, "Admin access required."));
+            var valid = await _repo.VerifySubsPasswordAsync(req.Password);
+            return Ok(new { valid });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new ApiError(false, $"Verification failed: {ex.Message}"));
+        }
+    }
+
+    // GET /api/mobile/admin/users
+    [HttpGet("admin/users")]
+    public async Task<IActionResult> GetAdminUsers(
+        [FromHeader(Name = "X-User-Id")] long userId)
+    {
+        try
+        {
+            if (!await _repo.IsAdminAsync(userId))
+                return StatusCode(403, new ApiError(false, "Admin access required."));
+            var users = await _repo.GetAdminUsersAsync();
+            return Ok(users);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new ApiError(false, $"Failed: {ex.Message}"));
+        }
+    }
+
+    // POST /api/mobile/admin/users/{targetUserId}/subscriptions
+    [HttpPost("admin/users/{targetUserId:long}/subscriptions")]
+    public async Task<IActionResult> AdminAddSubscription(
+        long targetUserId,
+        [FromHeader(Name = "X-User-Id")] long userId,
+        [FromBody] AdminAddSubRequest req)
+    {
+        try
+        {
+            if (!await _repo.IsAdminAsync(userId))
+                return StatusCode(403, new ApiError(false, "Admin access required."));
+            await _repo.AddSubscriptionAsync(targetUserId, req.StartDate, req.EndDate, req.Amount, req.Notes);
+            return Ok(new { success = true });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new ApiError(false, $"Failed: {ex.Message}"));
+        }
+    }
+
+    // DELETE /api/mobile/admin/subscriptions/{subId}
+    [HttpDelete("admin/subscriptions/{subId:long}")]
+    public async Task<IActionResult> AdminDeleteSubscription(
+        long subId,
+        [FromHeader(Name = "X-User-Id")] long userId)
+    {
+        try
+        {
+            if (!await _repo.IsAdminAsync(userId))
+                return StatusCode(403, new ApiError(false, "Admin access required."));
+            await _repo.DeleteSubscriptionAsync(subId);
+            return Ok(new { success = true });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new ApiError(false, $"Failed: {ex.Message}"));
         }
     }
 

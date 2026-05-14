@@ -10,11 +10,19 @@ using VRASDesktopApp.Models;
 
 namespace VRASDesktopApp.AppUsers;
 
+public class FinanceRestrictionItem
+{
+    public int    Id           { get; set; }
+    public string Name         { get; set; } = string.Empty;
+    public bool   IsRestricted { get; set; }
+}
+
 public partial class AppUsersManagerPage : Page
 {
     private readonly AppUserRepository _repo = new();
     private ObservableCollection<AppUserListItem> _allUsers = new();
     private AppUserListItem? _selectedUser;
+    private bool _suppressStopToggle;
 
     public AppUsersManagerPage()
     {
@@ -113,10 +121,35 @@ public partial class AppUsersManagerPage : Page
             txtAvatar.Visibility = Visibility.Visible;
         }
 
+        // Stop toggle
+        _suppressStopToggle = true;
+        tglStopApp.IsChecked = user.IsStopped;
+        lblStopStatus.Text   = user.IsStopped ? "Stopped" : "Running";
+        _suppressStopToggle  = false;
+
         pnlEmpty.Visibility   = Visibility.Collapsed;
         pnlProfile.Visibility = Visibility.Visible;
 
         await LoadSubscriptionsAsync(user.Id);
+        await LoadFinanceRestrictionsAsync(user.Id);
+    }
+
+    private async Task LoadFinanceRestrictionsAsync(long userId)
+    {
+        try
+        {
+            var finances     = await DesktopApiClient.GetFinancesAsync();
+            var restricted   = await _repo.GetFinanceRestrictionsAsync(userId);
+            var restrictedSet = new HashSet<int>(restricted);
+            var items = finances.Select(f => new FinanceRestrictionItem
+            {
+                Id           = f.Id,
+                Name         = f.Name,
+                IsRestricted = restrictedSet.Contains(f.Id)
+            }).ToList();
+            icFinanceRestrictions.ItemsSource = items;
+        }
+        catch { /* silent */ }
     }
 
     private async Task LoadSubscriptionsAsync(long userId)
@@ -260,6 +293,58 @@ public partial class AppUsersManagerPage : Page
         catch (Exception ex)
         {
             MessageBox.Show($"Failed to reset device: {ex.Message}", "Reset Device",
+                MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    // ── Stop App toggle ─────────────────────────────────────────────────
+    private async void StopToggle_Checked(object sender, RoutedEventArgs e)
+    {
+        if (_suppressStopToggle || _selectedUser == null) return;
+        await SetStoppedAsync(_selectedUser, true);
+    }
+
+    private async void StopToggle_Unchecked(object sender, RoutedEventArgs e)
+    {
+        if (_suppressStopToggle || _selectedUser == null) return;
+        await SetStoppedAsync(_selectedUser, false);
+    }
+
+    private async Task SetStoppedAsync(AppUserListItem user, bool stopped)
+    {
+        try
+        {
+            await _repo.SetStoppedAsync(user.Id, stopped);
+            user.IsStopped       = stopped;
+            lblStopStatus.Text   = stopped ? "Stopped" : "Running";
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Failed to update stop state: {ex.Message}", "Stop App",
+                MessageBoxButton.OK, MessageBoxImage.Error);
+            // Revert toggle
+            _suppressStopToggle = true;
+            tglStopApp.IsChecked = user.IsStopped;
+            _suppressStopToggle  = false;
+        }
+    }
+
+    // ── Finance Restrictions ────────────────────────────────────────────
+    private async void btnSaveRestrictions_Click(object sender, RoutedEventArgs e)
+    {
+        if (_selectedUser == null) return;
+        try
+        {
+            var items = icFinanceRestrictions.ItemsSource as IEnumerable<FinanceRestrictionItem>;
+            if (items == null) return;
+            var restricted = items.Where(f => f.IsRestricted).Select(f => f.Id).ToList();
+            await _repo.SetFinanceRestrictionsAsync(_selectedUser.Id, restricted);
+            MessageBox.Show("Finance restrictions saved.", "Restrictions",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Failed to save restrictions: {ex.Message}", "Restrictions",
                 MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }

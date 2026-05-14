@@ -717,7 +717,8 @@ app.MapGet("/api/mgr/users", async (HttpContext ctx) =>
             SELECT u.id, u.name, u.mobile, u.address, u.pincode,
                    u.pfp, u.device_id, u.is_active, u.is_admin,
                    u.balance, u.created_at,
-                   (SELECT MAX(s.end_date) FROM subscriptions s WHERE s.user_id = u.id) AS sub_end
+                   (SELECT MAX(s.end_date) FROM subscriptions s WHERE s.user_id = u.id) AS sub_end,
+                   COALESCE(u.is_stopped,0), COALESCE(u.is_blacklisted,0)
             FROM app_users u ORDER BY u.created_at DESC";
         var users = new List<object>();
         await using (var cmd = new MySqlCommand(usersSql, conn) { CommandTimeout = 30 })
@@ -726,18 +727,20 @@ app.MapGet("/api/mgr/users", async (HttpContext ctx) =>
             while (await rdr.ReadAsync())
                 users.Add(new
                 {
-                    id         = rdr.GetInt64(0),
-                    name       = rdr.GetString(1),
-                    mobile     = rdr.GetString(2),
-                    address    = rdr.IsDBNull(3) ? null : rdr.GetString(3),
-                    pincode    = rdr.IsDBNull(4) ? null : rdr.GetString(4),
-                    pfpBase64  = rdr.IsDBNull(5) ? null : rdr.GetString(5),
-                    deviceId   = rdr.IsDBNull(6) ? null : rdr.GetString(6),
-                    isActive   = rdr.GetBoolean(7),
-                    isAdmin    = rdr.GetBoolean(8),
-                    balance    = rdr.GetDecimal(9),
-                    createdAt  = rdr.GetDateTime(10),
-                    subEndDate = rdr.IsDBNull(11) ? null : rdr.GetDateTime(11).ToString("yyyy-MM-dd"),
+                    id            = rdr.GetInt64(0),
+                    name          = rdr.GetString(1),
+                    mobile        = rdr.GetString(2),
+                    address       = rdr.IsDBNull(3) ? null : rdr.GetString(3),
+                    pincode       = rdr.IsDBNull(4) ? null : rdr.GetString(4),
+                    pfpBase64     = rdr.IsDBNull(5) ? null : rdr.GetString(5),
+                    deviceId      = rdr.IsDBNull(6) ? null : rdr.GetString(6),
+                    isActive      = rdr.GetBoolean(7),
+                    isAdmin       = rdr.GetBoolean(8),
+                    balance       = rdr.GetDecimal(9),
+                    createdAt     = rdr.GetDateTime(10),
+                    subEndDate    = rdr.IsDBNull(11) ? null : rdr.GetDateTime(11).ToString("yyyy-MM-dd"),
+                    isStopped     = rdr.GetBoolean(12),
+                    isBlacklisted = rdr.GetBoolean(13),
                 });
         }
         return Results.Ok(new { stats = new { total, active, admins, withSub }, users });
@@ -836,6 +839,143 @@ app.MapPost("/api/mgr/users/{id:long}/reset-device", async (HttpContext ctx, lon
         await using var conn = new MySqlConnection(connStr);
         await conn.OpenAsync();
         await MgrExec("UPDATE app_users SET device_id=NULL WHERE id=@id", conn, 10, ("@id", id));
+        return Results.Ok();
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+app.MapMethods("/api/mgr/users/{id:long}/stopped", new[] { "PATCH" }, async (HttpContext ctx, long id, MgrSetStoppedDto dto) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        await using var conn = new MySqlConnection(connStr);
+        await conn.OpenAsync();
+        await MgrExec("UPDATE app_users SET is_stopped=@v WHERE id=@id", conn, 10,
+            ("@v", dto.Stopped ? 1 : 0), ("@id", id));
+        return Results.Ok();
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+app.MapMethods("/api/mgr/users/{id:long}/blacklisted", new[] { "PATCH" }, async (HttpContext ctx, long id, MgrSetBlacklistedDto dto) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        await using var conn = new MySqlConnection(connStr);
+        await conn.OpenAsync();
+        await MgrExec("UPDATE app_users SET is_blacklisted=@v, is_stopped=@v WHERE id=@id", conn, 10,
+            ("@v", dto.Blacklisted ? 1 : 0), ("@id", id));
+        return Results.Ok();
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+app.MapGet("/api/mgr/users/{id:long}/finance-restrictions", async (HttpContext ctx, long id) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        await using var conn = new MySqlConnection(connStr);
+        await conn.OpenAsync();
+        await using var cmd = new MySqlCommand(
+            "SELECT finance_id FROM user_finance_restrictions WHERE user_id=@uid", conn);
+        cmd.Parameters.AddWithValue("@uid", id);
+        var ids = new List<int>();
+        await using var rdr = await cmd.ExecuteReaderAsync();
+        while (await rdr.ReadAsync()) ids.Add(rdr.GetInt32(0));
+        return Results.Ok(ids);
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+app.MapPut("/api/mgr/users/{id:long}/finance-restrictions", async (HttpContext ctx, long id, MgrSetFinanceRestrictionsDto dto) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        await using var conn = new MySqlConnection(connStr);
+        await conn.OpenAsync();
+        await MgrExec("DELETE FROM user_finance_restrictions WHERE user_id=@uid", conn, 10, ("@uid", id));
+        foreach (var fid in dto.FinanceIds)
+            await MgrExec(
+                "INSERT INTO user_finance_restrictions (user_id, finance_id) VALUES (@uid, @fid)",
+                conn, 10, ("@uid", id), ("@fid", fid));
+        return Results.Ok();
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+app.MapGet("/api/mgr/blacklist", async (HttpContext ctx) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        await using var conn = new MySqlConnection(connStr);
+        await conn.OpenAsync();
+        const string sql = @"
+            SELECT id, name, mobile, COALESCE(address,'') AS address, created_at
+            FROM app_users WHERE is_blacklisted=1 ORDER BY name";
+        var list = new List<object>();
+        await using var cmd = new MySqlCommand(sql, conn) { CommandTimeout = 10 };
+        await using var rdr = await cmd.ExecuteReaderAsync();
+        while (await rdr.ReadAsync())
+            list.Add(new { id = rdr.GetInt64(0), name = rdr.GetString(1), mobile = rdr.GetString(2),
+                           address = rdr.GetString(3), createdAt = rdr.GetDateTime(4) });
+        return Results.Ok(list);
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+app.MapGet("/api/mgr/users/all-simple", async (HttpContext ctx) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        await using var conn = new MySqlConnection(connStr);
+        await conn.OpenAsync();
+        const string sql = @"
+            SELECT id, name, mobile, COALESCE(address,'') AS address,
+                   is_active, is_admin, COALESCE(is_stopped,0), COALESCE(is_blacklisted,0)
+            FROM app_users ORDER BY name ASC";
+        var list = new List<object>();
+        await using var cmd = new MySqlCommand(sql, conn) { CommandTimeout = 10 };
+        await using var rdr = await cmd.ExecuteReaderAsync();
+        while (await rdr.ReadAsync())
+            list.Add(new { id = rdr.GetInt64(0), name = rdr.GetString(1), mobile = rdr.GetString(2),
+                           address = rdr.GetString(3), isActive = rdr.GetBoolean(4), isAdmin = rdr.GetBoolean(5),
+                           isStopped = rdr.GetBoolean(6), isBlacklisted = rdr.GetBoolean(7) });
+        return Results.Ok(list);
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+app.MapGet("/api/mgr/settings/subs-password", async (HttpContext ctx) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        await using var conn = new MySqlConnection(connStr);
+        await conn.OpenAsync();
+        await using var cmd = new MySqlCommand(
+            "SELECT `value` FROM app_settings WHERE `key`='subs_password' LIMIT 1", conn);
+        var val = await cmd.ExecuteScalarAsync();
+        return Results.Ok(new { password = val?.ToString() ?? "1234" });
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+app.MapPut("/api/mgr/settings/subs-password", async (HttpContext ctx, MgrSetSubsPasswordDto dto) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        await using var conn = new MySqlConnection(connStr);
+        await conn.OpenAsync();
+        await MgrExec(
+            "INSERT INTO app_settings (`key`, `value`) VALUES ('subs_password', @v) ON DUPLICATE KEY UPDATE `value`=@v",
+            conn, 10, ("@v", dto.Password));
         return Results.Ok();
     }
     catch (Exception ex) { return Results.Problem(ex.Message); }
@@ -1571,3 +1711,7 @@ record MgrSetAdminDto(bool Admin);
 record MgrAddSubscriptionDto(string StartDate, string EndDate, decimal Amount, string? Notes);
 record MgrCreateMappingDto(int ColumnTypeId, string RawName);
 record MgrCreateColumnTypeDto(string Name);
+record MgrSetStoppedDto(bool Stopped);
+record MgrSetBlacklistedDto(bool Blacklisted);
+record MgrSetFinanceRestrictionsDto(List<int> FinanceIds);
+record MgrSetSubsPasswordDto(string Password);

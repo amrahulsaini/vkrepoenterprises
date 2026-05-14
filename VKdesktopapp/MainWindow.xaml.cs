@@ -3,6 +3,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using VRASDesktopApp.AppUsers;
+using VRASDesktopApp.Blacklist;
 using VRASDesktopApp.Confirmations;
 using VRASDesktopApp.Feedbacks;
 using VRASDesktopApp.Finances;
@@ -51,7 +52,7 @@ public partial class MainWindow : Window
         _feedbacksPage = new ModuleStatusPage("feedbacks", "FEEDBACKS");
         _paymentsPage = new AcceptPaymentsPage();
         _otpPage = new OtpManagerPage();
-        _blacklistPage = new ModuleStatusPage("blacklist", "BLACKLIST");
+        _blacklistPage = new BlacklistPage();
         _cleanFilePage = new ModuleStatusPage("cleanfile", "CLEAN FILE");
         _billingPage = new ModuleStatusPage("billing", "PAY BILL");
         _mobileControlPinPage = new ModuleStatusPage("controlpin", "MOBILE CONTROL PIN");

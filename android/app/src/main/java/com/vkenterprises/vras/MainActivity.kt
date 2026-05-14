@@ -14,6 +14,7 @@ import com.vkenterprises.vras.navigation.Screen
 import com.vkenterprises.vras.ui.screens.*
 import com.vkenterprises.vras.ui.theme.VKTheme
 import com.vkenterprises.vras.viewmodel.AuthViewModel
+import com.vkenterprises.vras.viewmodel.ManageSubscriptionsViewModel
 import com.vkenterprises.vras.viewmodel.ProfileViewModel
 import com.vkenterprises.vras.viewmodel.SearchViewModel
 import com.vkenterprises.vras.viewmodel.SettingsViewModel
@@ -84,6 +85,39 @@ fun VKNavHost() {
                     popUpTo(0) { inclusive = true }
                 }
             }
+        }
+
+        composable(Screen.AppStopped.route) {
+            val ui by searchVm.ui.collectAsState()
+            AppStoppedScreen(
+                msg = ui.appStoppedMsg.ifBlank { "Your app has been stopped by admin. Please contact agency to start app." }
+            ) {
+                navController.navigate(Screen.Login.route) { popUpTo(0) { inclusive = true } }
+            }
+        }
+
+        composable(Screen.Blacklisted.route) {
+            val ui by searchVm.ui.collectAsState()
+            BlacklistedScreen(
+                msg = ui.blacklistedMsg.ifBlank { "You have been blocked by the agency. Please contact the agency for assistance." }
+            ) {
+                navController.navigate(Screen.Login.route) { popUpTo(0) { inclusive = true } }
+            }
+        }
+
+        composable(Screen.Inactive.route) {
+            val ui by searchVm.ui.collectAsState()
+            InactiveScreen(
+                msg = ui.inactiveMsg.ifBlank { "Your account is inactive. Please contact agency." }
+            ) {
+                navController.navigate(Screen.Login.route) { popUpTo(0) { inclusive = true } }
+            }
+        }
+
+        composable(Screen.ManageSubscriptions.route) {
+            val manageVm: ManageSubscriptionsViewModel = hiltViewModel()
+            val userId by authVm.userId.collectAsState(initial = -1L)
+            ManageSubscriptionsScreen(manageVm, userId, navController)
         }
 
         composable(Screen.Profile.route) {

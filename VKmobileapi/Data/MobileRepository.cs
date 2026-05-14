@@ -94,7 +94,9 @@ public class MobileRepository
                         FROM subscriptions s
                         WHERE s.user_id = u.id AND s.end_date >= CURDATE()
                         ORDER BY s.end_date DESC LIMIT 1),
-                       '') AS sub_end
+                       '') AS sub_end,
+                   COALESCE(u.is_blacklisted,0),
+                   COALESCE(u.is_stopped,0)
             FROM app_users u
             WHERE u.mobile = @m
             LIMIT 1";
@@ -107,19 +109,25 @@ public class MobileRepository
             return new AuthResponse(false, "Not registered.", "not_found",
                 null, null, null, false, null, null);
 
-        var id       = rdr.GetInt64(0);
-        var name     = rdr.GetString(1);
-        var dbMobile = rdr.GetString(2);
-        var dbDevice = rdr.IsDBNull(3) ? null : rdr.GetString(3);
-        var isActive = rdr.GetInt32(4) == 1;
-        var isAdmin  = rdr.GetInt32(5) == 1;
-        var pfp      = rdr.IsDBNull(6) ? null : rdr.GetString(6);
-        var subEnd   = rdr.GetString(7);
+        var id            = rdr.GetInt64(0);
+        var name          = rdr.GetString(1);
+        var dbMobile      = rdr.GetString(2);
+        var dbDevice      = rdr.IsDBNull(3) ? null : rdr.GetString(3);
+        var isActive      = rdr.GetInt32(4) == 1;
+        var isAdmin       = rdr.GetInt32(5) == 1;
+        var pfp           = rdr.IsDBNull(6) ? null : rdr.GetString(6);
+        var subEnd        = rdr.GetString(7);
+        var isBlacklisted = rdr.GetInt32(8) == 1;
+        var isStopped     = rdr.GetInt32(9) == 1;
+
+        if (isBlacklisted)
+            return new AuthResponse(false,
+                "You have been blocked by the agency. Please contact the agency for assistance.",
+                "blacklisted", null, null, null, false, null, null);
 
         if (!string.IsNullOrEmpty(dbDevice) &&
             !string.Equals(dbDevice, deviceId, StringComparison.OrdinalIgnoreCase))
         {
-            // Store a device-change request so the admin can approve on the desktop
             try
             {
                 await rdr.CloseAsync();
@@ -134,7 +142,7 @@ public class MobileRepository
                 upsert.Parameters.AddWithValue("@dev",  deviceId);
                 await upsert.ExecuteNonQueryAsync();
             }
-            catch { /* don't block login response on logging failure */ }
+            catch { }
             return new AuthResponse(false,
                 "This mobile number is registered on another device. Ask admin to reset your device.",
                 "device_mismatch", null, null, null, false, null, null);
@@ -144,6 +152,11 @@ public class MobileRepository
             return new AuthResponse(false,
                 "Your account is pending admin approval. Please wait.",
                 "pending_approval", null, null, null, false, null, null);
+
+        if (isStopped)
+            return new AuthResponse(false,
+                "Your app has been stopped by admin. Please contact agency to start app.",
+                "app_stopped", null, null, null, false, null, null);
 
         return new AuthResponse(true, "Login successful.", "ok",
             id, name, dbMobile, isAdmin, pfp, subEnd == "" ? null : subEnd);
@@ -295,32 +308,128 @@ public class MobileRepository
         await cmd.ExecuteNonQueryAsync();
     }
 
-    // ── RC search (instant — indexed last4) ───────────────────────────────
-    public async Task<List<SearchResult>> SearchByRcAsync(string last4)
+    // ── User status (is_active, is_stopped, is_blacklisted) ──────────────
+    public async Task<UserStatusDto> GetUserStatusAsync(long userId)
     {
+        await using var conn = DbFactory.Create();
+        await conn.OpenAsync();
+        await using var cmd = new MySqlCommand(
+            "SELECT is_active, COALESCE(is_stopped,0), COALESCE(is_blacklisted,0) FROM app_users WHERE id=@id LIMIT 1",
+            conn) { CommandTimeout = 5 };
+        cmd.Parameters.AddWithValue("@id", userId);
+        await using var rdr = await cmd.ExecuteReaderAsync();
+        if (!await rdr.ReadAsync()) return new UserStatusDto(false, false, false);
+        return new UserStatusDto(rdr.GetInt32(0)==1, rdr.GetInt32(1)==1, rdr.GetInt32(2)==1);
+    }
+
+    // ── Finance restrictions for a user ───────────────────────────────────
+    private async Task<List<int>> GetFinanceRestrictionsAsync(long userId)
+    {
+        await using var conn = DbFactory.Create();
+        await conn.OpenAsync();
+        await using var cmd = new MySqlCommand(
+            "SELECT finance_id FROM user_finance_restrictions WHERE user_id=@uid", conn);
+        cmd.Parameters.AddWithValue("@uid", userId);
+        var ids = new List<int>();
+        await using var rdr = await cmd.ExecuteReaderAsync();
+        while (await rdr.ReadAsync()) ids.Add(rdr.GetInt32(0));
+        return ids;
+    }
+
+    // ── RC search (instant — indexed last4, finance-restricted) ───────────
+    public async Task<List<SearchResult>> SearchByRcAsync(string last4, long userId)
+    {
+        var restricted = await GetFinanceRestrictionsAsync(userId);
+        var filter = restricted.Count > 0
+            ? $"AND b.finance_id NOT IN ({string.Join(",", restricted)})"
+            : "";
         return await SearchAsync($@"
             SELECT {SelectFields}
             FROM rc_info ri
             INNER JOIN vehicle_records vr ON vr.id = ri.vehicle_record_id
             INNER JOIN branches b ON b.id = vr.branch_id
             LEFT  JOIN finances f ON f.id = b.finance_id
-            WHERE ri.last4 = @q
+            WHERE ri.last4 = @q {filter}
             ORDER BY b.name, vr.vehicle_no LIMIT 500",
             last4.ToUpper());
     }
 
-    // ── Chassis search (instant — indexed last5) ──────────────────────────
-    public async Task<List<SearchResult>> SearchByChassisAsync(string last5)
+    // ── Chassis search (instant — indexed last5, finance-restricted) ──────
+    public async Task<List<SearchResult>> SearchByChassisAsync(string last5, long userId)
     {
+        var restricted = await GetFinanceRestrictionsAsync(userId);
+        var filter = restricted.Count > 0
+            ? $"AND b.finance_id NOT IN ({string.Join(",", restricted)})"
+            : "";
         return await SearchAsync($@"
             SELECT {SelectFields}
             FROM chassis_info ci
             INNER JOIN vehicle_records vr ON vr.id = ci.vehicle_record_id
             INNER JOIN branches b ON b.id = vr.branch_id
             LEFT  JOIN finances f ON f.id = b.finance_id
-            WHERE ci.last5 = @q
+            WHERE ci.last5 = @q {filter}
             ORDER BY b.name, vr.chassis_no LIMIT 500",
             last5.ToUpper());
+    }
+
+    // ── Verify subscription management password ───────────────────────────
+    public async Task<bool> VerifySubsPasswordAsync(string password)
+    {
+        await using var conn = DbFactory.Create();
+        await conn.OpenAsync();
+        await using var cmd = new MySqlCommand(
+            "SELECT `value` FROM app_settings WHERE `key`='subs_password' LIMIT 1", conn);
+        var stored = await cmd.ExecuteScalarAsync();
+        return stored?.ToString() == password;
+    }
+
+    // ── Admin: list users with latest sub end ─────────────────────────────
+    public async Task<List<AdminUserItem>> GetAdminUsersAsync()
+    {
+        await using var conn = DbFactory.Create();
+        await conn.OpenAsync();
+        const string sql = @"
+            SELECT u.id, u.name, u.mobile, COALESCE(u.address,''),
+                   (SELECT DATE_FORMAT(MAX(s.end_date),'%Y-%m-%d')
+                    FROM subscriptions s WHERE s.user_id=u.id) AS sub_end
+            FROM app_users u ORDER BY u.name ASC";
+        await using var cmd = new MySqlCommand(sql, conn) { CommandTimeout = 10 };
+        var list = new List<AdminUserItem>();
+        await using var rdr = await cmd.ExecuteReaderAsync();
+        while (await rdr.ReadAsync())
+            list.Add(new AdminUserItem(
+                rdr.GetInt64(0), rdr.GetString(1), rdr.GetString(2),
+                rdr.GetString(3), rdr.IsDBNull(4) ? null : rdr.GetString(4)));
+        return list;
+    }
+
+    // ── Admin: add subscription ───────────────────────────────────────────
+    public async Task AddSubscriptionAsync(long userId, string startDate, string endDate,
+        decimal amount, string? notes)
+    {
+        await using var conn = DbFactory.Create();
+        await conn.OpenAsync();
+        await using var cmd = new MySqlCommand(
+            "INSERT INTO subscriptions (user_id,start_date,end_date,amount,notes) VALUES (@uid,@s,@e,@a,@n)",
+            conn) { CommandTimeout = 10 };
+        cmd.Parameters.AddWithValue("@uid", userId);
+        cmd.Parameters.AddWithValue("@s",   startDate);
+        cmd.Parameters.AddWithValue("@e",   endDate);
+        cmd.Parameters.AddWithValue("@a",   amount);
+        cmd.Parameters.AddWithValue("@n",   (object?)notes ?? DBNull.Value);
+        await cmd.ExecuteNonQueryAsync();
+        InvalidateSubCache(userId);
+    }
+
+    // ── Admin: delete subscription ────────────────────────────────────────
+    public async Task DeleteSubscriptionAsync(long subId)
+    {
+        await using var conn = DbFactory.Create();
+        await conn.OpenAsync();
+        await using var cmd = new MySqlCommand(
+            "DELETE FROM subscriptions WHERE id=@id", conn) { CommandTimeout = 10 };
+        cmd.Parameters.AddWithValue("@id", subId);
+        await cmd.ExecuteNonQueryAsync();
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────

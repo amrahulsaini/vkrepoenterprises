@@ -36,11 +36,17 @@ internal static class DesktopApiClient
     internal record MgrUserDto(
         long Id, string Name, string Mobile,
         string? Address, string? Pincode, string? PfpBase64, string? DeviceId,
-        bool IsActive, bool IsAdmin, decimal Balance, DateTime CreatedAt, string? SubEndDate);
+        bool IsActive, bool IsAdmin, decimal Balance, DateTime CreatedAt, string? SubEndDate,
+        bool IsStopped = false, bool IsBlacklisted = false);
     internal record MgrUsersResponseDto(MgrStatsDto Stats, List<MgrUserDto> Users);
     internal record MgrSubDto(long Id, string StartDate, string EndDate, decimal Amount, string? Notes, DateTime CreatedAt);
 
     internal record DashboardStatsDto(long TotalRecords, int TotalFinances, int TotalBranches);
+
+    internal record BlacklistUserDto(long Id, string Name, string Mobile, string Address, DateTime CreatedAt);
+    internal record AllSimpleUserDto(long Id, string Name, string Mobile, string Address,
+        bool IsActive, bool IsAdmin, bool IsStopped, bool IsBlacklisted);
+    internal record SubsPasswordDto(string Password);
 
     internal record DeviceRequestDto(
         long   Id, long UserId,
@@ -212,6 +218,60 @@ internal static class DesktopApiClient
     internal static async Task ResetUserDeviceAsync(long userId)
     {
         var resp = await Send(HttpMethod.Post, $"api/mgr/users/{userId}/reset-device");
+        resp.EnsureSuccessStatusCode();
+    }
+
+    internal static async Task SetUserStoppedAsync(long userId, bool stopped)
+    {
+        var resp = await Send(HttpMethod.Patch, $"api/mgr/users/{userId}/stopped", new { Stopped = stopped });
+        resp.EnsureSuccessStatusCode();
+    }
+
+    internal static async Task SetUserBlacklistedAsync(long userId, bool blacklisted)
+    {
+        var resp = await Send(HttpMethod.Patch, $"api/mgr/users/{userId}/blacklisted", new { Blacklisted = blacklisted });
+        resp.EnsureSuccessStatusCode();
+    }
+
+    internal static async Task<List<int>> GetUserFinanceRestrictionsAsync(long userId)
+    {
+        var resp = await Send(HttpMethod.Get, $"api/mgr/users/{userId}/finance-restrictions");
+        resp.EnsureSuccessStatusCode();
+        return (await resp.Content.ReadFromJsonAsync<List<int>>(_json))!;
+    }
+
+    internal static async Task SetUserFinanceRestrictionsAsync(long userId, List<int> financeIds)
+    {
+        var resp = await Send(HttpMethod.Put, $"api/mgr/users/{userId}/finance-restrictions",
+            new { FinanceIds = financeIds });
+        resp.EnsureSuccessStatusCode();
+    }
+
+    internal static async Task<List<BlacklistUserDto>> GetBlacklistedUsersAsync()
+    {
+        var resp = await Send(HttpMethod.Get, "api/mgr/blacklist");
+        resp.EnsureSuccessStatusCode();
+        return (await resp.Content.ReadFromJsonAsync<List<BlacklistUserDto>>(_json))!;
+    }
+
+    internal static async Task<List<AllSimpleUserDto>> GetAllSimpleUsersAsync()
+    {
+        var resp = await Send(HttpMethod.Get, "api/mgr/users/all-simple");
+        resp.EnsureSuccessStatusCode();
+        return (await resp.Content.ReadFromJsonAsync<List<AllSimpleUserDto>>(_json))!;
+    }
+
+    internal static async Task<string> GetSubsPasswordAsync()
+    {
+        var resp = await Send(HttpMethod.Get, "api/mgr/settings/subs-password");
+        resp.EnsureSuccessStatusCode();
+        var r = await resp.Content.ReadFromJsonAsync<SubsPasswordDto>(_json);
+        return r?.Password ?? "";
+    }
+
+    internal static async Task SetSubsPasswordAsync(string password)
+    {
+        var resp = await Send(HttpMethod.Put, "api/mgr/settings/subs-password", new { Password = password });
         resp.EnsureSuccessStatusCode();
     }
 
