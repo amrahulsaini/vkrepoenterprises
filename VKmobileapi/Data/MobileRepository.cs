@@ -391,7 +391,7 @@ public class MobileRepository
                 rdr.GetInt64(0),
                 rdr.GetString(1),
                 rdr.GetString(2),
-                rdr.GetDouble(3),
+                rdr.GetDecimal(3),
                 rdr.IsDBNull(4) ? null : rdr.GetString(4),
                 rdr.GetBoolean(5)));
         return list;
