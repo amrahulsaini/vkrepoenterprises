@@ -1728,8 +1728,10 @@ app.MapGet("/api/mgr/export/subscriptions", async (HttpContext ctx) =>
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
 
-app.MapGet("/api/mgr/export/vehicle-records", async (HttpContext ctx, int page = 0, int size = 5000) =>
+app.MapGet("/api/mgr/export/vehicle-records", async (HttpContext ctx) =>
 {
+    int page = int.TryParse(ctx.Request.Query["page"], out var _p1) ? _p1 : 0;
+    int size = int.TryParse(ctx.Request.Query["size"], out var _s1) ? _s1 : 5000;
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
     try
     {
@@ -1778,8 +1780,10 @@ app.MapGet("/api/mgr/export/vehicle-records", async (HttpContext ctx, int page =
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
 
-app.MapGet("/api/mgr/export/rc-records", async (HttpContext ctx, int page = 0, int size = 5000) =>
+app.MapGet("/api/mgr/export/rc-records", async (HttpContext ctx) =>
 {
+    int page = int.TryParse(ctx.Request.Query["page"], out var _p2) ? _p2 : 0;
+    int size = int.TryParse(ctx.Request.Query["size"], out var _s2) ? _s2 : 5000;
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
     try
     {
@@ -1829,8 +1833,10 @@ app.MapGet("/api/mgr/export/rc-records", async (HttpContext ctx, int page = 0, i
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
 
-app.MapGet("/api/mgr/export/chassis-records", async (HttpContext ctx, int page = 0, int size = 5000) =>
+app.MapGet("/api/mgr/export/chassis-records", async (HttpContext ctx) =>
 {
+    int page = int.TryParse(ctx.Request.Query["page"], out var _p3) ? _p3 : 0;
+    int size = int.TryParse(ctx.Request.Query["size"], out var _s3) ? _s3 : 5000;
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
     try
     {
