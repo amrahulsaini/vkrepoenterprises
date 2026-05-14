@@ -372,6 +372,31 @@ public class MobileRepository
             last5.ToUpper());
     }
 
+    // ── Admin: get subscriptions for a specific user ──────────────────────
+    public async Task<List<SubscriptionRecord>> GetUserSubscriptionsAsync(long userId)
+    {
+        await using var conn = DbFactory.Create();
+        await conn.OpenAsync();
+        const string sql = @"
+            SELECT id, DATE_FORMAT(start_date,'%Y-%m-%d'), DATE_FORMAT(end_date,'%Y-%m-%d'),
+                   COALESCE(amount,0), notes,
+                   (end_date >= CURDATE()) AS is_active
+            FROM subscriptions WHERE user_id=@id ORDER BY end_date DESC";
+        await using var cmd = new MySqlCommand(sql, conn) { CommandTimeout = 10 };
+        cmd.Parameters.AddWithValue("@id", userId);
+        await using var rdr = await cmd.ExecuteReaderAsync();
+        var list = new List<SubscriptionRecord>();
+        while (await rdr.ReadAsync())
+            list.Add(new SubscriptionRecord(
+                rdr.GetInt64(0),
+                rdr.GetString(1),
+                rdr.GetString(2),
+                rdr.GetDouble(3),
+                rdr.IsDBNull(4) ? null : rdr.GetString(4),
+                rdr.GetBoolean(5)));
+        return list;
+    }
+
     // ── Verify subscription management password ───────────────────────────
     public async Task<bool> VerifySubsPasswordAsync(string password)
     {
