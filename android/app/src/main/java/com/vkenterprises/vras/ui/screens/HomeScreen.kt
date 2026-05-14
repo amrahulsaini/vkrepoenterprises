@@ -87,6 +87,7 @@ fun HomeScreen(
     }
 
     // Re-check every time we come back to the screen (user may have toggled GPS in settings)
+    // Also refresh session so isAdmin / isActive changes from desktop take effect instantly.
     val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val obs = androidx.lifecycle.LifecycleEventObserver { _, event ->
@@ -95,6 +96,7 @@ fun HomeScreen(
                 val coarse = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION)
                 val ok = (fine == PackageManager.PERMISSION_GRANTED || coarse == PackageManager.PERMISSION_GRANTED) && isLocationEnabled()
                 showLocationDialog = !ok
+                authVm.refreshSession()
             }
         }
         lifecycleOwner.lifecycle.addObserver(obs)

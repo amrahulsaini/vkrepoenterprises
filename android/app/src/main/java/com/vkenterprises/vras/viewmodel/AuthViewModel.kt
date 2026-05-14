@@ -124,7 +124,14 @@ class AuthViewModel @Inject constructor(
             val resp = ApiClient.api.getProfile(uid)
             if (resp.isSuccessful) {
                 val p = resp.body() ?: return@launch
-                prefs.updateAdminStatus(p.isAdmin)
+                prefs.saveSession(
+                    userId  = uid,
+                    name    = p.name,
+                    mobile  = p.mobile,
+                    isAdmin = p.isAdmin,
+                    subEnd  = p.subscriptions.filter { it.isActive }
+                                  .maxOfOrNull { it.endDate }
+                )
             }
         }
     }
