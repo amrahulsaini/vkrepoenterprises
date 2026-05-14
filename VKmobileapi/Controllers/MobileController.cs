@@ -130,11 +130,31 @@ public class MobileController : ControllerBase
             if (!await _repo.IsAdminAsync(userId))
                 return StatusCode(403, new ApiError(false, "Admin access required."));
             var valid = await _repo.VerifySubsPasswordAsync(req.Password);
-            return Ok(new { valid });
+            if (!valid) return StatusCode(403, new ApiError(false, "Incorrect password."));
+            return Ok(new { success = true });
         }
         catch (Exception ex)
         {
             return StatusCode(500, new ApiError(false, $"Verification failed: {ex.Message}"));
+        }
+    }
+
+    // GET /api/mobile/profile/{userId}/subscriptions
+    [HttpGet("profile/{userId:long}/subscriptions")]
+    public async Task<IActionResult> GetUserSubscriptions(
+        long userId,
+        [FromHeader(Name = "X-User-Id")] long adminId)
+    {
+        try
+        {
+            if (!await _repo.IsAdminAsync(adminId))
+                return StatusCode(403, new ApiError(false, "Admin access required."));
+            var subs = await _repo.GetUserSubscriptionsAsync(userId);
+            return Ok(subs);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new ApiError(false, $"Failed: {ex.Message}"));
         }
     }
 
