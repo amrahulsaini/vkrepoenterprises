@@ -550,6 +550,64 @@
                                            FontFamily="Consolas" />
                             </StackPanel>
 
+                            <!-- Stop App section -->
+                            <Border Background="{StaticResource Gray50}"
+                                    BorderBrush="{StaticResource Gray100}"
+                                    BorderThickness="1" CornerRadius="8"
+                                    Padding="14,12" Margin="0,0,0,16">
+                                <DockPanel>
+                                    <StackPanel DockPanel.Dock="Right" HorizontalAlignment="Right"
+                                                VerticalAlignment="Center">
+                                        <ToggleButton Name="tglStopApp"
+                                                      Style="{StaticResource ToggleBtn}"
+                                                      Checked="StopToggle_Checked"
+                                                      Unchecked="StopToggle_Unchecked" />
+                                        <TextBlock Name="lblStopStatus" Text="Running"
+                                                   Style="{StaticResource ToggleLabel}"
+                                                   Foreground="{StaticResource Gray500}" />
+                                    </StackPanel>
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Text="Stop App" FontSize="13" FontWeight="SemiBold"
+                                                   Foreground="{StaticResource Gray700}" />
+                                        <TextBlock Text="Block this user from using the mobile app"
+                                                   FontSize="11" Foreground="{StaticResource Gray500}"
+                                                   Margin="0,2,0,0" />
+                                    </StackPanel>
+                                </DockPanel>
+                            </Border>
+
+                            <!-- Finance Restrictions section -->
+                            <StackPanel Margin="0,0,0,16">
+                                <DockPanel Margin="0,0,0,8">
+                                    <Button DockPanel.Dock="Right" Content="Save Restrictions"
+                                            Name="btnSaveRestrictions"
+                                            Style="{StaticResource PrimaryButton}"
+                                            Click="btnSaveRestrictions_Click" />
+                                    <TextBlock Text="Restrict Finances" FontSize="13" FontWeight="SemiBold"
+                                               Foreground="{StaticResource Gray700}"
+                                               VerticalAlignment="Center" />
+                                </DockPanel>
+                                <TextBlock Text="Tick finances to BLOCK this user from seeing their vehicles in search results."
+                                           FontSize="11" Foreground="{StaticResource Gray500}"
+                                           TextWrapping="Wrap" Margin="0,0,0,8" />
+                                <Border BorderBrush="{StaticResource Gray200}" BorderThickness="1" CornerRadius="6"
+                                        MaxHeight="160" Padding="4">
+                                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                        <ItemsControl Name="icFinanceRestrictions">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <CheckBox Content="{Binding Name}"
+                                                              IsChecked="{Binding IsRestricted}"
+                                                              FontSize="13"
+                                                              Foreground="{StaticResource Gray800}"
+                                                              Margin="6,4" />
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </ScrollViewer>
+                                </Border>
+                            </StackPanel>
+
                             <!-- Subscriptions section -->
                             <DockPanel Margin="0,0,0,8">
                                 <Button DockPanel.Dock="Right" Content="+ Add Plan"

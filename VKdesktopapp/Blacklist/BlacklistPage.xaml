@@ -1,0 +1,231 @@
+<Page
+    x:Class="VRASDesktopApp.Blacklist.BlacklistPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Background="{StaticResource Gray50}"
+    FontFamily="Segoe UI"
+    Loaded="Page_Loaded">
+
+    <Grid Margin="24,20,24,20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,18">
+            <TextBlock Text="Blacklist" Style="{StaticResource Heading4}" />
+            <TextBlock Text="Permanently block users from logging in or registering. Blacklisted users see 'You have been blocked by agency'."
+                       Style="{StaticResource Caption}" Margin="0,2,0,0" TextWrapping="Wrap" />
+        </StackPanel>
+
+        <!-- Two-column layout -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="1.2*" />
+                <ColumnDefinition Width="16" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <!-- LEFT: All users list -->
+            <Border Grid.Column="0" Style="{StaticResource DashboardCard}" Padding="0">
+                <DockPanel LastChildFill="True">
+                    <Border DockPanel.Dock="Top" Background="White"
+                            BorderBrush="{StaticResource Gray100}" BorderThickness="0,0,0,1"
+                            CornerRadius="8,8,0,0" Padding="16,14">
+                        <TextBlock Text="All Users" Style="{StaticResource Heading6}" />
+                    </Border>
+
+                    <!-- Search -->
+                    <Border DockPanel.Dock="Top" Margin="14,10,14,4"
+                            Background="White" BorderBrush="{StaticResource Gray200}"
+                            BorderThickness="1" CornerRadius="7">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="&#xE721;"
+                                       FontFamily="Segoe MDL2 Assets" FontSize="14"
+                                       Foreground="{StaticResource Gray400}"
+                                       VerticalAlignment="Center" Margin="12,0,6,0" />
+                            <Grid Grid.Column="1">
+                                <TextBox Name="txtSearch" Background="Transparent" BorderThickness="0"
+                                         FontSize="14" Padding="0,8" VerticalAlignment="Center"
+                                         TextChanged="txtSearch_TextChanged" />
+                                <TextBlock Text="Search users..." FontSize="14"
+                                           Foreground="{StaticResource Gray400}"
+                                           VerticalAlignment="Center" IsHitTestVisible="False">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding Text, ElementName=txtSearch}" Value="">
+                                                    <Setter Property="Visibility" Value="Visible" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </Grid>
+                        </Grid>
+                    </Border>
+
+                    <Grid Margin="14,4,14,14">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <ItemsControl Name="icUsers">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Background="Transparent"
+                                                BorderThickness="0,0,0,1"
+                                                BorderBrush="{StaticResource Gray100}"
+                                                Padding="0,10" Cursor="Hand"
+                                                MouseLeftButtonDown="UserRow_Click"
+                                                Tag="{Binding}">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="44" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="90" />
+                                                </Grid.ColumnDefinitions>
+
+                                                <Border Grid.Column="0" Width="36" Height="36"
+                                                        CornerRadius="18"
+                                                        Background="{StaticResource Primary100}">
+                                                    <TextBlock Text="{Binding Initials}"
+                                                               FontSize="13" FontWeight="Bold"
+                                                               Foreground="{StaticResource Orange700}"
+                                                               HorizontalAlignment="Center"
+                                                               VerticalAlignment="Center" />
+                                                </Border>
+
+                                                <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,8,0">
+                                                    <TextBlock Text="{Binding Name}"
+                                                               FontSize="14" FontWeight="SemiBold"
+                                                               Foreground="{StaticResource Gray800}" />
+                                                    <TextBlock Text="{Binding Mobile}"
+                                                               FontSize="12" Foreground="{StaticResource Gray500}" />
+                                                </StackPanel>
+
+                                                <Border Grid.Column="2" CornerRadius="4" Padding="6,2"
+                                                        HorizontalAlignment="Right" VerticalAlignment="Center">
+                                                    <Border.Style>
+                                                        <Style TargetType="Border">
+                                                            <Setter Property="Background" Value="{StaticResource Gray100}" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding IsBlacklisted}" Value="True">
+                                                                    <Setter Property="Background" Value="#FFFDEDED" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Border.Style>
+                                                    <TextBlock FontSize="11" FontWeight="SemiBold">
+                                                        <TextBlock.Style>
+                                                            <Style TargetType="TextBlock">
+                                                                <Setter Property="Text" Value="Active" />
+                                                                <Setter Property="Foreground" Value="{StaticResource Gray600}" />
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding IsBlacklisted}" Value="True">
+                                                                        <Setter Property="Text" Value="BLOCKED" />
+                                                                        <Setter Property="Foreground" Value="#C0392B" />
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </TextBlock.Style>
+                                                    </TextBlock>
+                                                </Border>
+                                            </Grid>
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Style.Triggers>
+                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                            <Setter Property="Background" Value="{StaticResource Gray50}" />
+                                                        </Trigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+
+                        <ProgressBar Name="loadingBar" Visibility="Collapsed"
+                                     IsIndeterminate="True" Height="3" VerticalAlignment="Top"
+                                     Panel.ZIndex="100" Foreground="{StaticResource Orange500}"
+                                     Background="Transparent" BorderThickness="0" />
+                    </Grid>
+                </DockPanel>
+            </Border>
+
+            <!-- RIGHT: Action panel -->
+            <Border Grid.Column="2" Style="{StaticResource DashboardCard}" Padding="0">
+                <DockPanel LastChildFill="True">
+                    <Border DockPanel.Dock="Top" Background="White"
+                            BorderBrush="{StaticResource Gray100}" BorderThickness="0,0,0,1"
+                            CornerRadius="8,8,0,0" Padding="16,14">
+                        <TextBlock Name="txtRightTitle" Text="Select a user"
+                                   Style="{StaticResource Heading6}" />
+                    </Border>
+
+                    <!-- Empty state -->
+                    <StackPanel Name="pnlEmpty" HorizontalAlignment="Center"
+                                VerticalAlignment="Center" DockPanel.Dock="Bottom">
+                        <TextBlock Text="&#xE77B;" FontFamily="Segoe MDL2 Assets" FontSize="48"
+                                   Foreground="{StaticResource Gray300}" HorizontalAlignment="Center" />
+                        <TextBlock Text="Select a user to manage blacklist"
+                                   FontSize="13" Foreground="{StaticResource Gray400}"
+                                   HorizontalAlignment="Center" Margin="0,8,0,0" />
+                    </StackPanel>
+
+                    <!-- Action panel (shown when user selected) -->
+                    <StackPanel Name="pnlAction" Visibility="Collapsed"
+                                Margin="20,20,20,20" DockPanel.Dock="Top">
+
+                        <!-- User info card -->
+                        <Border Background="{StaticResource Gray50}"
+                                BorderBrush="{StaticResource Gray100}"
+                                BorderThickness="1" CornerRadius="8"
+                                Padding="16" Margin="0,0,0,20">
+                            <StackPanel>
+                                <TextBlock Name="txtUserName" FontSize="17" FontWeight="Bold"
+                                           Foreground="{StaticResource Gray900}" />
+                                <TextBlock Name="txtUserMobile" FontSize="13"
+                                           Foreground="{StaticResource Gray500}" Margin="0,4,0,0" />
+                                <TextBlock Name="txtUserAddress" FontSize="12"
+                                           Foreground="{StaticResource Gray500}" Margin="0,4,0,0"
+                                           TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Status badge -->
+                        <Border Name="statusBadge" CornerRadius="6" Padding="12,8"
+                                HorizontalAlignment="Left" Margin="0,0,0,20">
+                            <TextBlock Name="txtStatus" FontSize="13" FontWeight="SemiBold" />
+                        </Border>
+
+                        <!-- Blacklist button -->
+                        <Button Name="btnBlacklist" FontSize="14" FontWeight="SemiBold"
+                                Padding="16,12" Cursor="Hand"
+                                Click="btnBlacklist_Click">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border x:Name="brd" CornerRadius="8"
+                                            Background="{TemplateBinding Background}"
+                                            Padding="{TemplateBinding Padding}">
+                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="brd" Property="Background" Value="#FFB71C1C" />
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+                    </StackPanel>
+                </DockPanel>
+            </Border>
+        </Grid>
+    </Grid>
+</Page>

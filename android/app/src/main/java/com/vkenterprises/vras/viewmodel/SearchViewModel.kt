@@ -22,6 +22,12 @@ data class SearchUiState(
     val selectedResult: SearchResult? = null,
     val errorMsg: String?             = null,
     val subscriptionExpired: Boolean  = false,
+    val appStopped: Boolean           = false,
+    val appStoppedMsg: String         = "",
+    val blacklisted: Boolean          = false,
+    val blacklistedMsg: String        = "",
+    val inactive: Boolean             = false,
+    val inactiveMsg: String           = "",
     val isSyncing: Boolean            = false,
     val syncCurrent: Long             = 0L,
     val syncTotal: Long               = 0L,
@@ -178,6 +184,9 @@ class SearchViewModel @Inject constructor(
                     it.copy(results = data, errorMsg = null)
                 }
                 is SearchResult2.SubscriptionExpired -> it.copy(subscriptionExpired = true)
+                is SearchResult2.AppStopped          -> it.copy(appStopped = true, appStoppedMsg = result.msg)
+                is SearchResult2.Blacklisted         -> it.copy(blacklisted = true, blacklistedMsg = result.msg)
+                is SearchResult2.Inactive            -> it.copy(inactive = true, inactiveMsg = result.msg)
                 is SearchResult2.Error               -> it.copy(errorMsg = result.message)
             }
         }

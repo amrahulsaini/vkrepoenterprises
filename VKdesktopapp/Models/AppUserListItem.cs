@@ -9,8 +9,10 @@ public class AppUserListItem
     public string?  Pincode    { get; set; }
     public string?  PfpBase64  { get; set; }
     public string?  DeviceId   { get; set; }
-    public bool     IsActive   { get; set; }
-    public bool     IsAdmin    { get; set; }
+    public bool     IsActive      { get; set; }
+    public bool     IsAdmin       { get; set; }
+    public bool     IsStopped     { get; set; }
+    public bool     IsBlacklisted { get; set; }
     public decimal  Balance    { get; set; }
     public DateTime CreatedAt  { get; set; }
     public string?  SubEndDate { get; set; }

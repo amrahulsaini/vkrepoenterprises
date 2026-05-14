@@ -125,6 +125,11 @@ public record ProfileResponse(
 
 public record ApiError(bool Success, string Message);
 
+public record UserStatusDto(bool IsActive, bool IsStopped, bool IsBlacklisted);
+public record VerifySubsPassRequest(string Password);
+public record AdminAddSubRequest(string StartDate, string EndDate, decimal Amount, string? Notes);
+public record AdminUserItem(long Id, string Name, string Mobile, string? Address, string? SubEnd);
+
 public record SyncBranch(
     int     BranchId,
     string  BranchName,

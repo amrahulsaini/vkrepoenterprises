@@ -10,18 +10,20 @@ public class AppUserRepository
         var r = await DesktopApiClient.GetUsersWithStatsAsync();
         var users = r.Users.Select(u => new AppUserListItem
         {
-            Id         = u.Id,
-            Name       = u.Name,
-            Mobile     = u.Mobile,
-            Address    = u.Address,
-            Pincode    = u.Pincode,
-            PfpBase64  = u.PfpBase64,
-            DeviceId   = u.DeviceId,
-            IsActive   = u.IsActive,
-            IsAdmin    = u.IsAdmin,
-            Balance    = u.Balance,
-            CreatedAt  = u.CreatedAt,
-            SubEndDate = u.SubEndDate,
+            Id            = u.Id,
+            Name          = u.Name,
+            Mobile        = u.Mobile,
+            Address       = u.Address,
+            Pincode       = u.Pincode,
+            PfpBase64     = u.PfpBase64,
+            DeviceId      = u.DeviceId,
+            IsActive      = u.IsActive,
+            IsAdmin       = u.IsAdmin,
+            Balance       = u.Balance,
+            CreatedAt     = u.CreatedAt,
+            SubEndDate    = u.SubEndDate,
+            IsStopped     = u.IsStopped,
+            IsBlacklisted = u.IsBlacklisted,
         }).ToList();
         return (users, r.Stats.Total, r.Stats.Active, r.Stats.Admins, r.Stats.WithSub);
     }
@@ -61,4 +63,16 @@ public class AppUserRepository
 
     public async Task ResetDeviceAsync(long userId)
         => await DesktopApiClient.ResetUserDeviceAsync(userId);
+
+    public async Task SetStoppedAsync(long userId, bool stopped)
+        => await DesktopApiClient.SetUserStoppedAsync(userId, stopped);
+
+    public async Task SetBlacklistedAsync(long userId, bool blacklisted)
+        => await DesktopApiClient.SetUserBlacklistedAsync(userId, blacklisted);
+
+    public async Task<List<int>> GetFinanceRestrictionsAsync(long userId)
+        => await DesktopApiClient.GetUserFinanceRestrictionsAsync(userId);
+
+    public async Task SetFinanceRestrictionsAsync(long userId, List<int> financeIds)
+        => await DesktopApiClient.SetUserFinanceRestrictionsAsync(userId, financeIds);
 }

@@ -56,4 +56,34 @@ interface ApiService {
     suspend fun getLiveUsers(
         @Header("X-User-Id") userId: Long
     ): Response<LiveUsersResponse>
+
+    @POST("api/mobile/admin/verify-subs-pass")
+    suspend fun verifySubsPass(
+        @Header("X-User-Id") userId: Long,
+        @Body request: VerifySubsPassRequest
+    ): Response<Map<String, Any>>
+
+    @GET("api/mobile/admin/users")
+    suspend fun getAdminUsers(
+        @Header("X-User-Id") userId: Long
+    ): Response<List<AdminUserItem>>
+
+    @GET("api/mobile/profile/{userId}/subscriptions")
+    suspend fun getUserSubscriptions(
+        @Header("X-User-Id") adminId: Long,
+        @Path("userId") userId: Long
+    ): Response<List<SubscriptionRecord>>
+
+    @POST("api/mobile/admin/users/{userId}/subscriptions")
+    suspend fun adminAddSubscription(
+        @Header("X-User-Id") adminId: Long,
+        @Path("userId") userId: Long,
+        @Body request: AdminAddSubRequest
+    ): Response<Map<String, Any>>
+
+    @DELETE("api/mobile/admin/subscriptions/{subId}")
+    suspend fun adminDeleteSubscription(
+        @Header("X-User-Id") adminId: Long,
+        @Path("subId") subId: Long
+    ): Response<Map<String, Any>>
 }

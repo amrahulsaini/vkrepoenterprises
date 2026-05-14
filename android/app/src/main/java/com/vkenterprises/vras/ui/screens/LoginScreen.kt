@@ -48,6 +48,24 @@ fun LoginScreen(vm: AuthViewModel, nav: NavController) {
                 vm.resetState()
                 nav.navigate(Screen.WaitingApproval.go("device_mismatch"))
             }
+            is AuthUiState.AppStopped -> {
+                vm.resetState()
+                nav.navigate(Screen.AppStopped.route) {
+                    popUpTo(Screen.Login.route) { inclusive = true }
+                }
+            }
+            is AuthUiState.Blacklisted -> {
+                vm.resetState()
+                nav.navigate(Screen.Blacklisted.route) {
+                    popUpTo(Screen.Login.route) { inclusive = true }
+                }
+            }
+            is AuthUiState.Inactive -> {
+                vm.resetState()
+                nav.navigate(Screen.Inactive.route) {
+                    popUpTo(Screen.Login.route) { inclusive = true }
+                }
+            }
             is AuthUiState.Error -> {
                 error = (state as AuthUiState.Error).message
                 vm.resetState()

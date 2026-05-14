@@ -132,6 +132,30 @@ fun HomeScreen(
         }
     }
 
+    LaunchedEffect(ui.appStopped) {
+        if (ui.appStopped) {
+            nav.navigate(Screen.AppStopped.route) {
+                popUpTo(Screen.Home.route) { inclusive = true }
+            }
+        }
+    }
+
+    LaunchedEffect(ui.blacklisted) {
+        if (ui.blacklisted) {
+            nav.navigate(Screen.Blacklisted.route) {
+                popUpTo(Screen.Home.route) { inclusive = true }
+            }
+        }
+    }
+
+    LaunchedEffect(ui.inactive) {
+        if (ui.inactive) {
+            nav.navigate(Screen.Inactive.route) {
+                popUpTo(Screen.Home.route) { inclusive = true }
+            }
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -146,6 +170,11 @@ fun HomeScreen(
                 },
                 actions = {
                     val pfpB64 by authVm.pfpBase64.collectAsState(initial = null)
+                    if (isAdmin) {
+                        IconButton(onClick = { nav.navigate(Screen.ManageSubscriptions.route) }) {
+                            Icon(Icons.Default.CardMembership, contentDescription = "Manage Subscriptions")
+                        }
+                    }
                     IconButton(onClick = { searchVm.triggerSync() }) {
                         Icon(Icons.Default.Refresh, contentDescription = "Sync")
                     }
