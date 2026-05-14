@@ -75,9 +75,27 @@ public partial class LoginWindow : Window
                 password = txtPassword.Password
             };
 
-            HttpResponseMessage response = await App.HttpClient.PostAsync(
-                App.ApiBaseUrl + "api/AppUsers/Login",
-                JsonContent.Create(formData));
+            using var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(15));
+            HttpResponseMessage response;
+            try
+            {
+                response = await App.HttpClient.PostAsync(
+                    App.ApiBaseUrl + "api/AppUsers/Login",
+                    JsonContent.Create(formData),
+                    cts.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                lblStatus.Text = "";
+                MessageBox.Show("Cannot connect to the server. Please check that the server is running and the API URL is correct.", "Connection Timeout", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+            catch (HttpRequestException rex) when (rex.InnerException is System.Net.Sockets.SocketException)
+            {
+                lblStatus.Text = "";
+                MessageBox.Show("Cannot reach the server. Please check the API URL in settings.", "Connection Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
 
             response.EnsureSuccessStatusCode();
 
