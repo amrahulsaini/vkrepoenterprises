@@ -126,6 +126,7 @@ fun HomeScreen(
 
     LaunchedEffect(ui.subscriptionExpired) {
         if (ui.subscriptionExpired) {
+            searchVm.resetBlockedStates()
             nav.navigate(Screen.SubscriptionExpired.route) {
                 popUpTo(Screen.Home.route) { inclusive = true }
             }
@@ -134,6 +135,7 @@ fun HomeScreen(
 
     LaunchedEffect(ui.appStopped) {
         if (ui.appStopped) {
+            searchVm.resetBlockedStates()
             nav.navigate(Screen.AppStopped.route) {
                 popUpTo(Screen.Home.route) { inclusive = true }
             }
@@ -142,6 +144,7 @@ fun HomeScreen(
 
     LaunchedEffect(ui.blacklisted) {
         if (ui.blacklisted) {
+            searchVm.resetBlockedStates()
             nav.navigate(Screen.Blacklisted.route) {
                 popUpTo(Screen.Home.route) { inclusive = true }
             }
@@ -150,6 +153,7 @@ fun HomeScreen(
 
     LaunchedEffect(ui.inactive) {
         if (ui.inactive) {
+            searchVm.resetBlockedStates()
             nav.navigate(Screen.Inactive.route) {
                 popUpTo(Screen.Home.route) { inclusive = true }
             }

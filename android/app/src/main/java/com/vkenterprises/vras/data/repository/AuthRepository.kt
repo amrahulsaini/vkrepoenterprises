@@ -24,15 +24,25 @@ class AuthRepository {
             resp.isSuccessful && resp.body() != null -> AuthResult.Success(resp.body()!!)
             resp.code() == 403 -> {
                 val body = resp.errorBody()?.string() ?: ""
-                val reason = if (body.contains("device_mismatch")) "device_mismatch"
-                             else "pending_approval"
-                AuthResult.Error(
-                    if (reason == "device_mismatch")
-                        "This account is registered on another device.\nAsk admin to reset your device ID."
-                    else
-                        "Your account is pending admin approval.\nPlease wait.",
-                    reason
-                )
+                val reason = when {
+                    body.contains("app_stopped")     -> "app_stopped"
+                    body.contains("blacklisted")     -> "blacklisted"
+                    body.contains("\"inactive\"")    -> "inactive"
+                    body.contains("device_mismatch") -> "device_mismatch"
+                    else                             -> "pending_approval"
+                }
+                val serverMsg = runCatching {
+                    org.json.JSONObject(body).optString("message", "")
+                }.getOrNull() ?: ""
+                AuthResult.Error(serverMsg.ifBlank {
+                    when (reason) {
+                        "app_stopped"     -> "Your app has been stopped by admin. Please contact agency to start app."
+                        "blacklisted"     -> "You have been blocked by the agency. Please contact the agency for assistance."
+                        "inactive"        -> "Your account is inactive. Please contact agency."
+                        "device_mismatch" -> "This account is registered on another device.\nAsk admin to reset your device ID."
+                        else              -> "Your account is pending admin approval.\nPlease wait."
+                    }
+                }, reason)
             }
             resp.code() == 404 -> AuthResult.Error("Mobile number not registered.", "not_found")
             else -> AuthResult.Error("Login failed. Please try again.")

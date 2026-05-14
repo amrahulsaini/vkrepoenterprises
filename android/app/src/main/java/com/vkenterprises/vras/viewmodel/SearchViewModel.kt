@@ -126,6 +126,15 @@ class SearchViewModel @Inject constructor(
         _ui.update { it.copy(actionType = type) }
     }
 
+    fun resetBlockedStates() {
+        _ui.update { it.copy(
+            appStopped = false, appStoppedMsg = "",
+            blacklisted = false, blacklistedMsg = "",
+            inactive = false, inactiveMsg = "",
+            subscriptionExpired = false
+        )}
+    }
+
     // For admin: current selectedResult came from local cache (most fields blank).
     // Re-fetch the same vehicle from server to get full field data.
     fun refetchSelectedFromServer(userId: Long) {
