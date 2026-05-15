@@ -30,14 +30,21 @@ public partial class MapPointWindow : Window
     {
         try
         {
-            await mapView.EnsureCoreWebView2Async(null);
+            // Shared WebView2 user data folder under LocalAppData (Program Files-safe)
+            var userDataFolder = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "VKEnterprises", "WebView2");
+            Directory.CreateDirectory(userDataFolder);
+            var env = await Microsoft.Web.WebView2.Core.CoreWebView2Environment
+                .CreateAsync(null, userDataFolder);
+            await mapView.EnsureCoreWebView2Async(env);
 
             // Map HTML is server-hosted so fixes don't require an installer update.
             var baseUrl = App.ApiBaseUrl.TrimEnd('/');
             var qs = BuildQueryString();
             mapView.CoreWebView2.Navigate($"{baseUrl}/public/map_point.html{qs}");
         }
-        catch { /* WebView2 not installed */ }
+        catch { /* swallow — Window_Loaded handler */ }
     }
 
     private string BuildQueryString()

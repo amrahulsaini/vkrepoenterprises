@@ -44,10 +44,10 @@
                 <!-- Stats sections -->
                 <StackPanel Grid.Row="1" Margin="16,14,16,10">
 
-                    <!-- RECORDS AND FINANCES -->
+                    <!-- RECORDS AND HEAD OFFICES -->
                     <Border Background="{StaticResource Gray100}"
                             CornerRadius="4" Padding="8,5" Margin="0,0,0,10">
-                        <TextBlock Text="RECORDS AND FINANCES"
+                        <TextBlock Text="RECORDS AND HEAD OFFICES"
                                    FontSize="10" FontWeight="Bold"
                                    Foreground="{StaticResource Gray600}" />
                     </Border>
@@ -68,7 +68,7 @@
                                        FontSize="24" FontWeight="Bold"
                                        Foreground="{StaticResource Gray900}"
                                        HorizontalAlignment="Center" />
-                            <TextBlock Text="Finances"
+                            <TextBlock Text="Head Offices"
                                        FontSize="11"
                                        Foreground="{StaticResource Gray500}"
                                        HorizontalAlignment="Center" />
@@ -78,7 +78,7 @@
                                        FontSize="24" FontWeight="Bold"
                                        Foreground="{StaticResource Gray900}"
                                        HorizontalAlignment="Center" />
-                            <TextBlock Text="Branches"
+                            <TextBlock Text="Finances"
                                        FontSize="11"
                                        Foreground="{StaticResource Gray500}"
                                        HorizontalAlignment="Center" />

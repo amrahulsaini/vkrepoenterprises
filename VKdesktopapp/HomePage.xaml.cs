@@ -61,20 +61,49 @@ public partial class HomePage : Page
     {
         try
         {
-            await mapView.EnsureCoreWebView2Async(null);
+            // Custom user data folder under LocalAppData so installs in
+            // Program Files don't hit permission errors creating the WebView2 cache.
+            var userDataFolder = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "VKEnterprises", "WebView2");
+            Directory.CreateDirectory(userDataFolder);
+            var env = await Microsoft.Web.WebView2.Core.CoreWebView2Environment
+                .CreateAsync(null, userDataFolder);
+            await mapView.EnsureCoreWebView2Async(env);
 
-            // Map HTML is hosted on the server so map fixes don't require an
-            // installer update — clients get the latest version on next launch.
+            // Map HTML is hosted on the server so fixes don't require an installer update.
             var baseUrl = App.ApiBaseUrl.TrimEnd('/');
-            mapView.CoreWebView2.Navigate($"{baseUrl}/public/map_live.html");
+            var url = $"{baseUrl}/public/map_live.html";
 
-            // Don't await — polling runs in background so LoadDashboardAsync starts immediately
+            mapView.CoreWebView2.NavigationCompleted += (_, ev) =>
+            {
+                if (!ev.IsSuccess)
+                    LogMapError($"Navigation failed to {url}\nWebErrorStatus: {ev.WebErrorStatus}");
+            };
+            mapView.CoreWebView2.Navigate(url);
+
             _ = PollForMapReadyAsync();
         }
-        catch
+        catch (Exception ex)
         {
-            // WebView2 runtime not installed — map panel will be blank
+            LogMapError($"WebView2 init failed: {ex}");
         }
+    }
+
+    // Writes map failures to %LOCALAPPDATA%\VKEnterprises\map-errors.log so we
+    // can diagnose blank-map issues on a client's machine.
+    private static void LogMapError(string msg)
+    {
+        try
+        {
+            var dir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "VKEnterprises");
+            Directory.CreateDirectory(dir);
+            File.AppendAllText(Path.Combine(dir, "map-errors.log"),
+                $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {msg}\n");
+        }
+        catch { }
     }
 
     // Polls every 250 ms until Leaflet has finished loading and updateMarkers is callable.

@@ -91,19 +91,23 @@
         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
             <StackPanel Margin="24,20,24,12">
 
-                <!-- Finance (read-only) -->
-                <TextBlock Text="FINANCE / HEAD OFFICE" Style="{StaticResource FieldLabel}" />
+                <!-- Branch name first (top) -->
+                <TextBlock Text="FINANCE NAME *" Style="{StaticResource FieldLabel}" />
+                <Border Style="{StaticResource InputBorder}" Margin="0,0,0,16">
+                    <TextBox x:Name="txtBranchName"
+                             Style="{StaticResource CleanTextBox}"
+                             FontWeight="Bold"
+                             CharacterCasing="Upper" />
+                </Border>
+
+                <!-- Head Office (read-only) — moved below branch name -->
+                <TextBlock Text="HEAD OFFICE" Style="{StaticResource FieldLabel}" />
                 <Border Style="{StaticResource InputBorder}" Margin="0,0,0,16"
                         Background="{StaticResource Gray50}">
                     <TextBox x:Name="txtFinanceName"
                              Style="{StaticResource CleanTextBoxReadOnly}"
+                             FontWeight="Bold"
                              IsReadOnly="True" />
-                </Border>
-
-                <!-- Branch name -->
-                <TextBlock Text="BRANCH NAME *" Style="{StaticResource FieldLabel}" />
-                <Border Style="{StaticResource InputBorder}" Margin="0,0,0,16">
-                    <TextBox x:Name="txtBranchName" Style="{StaticResource CleanTextBox}" />
                 </Border>
 
                 <!-- Contacts row -->

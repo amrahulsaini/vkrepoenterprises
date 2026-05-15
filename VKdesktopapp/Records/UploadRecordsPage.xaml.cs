@@ -18,10 +18,7 @@ public partial class UploadRecordsPage : Page
     {
         if (_recordsEditorWindow == null)
         {
-            _recordsEditorWindow = new RecordsEditorWindow
-            {
-                Owner = Window.GetWindow(this)
-            };
+            _recordsEditorWindow = new RecordsEditorWindow();
             _recordsEditorWindow.Closed += (_, __) => _recordsEditorWindow = null;
             _recordsEditorWindow.Show();
         }
