@@ -302,14 +302,19 @@ public class MobileController : ControllerBase
         }
     }
 
-    // POST /api/mobile/heartbeat  — updates last_seen + GPS for the user
+    // POST /api/mobile/heartbeat  — updates last_seen + GPS; returns stopped/blacklisted flags
     [HttpPost("heartbeat")]
     public async Task<IActionResult> Heartbeat([FromBody] HeartbeatRequest req)
     {
         try
         {
             await _repo.HeartbeatAsync(req.UserId, req.Lat, req.Lng);
-            return Ok(new { success = true });
+            var status = await _repo.GetUserStatusAsync(req.UserId);
+            return Ok(new {
+                success      = true,
+                isStopped    = status.IsStopped,
+                isBlacklisted = status.IsBlacklisted
+            });
         }
         catch (Exception ex)
         {

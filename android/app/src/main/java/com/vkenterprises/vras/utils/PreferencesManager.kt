@@ -11,13 +11,14 @@ private val Context.dataStore by preferencesDataStore(name = "vk_prefs")
 class PreferencesManager(private val context: Context) {
 
     companion object {
-        val KEY_USER_ID     = longPreferencesKey("user_id")
-        val KEY_NAME        = stringPreferencesKey("name")
-        val KEY_MOBILE      = stringPreferencesKey("mobile")
-        val KEY_IS_ADMIN    = booleanPreferencesKey("is_admin")
-        val KEY_SUB_END     = stringPreferencesKey("sub_end")
-        val KEY_LOGGED_IN   = booleanPreferencesKey("logged_in")
-        val KEY_PFP         = stringPreferencesKey("pfp")
+        val KEY_USER_ID        = longPreferencesKey("user_id")
+        val KEY_NAME           = stringPreferencesKey("name")
+        val KEY_MOBILE         = stringPreferencesKey("mobile")
+        val KEY_IS_ADMIN       = booleanPreferencesKey("is_admin")
+        val KEY_SUB_END        = stringPreferencesKey("sub_end")
+        val KEY_LOGGED_IN      = booleanPreferencesKey("logged_in")
+        val KEY_PFP            = stringPreferencesKey("pfp")
+        val KEY_BLOCKED_REASON = stringPreferencesKey("blocked_reason")
     }
 
     val isLoggedIn: Flow<Boolean> = context.dataStore.data
@@ -40,6 +41,9 @@ class PreferencesManager(private val context: Context) {
 
     val pfpBase64: Flow<String?> = context.dataStore.data
         .map { it[KEY_PFP]?.ifEmpty { null } }
+
+    val blockedReason: Flow<String?> = context.dataStore.data
+        .map { it[KEY_BLOCKED_REASON]?.ifBlank { null } }
 
     suspend fun saveSession(
         userId: Long, name: String, mobile: String,
@@ -66,6 +70,14 @@ class PreferencesManager(private val context: Context) {
         context.dataStore.edit { prefs ->
             prefs[KEY_PFP] = pfp ?: ""
         }
+    }
+
+    suspend fun setBlockedReason(reason: String) {
+        context.dataStore.edit { prefs -> prefs[KEY_BLOCKED_REASON] = reason }
+    }
+
+    suspend fun clearBlockedReason() {
+        context.dataStore.edit { prefs -> prefs.remove(KEY_BLOCKED_REASON) }
     }
 
     suspend fun clearSession() {

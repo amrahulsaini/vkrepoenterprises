@@ -47,7 +47,7 @@ interface ApiService {
     suspend fun getStats(): Response<StatsResponse>
 
     @POST("api/mobile/heartbeat")
-    suspend fun heartbeat(@Body request: HeartbeatRequest): Response<Map<String, Any>>
+    suspend fun heartbeat(@Body request: HeartbeatRequest): Response<HeartbeatResponse>
 
     @POST("api/mobile/search-log")
     suspend fun logSearch(@Body request: SearchLogRequest): Response<Map<String, Any>>

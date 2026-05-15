@@ -52,7 +52,14 @@ class LocationWorker @AssistedInject constructor(
         }
 
         runCatching {
-            api.heartbeat(HeartbeatRequest(userId, lat, lng))
+            val resp = api.heartbeat(HeartbeatRequest(userId, lat, lng))
+            if (resp.isSuccessful) {
+                val body = resp.body()
+                when {
+                    body?.isBlacklisted == true -> prefs.setBlockedReason("blacklisted")
+                    body?.isStopped    == true  -> prefs.setBlockedReason("app_stopped")
+                }
+            }
         }
 
         return Result.success()
