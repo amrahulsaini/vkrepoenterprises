@@ -75,6 +75,9 @@ class AuthViewModel @Inject constructor(
                         when {
                             body.isBlacklisted -> _kickReason.value = "blacklisted"
                             body.isStopped     -> _kickReason.value = "app_stopped"
+                            // Was blocked but admin has re-enabled — signal recovery
+                            _kickReason.value == "app_stopped" ||
+                            _kickReason.value == "blacklisted"  -> _kickReason.value = "running"
                         }
                     }
                 }

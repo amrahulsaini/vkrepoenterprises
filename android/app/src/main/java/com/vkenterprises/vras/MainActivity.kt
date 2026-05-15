@@ -88,7 +88,13 @@ fun VKNavHost() {
         }
 
         composable(Screen.AppStopped.route) {
-            val ui by searchVm.ui.collectAsState()
+            val ui         by searchVm.ui.collectAsState()
+            val kickReason by authVm.kickReason.collectAsState()
+            LaunchedEffect(kickReason) {
+                if (kickReason == "running") {
+                    navController.navigate(Screen.Home.route) { popUpTo(0) { inclusive = true } }
+                }
+            }
             AppStoppedScreen(
                 msg = ui.appStoppedMsg.ifBlank { "Your app has been stopped by admin. Please contact agency to start app." }
             ) {
@@ -97,7 +103,13 @@ fun VKNavHost() {
         }
 
         composable(Screen.Blacklisted.route) {
-            val ui by searchVm.ui.collectAsState()
+            val ui         by searchVm.ui.collectAsState()
+            val kickReason by authVm.kickReason.collectAsState()
+            LaunchedEffect(kickReason) {
+                if (kickReason == "running") {
+                    navController.navigate(Screen.Home.route) { popUpTo(0) { inclusive = true } }
+                }
+            }
             BlacklistedScreen(
                 msg = ui.blacklistedMsg.ifBlank { "You have been blocked by the agency. Please contact the agency for assistance." }
             ) {
