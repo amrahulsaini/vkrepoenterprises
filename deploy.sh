@@ -35,16 +35,17 @@ dotnet publish -c Release -o "$VKAPI_OUT" --nologo -v quiet
 cp /home/vkapp/db/.env.local "$VKAPI_OUT/db/.env.local" 2>/dev/null || true
 info "VKApiServer built → $VKAPI_OUT"
 
-# Sync download page + installer; fix ownership so the service can read files
-mkdir -p "$VKAPI_OUT/downloads"
-cp "$VKAPI_SRC/downloads/index.html" "$VKAPI_OUT/downloads/index.html"
+# Sync download page + installer into LiteSpeed docRoot (world-readable, no 403)
+DOCROOT_DOWNLOADS="/home/characterverse.tech/api.characterverse.tech/downloads"
+mkdir -p "$DOCROOT_DOWNLOADS"
+cp "$VKAPI_SRC/downloads/index.html" "$DOCROOT_DOWNLOADS/index.html"
 if [ -f "$REPO_DIR/installer-output/VKEnterprises_Setup.exe" ]; then
-    cp "$REPO_DIR/installer-output/VKEnterprises_Setup.exe" "$VKAPI_OUT/downloads/VKEnterprises_Setup.exe"
-    info "Installer copied → $VKAPI_OUT/downloads/VKEnterprises_Setup.exe"
+    cp "$REPO_DIR/installer-output/VKEnterprises_Setup.exe" "$DOCROOT_DOWNLOADS/VKEnterprises_Setup.exe"
+    info "Installer copied → $DOCROOT_DOWNLOADS/VKEnterprises_Setup.exe"
 fi
-chmod 755 "$VKAPI_OUT/downloads"
-find "$VKAPI_OUT/downloads" -type f -exec chmod 644 {} \;
-info "Download folder permissions set (world-readable for LiteSpeed)"
+chmod 755 "$DOCROOT_DOWNLOADS"
+find "$DOCROOT_DOWNLOADS" -type f -exec chmod 644 {} \;
+info "Download folder ready → https://api.characterverse.tech/downloads/"
 
 section "Restarting vkapi service"
 systemctl restart vkapi
