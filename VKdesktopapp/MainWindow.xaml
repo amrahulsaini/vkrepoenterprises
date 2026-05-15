@@ -36,6 +36,8 @@
             </Grid.ColumnDefinitions>
             <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="14,0,0,0"
                         IsHitTestVisible="False">
+                <Image Source="public/favicon.ico" Width="20" Height="20" Margin="0,0,8,0"
+                       VerticalAlignment="Center" RenderOptions.BitmapScalingMode="HighQuality" />
                 <TextBlock Text="VK" FontSize="14" FontWeight="Bold"
                            Foreground="{StaticResource Orange500}" Margin="0,0,4,0" />
                 <TextBlock Text="ENTERPRISES" FontSize="11" FontWeight="SemiBold"
@@ -171,7 +173,12 @@
 
                 <StackPanel Margin="16" Orientation="Vertical">
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                        <Border Width="48" Height="48" CornerRadius="24" Background="{StaticResource Gray200}" />
+                        <Border Width="48" Height="48" CornerRadius="8"
+                                Background="{StaticResource Gray900}">
+                            <Image Source="public/favicon.ico" Width="32" Height="32"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                   RenderOptions.BitmapScalingMode="HighQuality" />
+                        </Border>
                         <StackPanel Margin="8,0,0,0">
                             <TextBlock x:Name="lblFirmName" Text="VK Enterprises" FontSize="14" FontWeight="Bold" Foreground="{StaticResource Gray900}" />
                             <TextBlock Name="lblFirmMobile" Text="9850637363" FontSize="12" Foreground="{StaticResource Gray600}" />

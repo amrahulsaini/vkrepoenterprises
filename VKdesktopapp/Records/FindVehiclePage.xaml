@@ -159,49 +159,46 @@
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
                     
-                    <Border Grid.Row="0" Background="#F2F4F8" BorderBrush="{StaticResource Gray200}" BorderThickness="0,0,0,1" Padding="12,8">
+                    <Border Grid.Row="0" Background="{StaticResource Gray100}" BorderBrush="{StaticResource Gray200}" BorderThickness="0,0,0,1" Padding="12,8">
                         <WrapPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                            <Button Name="btnCopy" Content="Copy Info" Padding="12,4" Margin="0,4,8,4" Click="btnCopy_Click" Background="#42A5F5" Foreground="White" BorderThickness="0" Cursor="Hand" />
-                            <Button Name="btnRelease" Content="Mark/Unmark Release" Padding="12,4" Margin="0,4,8,4" Click="btnRelease_Click" Background="#66BB6A" Foreground="White" BorderThickness="0" Cursor="Hand" />
-                            <Button Name="btnConfirmNow" Content="Confirm Now" Padding="12,4" Margin="0,4,8,4" Click="btnConfirmNow_Click" Background="#FFA000" Foreground="White" BorderThickness="0" Cursor="Hand" />
-                            <Button Name="btnDelete" Content="Delete" Padding="12,4" Margin="0,4,0,4" Click="btnDelete_Click" Background="#EF5350" Foreground="White" BorderThickness="0" Cursor="Hand" />
+                            <Button Name="btnCopy" Content="Copy Info" Padding="12,4" Margin="0,4,8,4" Click="btnCopy_Click" Background="{StaticResource Gray700}" Foreground="White" BorderThickness="0" Cursor="Hand" />
+                            <Button Name="btnRelease" Content="Mark/Unmark Release" Padding="12,4" Margin="0,4,8,4" Click="btnRelease_Click" Background="{StaticResource Green500}" Foreground="White" BorderThickness="0" Cursor="Hand" />
+                            <Button Name="btnConfirmNow" Content="Confirm Now" Padding="12,4" Margin="0,4,8,4" Click="btnConfirmNow_Click" Background="{StaticResource Orange600}" Foreground="White" BorderThickness="0" Cursor="Hand" />
+                            <Button Name="btnDelete" Content="Delete" Padding="12,4" Margin="0,4,0,4" Click="btnDelete_Click" Background="{StaticResource Red500}" Foreground="White" BorderThickness="0" Cursor="Hand" />
                         </WrapPanel>
                     </Border>
                     
                     <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
                         <StackPanel Grid.IsSharedSizeScope="True">
                         <StackPanel.Resources>
-                            <!-- Group Header Style -->
                             <Style TargetType="Expander">
                                 <Setter Property="IsExpanded" Value="True" />
-                                <Setter Property="Background" Value="#F2F4F8" />
-                                <Setter Property="BorderBrush" Value="#E0E0E0" />
+                                <Setter Property="Background" Value="{StaticResource Gray100}" />
+                                <Setter Property="BorderBrush" Value="{StaticResource Gray200}" />
                                 <Setter Property="BorderThickness" Value="1,1,1,0" />
-                                <Setter Property="Foreground" Value="#1A237E" />
+                                <Setter Property="Foreground" Value="{StaticResource Gray800}" />
                                 <Setter Property="FontWeight" Value="Bold" />
                                 <Setter Property="Padding" Value="4,6" />
                             </Style>
-                            <!-- Label Border Style -->
                             <Style x:Key="LabelBorder" TargetType="Border">
-                                <Setter Property="BorderBrush" Value="#E0E0E0" />
+                                <Setter Property="BorderBrush" Value="{StaticResource Gray200}" />
                                 <Setter Property="BorderThickness" Value="1,0,1,1" />
-                                <Setter Property="Padding" Value="8,4" />
+                                <Setter Property="Padding" Value="8,5" />
+                                <Setter Property="Background" Value="{StaticResource Gray50}" />
                             </Style>
-                            <!-- Value Border Style -->
                             <Style x:Key="ValueBorder" TargetType="Border">
-                                <Setter Property="BorderBrush" Value="#E0E0E0" />
+                                <Setter Property="BorderBrush" Value="{StaticResource Gray200}" />
                                 <Setter Property="BorderThickness" Value="0,0,1,1" />
-                                <Setter Property="Padding" Value="8,4" />
+                                <Setter Property="Padding" Value="8,5" />
                             </Style>
-                            <!-- Label Text Style -->
                             <Style x:Key="LabelText" TargetType="TextBlock">
-                                <Setter Property="Foreground" Value="#2E5C99" />
+                                <Setter Property="Foreground" Value="{StaticResource Orange700}" />
                                 <Setter Property="VerticalAlignment" Value="Center" />
                                 <Setter Property="FontSize" Value="12" />
+                                <Setter Property="FontWeight" Value="Medium" />
                             </Style>
-                            <!-- Value Text Style -->
                             <Style x:Key="ValueText" TargetType="TextBlock">
-                                <Setter Property="Foreground" Value="#333333" />
+                                <Setter Property="Foreground" Value="{StaticResource Gray800}" />
                                 <Setter Property="VerticalAlignment" Value="Center" />
                                 <Setter Property="TextWrapping" Value="Wrap" />
                                 <Setter Property="FontSize" Value="13" />
@@ -224,7 +221,7 @@
                                 </Grid.RowDefinitions>
                                 
                                 <Border Grid.Row="0" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBlock Text="Status" Style="{StaticResource LabelText}"/></Border>
-                                <Border Grid.Row="0" Grid.Column="1" Style="{StaticResource ValueBorder}" Background="#42A5F5"><TextBlock Text="{Binding ReleaseStatus}" Style="{StaticResource ValueText}" Foreground="White" /></Border>
+                                <Border Grid.Row="0" Grid.Column="1" Style="{StaticResource ValueBorder}" Background="{StaticResource Orange500}"><TextBlock Text="{Binding ReleaseStatus}" Style="{StaticResource ValueText}" Foreground="White" /></Border>
                                 
                                 <Border Grid.Row="1" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBlock Text="VehicleNo" Style="{StaticResource LabelText}"/></Border>
                                 <Border Grid.Row="1" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBlock Text="{Binding VehicleNo}" Style="{StaticResource ValueText}"/></Border>

@@ -4,65 +4,128 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="clr-namespace:VRASDesktopApp.Confirmations"
     Title="Confirmations Manager"
-    Background="#F4F4F4"
+    Background="{StaticResource Gray50}"
     FontFamily="Segoe UI">
-    <Grid Margin="16">
+    <Grid Margin="20">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <TextBlock Text="Confirmed Vehicles"
-                   FontSize="20" FontWeight="Bold"
-                   Margin="0,0,0,16" />
+        <!-- Page Header Card -->
+        <Border Grid.Row="0" Style="{StaticResource DashboardCard}" Margin="0,0,0,16">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="220" />
+                </Grid.ColumnDefinitions>
 
-        <Grid Grid.Row="1" Margin="0,0,0,8">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="250" />
-            </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,16,0">
+                    <TextBlock Text="CONFIRMED VEHICLES" Style="{StaticResource Heading4}" />
+                    <TextBlock Text="Browse and filter all confirmed vehicle records."
+                               Margin="0,4,0,0" Style="{StaticResource Caption}" />
+                </StackPanel>
 
-            <DatePicker x:Name="dpFrom" Width="120" Height="28" Margin="0,0,8,0" />
-            <DatePicker x:Name="dpTo" Grid.Column="1" Width="120" Height="28" Margin="0,0,8,0" />
+                <DatePicker x:Name="dpFrom" Grid.Column="1" Width="130" Height="36"
+                            Margin="0,0,8,0" VerticalAlignment="Center"
+                            BorderBrush="{StaticResource Gray300}" />
+                <DatePicker x:Name="dpTo" Grid.Column="2" Width="130" Height="36"
+                            Margin="0,0,8,0" VerticalAlignment="Center"
+                            BorderBrush="{StaticResource Gray300}" />
 
-            <Button Grid.Column="2" x:Name="btnRefresh" Width="30" Height="28" Margin="0,0,8,0" Background="White" BorderBrush="#CCC" Click="btnRefresh_Click">
-                <TextBlock Text="↻" FontSize="16" />
-            </Button>
+                <Button Grid.Column="3" x:Name="btnRefresh" Width="36" Height="36"
+                        Margin="0,0,8,0" VerticalAlignment="Center"
+                        Background="{StaticResource Gray100}"
+                        BorderBrush="{StaticResource Gray300}" BorderThickness="1"
+                        Cursor="Hand" Click="btnRefresh_Click" ToolTip="Refresh">
+                    <TextBlock Text="↻" FontSize="18" Foreground="{StaticResource Gray700}"
+                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Button>
 
-            <Button Grid.Column="3" x:Name="btnExport" Width="30" Height="28" Margin="0,0,8,0" Background="White" BorderBrush="#CCC" Click="btnExport_Click">
-                <TextBlock Text="📄" FontSize="14" />
-            </Button>
+                <Button Grid.Column="4" x:Name="btnExport" Width="36" Height="36"
+                        Margin="0,0,8,0" VerticalAlignment="Center"
+                        Background="{StaticResource Orange500}"
+                        BorderThickness="0" Cursor="Hand" Click="btnExport_Click" ToolTip="Export to Excel">
+                    <TextBlock Text="↓" FontSize="16" FontWeight="Bold" Foreground="White"
+                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Button>
 
-            <TextBox x:Name="txtSearch" Grid.Column="5" Height="28" Padding="4" TextChanged="txtSearch_TextChanged" VerticalContentAlignment="Center" />
-            <TextBlock Grid.Column="5" Text="Filter Vehicle no, chassis no" Foreground="Gray" Margin="8,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False" Visibility="Visible" x:Name="lblSearchWatermark" />
-        </Grid>
+                <Grid Grid.Column="5" VerticalAlignment="Center">
+                    <TextBox x:Name="txtSearch" Height="36" Padding="10,0" FontSize="13"
+                             TextChanged="txtSearch_TextChanged" VerticalContentAlignment="Center"
+                             BorderBrush="{StaticResource Gray300}" BorderThickness="1"
+                             Background="White" />
+                    <TextBlock x:Name="lblSearchWatermark" Text="Filter by VRN, chassis..."
+                               Foreground="{StaticResource Gray400}" Margin="12,0,0,0"
+                               VerticalAlignment="Center" IsHitTestVisible="False" FontSize="12" />
+                </Grid>
+            </Grid>
+        </Border>
 
+        <!-- Data Grid -->
         <DataGrid Name="dgConfirmations" Grid.Row="2"
                   AutoGenerateColumns="False" Background="White"
-                  BorderBrush="#CCC" BorderThickness="1"
-                  HeadersVisibility="Column" RowBackground="#F9F9F9" AlternatingRowBackground="White"
-                  GridLinesVisibility="All" HorizontalGridLinesBrush="#E0E0E0" VerticalGridLinesBrush="#E0E0E0">
+                  BorderBrush="{StaticResource Gray200}" BorderThickness="1"
+                  HeadersVisibility="Column"
+                  RowBackground="White" AlternatingRowBackground="{StaticResource Gray50}"
+                  GridLinesVisibility="Horizontal"
+                  HorizontalGridLinesBrush="{StaticResource Gray200}"
+                  RowHeight="36" IsReadOnly="True"
+                  SelectionMode="Single" CanUserReorderColumns="False"
+                  CanUserResizeRows="False">
             <DataGrid.ColumnHeaderStyle>
                 <Style TargetType="DataGridColumnHeader">
-                    <Setter Property="Background" Value="#F0F0F0" />
-                    <Setter Property="BorderBrush" Value="#E0E0E0" />
+                    <Setter Property="Background" Value="{StaticResource Gray100}" />
+                    <Setter Property="BorderBrush" Value="{StaticResource Gray200}" />
                     <Setter Property="BorderThickness" Value="0,0,1,1" />
-                    <Setter Property="Padding" Value="8,4" />
+                    <Setter Property="Padding" Value="10,6" />
                     <Setter Property="FontWeight" Value="SemiBold" />
+                    <Setter Property="FontSize" Value="12" />
+                    <Setter Property="Foreground" Value="{StaticResource Gray700}" />
                 </Style>
             </DataGrid.ColumnHeaderStyle>
+            <DataGrid.RowStyle>
+                <Style TargetType="DataGridRow">
+                    <Style.Triggers>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter Property="Background" Value="{StaticResource Primary50}" />
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter Property="Background" Value="{StaticResource Gray100}" />
+                        </Trigger>
+                    </Style.Triggers>
+                </Style>
+            </DataGrid.RowStyle>
+            <DataGrid.CellStyle>
+                <Style TargetType="DataGridCell">
+                    <Setter Property="Padding" Value="10,4" />
+                    <Setter Property="BorderThickness" Value="0" />
+                    <Setter Property="FontSize" Value="13" />
+                    <Setter Property="Foreground" Value="{StaticResource Gray800}" />
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="DataGridCell">
+                                <Border Padding="{TemplateBinding Padding}"
+                                        Background="{TemplateBinding Background}">
+                                    <ContentPresenter VerticalAlignment="Center" />
+                                </Border>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Style>
+            </DataGrid.CellStyle>
             <DataGrid.Columns>
-                <DataGridTextColumn Header="VRN" Binding="{Binding VehicleNo}" Width="120" />
-                <DataGridTextColumn Header="VIN/CHASSIS" Binding="{Binding ChassisNo}" Width="150" />
+                <DataGridTextColumn Header="VRN" Binding="{Binding VehicleNo}" Width="130" />
+                <DataGridTextColumn Header="VIN / CHASSIS" Binding="{Binding ChassisNo}" Width="160" />
                 <DataGridTextColumn Header="Model" Binding="{Binding Model}" Width="200" />
-                <DataGridTextColumn Header="Seizer Full name" Binding="{Binding SeizerName}" Width="150" />
-                <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="100" />
-                <DataGridTextColumn Header="Confirmed On" Binding="{Binding ConfirmedOn}" Width="120" />
+                <DataGridTextColumn Header="Seizer Name" Binding="{Binding SeizerName}" Width="160" />
+                <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="110" />
+                <DataGridTextColumn Header="Confirmed On" Binding="{Binding ConfirmedOn}" Width="*" />
             </DataGrid.Columns>
         </DataGrid>
     </Grid>
