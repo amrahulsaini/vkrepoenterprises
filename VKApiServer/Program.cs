@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.IO.Compression;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.FileProviders;
 using MySqlConnector;
 using VKApiServer;
 using VKApiServer.Models;
@@ -1919,6 +1920,19 @@ app.Map("/api/mobile/{**rest}", async (HttpContext ctx) =>
 
     await resp.Content.CopyToAsync(ctx.Response.Body);
 });
+
+// ── Client download page ─────────────────────────────────────────────────────
+// Place VKEnterprises_Setup.exe in /opt/vkapi/downloads/ after building it.
+// Clients visit: https://<your-domain>/download
+var downloadsPath = Path.Combine(app.Environment.ContentRootPath, "downloads");
+Directory.CreateDirectory(downloadsPath);
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(downloadsPath),
+    RequestPath  = "/downloads",
+    ServeUnknownFileTypes = true
+});
+app.MapGet("/download", () => Results.Redirect("/downloads/index.html"));
 
 app.Run($"http://localhost:{port}");
 

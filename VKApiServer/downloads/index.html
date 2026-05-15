@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VK Enterprises — Download Desktop App</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --orange: #FF9800;
+      --orange-dark: #F57C00;
+      --bg: #111111;
+      --surface: #1C1C1C;
+      --surface2: #252525;
+      --border: #2E2E2E;
+      --text: #F0F0F0;
+      --text-muted: #888888;
+      --green: #43A047;
+      --radius: 10px;
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    /* ── Top nav ── */
+    header {
+      width: 100%;
+      background: #0D0D0D;
+      border-bottom: 1px solid var(--border);
+      padding: 0 32px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    header .logo-text { display: flex; align-items: baseline; gap: 5px; }
+    header .vk   { font-size: 18px; font-weight: 800; color: var(--orange); letter-spacing: 1px; }
+    header .ent  { font-size: 12px; font-weight: 600; color: var(--text-muted); letter-spacing: 2px; text-transform: uppercase; }
+    header .sep  { margin-left: auto; color: var(--border); }
+    header .tag  { font-size: 12px; color: var(--text-muted); }
+
+    /* ── Hero ── */
+    .hero {
+      width: 100%;
+      max-width: 760px;
+      padding: 72px 24px 48px;
+      text-align: center;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #1E1500;
+      border: 1px solid #4A3000;
+      color: var(--orange);
+      font-size: 12px;
+      font-weight: 700;
+      padding: 5px 14px;
+      border-radius: 99px;
+      letter-spacing: 1px;
+      margin-bottom: 28px;
+    }
+    .badge::before { content: '●'; font-size: 8px; }
+    h1 {
+      font-size: 42px;
+      font-weight: 800;
+      color: #FFFFFF;
+      line-height: 1.15;
+      margin-bottom: 16px;
+    }
+    h1 span { color: var(--orange); }
+    .subtitle {
+      font-size: 17px;
+      color: var(--text-muted);
+      line-height: 1.6;
+      max-width: 540px;
+      margin: 0 auto 40px;
+    }
+
+    /* ── Download button ── */
+    .dl-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--orange);
+      color: #000;
+      font-size: 16px;
+      font-weight: 700;
+      padding: 16px 36px;
+      border-radius: var(--radius);
+      text-decoration: none;
+      transition: background 0.15s, transform 0.1s;
+      border: none;
+      cursor: pointer;
+      letter-spacing: 0.3px;
+    }
+    .dl-btn:hover { background: var(--orange-dark); transform: translateY(-1px); }
+    .dl-btn:active { transform: translateY(0); }
+    .dl-btn svg { flex-shrink: 0; }
+    .dl-meta {
+      margin-top: 14px;
+      font-size: 13px;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+    }
+    .dl-meta span { display: flex; align-items: center; gap: 5px; }
+
+    /* ── Info cards ── */
+    .cards {
+      width: 100%;
+      max-width: 760px;
+      padding: 0 24px 32px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+    }
+    .card .icon { font-size: 22px; margin-bottom: 10px; }
+    .card h3 { font-size: 13px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+    .card p  { font-size: 14px; color: var(--text); line-height: 1.5; }
+
+    /* ── Steps ── */
+    .steps-wrap {
+      width: 100%;
+      max-width: 760px;
+      padding: 0 24px 64px;
+    }
+    .steps-wrap h2 { font-size: 18px; font-weight: 700; color: var(--text); margin-bottom: 20px; }
+    .steps { display: flex; flex-direction: column; gap: 0; }
+    .step {
+      display: flex;
+      gap: 18px;
+      position: relative;
+    }
+    .step:not(:last-child)::before {
+      content: '';
+      position: absolute;
+      left: 16px;
+      top: 36px;
+      bottom: -4px;
+      width: 2px;
+      background: var(--border);
+    }
+    .step-num {
+      flex-shrink: 0;
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: var(--surface2);
+      border: 2px solid var(--orange);
+      color: var(--orange);
+      font-size: 14px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .step-body { padding-bottom: 28px; }
+    .step-body h4 { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 4px; line-height: 34px; }
+    .step-body p  { font-size: 14px; color: var(--text-muted); line-height: 1.5; }
+    .step-body code {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 2px 7px;
+      font-size: 13px;
+      color: var(--orange);
+      font-family: 'Consolas', monospace;
+    }
+
+    /* ── Footer ── */
+    footer {
+      width: 100%;
+      border-top: 1px solid var(--border);
+      padding: 24px 32px;
+      text-align: center;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    @media (max-width: 600px) {
+      h1 { font-size: 30px; }
+      .cards { grid-template-columns: 1fr; }
+      .dl-btn { width: 100%; justify-content: center; }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="logo-text">
+      <span class="vk">VK</span>
+      <span class="ent">Enterprises</span>
+    </div>
+    <span class="tag" style="margin-left:auto;">Desktop App &nbsp;·&nbsp; Windows</span>
+  </header>
+
+  <section class="hero">
+    <div class="badge">WINDOWS DESKTOP</div>
+    <h1>VK Enterprises<br><span>Recovery System</span></h1>
+    <p class="subtitle">
+      Manage vehicles, finances, agents and confirmations from your desktop.
+      One-click installer — no setup required.
+    </p>
+
+    <a class="dl-btn" href="VKEnterprises_Setup.exe" download>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+      </svg>
+      Download for Windows
+    </a>
+
+    <div class="dl-meta">
+      <span>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+        Windows 10 / 11
+      </span>
+      <span>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        64-bit only
+      </span>
+      <span>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        Latest version
+      </span>
+    </div>
+  </section>
+
+  <section class="cards">
+    <div class="card">
+      <div class="icon">🔍</div>
+      <h3>Find Vehicles</h3>
+      <p>Search live vehicle records by RC number or chassis number across all branches.</p>
+    </div>
+    <div class="card">
+      <div class="icon">👥</div>
+      <h3>Manage Users</h3>
+      <p>Control mobile agent access, subscriptions, device binding and restrictions.</p>
+    </div>
+    <div class="card">
+      <div class="icon">📊</div>
+      <h3>Reports & Export</h3>
+      <p>Export confirmations, finances and search logs to Excel or PDF instantly.</p>
+    </div>
+  </section>
+
+  <section class="steps-wrap">
+    <h2>How to install</h2>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <h4>Download the installer</h4>
+          <p>Click the button above to download <code>VKEnterprises_Setup.exe</code> to your computer.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <h4>Run as Administrator</h4>
+          <p>Right-click the downloaded file → <strong style="color:#F0F0F0">Run as administrator</strong>. Click <em>Yes</em> on the Windows prompt.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <h4>Follow the installer</h4>
+          <p>Click Next → Next → Install. The app will be placed in <code>Program Files</code> and a shortcut added to your Desktop and Start Menu.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <h4>Launch and log in</h4>
+          <p>Open <strong style="color:#F0F0F0">VK Enterprises</strong> from your Desktop. Enter your mobile number and the password provided by your admin.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    &copy; 2025 VK Enterprises &nbsp;·&nbsp; For internal use only &nbsp;·&nbsp; Contact your administrator for access credentials
+  </footer>
+
+</body>
+</html>
