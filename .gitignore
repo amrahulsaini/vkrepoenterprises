@@ -41,3 +41,6 @@ android/local.properties
 android/**/*.apk
 android/**/*.aab
 
+# WPF dotnet publish output (raw runtime — use installer-output/ for distribution)
+VKdesktopapp/publish-output/
+

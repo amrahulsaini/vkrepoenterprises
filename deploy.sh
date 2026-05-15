@@ -35,15 +35,15 @@ dotnet publish -c Release -o "$VKAPI_OUT" --nologo -v quiet
 cp /home/vkapp/db/.env.local "$VKAPI_OUT/db/.env.local" 2>/dev/null || true
 info "VKApiServer built → $VKAPI_OUT"
 
-# Preserve the downloads folder across deploys (installer + index.html live here)
+# Sync download page + installer from repo to the served downloads folder
 mkdir -p "$VKAPI_OUT/downloads"
-if [ -f "$VKAPI_OUT/downloads/index.html" ]; then
-    # Keep existing installer if present; only update the HTML page
-    cp "$VKAPI_SRC/downloads/index.html" "$VKAPI_OUT/downloads/index.html"
+cp "$VKAPI_SRC/downloads/index.html" "$VKAPI_OUT/downloads/index.html"
+if [ -f "$REPO_DIR/installer-output/VKEnterprises_Setup.exe" ]; then
+    cp "$REPO_DIR/installer-output/VKEnterprises_Setup.exe" "$VKAPI_OUT/downloads/VKEnterprises_Setup.exe"
+    info "Installer deployed → $VKAPI_OUT/downloads/VKEnterprises_Setup.exe"
 else
-    cp -r "$VKAPI_SRC/downloads/." "$VKAPI_OUT/downloads/"
+    info "No installer found in installer-output/ — skipping (download page still served)"
 fi
-info "Download page ready → $VKAPI_OUT/downloads"
 
 section "Restarting vkapi service"
 systemctl restart vkapi
