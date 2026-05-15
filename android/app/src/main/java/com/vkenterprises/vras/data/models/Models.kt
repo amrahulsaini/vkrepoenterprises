@@ -136,6 +136,11 @@ data class HeartbeatResponse(
     val isBlacklisted: Boolean
 )
 
+data class UserStatusResponse(
+    val isStopped: Boolean,
+    val isBlacklisted: Boolean
+)
+
 data class LiveUser(
     val id: Long,
     val name: String,

@@ -154,7 +154,16 @@ fun HomeScreen(
         }
     }
 
-    // Heartbeat detected stop/blacklist — kick the user out immediately
+    // Foreground status poll: every 15 s while HomeScreen is visible
+    LaunchedEffect(userId) {
+        if (userId <= 0) return@LaunchedEffect
+        while (true) {
+            kotlinx.coroutines.delay(15_000)
+            authVm.checkStatus(userId)
+        }
+    }
+
+    // React to stop/blacklist set by either foreground poll or background heartbeat
     LaunchedEffect(blockedReason) {
         val reason = blockedReason ?: return@LaunchedEffect
         authVm.clearBlockedReason()
