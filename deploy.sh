@@ -42,10 +42,9 @@ if [ -f "$REPO_DIR/installer-output/VKEnterprises_Setup.exe" ]; then
     cp "$REPO_DIR/installer-output/VKEnterprises_Setup.exe" "$VKAPI_OUT/downloads/VKEnterprises_Setup.exe"
     info "Installer copied → $VKAPI_OUT/downloads/VKEnterprises_Setup.exe"
 fi
-VKAPI_USER=$(systemctl show vkapi --property=User --value 2>/dev/null || echo "")
-[ -n "$VKAPI_USER" ] && chown -R "$VKAPI_USER:$VKAPI_USER" "$VKAPI_OUT/downloads" || \
-    chmod -R 755 "$VKAPI_OUT/downloads"
-info "Download folder permissions set"
+chmod 755 "$VKAPI_OUT/downloads"
+find "$VKAPI_OUT/downloads" -type f -exec chmod 644 {} \;
+info "Download folder permissions set (world-readable for LiteSpeed)"
 
 section "Restarting vkapi service"
 systemctl restart vkapi
