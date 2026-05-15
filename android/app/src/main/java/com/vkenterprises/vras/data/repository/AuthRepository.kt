@@ -22,7 +22,7 @@ class AuthRepository {
         val resp = api.login(request)
         when {
             resp.isSuccessful && resp.body() != null -> AuthResult.Success(resp.body()!!)
-            resp.code() == 403 -> {
+            resp.code() == 400 || resp.code() == 403 -> {
                 val body = resp.errorBody()?.string() ?: ""
                 val reason = when {
                     body.contains("app_stopped")     -> "app_stopped"
