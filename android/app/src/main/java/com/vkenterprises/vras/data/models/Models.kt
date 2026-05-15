@@ -130,6 +130,12 @@ data class HeartbeatRequest(
     val lng: Double?
 )
 
+data class HeartbeatResponse(
+    val success: Boolean,
+    val isStopped: Boolean,
+    val isBlacklisted: Boolean
+)
+
 data class LiveUser(
     val id: Long,
     val name: String,

@@ -48,11 +48,12 @@ fun HomeScreen(
     authVm: AuthViewModel,
     nav: NavController
 ) {
-    val ui       by searchVm.ui.collectAsState()
-    val userId   by authVm.userId.collectAsState(initial = -1L)
-    val userName by authVm.userName.collectAsState(initial = "")
-    val isAdmin  by authVm.isAdmin.collectAsState(initial = false)
-    val context  = LocalContext.current
+    val ui            by searchVm.ui.collectAsState()
+    val userId        by authVm.userId.collectAsState(initial = -1L)
+    val userName      by authVm.userName.collectAsState(initial = "")
+    val isAdmin       by authVm.isAdmin.collectAsState(initial = false)
+    val blockedReason by authVm.blockedReason.collectAsState(initial = null)
+    val context       = LocalContext.current
 
     // Ask for location permission so the worker can send GPS heartbeats
     // ── Location gate ─────────────────────────────────────────────────────────
@@ -150,6 +151,16 @@ fun HomeScreen(
             nav.navigate(Screen.Blacklisted.route) {
                 popUpTo(Screen.Home.route) { inclusive = true }
             }
+        }
+    }
+
+    // Heartbeat detected stop/blacklist — kick the user out immediately
+    LaunchedEffect(blockedReason) {
+        val reason = blockedReason ?: return@LaunchedEffect
+        authVm.clearBlockedReason()
+        when (reason) {
+            "app_stopped" -> nav.navigate(Screen.AppStopped.route)  { popUpTo(Screen.Home.route) { inclusive = true } }
+            "blacklisted" -> nav.navigate(Screen.Blacklisted.route) { popUpTo(Screen.Home.route) { inclusive = true } }
         }
     }
 

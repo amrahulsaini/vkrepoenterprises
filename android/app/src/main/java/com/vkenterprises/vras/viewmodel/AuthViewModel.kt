@@ -43,12 +43,15 @@ class AuthViewModel @Inject constructor(
     private val _state = MutableStateFlow<AuthUiState>(AuthUiState.Idle)
     val state: StateFlow<AuthUiState> = _state.asStateFlow()
 
-    val isLoggedIn  = prefs.isLoggedIn
-    val userId      = prefs.userId
-    val userName    = prefs.userName
-    val userMobile  = prefs.userMobile
-    val isAdmin     = prefs.isAdmin
-    val pfpBase64   = prefs.pfpBase64
+    val isLoggedIn    = prefs.isLoggedIn
+    val userId        = prefs.userId
+    val userName      = prefs.userName
+    val userMobile    = prefs.userMobile
+    val isAdmin       = prefs.isAdmin
+    val pfpBase64     = prefs.pfpBase64
+    val blockedReason = prefs.blockedReason
+
+    fun clearBlockedReason() = viewModelScope.launch { prefs.clearBlockedReason() }
 
     init {
         viewModelScope.launch {
