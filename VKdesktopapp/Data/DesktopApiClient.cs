@@ -544,6 +544,52 @@ internal static class DesktopApiClient
         return (await resp.Content.ReadFromJsonAsync<ExportPage<ExportVehicleRow>>(_json))!;
     }
 
+    // ── Per-branch / per-finance record export (Finances page Excel download) ────
+
+    internal static async Task<ExportPage<ExportVehicleRow>> ExportBranchRecordsPageAsync(
+        int branchId, int page, int size = 5000)
+    {
+        var resp = await Send(HttpMethod.Get,
+            $"api/mgr/export/branch-records?branchId={branchId}&page={page}&size={size}");
+        resp.EnsureSuccessStatusCode();
+        return (await resp.Content.ReadFromJsonAsync<ExportPage<ExportVehicleRow>>(_json))!;
+    }
+
+    internal static async Task<ExportPage<ExportVehicleRow>> ExportFinanceRecordsPageAsync(
+        int financeId, int page, int size = 5000)
+    {
+        var resp = await Send(HttpMethod.Get,
+            $"api/mgr/export/finance-records?financeId={financeId}&page={page}&size={size}");
+        resp.EnsureSuccessStatusCode();
+        return (await resp.Content.ReadFromJsonAsync<ExportPage<ExportVehicleRow>>(_json))!;
+    }
+
+    // Loops all pages and returns the full record set for one branch.
+    internal static async Task<List<ExportVehicleRow>> ExportBranchRecordsAsync(int branchId)
+    {
+        var all = new List<ExportVehicleRow>();
+        for (int page = 0; ; page++)
+        {
+            var p = await ExportBranchRecordsPageAsync(branchId, page);
+            all.AddRange(p.Rows);
+            if (!p.HasMore || p.Rows.Count == 0) break;
+        }
+        return all;
+    }
+
+    // Loops all pages and returns the full record set for one finance.
+    internal static async Task<List<ExportVehicleRow>> ExportFinanceRecordsAsync(int financeId)
+    {
+        var all = new List<ExportVehicleRow>();
+        for (int page = 0; ; page++)
+        {
+            var p = await ExportFinanceRecordsPageAsync(financeId, page);
+            all.AddRange(p.Rows);
+            if (!p.HasMore || p.Rows.Count == 0) break;
+        }
+        return all;
+    }
+
     // ── HTTP helper ─────────────────────────────────────────────────────────
 
     private static Task<HttpResponseMessage> Send(
