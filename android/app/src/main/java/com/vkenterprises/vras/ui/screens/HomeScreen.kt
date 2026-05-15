@@ -48,12 +48,12 @@ fun HomeScreen(
     authVm: AuthViewModel,
     nav: NavController
 ) {
-    val ui            by searchVm.ui.collectAsState()
-    val userId        by authVm.userId.collectAsState(initial = -1L)
-    val userName      by authVm.userName.collectAsState(initial = "")
-    val isAdmin       by authVm.isAdmin.collectAsState(initial = false)
-    val blockedReason by authVm.blockedReason.collectAsState(initial = null)
-    val context       = LocalContext.current
+    val ui         by searchVm.ui.collectAsState()
+    val userId     by authVm.userId.collectAsState(initial = -1L)
+    val userName   by authVm.userName.collectAsState(initial = "")
+    val isAdmin    by authVm.isAdmin.collectAsState(initial = false)
+    val kickReason by authVm.kickReason.collectAsState()
+    val context    = LocalContext.current
 
     // Ask for location permission so the worker can send GPS heartbeats
     // ── Location gate ─────────────────────────────────────────────────────────
@@ -154,19 +154,14 @@ fun HomeScreen(
         }
     }
 
-    // Foreground status poll: every 15 s while HomeScreen is visible
+    // Start foreground status polling (every 10 s via viewModelScope)
     LaunchedEffect(userId) {
-        if (userId <= 0) return@LaunchedEffect
-        while (true) {
-            kotlinx.coroutines.delay(15_000)
-            authVm.checkStatus(userId)
-        }
+        if (userId > 0) authVm.startStatusPolling(userId)
     }
 
-    // React to stop/blacklist set by either foreground poll or background heartbeat
-    LaunchedEffect(blockedReason) {
-        val reason = blockedReason ?: return@LaunchedEffect
-        authVm.clearBlockedReason()
+    // Instant reaction to stop/blacklist detected by polling
+    LaunchedEffect(kickReason) {
+        val reason = kickReason ?: return@LaunchedEffect
         when (reason) {
             "app_stopped" -> nav.navigate(Screen.AppStopped.route)  { popUpTo(Screen.Home.route) { inclusive = true } }
             "blacklisted" -> nav.navigate(Screen.Blacklisted.route) { popUpTo(Screen.Home.route) { inclusive = true } }
