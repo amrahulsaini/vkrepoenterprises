@@ -47,6 +47,10 @@ chmod 755 "$DOCROOT_DOWNLOADS"
 find "$DOCROOT_DOWNLOADS" -type f -exec chmod 644 {} \;
 # LiteSpeed (nobody) needs traverse permission on every parent in the chain
 chmod o+x /home/characterverse.tech /home/characterverse.tech/api.characterverse.tech 2>/dev/null || true
+# CyberPanel-OLS enforces strict ownership — files must be owned by the
+# domain user (auto-detected from the parent docRoot), not root.
+DOMAIN_OWNER=$(stat -c '%U:%G' /home/characterverse.tech/api.characterverse.tech 2>/dev/null)
+[ -n "$DOMAIN_OWNER" ] && chown -R "$DOMAIN_OWNER" "$DOCROOT_DOWNLOADS" || true
 info "Download folder ready → https://api.characterverse.tech/downloads/"
 
 section "Restarting vkapi service"
