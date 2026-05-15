@@ -1,0 +1,7 @@
+# Force LF line endings on shell scripts so Linux servers don't see them
+# as "modified" after a fresh git pull on Windows-edited commits.
+*.sh         text eol=lf
+*.bash       text eol=lf
+
+# Linux service / config files
+deploy.sh    text eol=lf
