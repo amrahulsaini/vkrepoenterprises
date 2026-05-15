@@ -45,6 +45,8 @@ if [ -f "$REPO_DIR/installer-output/VKEnterprises_Setup.exe" ]; then
 fi
 chmod 755 "$DOCROOT_DOWNLOADS"
 find "$DOCROOT_DOWNLOADS" -type f -exec chmod 644 {} \;
+# LiteSpeed (nobody) needs traverse permission on every parent in the chain
+chmod o+x /home/characterverse.tech /home/characterverse.tech/api.characterverse.tech 2>/dev/null || true
 info "Download folder ready → https://api.characterverse.tech/downloads/"
 
 section "Restarting vkapi service"
