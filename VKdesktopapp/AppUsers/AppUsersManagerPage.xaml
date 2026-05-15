@@ -157,8 +157,8 @@
 
         <!-- Danger ghost button -->
         <Style x:Key="DangerGhostButton" TargetType="Button" BasedOn="{StaticResource GhostButton}">
-            <Setter Property="Foreground" Value="#C0392B" />
-            <Setter Property="BorderBrush" Value="#FFCDC3C3" />
+            <Setter Property="Foreground" Value="{StaticResource Red500}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Gray200}" />
         </Style>
 
         <!-- Subscription row style -->
@@ -635,7 +635,7 @@
                                       ContextMenuOpening="dgSubscriptions_ContextMenuOpening">
                                 <DataGrid.ContextMenu>
                                     <ContextMenu>
-                                        <MenuItem Header="Delete Plan" Foreground="#C0392B"
+                                        <MenuItem Header="Delete Plan" Foreground="{StaticResource Red500}"
                                                   Click="SubDelete_Click" />
                                     </ContextMenu>
                                 </DataGrid.ContextMenu>
