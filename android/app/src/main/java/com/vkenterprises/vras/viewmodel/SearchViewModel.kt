@@ -31,6 +31,8 @@ data class SearchUiState(
     val isSyncing: Boolean            = false,
     val syncCurrent: Long             = 0L,
     val syncTotal: Long               = 0L,
+    val syncHasUpdates: Boolean       = false,
+    val syncCompleted: Boolean        = false,
     val onlineOnly: Boolean           = false,
     val twoColumnView: Boolean        = true,
     val actionType: String            = "confirm"
@@ -53,13 +55,17 @@ class SearchViewModel @Inject constructor(
     val requiredLen get() = if (_ui.value.mode == SearchMode.RC) 4 else 5
 
     init {
-        // Poll every 60s while the ViewModel is alive (app open or in recent apps).
-        // sync() is cheap when nothing changed — just one API call to compare branch
-        // timestamps. Downloads only happen when uploadedAt or record count differs.
+        // On launch: check if server has updates to light up the button immediately
+        viewModelScope.launch(Dispatchers.IO) {
+            val hasUpdates = runCatching { syncRepo.hasUpdates() }.getOrDefault(false)
+            _ui.update { it.copy(syncHasUpdates = hasUpdates) }
+        }
+        // Poll every 60s — cheap timestamp comparison, downloads only when needed
         viewModelScope.launch(Dispatchers.IO) {
             while (true) {
-                triggerSync()
                 kotlinx.coroutines.delay(60_000L)
+                val hasUpdates = runCatching { syncRepo.hasUpdates() }.getOrDefault(false)
+                _ui.update { it.copy(syncHasUpdates = hasUpdates) }
             }
         }
     }
@@ -67,10 +73,13 @@ class SearchViewModel @Inject constructor(
     fun triggerSync() {
         if (syncJob?.isActive == true) return
         syncJob = viewModelScope.launch(Dispatchers.IO) {
+            _ui.update { it.copy(syncCompleted = false) }
+            var success = false
             runCatching {
                 syncRepo.sync { p -> handleProgress(p) }
+                success = true
             }
-            _ui.update { it.copy(isSyncing = false) }
+            _ui.update { it.copy(isSyncing = false, syncCompleted = success, syncHasUpdates = false) }
         }
     }
 
