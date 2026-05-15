@@ -53,6 +53,17 @@ DOMAIN_OWNER=$(stat -c '%U:%G' /home/characterverse.tech/api.characterverse.tech
 [ -n "$DOMAIN_OWNER" ] && chown -R "$DOMAIN_OWNER" "$DOCROOT_DOWNLOADS" || true
 info "Download folder ready → https://api.characterverse.tech/downloads/"
 
+# Sync /public/ assets (map HTML + Leaflet) — desktop app fetches these
+# at runtime so map fixes ship to all clients without a re-install.
+DOCROOT_PUBLIC="/home/characterverse.tech/api.characterverse.tech/public"
+rm -rf "$DOCROOT_PUBLIC"
+mkdir -p "$DOCROOT_PUBLIC"
+cp -r "$VKAPI_SRC/public/." "$DOCROOT_PUBLIC/"
+find "$DOCROOT_PUBLIC" -type d -exec chmod 755 {} \;
+find "$DOCROOT_PUBLIC" -type f -exec chmod 644 {} \;
+[ -n "$DOMAIN_OWNER" ] && chown -R "$DOMAIN_OWNER" "$DOCROOT_PUBLIC" || true
+info "Public assets ready → https://api.characterverse.tech/public/"
+
 section "Restarting vkapi service"
 systemctl restart vkapi
 sleep 2
