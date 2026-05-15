@@ -46,6 +46,9 @@ interface ApiService {
     @GET("api/mobile/stats")
     suspend fun getStats(): Response<StatsResponse>
 
+    @GET("api/mobile/me/status")
+    suspend fun getMyStatus(@Header("X-User-Id") userId: Long): Response<UserStatusResponse>
+
     @POST("api/mobile/heartbeat")
     suspend fun heartbeat(@Body request: HeartbeatRequest): Response<HeartbeatResponse>
 

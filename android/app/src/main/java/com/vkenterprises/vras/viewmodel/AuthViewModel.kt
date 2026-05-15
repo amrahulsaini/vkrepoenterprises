@@ -53,6 +53,19 @@ class AuthViewModel @Inject constructor(
 
     fun clearBlockedReason() = viewModelScope.launch { prefs.clearBlockedReason() }
 
+    suspend fun checkStatus(userId: Long) {
+        runCatching {
+            val resp = ApiClient.api.getMyStatus(userId)
+            if (resp.isSuccessful) {
+                val body = resp.body() ?: return
+                when {
+                    body.isBlacklisted -> prefs.setBlockedReason("blacklisted")
+                    body.isStopped     -> prefs.setBlockedReason("app_stopped")
+                }
+            }
+        }
+    }
+
     init {
         viewModelScope.launch {
             prefs.subscriptionEnd.collect { subEnd ->

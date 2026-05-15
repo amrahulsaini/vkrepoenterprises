@@ -302,6 +302,21 @@ public class MobileController : ControllerBase
         }
     }
 
+    // GET /api/mobile/me/status  — lightweight foreground poll; no last_seen update
+    [HttpGet("me/status")]
+    public async Task<IActionResult> GetMyStatus([FromHeader(Name = "X-User-Id")] long userId)
+    {
+        try
+        {
+            var status = await _repo.GetUserStatusAsync(userId);
+            return Ok(new { isStopped = status.IsStopped, isBlacklisted = status.IsBlacklisted });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new ApiError(false, $"Status check failed: {ex.Message}"));
+        }
+    }
+
     // POST /api/mobile/heartbeat  — updates last_seen + GPS; returns stopped/blacklisted flags
     [HttpPost("heartbeat")]
     public async Task<IActionResult> Heartbeat([FromBody] HeartbeatRequest req)
