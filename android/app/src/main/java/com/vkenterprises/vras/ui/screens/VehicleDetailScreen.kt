@@ -332,92 +332,63 @@ private fun AdminDetailView(item: SearchResult, results: List<SearchResult>) {
         }
     }
 
-    // ── 1. Vehicle Details ──────────────────────────────────────────────
-    InfoCard("Vehicle Details") {
-        DRow("Vehicle No",       item.vehicleNo, mono = true,
-            invalid = !item.vehicleNo.isNullOrBlank() && !item.vehicleNo.isValidRc())
-        DRow("Chassis No",       item.chassisNo,       mono = true)
-        DRow("Model / Make",     item.model)
-        DRow("Engine No",        item.engineNo,        mono = true)
-        DRow("Agreement No",     item.agreementNo,     mono = true)
-        DRow("Cust. Name",       item.customerName)
-        DRow("Cust. Address",    item.customerAddress)
-        DRow("Cust Contact Nos", item.customerContact)
-    }
+    // Single compact card — all fields, no separate cards = much less scrolling
+    Card(
+        shape    = RoundedCornerShape(12.dp),
+        colors   = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(1.dp),
+        modifier  = Modifier.fillMaxWidth()
+    ) {
+        Column(Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
 
-    // ── 2. Key Numbers ──────────────────────────────────────────────────
-    InfoCard("Key Numbers") {
-        DRow("Bucket",    item.bucket)
-        DRow("GV",        item.gv)
-        DRow("OD",        item.od)
-    }
+            CRow("Vehicle No",    item.vehicleNo, mono = true,
+                invalid = !item.vehicleNo.isNullOrBlank() && !item.vehicleNo.isValidRc())
+            CRow("Chassis No",    item.chassisNo,    mono = true)
+            CRow("Eng No",        item.engineNo,     mono = true)
+            CRow("Agreement No",  item.agreementNo,  mono = true)
+            CRow("Cust Name",     item.customerName)
+            CRow("Cust Address",  item.customerAddress)
+            CRow("Cust Contact",  item.customerContact, mono = true)
 
-    // ── 3. POS / TOSS ───────────────────────────────────────────────────
-    InfoCard("POS / TOSS") {
-        DRow("POS",  item.pos)
-        DRow("TOSS", item.toss)
-    }
+            CSep()
 
-    // ── 4. Branch ───────────────────────────────────────────────────────
-    InfoCard("Branch") {
-        DRow("Branch",        item.branchName)
-        DRow("Branch (xlsx)", item.branchFromExcel)
-    }
+            // Short fields — 3 per row to save space
+            CChipRow("BKT", item.bucket, "OD", item.od, "POS", item.pos)
+            CChipRow("TOS", item.toss,   "TBR", item.tbrFlag, null, null)
 
-    // ── 5. Region & Area ────────────────────────────────────────────────
-    InfoCard("Region & Area") {
-        DRow("Region", item.region)
-        DRow("Area",   item.area)
-    }
+            CSep()
 
-    // ── 6. Level Contacts ───────────────────────────────────────────────
-    InfoCard("Level Contacts") {
-        DRow("Level 1",          item.level1)
-        DRow("Level 1 Contact",  item.level1Contact, mono = true)
-        DRow("Level 2",          item.level2)
-        DRow("Level 2 Contact",  item.level2Contact, mono = true)
-        DRow("Level 3",          item.level3)
-        DRow("Level 3 Contact",  item.level3Contact, mono = true)
-        DRow("Level 4",          item.level4)
-        DRow("Level 4 Contact",  item.level4Contact, mono = true)
-    }
+            CRow("Branch", item.branchFromExcel)
+            CRow("Area",   item.area)
+            CRow("Region", item.region)
 
-    // ── 7. Finance ──────────────────────────────────────────────────────
-    InfoCard("Finance") {
-        DRow("Finance", item.financer)
-        DRow("Address", item.address)
-    }
+            CSep()
 
-    // ── 8. Contacts ─────────────────────────────────────────────────────
-    InfoCard("Contacts") {
-        DRow("Contact 1", item.firstContact, mono = true)
-        DRow("Contact 2", item.secondContact, mono = true)
-        DRow("Contact 3", item.thirdContact,  mono = true)
-    }
+            CRow("Level 1",         item.level1)
+            CRow("Level 1 Contact", item.level1Contact, mono = true)
+            CRow("Level 2",         item.level2)
+            CRow("Level 2 Contact", item.level2Contact, mono = true)
+            CRow("Level 3",         item.level3)
+            CRow("Level 3 Contact", item.level3Contact, mono = true)
+            CRow("Level 4",         item.level4)
+            CRow("Level 4 Contact", item.level4Contact, mono = true)
 
-    // ── 9. Compliance ───────────────────────────────────────────────────
-    InfoCard("Compliance") {
-        DRow("Sec9 Available",  item.sec9)
-        DRow("Sec17 Available", item.sec17)
-        DRow("TBR Flag",        item.tbrFlag)
-        DRow("Seasoning",       item.seasoning)
-    }
+            CSep()
 
-    // ── 10. Executive & Mails ───────────────────────────────────────────
-    InfoCard("Executive & Mails") {
-        DRow("Executive Name", item.executiveName)
-        DRow("Mail Id 1",      item.senderMail1)
-        DRow("Mail Id 2",      item.senderMail2)
-    }
+            CRow("Finance",        item.branchName)
+            CRow("Head Office",    item.financer)
+            CRow("Contact 1",      item.firstContact,  mono = true)
+            CRow("Contact 2",      item.secondContact, mono = true)
+            CRow("Contact 3",      item.thirdContact,  mono = true)
+            CRow("Mail Id 1",      item.senderMail1)
+            CRow("Mail Id 2",      item.senderMail2)
+            CRow("Address",        item.address)
+            CRow("Executive Name", item.executiveName)
 
-    // ── 11. Remark ──────────────────────────────────────────────────────
-    InfoCard("Remark") {
-        DRow("Remark", item.remark)
-    }
+            CSep()
 
-    // ── 12. Meta ────────────────────────────────────────────────────────
-    InfoCard("Uploaded On") {
-        DRow("Uploaded On", item.createdOn)
+            CRow("Uploaded On", item.createdOn)
+        }
     }
 }
 
@@ -593,6 +564,85 @@ private fun openWhatsApp(context: Context, message: String) {
     val intent = Intent(Intent.ACTION_VIEW,
         Uri.parse("https://wa.me/?text=${Uri.encode(message)}"))
     context.startActivity(intent)
+}
+
+// ── Compact row (admin single-card layout) ─────────────────────────────────
+
+@Composable
+private fun CRow(label: String, value: String?, mono: Boolean = false, invalid: Boolean = false) {
+    val display = value.orEmpty()
+    Row(
+        Modifier.fillMaxWidth().padding(vertical = 3.dp),
+        verticalAlignment = Alignment.Top
+    ) {
+        Text(
+            label,
+            style    = MaterialTheme.typography.labelSmall,
+            color    = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.width(110.dp)
+        )
+        Text(
+            display,
+            style      = MaterialTheme.typography.bodySmall,
+            fontWeight = if (display.isBlank()) FontWeight.Normal else FontWeight.Medium,
+            fontFamily = if (mono) FontFamily.Monospace else FontFamily.Default,
+            color      = if (invalid) MaterialTheme.colorScheme.error
+                         else if (display.isBlank()) MaterialTheme.colorScheme.outlineVariant
+                         else MaterialTheme.colorScheme.onSurface,
+            modifier   = Modifier.weight(1f)
+        )
+        if (invalid) {
+            Surface(
+                shape = RoundedCornerShape(4.dp),
+                color = MaterialTheme.colorScheme.errorContainer
+            ) {
+                Text("INVALID",
+                    style    = MaterialTheme.typography.labelSmall,
+                    color    = MaterialTheme.colorScheme.onErrorContainer,
+                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun CSep() {
+    HorizontalDivider(
+        modifier = Modifier.padding(vertical = 6.dp),
+        color    = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+    )
+}
+
+@Composable
+private fun CChipRow(
+    l1: String, v1: String?,
+    l2: String, v2: String?,
+    l3: String?, v3: String?
+) {
+    Row(
+        Modifier.fillMaxWidth().padding(vertical = 3.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        listOf(l1 to v1, l2 to v2, l3 to v3).forEach { (label, value) ->
+            if (label == null) {
+                Spacer(Modifier.weight(1f))
+            } else {
+                val display = value.orEmpty()
+                Column(Modifier.weight(1f)) {
+                    Text(label,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(
+                        display.ifBlank { "—" },
+                        style      = MaterialTheme.typography.bodySmall,
+                        fontWeight = if (display.isBlank()) FontWeight.Normal else FontWeight.SemiBold,
+                        color      = if (display.isBlank()) MaterialTheme.colorScheme.outlineVariant
+                                     else MaterialTheme.colorScheme.onSurface
+                    )
+                }
+            }
+        }
+    }
 }
 
 @Composable
