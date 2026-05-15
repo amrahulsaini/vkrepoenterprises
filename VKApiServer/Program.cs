@@ -1922,17 +1922,19 @@ app.Map("/api/mobile/{**rest}", async (HttpContext ctx) =>
 });
 
 // ── Client download page ─────────────────────────────────────────────────────
-// Place VKEnterprises_Setup.exe in /opt/vkapi/downloads/ after building it.
-// Clients visit: https://<your-domain>/download
+// deploy.sh creates /opt/vkapi/downloads and copies the installer there.
+// Clients visit: https://api.characterverse.tech/download
 var downloadsPath = Path.Combine(app.Environment.ContentRootPath, "downloads");
-Directory.CreateDirectory(downloadsPath);
-app.UseStaticFiles(new StaticFileOptions
+if (Directory.Exists(downloadsPath))
 {
-    FileProvider = new PhysicalFileProvider(downloadsPath),
-    RequestPath  = "/downloads",
-    ServeUnknownFileTypes = true
-});
-app.MapGet("/download", () => Results.Redirect("/downloads/index.html"));
+    app.UseStaticFiles(new StaticFileOptions
+    {
+        FileProvider = new PhysicalFileProvider(downloadsPath),
+        RequestPath  = "/downloads",
+        ServeUnknownFileTypes = true
+    });
+    app.MapGet("/download", () => Results.Redirect("/downloads/index.html"));
+}
 
 app.Run($"http://localhost:{port}");
 
