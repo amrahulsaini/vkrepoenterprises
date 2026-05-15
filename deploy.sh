@@ -52,6 +52,9 @@ dotnet publish -c Release -o "$MOBILE_OUT" --nologo -v quiet
 # Copy env file so VKmobileapi can read MySQL credentials
 mkdir -p "$MOBILE_OUT/db"
 cp /home/vkapp/db/.env.local "$MOBILE_OUT/db/.env.local" 2>/dev/null || true
+# Ensure uploads directory exists and is writable by the service user
+mkdir -p "$MOBILE_OUT/uploads/pfp" "$MOBILE_OUT/uploads/kyc"
+chown -R www-data:www-data "$MOBILE_OUT/uploads"
 info "VKmobileapi built → $MOBILE_OUT"
 
 section "Restarting vkmobileapi service"
