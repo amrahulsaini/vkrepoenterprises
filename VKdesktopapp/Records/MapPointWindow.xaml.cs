@@ -32,16 +32,10 @@ public partial class MapPointWindow : Window
         {
             await mapView.EnsureCoreWebView2Async(null);
 
-            var publicDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "public");
-            if (Directory.Exists(publicDir))
-            {
-                mapView.CoreWebView2.SetVirtualHostNameToFolderMapping(
-                    "vkapp.local", publicDir,
-                    Microsoft.Web.WebView2.Core.CoreWebView2HostResourceAccessKind.Allow);
-
-                var qs = BuildQueryString();
-                mapView.CoreWebView2.Navigate($"http://vkapp.local/map_point.html{qs}");
-            }
+            // Map HTML is server-hosted so fixes don't require an installer update.
+            var baseUrl = App.ApiBaseUrl.TrimEnd('/');
+            var qs = BuildQueryString();
+            mapView.CoreWebView2.Navigate($"{baseUrl}/public/map_point.html{qs}");
         }
         catch { /* WebView2 not installed */ }
     }

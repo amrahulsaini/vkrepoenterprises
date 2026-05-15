@@ -63,18 +63,10 @@ public partial class HomePage : Page
         {
             await mapView.EnsureCoreWebView2Async(null);
 
-            var publicDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "public");
-            if (Directory.Exists(publicDir))
-            {
-                mapView.CoreWebView2.SetVirtualHostNameToFolderMapping(
-                    "vkapp.local", publicDir,
-                    Microsoft.Web.WebView2.Core.CoreWebView2HostResourceAccessKind.Allow);
-                mapView.CoreWebView2.Navigate("http://vkapp.local/map_live.html");
-            }
-            else
-            {
-                mapView.CoreWebView2.NavigateToString(FallbackMapHtml);
-            }
+            // Map HTML is hosted on the server so map fixes don't require an
+            // installer update — clients get the latest version on next launch.
+            var baseUrl = App.ApiBaseUrl.TrimEnd('/');
+            mapView.CoreWebView2.Navigate($"{baseUrl}/public/map_live.html");
 
             // Don't await — polling runs in background so LoadDashboardAsync starts immediately
             _ = PollForMapReadyAsync();
@@ -221,10 +213,4 @@ public partial class HomePage : Page
         }
     }
 
-    // Shown if map_live.html is missing from the output directory
-    private const string FallbackMapHtml =
-        "<!DOCTYPE html><html><head><meta charset=\"utf-8\"/>" +
-        "<style>html,body{width:100%;height:100%;margin:0;display:flex;align-items:center;" +
-        "justify-content:center;background:#f5f5f5;font-family:Segoe UI,sans-serif;color:#888;}</style>" +
-        "</head><body><div>Map file not found — rebuild the project.</div></body></html>";
 }
