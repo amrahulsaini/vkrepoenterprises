@@ -17,6 +17,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -24,6 +25,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.*
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
@@ -195,8 +197,26 @@ fun HomeScreen(
                             Icon(Icons.Default.CardMembership, contentDescription = "Manage Subscriptions")
                         }
                     }
+                    val syncHasUpdates = ui.syncHasUpdates
+                    val syncCompleted  = ui.syncCompleted
+                    val infiniteTransition = rememberInfiniteTransition(label = "syncPulse")
+                    val pulseAlpha by infiniteTransition.animateFloat(
+                        initialValue = 1f, targetValue = 0.3f,
+                        animationSpec = infiniteRepeatable(
+                            animation = tween(600, easing = FastOutSlowInEasing),
+                            repeatMode = RepeatMode.Reverse
+                        ), label = "pulseAlpha"
+                    )
+                    val syncIconTint = when {
+                        ui.isSyncing      -> MaterialTheme.colorScheme.primary
+                        syncHasUpdates    -> Color(0xFFD32F2F).copy(alpha = pulseAlpha)
+                        syncCompleted     -> Color(0xFF388E3C)
+                        else              -> MaterialTheme.colorScheme.onSurface
+                    }
+                    val syncIcon = if (syncCompleted && !syncHasUpdates)
+                        Icons.Default.CheckCircle else Icons.Default.Refresh
                     IconButton(onClick = { searchVm.triggerSync() }) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Sync")
+                        Icon(syncIcon, contentDescription = "Sync", tint = syncIconTint)
                     }
                     IconButton(onClick = { nav.navigate(Screen.Profile.route) }) {
                         if (!pfpUrl.isNullOrBlank()) {
