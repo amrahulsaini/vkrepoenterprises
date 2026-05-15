@@ -35,6 +35,16 @@ dotnet publish -c Release -o "$VKAPI_OUT" --nologo -v quiet
 cp /home/vkapp/db/.env.local "$VKAPI_OUT/db/.env.local" 2>/dev/null || true
 info "VKApiServer built → $VKAPI_OUT"
 
+# Preserve the downloads folder across deploys (installer + index.html live here)
+mkdir -p "$VKAPI_OUT/downloads"
+if [ -f "$VKAPI_OUT/downloads/index.html" ]; then
+    # Keep existing installer if present; only update the HTML page
+    cp "$VKAPI_SRC/downloads/index.html" "$VKAPI_OUT/downloads/index.html"
+else
+    cp -r "$VKAPI_SRC/downloads/." "$VKAPI_OUT/downloads/"
+fi
+info "Download page ready → $VKAPI_OUT/downloads"
+
 section "Restarting vkapi service"
 systemctl restart vkapi
 sleep 2
