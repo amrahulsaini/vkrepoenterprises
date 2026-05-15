@@ -1887,6 +1887,130 @@ app.MapGet("/api/mgr/export/chassis-records", async (HttpContext ctx) =>
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
 
+// Per-branch export — replaces the desktop's old direct-MySQL ExportRepository
+app.MapGet("/api/mgr/export/branch-records", async (HttpContext ctx) =>
+{
+    int branchId = int.TryParse(ctx.Request.Query["branchId"], out var _bid) ? _bid : 0;
+    int page = int.TryParse(ctx.Request.Query["page"], out var _pb) ? _pb : 0;
+    int size = int.TryParse(ctx.Request.Query["size"], out var _sb) ? _sb : 5000;
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    if (branchId <= 0) return Results.BadRequest(new { message = "branchId required" });
+    try
+    {
+        await using var conn = new MySqlConnection(connStr);
+        await conn.OpenAsync();
+        long total;
+        await using (var cntCmd = new MySqlCommand(
+            "SELECT COUNT(*) FROM vehicle_records WHERE branch_id = @bid", conn) { CommandTimeout = 30 })
+        {
+            cntCmd.Parameters.AddWithValue("@bid", branchId);
+            total = Convert.ToInt64(await cntCmd.ExecuteScalarAsync());
+        }
+
+        const string fields = @"
+            vr.vehicle_no, vr.chassis_no, vr.engine_no, vr.model, vr.agreement_no,
+            vr.customer_name, vr.customer_contact, vr.customer_address,
+            COALESCE(f.name,'') AS financer, COALESCE(b.name,'') AS branch_name,
+            vr.bucket, vr.gv, vr.od, vr.seasoning, vr.tbr_flag,
+            vr.sec9_available, vr.sec17_available,
+            vr.level1, vr.level1_contact, vr.level2, vr.level2_contact,
+            vr.level3, vr.level3_contact, vr.level4, vr.level4_contact,
+            vr.sender_mail1, vr.sender_mail2, vr.executive_name,
+            vr.pos, vr.toss, vr.remark, vr.region, vr.area,
+            COALESCE(DATE_FORMAT(vr.created_at,'%d %b %Y'),'') AS created_on";
+        var sql = $@"SELECT {fields}
+            FROM vehicle_records vr
+            INNER JOIN branches b ON b.id = vr.branch_id
+            LEFT  JOIN finances f ON f.id = b.finance_id
+            WHERE vr.branch_id = @bid
+            ORDER BY vr.vehicle_no
+            LIMIT {size} OFFSET {page * size}";
+        await using var cmd = new MySqlCommand(sql, conn) { CommandTimeout = 120 };
+        cmd.Parameters.AddWithValue("@bid", branchId);
+        var rows = new List<object>();
+        await using var rdr = await cmd.ExecuteReaderAsync();
+        string S(int i) => rdr.IsDBNull(i) ? "" : rdr.GetString(i);
+        while (await rdr.ReadAsync())
+            rows.Add(new
+            {
+                vehicleNo=S(0),chassisNo=S(1),engineNo=S(2),model=S(3),agreementNo=S(4),
+                customerName=S(5),customerContact=S(6),customerAddress=S(7),
+                financer=S(8),branchName=S(9),
+                bucket=S(10),gv=S(11),od=S(12),seasoning=S(13),tbrFlag=S(14),
+                sec9=S(15),sec17=S(16),
+                level1=S(17),level1Contact=S(18),level2=S(19),level2Contact=S(20),
+                level3=S(21),level3Contact=S(22),level4=S(23),level4Contact=S(24),
+                senderMail1=S(25),senderMail2=S(26),executiveName=S(27),
+                pos=S(28),toss=S(29),remark=S(30),region=S(31),area=S(32),createdOn=S(33)
+            });
+        return Results.Ok(new { total, page, size, hasMore = (page + 1) * size < total, rows });
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+// Per-finance export — every branch under one finance
+app.MapGet("/api/mgr/export/finance-records", async (HttpContext ctx) =>
+{
+    int financeId = int.TryParse(ctx.Request.Query["financeId"], out var _fid) ? _fid : 0;
+    int page = int.TryParse(ctx.Request.Query["page"], out var _pf) ? _pf : 0;
+    int size = int.TryParse(ctx.Request.Query["size"], out var _sf) ? _sf : 5000;
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    if (financeId <= 0) return Results.BadRequest(new { message = "financeId required" });
+    try
+    {
+        await using var conn = new MySqlConnection(connStr);
+        await conn.OpenAsync();
+        long total;
+        await using (var cntCmd = new MySqlCommand(
+            @"SELECT COUNT(*) FROM vehicle_records vr
+              INNER JOIN branches b ON b.id = vr.branch_id
+              WHERE b.finance_id = @fid", conn) { CommandTimeout = 30 })
+        {
+            cntCmd.Parameters.AddWithValue("@fid", financeId);
+            total = Convert.ToInt64(await cntCmd.ExecuteScalarAsync());
+        }
+
+        const string fields = @"
+            vr.vehicle_no, vr.chassis_no, vr.engine_no, vr.model, vr.agreement_no,
+            vr.customer_name, vr.customer_contact, vr.customer_address,
+            COALESCE(f.name,'') AS financer, COALESCE(b.name,'') AS branch_name,
+            vr.bucket, vr.gv, vr.od, vr.seasoning, vr.tbr_flag,
+            vr.sec9_available, vr.sec17_available,
+            vr.level1, vr.level1_contact, vr.level2, vr.level2_contact,
+            vr.level3, vr.level3_contact, vr.level4, vr.level4_contact,
+            vr.sender_mail1, vr.sender_mail2, vr.executive_name,
+            vr.pos, vr.toss, vr.remark, vr.region, vr.area,
+            COALESCE(DATE_FORMAT(vr.created_at,'%d %b %Y'),'') AS created_on";
+        var sql = $@"SELECT {fields}
+            FROM vehicle_records vr
+            INNER JOIN branches b ON b.id = vr.branch_id
+            LEFT  JOIN finances f ON f.id = b.finance_id
+            WHERE b.finance_id = @fid
+            ORDER BY b.name, vr.vehicle_no
+            LIMIT {size} OFFSET {page * size}";
+        await using var cmd = new MySqlCommand(sql, conn) { CommandTimeout = 120 };
+        cmd.Parameters.AddWithValue("@fid", financeId);
+        var rows = new List<object>();
+        await using var rdr = await cmd.ExecuteReaderAsync();
+        string S(int i) => rdr.IsDBNull(i) ? "" : rdr.GetString(i);
+        while (await rdr.ReadAsync())
+            rows.Add(new
+            {
+                vehicleNo=S(0),chassisNo=S(1),engineNo=S(2),model=S(3),agreementNo=S(4),
+                customerName=S(5),customerContact=S(6),customerAddress=S(7),
+                financer=S(8),branchName=S(9),
+                bucket=S(10),gv=S(11),od=S(12),seasoning=S(13),tbrFlag=S(14),
+                sec9=S(15),sec17=S(16),
+                level1=S(17),level1Contact=S(18),level2=S(19),level2Contact=S(20),
+                level3=S(21),level3Contact=S(22),level4=S(23),level4Contact=S(24),
+                senderMail1=S(25),senderMail2=S(26),executiveName=S(27),
+                pos=S(28),toss=S(29),remark=S(30),region=S(31),area=S(32),createdOn=S(33)
+            });
+        return Results.Ok(new { total, page, size, hasMore = (page + 1) * size < total, rows });
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
 // ── Forward /api/mobile/* → VKmobileapi on port 5001 ─────────────────────────
 app.Map("/api/mobile/{**rest}", async (HttpContext ctx) =>
 {

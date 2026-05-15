@@ -5,7 +5,7 @@
 #define AppName    "VK Enterprises"
 #define AppVersion "1.0"
 #define AppExe     "VRASDesktopApp.exe"
-#define PublishDir "VKdesktopapp\publish-output"
+#define PublishDir "VKdesktopapp\publish-fresh"
 
 [Setup]
 AppName={#AppName}
@@ -26,10 +26,9 @@ ArchitecturesInstallIn64BitMode=x64compatible
 MinVersion=10.0.17763
 
 [Files]
-; Self-contained app exe (includes .NET runtime — no separate install needed)
-Source: "{#PublishDir}\{#AppExe}";          DestDir: "{app}"; Flags: ignoreversion
-; WebView2 HTML pages used inside the app
-Source: "{#PublishDir}\public\*";            DestDir: "{app}\public"; Flags: ignoreversion recursesubdirs createallsubdirs
+; Whole self-contained publish folder — app exe, bundled .NET runtime, all
+; DLLs and the public/ HTML assets. No separate .NET install needed.
+Source: "{#PublishDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 ; Start Menu

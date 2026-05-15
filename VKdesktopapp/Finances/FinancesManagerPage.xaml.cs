@@ -22,17 +22,14 @@ public partial class FinancesManagerPage : Page
         InitializeComponent();
         _financeRepo = new FinanceRepository();
         _branchRepo  = new BranchRepository();
-        // Chain after warmup so finance query reuses the warm pooled connection (0 ms vs 4-5 s cold)
-        _preloadFinancesTask = App.WarmUpTask
-            .ContinueWith(_ => _financeRepo.GetFinancesAsync(), TaskScheduler.Default)
-            .Unwrap();
+        // Kick off the finances fetch immediately so the page paints fast
+        _preloadFinancesTask = _financeRepo.GetFinancesAsync();
         // Set once; filter manages what's visible — no ItemsSource swapping needed
         dgBranches.ItemsSource = _displayedBranches;
     }
 
     private readonly FinanceRepository _financeRepo;
     private readonly BranchRepository  _branchRepo;
-    private readonly ExportRepository  _exportRepo = new(); // kept for Excel export (direct DB — BulkCopy path)
 
     private Task<List<(int Id, string Name, long BranchCount, long TotalRecords)>>? _preloadFinancesTask;
 
@@ -84,9 +81,8 @@ public partial class FinancesManagerPage : Page
         }
         catch (Exception ex)
         {
-            var connInfo = MySqlFactory.GetConnectionInfoMasked();
             MessageBox.Show(
-                $"Failed to load finances.\n\nConnection: {connInfo}\n\nError: {ex.Message}",
+                $"Failed to load finances.\n\nServer: {App.ApiBaseUrl}\n\nError: {ex.Message}",
                 "Finances", MessageBoxButton.OK, MessageBoxImage.Error);
         }
         finally
@@ -499,9 +495,9 @@ public partial class FinancesManagerPage : Page
         SetFinanceLoading(true);
         try
         {
-            var dt = await _exportRepo.GetFinanceRecordsAsync(fi.Id);
-            ExportToExcel(dt, fi.Name, dlg.FileName);
-            MessageBox.Show($"Exported {dt.Rows.Count:N0} records to:\n{dlg.FileName}",
+            var rows = await DesktopApiClient.ExportFinanceRecordsAsync(fi.Id);
+            ExportToExcel(rows, fi.Name, dlg.FileName);
+            MessageBox.Show($"Exported {rows.Count:N0} records to:\n{dlg.FileName}",
                 "Export Complete", MessageBoxButton.OK, MessageBoxImage.Information);
         }
         catch (Exception ex)
@@ -533,9 +529,9 @@ public partial class FinancesManagerPage : Page
         SetBranchLoading(true);
         try
         {
-            var dt = await _exportRepo.GetBranchRecordsAsync(branchId);
-            ExportToExcel(dt, bi.BranchName, dlg.FileName);
-            MessageBox.Show($"Exported {dt.Rows.Count:N0} records to:\n{dlg.FileName}",
+            var rows = await DesktopApiClient.ExportBranchRecordsAsync(branchId);
+            ExportToExcel(rows, bi.BranchName, dlg.FileName);
+            MessageBox.Show($"Exported {rows.Count:N0} records to:\n{dlg.FileName}",
                 "Export Complete", MessageBoxButton.OK, MessageBoxImage.Information);
         }
         catch (Exception ex)
@@ -597,7 +593,20 @@ public partial class FinancesManagerPage : Page
     //  Excel export helper (Syncfusion XlsIO)
     // ─────────────────────────────────────────────────────
 
-    private static void ExportToExcel(DataTable dt, string sheetName, string filePath)
+    private static readonly string[] ExportHeaders =
+    {
+        "Vehicle No", "Chassis No", "Engine No", "Model", "Agreement No",
+        "Customer Name", "Customer Contact", "Customer Address",
+        "Finance Name", "Branch Name", "Bucket", "GV", "OD", "Seasoning",
+        "TBR Flag", "Sec9 Available", "Sec17 Available",
+        "Level1", "Level1 Contact", "Level2", "Level2 Contact",
+        "Level3", "Level3 Contact", "Level4", "Level4 Contact",
+        "Sender Mail 1", "Sender Mail 2", "Executive Name",
+        "POS", "TOSS", "Remark", "Region", "Area", "Created On"
+    };
+
+    private static void ExportToExcel(
+        List<DesktopApiClient.ExportVehicleRow> rows, string sheetName, string filePath)
     {
         using var engine = new ExcelEngine();
         var app = engine.Excel;
@@ -606,23 +615,33 @@ public partial class FinancesManagerPage : Page
         var sheet    = workbook.Worksheets[0];
         sheet.Name   = sheetName.Length > 31 ? sheetName[..31] : sheetName;
 
-        // Write column headers from ExportRepository.Headers if available,
-        // otherwise fall back to DataTable column names
-        var headers = ExportRepository.Headers;
-        for (int c = 0; c < dt.Columns.Count; c++)
+        // Header row
+        for (int c = 0; c < ExportHeaders.Length; c++)
         {
             var cell = sheet[1, c + 1];
-            cell.Text = c < headers.Length ? headers[c] : dt.Columns[c].ColumnName;
+            cell.Text = ExportHeaders[c];
             cell.CellStyle.Font.Bold = true;
             cell.CellStyle.Color = System.Drawing.Color.FromArgb(0xFF, 0xF5, 0xA6, 0x23); // orange header
             cell.CellStyle.Font.Color = ExcelKnownColors.White;
         }
 
-        // Write data rows
-        for (int r = 0; r < dt.Rows.Count; r++)
+        // Data rows — field order must match ExportHeaders
+        for (int r = 0; r < rows.Count; r++)
         {
-            for (int c = 0; c < dt.Columns.Count; c++)
-                sheet[r + 2, c + 1].Text = dt.Rows[r][c]?.ToString() ?? string.Empty;
+            var v = rows[r];
+            var vals = new[]
+            {
+                v.VehicleNo, v.ChassisNo, v.EngineNo, v.Model, v.AgreementNo,
+                v.CustomerName, v.CustomerContact, v.CustomerAddress,
+                v.Financer, v.BranchName, v.Bucket, v.Gv, v.Od, v.Seasoning,
+                v.TbrFlag, v.Sec9, v.Sec17,
+                v.Level1, v.Level1Contact, v.Level2, v.Level2Contact,
+                v.Level3, v.Level3Contact, v.Level4, v.Level4Contact,
+                v.SenderMail1, v.SenderMail2, v.ExecutiveName,
+                v.Pos, v.Toss, v.Remark, v.Region, v.Area, v.CreatedOn
+            };
+            for (int c = 0; c < vals.Length; c++)
+                sheet[r + 2, c + 1].Text = vals[c] ?? string.Empty;
         }
 
         sheet.UsedRange.AutofitColumns();
