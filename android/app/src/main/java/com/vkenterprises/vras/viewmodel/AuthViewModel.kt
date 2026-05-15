@@ -13,6 +13,10 @@ import com.vkenterprises.vras.utils.PreferencesManager
 import kotlinx.coroutines.flow.first
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import com.vkenterprises.vras.data.models.HeartbeatRequest
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -49,18 +53,30 @@ class AuthViewModel @Inject constructor(
     val userMobile    = prefs.userMobile
     val isAdmin       = prefs.isAdmin
     val pfpBase64     = prefs.pfpBase64
-    val blockedReason = prefs.blockedReason
+    val blockedReason = prefs.blockedReason  // used by background heartbeat worker
+
+    // Direct in-memory signal for foreground status polling — no DataStore delay
+    private val _kickReason = MutableStateFlow<String?>(null)
+    val kickReason: StateFlow<String?> = _kickReason.asStateFlow()
+
+    private var pollingJob: Job? = null
 
     fun clearBlockedReason() = viewModelScope.launch { prefs.clearBlockedReason() }
 
-    suspend fun checkStatus(userId: Long) {
-        runCatching {
-            val resp = ApiClient.api.getMyStatus(userId)
-            if (resp.isSuccessful) {
-                val body = resp.body() ?: return
-                when {
-                    body.isBlacklisted -> prefs.setBlockedReason("blacklisted")
-                    body.isStopped     -> prefs.setBlockedReason("app_stopped")
+    fun startStatusPolling(userId: Long) {
+        if (pollingJob?.isActive == true) return
+        pollingJob = viewModelScope.launch(Dispatchers.IO) {
+            while (true) {
+                delay(10_000)
+                runCatching {
+                    val resp = ApiClient.api.heartbeat(HeartbeatRequest(userId, null, null))
+                    if (resp.isSuccessful) {
+                        val body = resp.body() ?: return@runCatching
+                        when {
+                            body.isBlacklisted -> _kickReason.value = "blacklisted"
+                            body.isStopped     -> _kickReason.value = "app_stopped"
+                        }
+                    }
                 }
             }
         }
@@ -153,6 +169,9 @@ class AuthViewModel @Inject constructor(
     }
 
     fun logout() = viewModelScope.launch {
+        pollingJob?.cancel()
+        pollingJob = null
+        _kickReason.value = null
         prefs.clearSession()
         _state.value = AuthUiState.Idle
     }
