@@ -112,12 +112,9 @@ private fun ProfileContent(
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Box(contentAlignment = Alignment.BottomEnd) {
-                    if (!profile.pfpBase64.isNullOrBlank()) {
-                        val bytes = remember(profile.pfpBase64) {
-                            runCatching { Base64.decode(profile.pfpBase64, Base64.DEFAULT) }.getOrNull()
-                        }
+                    if (!profile.pfpUrl.isNullOrBlank()) {
                         AsyncImage(
-                            model = bytes, contentDescription = null,
+                            model = profile.pfpUrl, contentDescription = null,
                             contentScale = ContentScale.Crop,
                             modifier = Modifier.size(96.dp).clip(CircleShape)
                                 .border(3.dp, MaterialTheme.colorScheme.primary, CircleShape)

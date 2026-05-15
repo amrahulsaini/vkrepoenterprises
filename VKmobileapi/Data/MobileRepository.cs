@@ -6,6 +6,26 @@ namespace VKmobileapi.Data;
 
 public class MobileRepository
 {
+    // Set from Program.cs after build — physical path to the uploads directory
+    public static string UploadsPath { get; set; } = Path.Combine(Directory.GetCurrentDirectory(), "uploads");
+
+    // Decodes a base64 image string and saves it to disk.
+    // Returns the relative URL path (e.g. "pfp/user_42.jpg") or null if input is blank.
+    private static async Task<string?> SaveBase64ImageAsync(string? base64, string subFolder, string fileName)
+    {
+        if (string.IsNullOrWhiteSpace(base64)) return null;
+        try
+        {
+            var dir = Path.Combine(UploadsPath, subFolder);
+            Directory.CreateDirectory(dir);
+            var bytes = Convert.FromBase64String(base64);
+            var path  = Path.Combine(dir, fileName);
+            await File.WriteAllBytesAsync(path, bytes);
+            return $"{subFolder}/{fileName}";
+        }
+        catch { return null; }
+    }
+
     // ── In-memory search cache ─────────────────────────────────────────────
     // Key: "rc:XXXX" or "ch:XXXXX" — value: cached result list with timestamp
     private static readonly ConcurrentDictionary<string, (List<SearchResult> Results, DateTime At)> _cache = new();
@@ -45,10 +65,11 @@ public class MobileRepository
             if (cnt > 0) return (false, "mobile_exists", 0);
         }
 
+        // Insert user first (without pfp) to get the auto-increment id
         const string sql = @"
             INSERT INTO app_users (mobile, name, address, pincode, pfp, device_id,
                                    account_number, ifsc_code, is_active, is_admin)
-            VALUES (@mobile, @name, @addr, @pin, @pfp, @did,
+            VALUES (@mobile, @name, @addr, @pin, NULL, @did,
                     @acct, @ifsc, 0, 0);
             SELECT LAST_INSERT_ID();";
 
@@ -57,24 +78,39 @@ public class MobileRepository
         cmd.Parameters.AddWithValue("@name",   name);
         cmd.Parameters.AddWithValue("@addr",   (object?)address       ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@pin",    (object?)pincode       ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("@pfp",    (object?)pfpBase64     ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@did",    deviceId);
         cmd.Parameters.AddWithValue("@acct",   (object?)accountNumber ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@ifsc",   (object?)ifscCode      ?? DBNull.Value);
         var id = Convert.ToInt64(await cmd.ExecuteScalarAsync());
 
-        // Save KYC documents if provided
+        // Save PFP image to disk and update pfp column with the relative path
+        var pfpPath = await SaveBase64ImageAsync(pfpBase64, "pfp", $"user_{id}.jpg");
+        if (pfpPath != null)
+        {
+            await using var pfpCmd = new MySqlCommand(
+                "UPDATE app_users SET pfp = @p WHERE id = @id", conn);
+            pfpCmd.Parameters.AddWithValue("@p",  pfpPath);
+            pfpCmd.Parameters.AddWithValue("@id", id);
+            await pfpCmd.ExecuteNonQueryAsync();
+        }
+
+        // Save KYC documents as files; store relative paths in DB
         bool hasKyc = aadhaarFront != null || aadhaarBack != null || panFront != null;
         if (hasKyc)
         {
+            var kycDir   = $"kyc/{id}";
+            var afPath   = await SaveBase64ImageAsync(aadhaarFront, kycDir, "aadhaar_front.jpg");
+            var abPath   = await SaveBase64ImageAsync(aadhaarBack,  kycDir, "aadhaar_back.jpg");
+            var pfPath   = await SaveBase64ImageAsync(panFront,     kycDir, "pan_front.jpg");
+
             const string kycSql = @"
                 INSERT INTO user_kyc (user_id, aadhaar_front, aadhaar_back, pan_front)
                 VALUES (@uid, @af, @ab, @pf)";
             await using var kycCmd = new MySqlCommand(kycSql, conn);
             kycCmd.Parameters.AddWithValue("@uid", id);
-            kycCmd.Parameters.AddWithValue("@af",  (object?)aadhaarFront ?? DBNull.Value);
-            kycCmd.Parameters.AddWithValue("@ab",  (object?)aadhaarBack  ?? DBNull.Value);
-            kycCmd.Parameters.AddWithValue("@pf",  (object?)panFront     ?? DBNull.Value);
+            kycCmd.Parameters.AddWithValue("@af",  (object?)afPath ?? DBNull.Value);
+            kycCmd.Parameters.AddWithValue("@ab",  (object?)abPath ?? DBNull.Value);
+            kycCmd.Parameters.AddWithValue("@pf",  (object?)pfPath ?? DBNull.Value);
             await kycCmd.ExecuteNonQueryAsync();
         }
 
@@ -261,7 +297,7 @@ public class MobileRepository
             Mobile:        rdr.GetString(2),
             Address:       S(3),
             Pincode:       S(4),
-            PfpBase64:     S(5),
+            PfpUrl:        S(5),
             IsActive:      rdr.GetInt32(6) == 1,
             IsAdmin:       rdr.GetInt32(7) == 1,
             Balance:       rdr.GetDecimal(8),
@@ -296,16 +332,19 @@ public class MobileRepository
         return profile;
     }
 
-    // ── Update PFP ────────────────────────────────────────────────────────
-    public async Task UpdatePfpAsync(long userId, string? pfpBase64)
+    // ── Update PFP ─────────────────────────────────────────────────────────
+    // Returns the relative path of the saved file (e.g. "pfp/user_1.jpg") or null.
+    public async Task<string?> UpdatePfpAsync(long userId, string? pfpBase64)
     {
+        var pfpPath = await SaveBase64ImageAsync(pfpBase64, "pfp", $"user_{userId}.jpg");
         await using var conn = DbFactory.Create();
         await conn.OpenAsync();
         await using var cmd = new MySqlCommand(
             "UPDATE app_users SET pfp = @p WHERE id = @id", conn);
-        cmd.Parameters.AddWithValue("@p",  (object?)pfpBase64 ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@p",  (object?)pfpPath ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@id", userId);
         await cmd.ExecuteNonQueryAsync();
+        return pfpPath;
     }
 
     // ── User status (is_active, is_stopped, is_blacklisted) ──────────────

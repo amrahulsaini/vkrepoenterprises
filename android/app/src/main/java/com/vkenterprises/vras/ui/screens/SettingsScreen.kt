@@ -1,5 +1,7 @@
 package com.vkenterprises.vras.ui.screens
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -103,47 +105,74 @@ fun SettingsScreen(
                 }
             }
 
-            // ── Server DB Stats ──────────────────────────────────────────
-            item {
-                SectionCard(title = "Server Database") {
-                    if (ui.isLoading) {
-                        Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator(modifier = Modifier.size(24.dp))
+            // ── Server DB Stats (admin only) ─────────────────────────────
+            if (isAdmin) {
+                item {
+                    SectionCard(title = "Server Database") {
+                        if (ui.isLoading) {
+                            Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
+                                CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                            }
+                        } else if (ui.statsError != null) {
+                            Row(Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Icon(Icons.Default.CloudOff, null,
+                                    tint = MaterialTheme.colorScheme.error,
+                                    modifier = Modifier.size(16.dp))
+                                Text(ui.statsError!!,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.error)
+                            }
+                        } else {
+                            StatRow("Vehicle Records", ui.serverVehicleRecords)
+                            StatRow("RC Info Records", ui.serverRcRecords)
+                            StatRow("Chassis Info Records", ui.serverChassisRecords)
                         }
-                    } else if (ui.statsError != null) {
-                        Row(Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Icon(Icons.Default.CloudOff, null,
-                                tint = MaterialTheme.colorScheme.error,
-                                modifier = Modifier.size(16.dp))
-                            Text(ui.statsError!!,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.error)
+                        Spacer(Modifier.height(4.dp))
+                        TextButton(onClick = { settingsVm.loadAll() }) {
+                            Icon(Icons.Default.Refresh, null, Modifier.size(16.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text("Refresh", style = MaterialTheme.typography.labelMedium)
                         }
-                    } else {
-                        StatRow("Vehicle Records", ui.serverVehicleRecords)
-                        StatRow("RC Info Records", ui.serverRcRecords)
-                        StatRow("Chassis Info Records", ui.serverChassisRecords)
-                    }
-                    Spacer(Modifier.height(4.dp))
-                    TextButton(onClick = { settingsVm.loadAll() }) {
-                        Icon(Icons.Default.Refresh, null, Modifier.size(16.dp))
-                        Spacer(Modifier.width(4.dp))
-                        Text("Refresh", style = MaterialTheme.typography.labelMedium)
                     }
                 }
             }
 
             // ── Local Cache ──────────────────────────────────────────────
             item {
-                SectionCard(title = "Local Cache (Room SQLite)") {
+                SectionCard(title = "Local Cache") {
                     StatRow("Cached Records", ui.roomCount)
                 }
             }
 
             // ── Sync ─────────────────────────────────────────────────────
             item {
+                val infiniteTransition = rememberInfiniteTransition(label = "syncPulse")
+                val pulseAlpha by infiniteTransition.animateFloat(
+                    initialValue = 1f, targetValue = 0.35f,
+                    animationSpec = infiniteRepeatable(
+                        animation = tween(600, easing = FastOutSlowInEasing),
+                        repeatMode = RepeatMode.Reverse
+                    ), label = "pulseAlpha"
+                )
+                val syncBtnColor = when {
+                    ui.isSyncing       -> MaterialTheme.colorScheme.primary
+                    ui.syncHasUpdates  -> Color(0xFFD32F2F).copy(alpha = pulseAlpha)
+                    ui.syncCompleted   -> Color(0xFF388E3C)
+                    else               -> MaterialTheme.colorScheme.primary
+                }
+                val syncBtnLabel = when {
+                    ui.isSyncing      -> "Syncing…"
+                    ui.syncHasUpdates -> "New Updates Available — Tap to Sync"
+                    ui.syncCompleted  -> "Up to Date"
+                    else              -> "Sync Now (Check for Updates)"
+                }
+                val syncBtnIcon = when {
+                    ui.syncCompleted && !ui.syncHasUpdates -> Icons.Default.CheckCircle
+                    else -> Icons.Default.Sync
+                }
+
                 SectionCard(title = "Sync") {
                     if (ui.syncProgress != null) {
                         Text(
@@ -160,11 +189,12 @@ fun SettingsScreen(
                     Button(
                         onClick = { settingsVm.smartSync() },
                         enabled = !ui.isSyncing,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(containerColor = syncBtnColor)
                     ) {
-                        Icon(Icons.Default.Sync, null, Modifier.size(18.dp))
+                        Icon(syncBtnIcon, null, Modifier.size(18.dp))
                         Spacer(Modifier.width(6.dp))
-                        Text("Sync Now (Check for Updates)")
+                        Text(syncBtnLabel)
                     }
                     Spacer(Modifier.height(6.dp))
                     OutlinedButton(
@@ -223,54 +253,56 @@ fun SettingsScreen(
                 }
             }
 
-            // ── Sync Logs ─────────────────────────────────────────────────
-            item {
-                SectionCard(title = "Sync Logs (${ui.syncLogs.size} branches)") {
-                    OutlinedButton(
-                        onClick = { settingsVm.toggleLogs() },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Icon(
-                            if (ui.showLogs) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                            null, Modifier.size(18.dp)
-                        )
-                        Spacer(Modifier.width(6.dp))
-                        Text(if (ui.showLogs) "Hide Logs" else "View All Logs")
-                    }
-                }
-            }
-
-            if (ui.showLogs) {
-                if (ui.syncLogs.isEmpty()) {
-                    item {
-                        Text("No sync logs. Sync has not run yet.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(horizontal = 16.dp))
-                    }
-                } else {
-                    items(ui.syncLogs) { log ->
-                        Surface(
-                            color = MaterialTheme.colorScheme.surfaceVariant,
-                            shape = MaterialTheme.shapes.small,
+            // ── Sync Logs (admin only) ────────────────────────────────────
+            if (isAdmin) {
+                item {
+                    SectionCard(title = "Sync Logs (${ui.syncLogs.size} branches)") {
+                        OutlinedButton(
+                            onClick = { settingsVm.toggleLogs() },
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Row(
-                                Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
+                            Icon(
+                                if (ui.showLogs) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                null, Modifier.size(18.dp)
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            Text(if (ui.showLogs) "Hide Logs" else "View All Logs")
+                        }
+                    }
+                }
+
+                if (ui.showLogs) {
+                    if (ui.syncLogs.isEmpty()) {
+                        item {
+                            Text("No sync logs. Sync has not run yet.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(horizontal = 16.dp))
+                        }
+                    } else {
+                        items(ui.syncLogs) { log ->
+                            Surface(
+                                color = MaterialTheme.colorScheme.surfaceVariant,
+                                shape = MaterialTheme.shapes.small,
+                                modifier = Modifier.fillMaxWidth()
                             ) {
-                                Text(
-                                    "Branch #${log.branchId}",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    fontWeight = FontWeight.Medium
-                                )
-                                Text(
-                                    log.uploadedAt,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontFamily = FontFamily.Monospace,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
+                                Row(
+                                    Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        "Branch #${log.branchId}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                    Text(
+                                        log.uploadedAt,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontFamily = FontFamily.Monospace,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
                             }
                         }
                     }

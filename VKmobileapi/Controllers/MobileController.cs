@@ -10,6 +10,12 @@ public class MobileController : ControllerBase
 {
     private readonly MobileRepository _repo = new();
 
+    // Builds a full URL for a relative uploads path stored in the DB (e.g. "pfp/user_1.jpg" → "https://host/uploads/pfp/user_1.jpg")
+    private string? AbsUrl(string? relativePath) =>
+        string.IsNullOrEmpty(relativePath)
+            ? null
+            : $"{Request.Scheme}://{Request.Host}/uploads/{relativePath.TrimStart('/')}";
+
     // POST /api/mobile/register
     [HttpPost("register")]
     public async Task<IActionResult> Register([FromBody] RegisterRequest req)
@@ -49,6 +55,8 @@ public class MobileController : ControllerBase
                 return BadRequest(new ApiError(false, "Mobile and device ID are required."));
 
             var result = await _repo.LoginAsync(req.Mobile.Trim(), req.DeviceId.Trim());
+            if (result.Reason == "ok")
+                result = result with { PfpUrl = AbsUrl(result.PfpUrl) };
 
             return result.Reason switch
             {
@@ -223,7 +231,7 @@ public class MobileController : ControllerBase
         {
             var profile = await _repo.GetProfileAsync(userId);
             if (profile == null) return NotFound(new ApiError(false, "User not found."));
-            return Ok(profile);
+            return Ok(profile with { PfpUrl = AbsUrl(profile.PfpUrl) });
         }
         catch (Exception ex)
         {
@@ -237,8 +245,8 @@ public class MobileController : ControllerBase
     {
         try
         {
-            await _repo.UpdatePfpAsync(userId, req.PfpBase64);
-            return Ok(new { success = true });
+            var relativePath = await _repo.UpdatePfpAsync(userId, req.PfpBase64);
+            return Ok(new { success = true, pfpUrl = AbsUrl(relativePath) });
         }
         catch (Exception ex)
         {

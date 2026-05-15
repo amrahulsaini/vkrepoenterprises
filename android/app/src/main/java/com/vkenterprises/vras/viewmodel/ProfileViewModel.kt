@@ -50,7 +50,8 @@ class ProfileViewModel @Inject constructor(
         runCatching {
             val resp = api.updatePfp(userId, mapOf("pfpBase64" to pfpBase64))
             if (resp.isSuccessful) {
-                prefs.savePfp(pfpBase64)
+                val newUrl = resp.body()?.get("pfpUrl") as? String
+                prefs.savePfp(newUrl)
                 load(userId)
             } else {
                 _state.value = ProfileUiState.Error("Failed to update photo")

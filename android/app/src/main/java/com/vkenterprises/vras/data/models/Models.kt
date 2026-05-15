@@ -30,7 +30,7 @@ data class AuthResponse(
     val name: String?,
     val mobile: String?,
     val isAdmin: Boolean,
-    val pfpBase64: String?,
+    val pfpUrl: String?,
     val subscriptionEndDate: String?
 )
 
@@ -113,7 +113,7 @@ data class ProfileResponse(
     val mobile: String,
     val address: String?,
     val pincode: String?,
-    val pfpBase64: String?,
+    val pfpUrl: String?,
     val isActive: Boolean,
     val isAdmin: Boolean,
     val balance: Double,

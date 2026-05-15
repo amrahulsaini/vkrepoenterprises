@@ -32,6 +32,19 @@ class SyncRepository @Inject constructor(
 
     suspend fun getSyncLogs(): List<BranchSyncState> = syncStateDao.getAll()
 
+    suspend fun hasUpdates(): Boolean {
+        val branchResp = runCatching { api.getSyncBranches() }.getOrNull() ?: return false
+        if (!branchResp.isSuccessful) return false
+        val branches = branchResp.body()?.branches ?: return false
+        for (b in branches) {
+            if (b.uploadedAt == null) continue
+            val savedState = syncStateDao.get(b.branchId)
+            val localCount = vehicleDao.countByBranch(b.branchId)
+            if (savedState?.uploadedAt != b.uploadedAt || localCount != b.totalRecords) return true
+        }
+        return false
+    }
+
     // Nuclear option: wipe everything and re-download all (Settings → Force Full Sync)
     suspend fun forceSync(onProgress: suspend (Progress) -> Unit) {
         vehicleDao.deleteAll()

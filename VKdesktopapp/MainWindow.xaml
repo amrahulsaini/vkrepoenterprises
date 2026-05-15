@@ -8,6 +8,7 @@
     FontFamily="Segoe UI"
     Style="{StaticResource ChromeWindow}"
     Background="{StaticResource Gray200}"
+    Icon="public/favicon.ico"
     Title="VK Enterprises"
     Width="1366" Height="768"
     WindowState="Maximized"
@@ -274,102 +275,6 @@
                                 <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
                                     <TextBlock Text="Reports" FontWeight="SemiBold" Foreground="{StaticResource Gray900}" FontSize="14" />
                                     <TextBlock Text="Analytics" FontSize="11" Foreground="{StaticResource Gray600}" />
-                                </StackPanel>
-                            </Grid>
-                        </Button>
-                        <Button Tag="CleanFile" Click="TileButton_Click" MinHeight="80" Margin="8" HorizontalAlignment="Stretch" Style="{StaticResource DashboardTileButton}">
-                            <Grid>
-                                <Grid.ColumnDefinitions><ColumnDefinition Width="56" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                                <Border Width="44" Height="44" CornerRadius="22" Background="{StaticResource Gray100}" VerticalAlignment="Center" HorizontalAlignment="Left">
-                                    <TextBlock Text="🧹" FontSize="16" VerticalAlignment="Center" HorizontalAlignment="Center" />
-                                </Border>
-                                <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
-                                    <TextBlock Text="Clean File" FontWeight="SemiBold" Foreground="{StaticResource Gray900}" FontSize="14" />
-                                    <TextBlock Text="Sanitize data" FontSize="11" Foreground="{StaticResource Gray600}" />
-                                </StackPanel>
-                            </Grid>
-                        </Button>
-                        <Button Tag="OTPs" Click="TileButton_Click" MinHeight="80" Margin="8" HorizontalAlignment="Stretch" Style="{StaticResource DashboardTileButton}">
-                            <Grid>
-                                <Grid.ColumnDefinitions><ColumnDefinition Width="56" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                                <Border Width="44" Height="44" CornerRadius="22" Background="{StaticResource Gray100}" VerticalAlignment="Center" HorizontalAlignment="Left">
-                                    <TextBlock Text="🔐" FontSize="16" VerticalAlignment="Center" HorizontalAlignment="Center" />
-                                </Border>
-                                <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
-                                    <TextBlock Text="OTPs" FontWeight="SemiBold" Foreground="{StaticResource Gray900}" FontSize="14" />
-                                    <TextBlock Text="One-time passwords" FontSize="11" Foreground="{StaticResource Gray600}" />
-                                </StackPanel>
-                            </Grid>
-                        </Button>
-                        <Button Tag="Blacklist" Click="TileButton_Click" MinHeight="80" Margin="8" HorizontalAlignment="Stretch" Style="{StaticResource DashboardTileButton}">
-                            <Grid>
-                                <Grid.ColumnDefinitions><ColumnDefinition Width="56" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                                <Border Width="44" Height="44" CornerRadius="22" Background="{StaticResource Gray100}" VerticalAlignment="Center" HorizontalAlignment="Left">
-                                    <TextBlock Text="⛔" FontSize="16" VerticalAlignment="Center" HorizontalAlignment="Center" />
-                                </Border>
-                                <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
-                                    <TextBlock Text="Blacklist" FontWeight="SemiBold" Foreground="{StaticResource Gray900}" FontSize="14" />
-                                    <TextBlock Text="Blocked items" FontSize="11" Foreground="{StaticResource Gray600}" />
-                                </StackPanel>
-                            </Grid>
-                        </Button>
-                        <Button Tag="Feedbacks" Click="TileButton_Click" MinHeight="80" Margin="8" HorizontalAlignment="Stretch" Style="{StaticResource DashboardTileButton}">
-                            <Grid>
-                                <Grid.ColumnDefinitions><ColumnDefinition Width="56" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                                <Border Width="44" Height="44" CornerRadius="22" Background="{StaticResource Gray100}" VerticalAlignment="Center" HorizontalAlignment="Left">
-                                    <TextBlock Text="💬" FontSize="16" VerticalAlignment="Center" HorizontalAlignment="Center" />
-                                </Border>
-                                <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
-                                    <TextBlock Text="Feedbacks" FontWeight="SemiBold" Foreground="{StaticResource Gray900}" FontSize="14" />
-                                    <TextBlock Text="User feedback" FontSize="11" Foreground="{StaticResource Gray600}" />
-                                </StackPanel>
-                            </Grid>
-                        </Button>
-                        <Button Tag="Payments" Click="TileButton_Click" MinHeight="80" Margin="8" HorizontalAlignment="Stretch" Style="{StaticResource DashboardTileButton}">
-                            <Grid>
-                                <Grid.ColumnDefinitions><ColumnDefinition Width="56" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                                <Border Width="44" Height="44" CornerRadius="22" Background="{StaticResource Gray100}" VerticalAlignment="Center" HorizontalAlignment="Left">
-                                    <TextBlock Text="💳" FontSize="16" VerticalAlignment="Center" HorizontalAlignment="Center" />
-                                </Border>
-                                <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
-                                    <TextBlock Text="Accept Payment" FontWeight="SemiBold" Foreground="{StaticResource Gray900}" FontSize="14" />
-                                    <TextBlock Text="Payment gateway" FontSize="11" Foreground="{StaticResource Gray600}" />
-                                </StackPanel>
-                            </Grid>
-                        </Button>
-                        <Button Tag="PayBill" Click="TileButton_Click" MinHeight="80" Margin="8" HorizontalAlignment="Stretch" Style="{StaticResource DashboardTileButton}">
-                            <Grid>
-                                <Grid.ColumnDefinitions><ColumnDefinition Width="56" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                                <Border Width="44" Height="44" CornerRadius="22" Background="{StaticResource Gray100}" VerticalAlignment="Center" HorizontalAlignment="Left">
-                                    <TextBlock Text="💸" FontSize="16" VerticalAlignment="Center" HorizontalAlignment="Center" />
-                                </Border>
-                                <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
-                                    <TextBlock Text="Pay Bill" FontWeight="SemiBold" Foreground="{StaticResource Gray900}" FontSize="14" />
-                                    <TextBlock Text="Vendor payments" FontSize="11" Foreground="{StaticResource Gray600}" />
-                                </StackPanel>
-                            </Grid>
-                        </Button>
-                        <Button Tag="FirmSettings" Click="TileButton_Click" MinHeight="80" Margin="8" HorizontalAlignment="Stretch" Style="{StaticResource DashboardTileButton}">
-                            <Grid>
-                                <Grid.ColumnDefinitions><ColumnDefinition Width="56" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                                <Border Width="44" Height="44" CornerRadius="22" Background="{StaticResource Gray100}" VerticalAlignment="Center" HorizontalAlignment="Left">
-                                    <TextBlock Text="⚙️" FontSize="16" VerticalAlignment="Center" HorizontalAlignment="Center" />
-                                </Border>
-                                <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
-                                    <TextBlock Text="Firm Settings" FontWeight="SemiBold" Foreground="{StaticResource Gray900}" FontSize="14" />
-                                    <TextBlock Text="Preferences" FontSize="11" Foreground="{StaticResource Gray600}" />
-                                </StackPanel>
-                            </Grid>
-                        </Button>
-                        <Button Tag="MobileControlPin" Click="TileButton_Click" MinHeight="80" Margin="8" HorizontalAlignment="Stretch" Style="{StaticResource DashboardTileButton}">
-                            <Grid>
-                                <Grid.ColumnDefinitions><ColumnDefinition Width="56" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                                <Border Width="44" Height="44" CornerRadius="22" Background="{StaticResource Gray100}" VerticalAlignment="Center" HorizontalAlignment="Left">
-                                    <TextBlock Text="📱" FontSize="16" VerticalAlignment="Center" HorizontalAlignment="Center" />
-                                </Border>
-                                <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
-                                    <TextBlock Text="Mobile Control Pin" FontWeight="SemiBold" Foreground="{StaticResource Gray900}" FontSize="14" />
-                                    <TextBlock Text="Device pin control" FontSize="11" Foreground="{StaticResource Gray600}" />
                                 </StackPanel>
                             </Grid>
                         </Button>

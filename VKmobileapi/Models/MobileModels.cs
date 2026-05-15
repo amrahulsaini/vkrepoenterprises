@@ -39,7 +39,7 @@ public record AuthResponse(
     string? Name,
     string? Mobile,
     bool   IsAdmin,
-    string? PfpBase64,
+    string? PfpUrl,
     string? SubscriptionEndDate);
 
 // ── Search ──────────────────────────────────────────────
@@ -113,7 +113,7 @@ public record ProfileResponse(
     string  Mobile,
     string? Address,
     string? Pincode,
-    string? PfpBase64,
+    string? PfpUrl,
     bool    IsActive,
     bool    IsAdmin,
     decimal Balance,

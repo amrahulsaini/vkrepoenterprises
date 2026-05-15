@@ -8,6 +8,7 @@
     FontFamily="Segoe UI"
     Style="{StaticResource ChromeWindow}"
     Background="{StaticResource Gray50}"
+    Icon="public/favicon.ico"
     Title="VK Enterprises - Login"
     Height="640"
     Width="420"

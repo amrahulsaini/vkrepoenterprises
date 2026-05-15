@@ -39,7 +39,7 @@ class PreferencesManager(private val context: Context) {
     val userMobile: Flow<String> = context.dataStore.data
         .map { it[KEY_MOBILE] ?: "" }
 
-    val pfpBase64: Flow<String?> = context.dataStore.data
+    val pfpUrl: Flow<String?> = context.dataStore.data
         .map { it[KEY_PFP]?.ifEmpty { null } }
 
     val blockedReason: Flow<String?> = context.dataStore.data

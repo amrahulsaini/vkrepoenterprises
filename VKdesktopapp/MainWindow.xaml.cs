@@ -3,13 +3,10 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using VRASDesktopApp.AppUsers;
-using VRASDesktopApp.Blacklist;
 using VRASDesktopApp.Confirmations;
-using VRASDesktopApp.Feedbacks;
 using VRASDesktopApp.Finances;
 using VRASDesktopApp.Records;
 using VRASDesktopApp.Reports;
-using VRASDesktopApp.Utilities;
 
 namespace VRASDesktopApp;
 
@@ -23,13 +20,6 @@ public partial class MainWindow : Window
     private readonly Page _uploadRecordsPage;
     private readonly Page _confirmationsPage;
     private readonly Page _reportsPage;
-    private readonly Page _feedbacksPage;
-    private readonly Page _paymentsPage;
-    private readonly Page _otpPage;
-    private readonly Page _blacklistPage;
-    private readonly Page _cleanFilePage;
-    private readonly Page _billingPage;
-    private readonly Page _mobileControlPinPage;
     private RecordsEditorWindow? _recordsEditorWindow;
 
     private static readonly SolidColorBrush ActiveBrush =
@@ -49,13 +39,6 @@ public partial class MainWindow : Window
         _uploadRecordsPage = new UploadRecordsPage();
         _confirmationsPage = new ConfirmationsManagerPage();
         _reportsPage = new ReportsPage();
-        _feedbacksPage = new ModuleStatusPage("feedbacks", "FEEDBACKS");
-        _paymentsPage = new AcceptPaymentsPage();
-        _otpPage = new OtpManagerPage();
-        _blacklistPage = new BlacklistPage();
-        _cleanFilePage = new ModuleStatusPage("cleanfile", "CLEAN FILE");
-        _billingPage = new ModuleStatusPage("billing", "PAY BILL");
-        _mobileControlPinPage = new ModuleStatusPage("controlpin", "MOBILE CONTROL PIN");
 
         RefreshFirmLabels();
     }
@@ -134,21 +117,6 @@ public partial class MainWindow : Window
             case "DetailsViews": LoadPage(_detailsViewsPage); break;
             case "Confirmations": LoadPage(_confirmationsPage); break;
             case "Reports": LoadPage(_reportsPage); break;
-            case "CleanFile": LoadPage(_cleanFilePage); break;
-            case "OTPs": LoadPage(_otpPage); break;
-            case "Blacklist": LoadPage(_blacklistPage); break;
-            case "Feedbacks": LoadPage(_feedbacksPage); break;
-            case "Payments": LoadPage(_paymentsPage); break;
-            case "PayBill": LoadPage(_billingPage); break;
-            case "MobileControlPin": LoadPage(_mobileControlPinPage); break;
-            case "FirmSettings":
-                var w = new ServerSettingsWindow { Owner = this };
-                w.ShowDialog();
-                RefreshFirmLabels();
-                break;
-            default:
-                MessageBox.Show($"Not implemented: {tag}", "Info", MessageBoxButton.OK, MessageBoxImage.Information);
-                break;
         }
     }
 
