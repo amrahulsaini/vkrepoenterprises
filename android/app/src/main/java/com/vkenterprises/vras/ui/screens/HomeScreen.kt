@@ -5,7 +5,6 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.location.LocationManager
 import android.provider.Settings
-import android.util.Base64
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -190,7 +189,7 @@ fun HomeScreen(
                     }
                 },
                 actions = {
-                    val pfpB64 by authVm.pfpBase64.collectAsState(initial = null)
+                    val pfpUrl by authVm.pfpUrl.collectAsState(initial = null)
                     if (isAdmin) {
                         IconButton(onClick = { nav.navigate(Screen.ManageSubscriptions.route) }) {
                             Icon(Icons.Default.CardMembership, contentDescription = "Manage Subscriptions")
@@ -200,15 +199,12 @@ fun HomeScreen(
                         Icon(Icons.Default.Refresh, contentDescription = "Sync")
                     }
                     IconButton(onClick = { nav.navigate(Screen.Profile.route) }) {
-                        if (!pfpB64.isNullOrBlank()) {
-                            val bytes = remember(pfpB64) {
-                                runCatching { Base64.decode(pfpB64, Base64.DEFAULT) }.getOrNull()
-                            }
-                            if (bytes != null)
-                                AsyncImage(model = bytes, contentDescription = null,
-                                    contentScale = ContentScale.Crop,
-                                    modifier = Modifier.size(30.dp).clip(CircleShape))
-                            else Icon(Icons.Default.AccountCircle, null)
+                        if (!pfpUrl.isNullOrBlank()) {
+                            AsyncImage(
+                                model = pfpUrl, contentDescription = null,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.size(30.dp).clip(CircleShape)
+                            )
                         } else Icon(Icons.Default.AccountCircle, null)
                     }
                     IconButton(onClick = { nav.navigate(Screen.Settings.route) }) {

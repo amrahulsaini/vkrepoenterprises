@@ -1,3 +1,4 @@
+using Microsoft.Extensions.FileProviders;
 using MySqlConnector;
 using VKmobileapi;
 using VKmobileapi.Data;
@@ -14,6 +15,16 @@ builder.Services.AddCors(o => o.AddDefaultPolicy(p =>
     p.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader()));
 
 var app = builder.Build();
+
+// Serve uploaded PFP / KYC files under /uploads
+var uploadsPath = Path.Combine(app.Environment.ContentRootPath, "uploads");
+Directory.CreateDirectory(uploadsPath);
+MobileRepository.UploadsPath = uploadsPath;
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(uploadsPath),
+    RequestPath  = "/uploads"
+});
 
 app.UseCors();
 app.MapControllers();

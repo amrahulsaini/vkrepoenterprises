@@ -52,7 +52,7 @@ class AuthViewModel @Inject constructor(
     val userName      = prefs.userName
     val userMobile    = prefs.userMobile
     val isAdmin       = prefs.isAdmin
-    val pfpBase64     = prefs.pfpBase64
+    val pfpUrl        = prefs.pfpUrl
     val blockedReason = prefs.blockedReason  // used by background heartbeat worker
 
     // Direct in-memory signal for foreground status polling — no DataStore delay
@@ -133,7 +133,7 @@ class AuthViewModel @Inject constructor(
                 val user = result.data
                 prefs.saveSession(
                     user.userId ?: 0L, user.name ?: "", user.mobile ?: "",
-                    user.isAdmin, user.subscriptionEndDate, user.pfpBase64
+                    user.isAdmin, user.subscriptionEndDate, user.pfpUrl
                 )
                 val subEnd = user.subscriptionEndDate
                 if (subEnd != null && LocalDate.parse(subEnd).isBefore(LocalDate.now()))

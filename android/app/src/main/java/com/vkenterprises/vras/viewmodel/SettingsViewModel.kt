@@ -30,7 +30,9 @@ class SettingsViewModel @Inject constructor(
         val isSyncing: Boolean         = false,
         val syncProgress: String?      = null,
         val statsError: String?        = null,
-        val showLogs: Boolean          = false
+        val showLogs: Boolean          = false,
+        val syncHasUpdates: Boolean    = false,
+        val syncCompleted: Boolean     = false
     )
 
     private val _ui = MutableStateFlow(UiState())
@@ -41,10 +43,11 @@ class SettingsViewModel @Inject constructor(
     fun loadAll() {
         viewModelScope.launch(Dispatchers.IO) {
             _ui.update { it.copy(isLoading = true) }
-            val roomCount = vehicleDao.count()
-            val syncLogs  = syncRepo.getSyncLogs()
-            val statsResp = runCatching { api.getStats() }.getOrNull()
-            val body      = statsResp?.body()
+            val roomCount    = vehicleDao.count()
+            val syncLogs     = syncRepo.getSyncLogs()
+            val statsResp    = runCatching { api.getStats() }.getOrNull()
+            val body         = statsResp?.body()
+            val hasUpdates   = syncRepo.hasUpdates()
             _ui.update {
                 it.copy(
                     roomCount             = roomCount,
@@ -53,7 +56,9 @@ class SettingsViewModel @Inject constructor(
                     serverRcRecords       = body?.rcRecords ?: 0L,
                     serverChassisRecords  = body?.chassisRecords ?: 0L,
                     isLoading             = false,
-                    statsError            = if (body == null) "Could not reach server" else null
+                    statsError            = if (body == null) "Could not reach server" else null,
+                    syncHasUpdates        = hasUpdates,
+                    syncCompleted         = if (hasUpdates) false else it.syncCompleted
                 )
             }
         }
@@ -62,7 +67,8 @@ class SettingsViewModel @Inject constructor(
     fun smartSync() {
         if (_ui.value.isSyncing) return
         viewModelScope.launch(Dispatchers.IO) {
-            _ui.update { it.copy(isSyncing = true, syncProgress = "Checking for updates…") }
+            _ui.update { it.copy(isSyncing = true, syncProgress = "Checking for updates…", syncCompleted = false) }
+            var success = false
             runCatching {
                 syncRepo.sync { p ->
                     _ui.update {
@@ -73,10 +79,11 @@ class SettingsViewModel @Inject constructor(
                         })
                     }
                 }
+                success = true
             }.onFailure { e ->
                 _ui.update { it.copy(syncProgress = "Error: ${e.message}") }
             }
-            _ui.update { it.copy(isSyncing = false) }
+            _ui.update { it.copy(isSyncing = false, syncCompleted = success, syncHasUpdates = false) }
             loadAll()
         }
     }
@@ -84,7 +91,8 @@ class SettingsViewModel @Inject constructor(
     fun forceSync() {
         if (_ui.value.isSyncing) return
         viewModelScope.launch(Dispatchers.IO) {
-            _ui.update { it.copy(isSyncing = true, syncProgress = "Starting…") }
+            _ui.update { it.copy(isSyncing = true, syncProgress = "Starting…", syncCompleted = false) }
+            var success = false
             runCatching {
                 syncRepo.forceSync { p ->
                     _ui.update {
@@ -95,10 +103,11 @@ class SettingsViewModel @Inject constructor(
                         })
                     }
                 }
+                success = true
             }.onFailure { e ->
                 _ui.update { it.copy(syncProgress = "Error: ${e.message}") }
             }
-            _ui.update { it.copy(isSyncing = false) }
+            _ui.update { it.copy(isSyncing = false, syncCompleted = success, syncHasUpdates = false) }
             loadAll()
         }
     }
