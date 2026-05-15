@@ -67,7 +67,7 @@ class AuthViewModel @Inject constructor(
         if (pollingJob?.isActive == true) return
         pollingJob = viewModelScope.launch(Dispatchers.IO) {
             while (true) {
-                delay(10_000)
+                delay(2_000)
                 runCatching {
                     val resp = ApiClient.api.heartbeat(HeartbeatRequest(userId, null, null))
                     if (resp.isSuccessful) {
