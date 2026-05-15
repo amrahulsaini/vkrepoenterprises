@@ -35,15 +35,17 @@ dotnet publish -c Release -o "$VKAPI_OUT" --nologo -v quiet
 cp /home/vkapp/db/.env.local "$VKAPI_OUT/db/.env.local" 2>/dev/null || true
 info "VKApiServer built → $VKAPI_OUT"
 
-# Sync download page + installer from repo to the served downloads folder
+# Sync download page + installer; fix ownership so the service can read files
 mkdir -p "$VKAPI_OUT/downloads"
 cp "$VKAPI_SRC/downloads/index.html" "$VKAPI_OUT/downloads/index.html"
 if [ -f "$REPO_DIR/installer-output/VKEnterprises_Setup.exe" ]; then
     cp "$REPO_DIR/installer-output/VKEnterprises_Setup.exe" "$VKAPI_OUT/downloads/VKEnterprises_Setup.exe"
-    info "Installer deployed → $VKAPI_OUT/downloads/VKEnterprises_Setup.exe"
-else
-    info "No installer found in installer-output/ — skipping (download page still served)"
+    info "Installer copied → $VKAPI_OUT/downloads/VKEnterprises_Setup.exe"
 fi
+VKAPI_USER=$(systemctl show vkapi --property=User --value 2>/dev/null || echo "")
+[ -n "$VKAPI_USER" ] && chown -R "$VKAPI_USER:$VKAPI_USER" "$VKAPI_OUT/downloads" || \
+    chmod -R 755 "$VKAPI_OUT/downloads"
+info "Download folder permissions set"
 
 section "Restarting vkapi service"
 systemctl restart vkapi
