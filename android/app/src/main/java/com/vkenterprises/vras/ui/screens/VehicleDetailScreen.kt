@@ -6,6 +6,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.rememberScrollState
@@ -15,6 +16,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.snapshots.SnapshotStateMap
 import androidx.compose.ui.*
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -40,6 +42,55 @@ private val RC_REGEX = Regex("^[A-Z]{2}[0-9]{2}[A-Z]{1,3}[0-9]{4}$")
 private fun String.isValidRc(): Boolean =
     replace(Regex("[^A-Z0-9]"), "").uppercase().matches(RC_REGEX)
 
+private data class BranchEntry(
+    val branch: String,
+    val financer: String,
+    val createdOn: String,
+    val record: SearchResult
+)
+
+private val ALL_SEL_KEYS = listOf(
+    "Vehicle No", "Chassis No", "Eng No", "Agreement No",
+    "Cust Name", "Cust Address", "Cust Contact",
+    "BKT", "OD", "POS", "TOS", "TBR",
+    "Branch", "Area", "Region",
+    "Level 1", "Level 2", "Level 3", "Level 4",
+    "Finance", "Head Office", "Contact 1", "Contact 2", "Contact 3",
+    "Mail Id 1", "Mail Id 2", "Address", "Executive Name", "Uploaded On"
+)
+
+private fun buildAdminFields(item: SearchResult, br: SearchResult): List<Pair<String, String>> = listOf(
+    "Vehicle No"     to item.vehicleNo.orEmpty(),
+    "Chassis No"     to item.chassisNo.orEmpty(),
+    "Eng No"         to item.engineNo.orEmpty(),
+    "Agreement No"   to item.agreementNo.orEmpty(),
+    "Cust Name"      to item.customerName.orEmpty(),
+    "Cust Address"   to item.customerAddress.orEmpty(),
+    "Cust Contact"   to item.customerContact.orEmpty(),
+    "BKT"            to item.bucket.orEmpty(),
+    "OD"             to item.od.orEmpty(),
+    "POS"            to item.pos.orEmpty(),
+    "TOS"            to item.toss.orEmpty(),
+    "TBR"            to item.tbrFlag.orEmpty(),
+    "Branch"         to item.branchFromExcel.orEmpty(),
+    "Area"           to item.area.orEmpty(),
+    "Region"         to item.region.orEmpty(),
+    "Level 1"        to buildLevelStr(item.level1, item.level1Contact),
+    "Level 2"        to buildLevelStr(item.level2, item.level2Contact),
+    "Level 3"        to buildLevelStr(item.level3, item.level3Contact),
+    "Level 4"        to buildLevelStr(item.level4, item.level4Contact),
+    "Finance"        to br.branchName.orEmpty(),
+    "Head Office"    to br.financer.orEmpty(),
+    "Contact 1"      to br.firstContact.orEmpty(),
+    "Contact 2"      to br.secondContact.orEmpty(),
+    "Contact 3"      to br.thirdContact.orEmpty(),
+    "Mail Id 1"      to br.senderMail1.orEmpty(),
+    "Mail Id 2"      to br.senderMail2.orEmpty(),
+    "Address"        to br.address.orEmpty(),
+    "Executive Name" to br.executiveName.orEmpty(),
+    "Uploaded On"    to br.createdOn.orEmpty(),
+)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun VehicleDetailScreen(
@@ -47,24 +98,51 @@ fun VehicleDetailScreen(
     authVm: AuthViewModel,
     nav: NavController
 ) {
-    val ui          by searchVm.ui.collectAsState()
-    val item        = ui.selectedResult
-    val agentName   by authVm.userName.collectAsState(initial = "")
-    val agentPhone  by authVm.userMobile.collectAsState(initial = "")
-    val isAdmin     by authVm.isAdmin.collectAsState(initial = false)
-    val context     = LocalContext.current
+    val ui         by searchVm.ui.collectAsState()
+    val item       = ui.selectedResult
+    val agentName  by authVm.userName.collectAsState(initial = "")
+    val agentPhone by authVm.userMobile.collectAsState(initial = "")
+    val isAdmin    by authVm.isAdmin.collectAsState(initial = false)
+    val context    = LocalContext.current
 
-    // Dialog / sheet visibility state
-    var showWaSheet   by remember { mutableStateOf(false) }
+    var showWaSheet    by remember { mutableStateOf(false) }
     var showCopyDialog by remember { mutableStateOf(false) }
-    var showMoreMenu  by remember { mutableStateOf(false) }
+    var showMoreMenu   by remember { mutableStateOf(false) }
+    var showSelection  by remember { mutableStateOf(false) }
+    var selectedBranchIdx by remember { mutableStateOf(0) }
+    val selChecked = remember { mutableStateMapOf<String, Boolean>() }
+
+    val vehicleRecords = remember(item?.vehicleNo, item?.chassisNo, ui.results) {
+        if (item == null) emptyList()
+        else ui.results.filter { r ->
+            (item.vehicleNo.isNotBlank() && r.vehicleNo == item.vehicleNo) ||
+            (item.chassisNo.isNotBlank() && r.chassisNo == item.chassisNo)
+        }.ifEmpty { listOf(item) }
+    }
+
+    val uniqueBranches = remember(vehicleRecords) {
+        vehicleRecords.map { r ->
+            BranchEntry(
+                branch    = r.branchName.orEmpty().ifBlank { r.branchFromExcel.orEmpty() },
+                financer  = r.financer.orEmpty(),
+                createdOn = r.createdOn.orEmpty(),
+                record    = r
+            )
+        }.distinctBy { "${it.branch}|||${it.financer}" }
+         .filter { it.branch.isNotBlank() || it.financer.isNotBlank() }
+    }
+
+    val branchRecord: SearchResult? = uniqueBranches.getOrNull(selectedBranchIdx)?.record ?: item
 
     LaunchedEffect(item?.vehicleNo) {
+        selectedBranchIdx = 0
+        selChecked.clear()
+        ALL_SEL_KEYS.forEach { selChecked[it] = true }
+
         if (item == null) return@LaunchedEffect
         val userId = authVm.userId.first()
         if (userId == 0L) return@LaunchedEffect
 
-        // Admin: if data came from local cache (most fields blank), fetch full details from server
         if (isAdmin && item.agreementNo.isBlank()) {
             searchVm.refetchSelectedFromServer(userId)
         }
@@ -87,33 +165,25 @@ fun VehicleDetailScreen(
         }
     }
 
-    // WhatsApp quick-send bottom sheet
     if (showWaSheet && item != null) {
         ModalBottomSheet(onDismissRequest = { showWaSheet = false }) {
-            Column(Modifier.padding(16.dp).padding(bottom = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(
+                Modifier.padding(16.dp).padding(bottom = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
                 Text("Send WhatsApp",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(bottom = 4.dp))
-                WaOptionButton(
-                    label = "Banker for Confirmation",
-                    color = Color(0xFF1565C0)
-                ) {
+                WaOptionButton("Banker for Confirmation", Color(0xFF1565C0)) {
                     openWhatsApp(context, buildQuickWaMessage(item, "Please confirm this vehicle.", agentName, agentPhone))
                     showWaSheet = false
                 }
-                WaOptionButton(
-                    label = "OK for Repo",
-                    color = Color(0xFF2E7D32)
-                ) {
+                WaOptionButton("OK for Repo", Color(0xFF2E7D32)) {
                     openWhatsApp(context, buildQuickWaMessage(item, "Ok for repo.", agentName, agentPhone))
                     showWaSheet = false
                 }
-                WaOptionButton(
-                    label = "Not Confirmed",
-                    color = Color(0xFFC62828)
-                ) {
+                WaOptionButton("Not Confirmed", Color(0xFFC62828)) {
                     openWhatsApp(context, buildQuickWaMessage(item, "Cancel", agentName, agentPhone))
                     showWaSheet = false
                 }
@@ -121,7 +191,6 @@ fun VehicleDetailScreen(
         }
     }
 
-    // Copy dialog
     if (showCopyDialog && item != null) {
         CopyDialog(item = item, onDismiss = { showCopyDialog = false }, context = context)
     }
@@ -174,9 +243,22 @@ fun VehicleDetailScreen(
                         ActionChip(
                             label = "Copy",
                             icon  = Icons.Default.ContentCopy,
-                            color = Color(0xFF6A1B9A),
+                            color = if (showSelection) Color(0xFF4A148C) else Color(0xFF6A1B9A),
                             modifier = Modifier.weight(1f)
-                        ) { showCopyDialog = true }
+                        ) {
+                            val currentItem = item
+                            val currentBr   = branchRecord ?: currentItem
+                            if (showSelection) {
+                                val fields = buildAdminFields(currentItem, currentBr)
+                                val text = fields
+                                    .filter { selChecked[it.first] == true && it.second.isNotBlank() }
+                                    .joinToString("\n") { "${it.first}: ${it.second}" }
+                                val cb = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                cb.setPrimaryClip(ClipData.newPlainText("Vehicle Info", text))
+                            } else {
+                                showCopyDialog = true
+                            }
+                        }
                         Box(Modifier.weight(1f)) {
                             ActionChip(
                                 label    = "More",
@@ -240,7 +322,16 @@ fun VehicleDetailScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             if (isAdmin) {
-                AdminDetailView(item = item, results = ui.results)
+                AdminDetailView(
+                    item              = item,
+                    branchRecord      = branchRecord ?: item,
+                    uniqueBranches    = uniqueBranches,
+                    selectedBranchIdx = selectedBranchIdx,
+                    onBranchSelect    = { selectedBranchIdx = it },
+                    showSelection     = showSelection,
+                    onToggleSelection = { showSelection = !showSelection },
+                    selChecked        = selChecked
+                )
             } else {
                 BasicDetailView(item = item, agentName = agentName, agentPhone = agentPhone)
             }
@@ -251,143 +342,202 @@ fun VehicleDetailScreen(
 
 // ── Admin full detail view ─────────────────────────────────────────────────
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun AdminDetailView(item: SearchResult, results: List<SearchResult>) {
-    // Deduplicate branches by (branchName, financer) so the same branch uploaded
-    // multiple times only appears once. Keep all unique (branch, financer) pairs.
-    data class BranchEntry(val branch: String, val financer: String)
-    // Only show branches for THIS vehicle — filter by vehicleNo or chassisNo match
-    val vehicleRecords = results.filter { r ->
-        (item.vehicleNo.isNotBlank() && r.vehicleNo == item.vehicleNo) ||
-        (item.chassisNo.isNotBlank() && r.chassisNo == item.chassisNo)
-    }.ifEmpty { listOf(item) }  // fallback to the item itself if no matches
-    val uniqueBranches = vehicleRecords
-        .map { r ->
-            val bn  = r.branchName.orEmpty().ifBlank { r.branchFromExcel.orEmpty() }
-            val fin = r.financer.orEmpty()
-            BranchEntry(bn, fin)
-        }
-        .distinctBy { "${it.branch}|||${it.financer}" }
-        .filter { it.branch.isNotBlank() || it.financer.isNotBlank() }
-
-    if (uniqueBranches.isNotEmpty()) {
-        Card(
-            shape  = RoundedCornerShape(10.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF8E1)),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Icon(Icons.Default.AccountBalance, null, tint = Color(0xFFF57F17))
-                Text(
-                    "Found in ${uniqueBranches.size} branch${if (uniqueBranches.size == 1) "" else "es"}",
-                    fontWeight = FontWeight.SemiBold,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Color(0xFFF57F17))
-            }
-        }
-        Card(
-            shape  = RoundedCornerShape(10.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                uniqueBranches.forEachIndexed { idx, entry ->
-                    Row(
-                        verticalAlignment = Alignment.Top,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Surface(
-                            shape = RoundedCornerShape(4.dp),
-                            color = MaterialTheme.colorScheme.primaryContainer
-                        ) {
-                            Text(
-                                "${idx + 1}",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
-                            )
-                        }
-                        Column(Modifier.weight(1f)) {
-                            // Financer = primary (bold, larger) — matches desktop layout
-                            Text(
-                                entry.financer.ifBlank { "—" },
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Medium,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            // Branch name = secondary (caption)
-                            Text(
-                                entry.branch.ifBlank { "—" },
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                    if (idx < uniqueBranches.lastIndex)
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
-                }
-            }
-        }
+private fun AdminDetailView(
+    item: SearchResult,
+    branchRecord: SearchResult,
+    uniqueBranches: List<BranchEntry>,
+    selectedBranchIdx: Int,
+    onBranchSelect: (Int) -> Unit,
+    showSelection: Boolean,
+    onToggleSelection: () -> Unit,
+    selChecked: SnapshotStateMap<String, Boolean>
+) {
+    // Select fields toggle
+    Row(
+        Modifier.fillMaxWidth().padding(bottom = 2.dp),
+        horizontalArrangement = Arrangement.End,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            "Select fields",
+            style = MaterialTheme.typography.labelSmall,
+            color = if (showSelection) Color(0xFF6A1B9A) else MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(Modifier.width(6.dp))
+        Switch(checked = showSelection, onCheckedChange = { onToggleSelection() })
     }
 
-    // Single compact card — all fields, no separate cards = much less scrolling
+    // All fields in one compact card
     Card(
-        shape    = RoundedCornerShape(12.dp),
-        colors   = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        shape     = RoundedCornerShape(12.dp),
+        colors    = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(1.dp),
         modifier  = Modifier.fillMaxWidth()
     ) {
         Column(Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
 
-            CRow("Vehicle No",    item.vehicleNo, mono = true,
-                invalid = !item.vehicleNo.isNullOrBlank() && !item.vehicleNo.isValidRc())
-            CRow("Chassis No",    item.chassisNo,    mono = true)
-            CRow("Eng No",        item.engineNo,     mono = true)
-            CRow("Agreement No",  item.agreementNo,  mono = true)
-            CRow("Cust Name",     item.customerName)
-            CRow("Cust Address",  item.customerAddress)
-            CRow("Cust Contact",  item.customerContact, mono = true)
+            SRow("Vehicle No",   item.vehicleNo,   mono = true,
+                invalid = !item.vehicleNo.isNullOrBlank() && !item.vehicleNo.isValidRc(),
+                sel = showSelection, chk = selChecked["Vehicle No"] == true
+            ) { selChecked["Vehicle No"] = it }
+            SRow("Chassis No",   item.chassisNo,   mono = true,
+                sel = showSelection, chk = selChecked["Chassis No"] == true
+            ) { selChecked["Chassis No"] = it }
+            SRow("Eng No",       item.engineNo,    mono = true,
+                sel = showSelection, chk = selChecked["Eng No"] == true
+            ) { selChecked["Eng No"] = it }
+            SRow("Agreement No", item.agreementNo, mono = true,
+                sel = showSelection, chk = selChecked["Agreement No"] == true
+            ) { selChecked["Agreement No"] = it }
+            SRow("Cust Name",    item.customerName,
+                sel = showSelection, chk = selChecked["Cust Name"] == true
+            ) { selChecked["Cust Name"] = it }
+            SRow("Cust Address", item.customerAddress,
+                sel = showSelection, chk = selChecked["Cust Address"] == true
+            ) { selChecked["Cust Address"] = it }
+            SRow("Cust Contact", item.customerContact, mono = true,
+                sel = showSelection, chk = selChecked["Cust Contact"] == true
+            ) { selChecked["Cust Contact"] = it }
 
             CSep()
 
-            // Short fields — 3 per row to save space
-            CChipRow("BKT", item.bucket, "OD", item.od, "POS", item.pos)
-            CChipRow("TOS", item.toss,   "TBR", item.tbrFlag, null, null)
+            SRow("BKT", item.bucket,
+                sel = showSelection, chk = selChecked["BKT"] == true) { selChecked["BKT"] = it }
+            SRow("OD",  item.od,
+                sel = showSelection, chk = selChecked["OD"] == true)  { selChecked["OD"] = it }
+            SRow("POS", item.pos,
+                sel = showSelection, chk = selChecked["POS"] == true) { selChecked["POS"] = it }
+            SRow("TOS", item.toss,
+                sel = showSelection, chk = selChecked["TOS"] == true) { selChecked["TOS"] = it }
+            SRow("TBR", item.tbrFlag,
+                sel = showSelection, chk = selChecked["TBR"] == true) { selChecked["TBR"] = it }
 
             CSep()
 
-            CRow("Branch", item.branchFromExcel)
-            CRow("Area",   item.area)
-            CRow("Region", item.region)
+            SRow("Branch", item.branchFromExcel,
+                sel = showSelection, chk = selChecked["Branch"] == true) { selChecked["Branch"] = it }
+            SRow("Area",   item.area,
+                sel = showSelection, chk = selChecked["Area"] == true)   { selChecked["Area"] = it }
+            SRow("Region", item.region,
+                sel = showSelection, chk = selChecked["Region"] == true) { selChecked["Region"] = it }
 
             CSep()
 
-            CRow("Level 1",         item.level1)
-            CRow("Level 1 Contact", item.level1Contact, mono = true)
-            CRow("Level 2",         item.level2)
-            CRow("Level 2 Contact", item.level2Contact, mono = true)
-            CRow("Level 3",         item.level3)
-            CRow("Level 3 Contact", item.level3Contact, mono = true)
-            CRow("Level 4",         item.level4)
-            CRow("Level 4 Contact", item.level4Contact, mono = true)
+            SRow("Level 1",         item.level1,
+                sel = showSelection, chk = selChecked["Level 1"] == true) { selChecked["Level 1"] = it }
+            SRow("Level 1 Contact", item.level1Contact, mono = true,
+                sel = showSelection, chk = selChecked["Level 1"] == true) { selChecked["Level 1"] = it }
+            SRow("Level 2",         item.level2,
+                sel = showSelection, chk = selChecked["Level 2"] == true) { selChecked["Level 2"] = it }
+            SRow("Level 2 Contact", item.level2Contact, mono = true,
+                sel = showSelection, chk = selChecked["Level 2"] == true) { selChecked["Level 2"] = it }
+            SRow("Level 3",         item.level3,
+                sel = showSelection, chk = selChecked["Level 3"] == true) { selChecked["Level 3"] = it }
+            SRow("Level 3 Contact", item.level3Contact, mono = true,
+                sel = showSelection, chk = selChecked["Level 3"] == true) { selChecked["Level 3"] = it }
+            SRow("Level 4",         item.level4,
+                sel = showSelection, chk = selChecked["Level 4"] == true) { selChecked["Level 4"] = it }
+            SRow("Level 4 Contact", item.level4Contact, mono = true,
+                sel = showSelection, chk = selChecked["Level 4"] == true) { selChecked["Level 4"] = it }
 
             CSep()
 
-            CRow("Finance",        item.branchName)
-            CRow("Head Office",    item.financer)
-            CRow("Contact 1",      item.firstContact,  mono = true)
-            CRow("Contact 2",      item.secondContact, mono = true)
-            CRow("Contact 3",      item.thirdContact,  mono = true)
-            CRow("Mail Id 1",      item.senderMail1)
-            CRow("Mail Id 2",      item.senderMail2)
-            CRow("Address",        item.address)
-            CRow("Executive Name", item.executiveName)
+            SRow("Finance",        branchRecord.branchName,
+                sel = showSelection, chk = selChecked["Finance"] == true
+            ) { selChecked["Finance"] = it }
+            SRow("Head Office",    branchRecord.financer,
+                sel = showSelection, chk = selChecked["Head Office"] == true
+            ) { selChecked["Head Office"] = it }
+            SRow("Contact 1",      branchRecord.firstContact,  mono = true,
+                sel = showSelection, chk = selChecked["Contact 1"] == true
+            ) { selChecked["Contact 1"] = it }
+            SRow("Contact 2",      branchRecord.secondContact, mono = true,
+                sel = showSelection, chk = selChecked["Contact 2"] == true
+            ) { selChecked["Contact 2"] = it }
+            SRow("Contact 3",      branchRecord.thirdContact,  mono = true,
+                sel = showSelection, chk = selChecked["Contact 3"] == true
+            ) { selChecked["Contact 3"] = it }
+            SRow("Mail Id 1",      branchRecord.senderMail1,
+                sel = showSelection, chk = selChecked["Mail Id 1"] == true
+            ) { selChecked["Mail Id 1"] = it }
+            SRow("Mail Id 2",      branchRecord.senderMail2,
+                sel = showSelection, chk = selChecked["Mail Id 2"] == true
+            ) { selChecked["Mail Id 2"] = it }
+            SRow("Address",        branchRecord.address,
+                sel = showSelection, chk = selChecked["Address"] == true
+            ) { selChecked["Address"] = it }
+            SRow("Executive Name", branchRecord.executiveName,
+                sel = showSelection, chk = selChecked["Executive Name"] == true
+            ) { selChecked["Executive Name"] = it }
 
             CSep()
 
-            CRow("Uploaded On", item.createdOn)
+            SRow("Uploaded On", branchRecord.createdOn,
+                sel = showSelection, chk = selChecked["Uploaded On"] == true
+            ) { selChecked["Uploaded On"] = it }
+        }
+    }
+
+    // ── FOUND IN BRANCHES (at bottom, tappable) ────────────────────────────
+    if (uniqueBranches.isNotEmpty()) {
+        Row(
+            Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Icon(Icons.Default.AccountBalance, null,
+                tint = Color(0xFFF57F17), modifier = Modifier.size(15.dp))
+            Text(
+                "FOUND IN BRANCHES",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFFF57F17)
+            )
+        }
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            uniqueBranches.forEachIndexed { idx, entry ->
+                val isSelected = idx == selectedBranchIdx
+                Card(
+                    onClick  = { onBranchSelect(idx) },
+                    shape    = RoundedCornerShape(8.dp),
+                    border   = if (isSelected) BorderStroke(1.5.dp, Color(0xFFF57F17)) else null,
+                    colors   = CardDefaults.cardColors(
+                        containerColor = if (isSelected) Color(0xFFFFF8E1)
+                                         else MaterialTheme.colorScheme.surfaceVariant
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                entry.financer.ifBlank { "—" },
+                                style      = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.Bold,
+                                color      = MaterialTheme.colorScheme.onSurface,
+                                modifier   = Modifier.weight(1f)
+                            )
+                            Text(
+                                entry.createdOn,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        if (entry.branch.isNotBlank()) {
+                            Text(
+                                entry.branch,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -566,20 +716,36 @@ private fun openWhatsApp(context: Context, message: String) {
     context.startActivity(intent)
 }
 
-// ── Compact row (admin single-card layout) ─────────────────────────────────
+// ── Compact row with optional selection checkbox ───────────────────────────
 
 @Composable
-private fun CRow(label: String, value: String?, mono: Boolean = false, invalid: Boolean = false) {
+private fun SRow(
+    label: String,
+    value: String?,
+    mono: Boolean = false,
+    invalid: Boolean = false,
+    sel: Boolean = false,
+    chk: Boolean = false,
+    onChk: (Boolean) -> Unit = {}
+) {
     val display = value.orEmpty()
     Row(
         Modifier.fillMaxWidth().padding(vertical = 3.dp),
-        verticalAlignment = Alignment.Top
+        verticalAlignment = Alignment.CenterVertically
     ) {
+        if (sel) {
+            Checkbox(
+                checked = chk,
+                onCheckedChange = onChk,
+                modifier = Modifier.size(24.dp)
+            )
+            Spacer(Modifier.width(6.dp))
+        }
         Text(
             label,
             style    = MaterialTheme.typography.labelSmall,
             color    = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.width(110.dp)
+            modifier = Modifier.width(if (sel) 90.dp else 110.dp)
         )
         Text(
             display,
@@ -606,94 +772,16 @@ private fun CRow(label: String, value: String?, mono: Boolean = false, invalid: 
 }
 
 @Composable
+private fun CRow(label: String, value: String?, mono: Boolean = false, invalid: Boolean = false) {
+    SRow(label, value, mono, invalid)
+}
+
+@Composable
 private fun CSep() {
     HorizontalDivider(
         modifier = Modifier.padding(vertical = 6.dp),
         color    = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
     )
-}
-
-@Composable
-private fun CChipRow(
-    l1: String, v1: String?,
-    l2: String, v2: String?,
-    l3: String?, v3: String?
-) {
-    Row(
-        Modifier.fillMaxWidth().padding(vertical = 3.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        listOf(l1 to v1, l2 to v2, l3 to v3).forEach { (label, value) ->
-            if (label == null) {
-                Spacer(Modifier.weight(1f))
-            } else {
-                val display = value.orEmpty()
-                Column(Modifier.weight(1f)) {
-                    Text(label,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text(
-                        display.ifBlank { "—" },
-                        style      = MaterialTheme.typography.bodySmall,
-                        fontWeight = if (display.isBlank()) FontWeight.Normal else FontWeight.SemiBold,
-                        color      = if (display.isBlank()) MaterialTheme.colorScheme.outlineVariant
-                                     else MaterialTheme.colorScheme.onSurface
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun InfoCard(title: String, content: @Composable ColumnScope.() -> Unit) {
-    Card(
-        shape  = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(1.dp),
-        modifier  = Modifier.fillMaxWidth()
-    ) {
-        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(title,
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary)
-            HorizontalDivider(color = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
-            content()
-        }
-    }
-}
-
-@Composable
-private fun DRow(label: String, value: String?, mono: Boolean = false, invalid: Boolean = false) {
-    val display = value.orEmpty()
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically) {
-        Text(label,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.weight(0.38f))
-        Row(Modifier.weight(0.62f), verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(
-                display,
-                style = MaterialTheme.typography.bodySmall,
-                fontWeight = if (display.isBlank()) FontWeight.Normal else FontWeight.SemiBold,
-                fontFamily = if (mono) FontFamily.Monospace else FontFamily.Default,
-                color = if (invalid) MaterialTheme.colorScheme.error
-                        else if (display.isBlank()) MaterialTheme.colorScheme.outlineVariant
-                        else MaterialTheme.colorScheme.onSurface)
-            if (invalid) {
-                Surface(shape = RoundedCornerShape(4.dp),
-                    color = MaterialTheme.colorScheme.errorContainer) {
-                    Text("INVALID",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onErrorContainer,
-                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp))
-                }
-            }
-        }
-    }
 }
 
 @Composable
