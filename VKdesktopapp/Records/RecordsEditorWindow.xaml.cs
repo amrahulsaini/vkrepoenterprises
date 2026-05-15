@@ -303,7 +303,7 @@ public partial class RecordsEditorWindow : RibbonWindow
 
     private void btnVerifyRecords_Click(object sender, RoutedEventArgs e)
     {
-        var validator = new RecordValidatorAndUploaderWindow(sp.ActiveSheet, _mappedColumns) { Owner = this };
+        var validator = new RecordValidatorAndUploaderWindow(sp.ActiveSheet, _mappedColumns);
         validator.Show();
     }
 

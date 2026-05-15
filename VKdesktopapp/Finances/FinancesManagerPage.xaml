@@ -174,8 +174,8 @@
 
         <!-- Page header -->
         <StackPanel Grid.Row="0" Margin="0,0,0,18">
-            <TextBlock Text="Finances" Style="{StaticResource Heading4}" />
-            <TextBlock Text="Manage finance companies and their branches"
+            <TextBlock Text="HEAD OFFICES" Style="{StaticResource Heading4}" FontWeight="Bold" />
+            <TextBlock Text="Manage head offices and their finances"
                        Style="{StaticResource Caption}" Margin="0,2,0,0" />
         </StackPanel>
 
@@ -211,8 +211,9 @@
                                     ToolTip="Show all branches across all finances"
                                     Click="btnViewAll_Click" />
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                <TextBlock Text="Finance / Head Offices"
+                                <TextBlock Text="HEAD OFFICES"
                                            Style="{StaticResource Heading6}"
+                                           FontWeight="Bold"
                                            VerticalAlignment="Center" />
                                 <Grid x:Name="financeSpinner"
                                       Visibility="Collapsed"
@@ -304,14 +305,16 @@
                                 </ContextMenu>
                             </DataGrid.ContextMenu>
                             <DataGrid.Columns>
-                                <DataGridTextColumn Header="Finance Name"
+                                <DataGridTextColumn Header="Head Office Name"
                                                     Binding="{Binding Name}"
                                                     Width="*">
                                     <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock" BasedOn="{StaticResource CellText}" />
+                                        <Style TargetType="TextBlock" BasedOn="{StaticResource CellText}">
+                                            <Setter Property="FontWeight" Value="Bold" />
+                                        </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
-                                <DataGridTextColumn Header="Branches"
+                                <DataGridTextColumn Header="Finances"
                                                     Binding="{Binding BranchCount}"
                                                     Width="100">
                                     <DataGridTextColumn.ElementStyle>
@@ -343,8 +346,9 @@
                                     Click="btnAddBranch_Click" />
                             <StackPanel VerticalAlignment="Center">
                                 <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="Branches"
+                                    <TextBlock Text="FINANCES"
                                                Style="{StaticResource Heading6}"
+                                               FontWeight="Bold"
                                                VerticalAlignment="Center" />
                                     <Grid x:Name="branchSpinner"
                                           Visibility="Collapsed"
@@ -363,7 +367,7 @@
                                     </Grid>
                                 </StackPanel>
                                 <TextBlock Name="txtBranchSubtitle"
-                                           Text="Select a finance to view branches"
+                                           Text="Select a head office to view finances"
                                            Style="{StaticResource Caption}"
                                            Margin="0,2,0,0" />
                             </StackPanel>
@@ -439,11 +443,13 @@
                                 </ContextMenu>
                             </DataGrid.ContextMenu>
                             <DataGrid.Columns>
-                                <DataGridTextColumn Header="Branch Name"
+                                <DataGridTextColumn Header="Finance Name"
                                                     Binding="{Binding BranchName}"
                                                     Width="*">
                                     <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock" BasedOn="{StaticResource CellText}" />
+                                        <Style TargetType="TextBlock" BasedOn="{StaticResource CellText}">
+                                            <Setter Property="FontWeight" Value="Bold" />
+                                        </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
                                 <DataGridTextColumn Header="Uploaded"

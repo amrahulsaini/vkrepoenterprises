@@ -135,8 +135,15 @@
                 IsReadOnly="True"
                 Background="{StaticResource Gray50}"
                 Height="32"
+                MinWidth="320"
+                Padding="8,0"
+                FontSize="13"
+                FontWeight="SemiBold"
                 Margin="8,0,0,0"
-                VerticalAlignment="Center" />
+                VerticalAlignment="Center"
+                VerticalContentAlignment="Center"
+                TextWrapping="NoWrap"
+                HorizontalScrollBarVisibility="Auto" />
             <Button
                 x:Name="btnSelectBranch"
                 Click="btnSelectBranch_Click"

@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.ClickableText
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -20,8 +21,12 @@ import androidx.compose.runtime.snapshots.SnapshotStateMap
 import androidx.compose.ui.*
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.*
 import androidx.navigation.NavController
 import com.google.android.gms.location.LocationServices
@@ -718,6 +723,10 @@ private fun openWhatsApp(context: Context, message: String) {
 
 // ── Compact row with optional selection checkbox ───────────────────────────
 
+// Matches 10-digit phone numbers starting with 6/7/8/9 (Indian mobile format).
+// \b ensures we don't match digits inside longer numbers.
+private val PHONE_REGEX = Regex("\\b[6-9]\\d{9}\\b")
+
 @Composable
 private fun SRow(
     label: String,
@@ -729,6 +738,30 @@ private fun SRow(
     onChk: (Boolean) -> Unit = {}
 ) {
     val display = value.orEmpty()
+    val context = LocalContext.current
+
+    val baseColor = if (invalid) MaterialTheme.colorScheme.error
+                    else if (display.isBlank()) MaterialTheme.colorScheme.outlineVariant
+                    else MaterialTheme.colorScheme.onSurface
+    val phoneColor = MaterialTheme.colorScheme.primary
+
+    val phoneMatches = PHONE_REGEX.findAll(display).toList()
+    val annotated = remember(display, phoneColor, baseColor) {
+        buildAnnotatedString {
+            var last = 0
+            phoneMatches.forEach { m ->
+                if (m.range.first > last) append(display.substring(last, m.range.first))
+                pushStringAnnotation(tag = "PHONE", annotation = m.value)
+                withStyle(SpanStyle(color = phoneColor, textDecoration = TextDecoration.Underline)) {
+                    append(m.value)
+                }
+                pop()
+                last = m.range.last + 1
+            }
+            if (last < display.length) append(display.substring(last))
+        }
+    }
+
     Row(
         Modifier.fillMaxWidth().padding(vertical = 3.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -747,15 +780,24 @@ private fun SRow(
             color    = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.width(if (sel) 90.dp else 110.dp)
         )
-        Text(
-            display,
-            style      = MaterialTheme.typography.bodySmall,
-            fontWeight = if (display.isBlank()) FontWeight.Normal else FontWeight.Medium,
-            fontFamily = if (mono) FontFamily.Monospace else FontFamily.Default,
-            color      = if (invalid) MaterialTheme.colorScheme.error
-                         else if (display.isBlank()) MaterialTheme.colorScheme.outlineVariant
-                         else MaterialTheme.colorScheme.onSurface,
-            modifier   = Modifier.weight(1f)
+        ClickableText(
+            text = annotated,
+            style = MaterialTheme.typography.bodySmall.copy(
+                color      = baseColor,
+                fontWeight = if (display.isBlank()) FontWeight.Normal else FontWeight.Medium,
+                fontFamily = if (mono) FontFamily.Monospace else FontFamily.Default
+            ),
+            onClick = { offset ->
+                annotated.getStringAnnotations(tag = "PHONE", start = offset, end = offset)
+                    .firstOrNull()?.let { ann ->
+                        runCatching {
+                            context.startActivity(
+                                Intent(Intent.ACTION_DIAL, Uri.parse("tel:${ann.item}"))
+                            )
+                        }
+                    }
+            },
+            modifier = Modifier.weight(1f)
         )
         if (invalid) {
             Surface(

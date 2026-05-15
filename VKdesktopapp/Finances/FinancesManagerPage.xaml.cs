@@ -98,7 +98,7 @@ public partial class FinancesManagerPage : Page
             _allFinances.Add(new FinanceListItem
             {
                 Id           = f.Id,
-                Name         = f.Name,
+                Name         = (f.Name ?? string.Empty).ToUpperInvariant(),
                 BranchCount  = f.BranchCount,
                 TotalRecords = f.TotalRecords
             });
@@ -224,7 +224,7 @@ public partial class FinancesManagerPage : Page
             list.Add(new BranchSummaryItem
             {
                 BranchId      = it.Id.ToString(),
-                BranchName    = it.Name,
+                BranchName    = (it.Name ?? string.Empty).ToUpperInvariant(),
                 ContactMobile = it.Contact1,
                 Records       = it.TotalRecords,
                 UpdatedOn     = it.UploadedAt
@@ -252,8 +252,8 @@ public partial class FinancesManagerPage : Page
             var list = items.Select(it => new BranchSummaryItem
             {
                 BranchId       = it.Id.ToString(),
-                BranchName     = it.Name,
-                HeadOfficeName = it.FinanceName,
+                BranchName     = (it.Name ?? string.Empty).ToUpperInvariant(),
+                HeadOfficeName = (it.FinanceName ?? string.Empty).ToUpperInvariant(),
                 FinanceId      = it.FinanceId,
                 Records        = it.TotalRecords,
                 UpdatedOn      = it.UploadedAt
