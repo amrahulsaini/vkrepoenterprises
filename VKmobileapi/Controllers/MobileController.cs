@@ -223,6 +223,78 @@ public class MobileController : ControllerBase
         }
     }
 
+    // ── Control Panel ──────────────────────────────────────────────────────
+    // POST /api/mobile/admin/verify-admin-pass — checks the caller's own admin_pass
+    [HttpPost("admin/verify-admin-pass")]
+    public async Task<IActionResult> VerifyAdminPass(
+        [FromHeader(Name = "X-User-Id")] long userId,
+        [FromBody] VerifyAdminPassRequest req)
+    {
+        try
+        {
+            if (!await _repo.IsAdminAsync(userId))
+                return StatusCode(403, new ApiError(false, "Admin access required."));
+            if (!await _repo.VerifyAdminPasswordAsync(userId, req.Password))
+                return StatusCode(403, new ApiError(false, "Incorrect Control Panel password."));
+            return Ok(new { success = true });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new ApiError(false, $"Verification failed: {ex.Message}"));
+        }
+    }
+
+    // PATCH /api/mobile/admin/users/{targetUserId}/active
+    [HttpPatch("admin/users/{targetUserId:long}/active")]
+    public async Task<IActionResult> AdminSetActive(
+        long targetUserId,
+        [FromHeader(Name = "X-User-Id")] long userId,
+        [FromBody] SetUserFlagRequest req)
+    {
+        try
+        {
+            if (!await _repo.IsAdminAsync(userId))
+                return StatusCode(403, new ApiError(false, "Admin access required."));
+            await _repo.SetUserActiveAsync(targetUserId, req.Value);
+            return Ok(new { success = true });
+        }
+        catch (Exception ex) { return StatusCode(500, new ApiError(false, $"Failed: {ex.Message}")); }
+    }
+
+    // PATCH /api/mobile/admin/users/{targetUserId}/stopped
+    [HttpPatch("admin/users/{targetUserId:long}/stopped")]
+    public async Task<IActionResult> AdminSetStopped(
+        long targetUserId,
+        [FromHeader(Name = "X-User-Id")] long userId,
+        [FromBody] SetUserFlagRequest req)
+    {
+        try
+        {
+            if (!await _repo.IsAdminAsync(userId))
+                return StatusCode(403, new ApiError(false, "Admin access required."));
+            await _repo.SetUserStoppedAsync(targetUserId, req.Value);
+            return Ok(new { success = true });
+        }
+        catch (Exception ex) { return StatusCode(500, new ApiError(false, $"Failed: {ex.Message}")); }
+    }
+
+    // PATCH /api/mobile/admin/users/{targetUserId}/blacklisted
+    [HttpPatch("admin/users/{targetUserId:long}/blacklisted")]
+    public async Task<IActionResult> AdminSetBlacklisted(
+        long targetUserId,
+        [FromHeader(Name = "X-User-Id")] long userId,
+        [FromBody] SetUserFlagRequest req)
+    {
+        try
+        {
+            if (!await _repo.IsAdminAsync(userId))
+                return StatusCode(403, new ApiError(false, "Admin access required."));
+            await _repo.SetUserBlacklistedAsync(targetUserId, req.Value);
+            return Ok(new { success = true });
+        }
+        catch (Exception ex) { return StatusCode(500, new ApiError(false, $"Failed: {ex.Message}")); }
+    }
+
     // GET /api/mobile/profile/{userId}
     [HttpGet("profile/{userId:long}")]
     public async Task<IActionResult> GetProfile(long userId)

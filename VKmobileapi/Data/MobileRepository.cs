@@ -447,7 +447,7 @@ public class MobileRepository
         return stored?.ToString() == password;
     }
 
-    // ── Admin: list users with latest sub end ─────────────────────────────
+    // ── Admin: list users with latest sub end + status flags ──────────────
     public async Task<List<AdminUserItem>> GetAdminUsersAsync()
     {
         await using var conn = DbFactory.Create();
@@ -455,7 +455,9 @@ public class MobileRepository
         const string sql = @"
             SELECT u.id, u.name, u.mobile, COALESCE(u.address,''),
                    (SELECT DATE_FORMAT(MAX(s.end_date),'%Y-%m-%d')
-                    FROM subscriptions s WHERE s.user_id=u.id) AS sub_end
+                    FROM subscriptions s WHERE s.user_id=u.id) AS sub_end,
+                   COALESCE(u.is_active,0), COALESCE(u.is_admin,0),
+                   COALESCE(u.is_stopped,0), COALESCE(u.is_blacklisted,0)
             FROM app_users u ORDER BY u.name ASC";
         await using var cmd = new MySqlCommand(sql, conn) { CommandTimeout = 10 };
         var list = new List<AdminUserItem>();
@@ -463,8 +465,50 @@ public class MobileRepository
         while (await rdr.ReadAsync())
             list.Add(new AdminUserItem(
                 rdr.GetInt64(0), rdr.GetString(1), rdr.GetString(2),
-                rdr.GetString(3), rdr.IsDBNull(4) ? null : rdr.GetString(4)));
+                rdr.GetString(3), rdr.IsDBNull(4) ? null : rdr.GetString(4),
+                rdr.GetBoolean(5), rdr.GetBoolean(6), rdr.GetBoolean(7), rdr.GetBoolean(8)));
         return list;
+    }
+
+    // ── Admin: verify the calling admin's Control Panel password ───────────
+    public async Task<bool> VerifyAdminPasswordAsync(long userId, string password)
+    {
+        if (string.IsNullOrWhiteSpace(password)) return false;
+        await using var conn = DbFactory.Create();
+        await conn.OpenAsync();
+        await using var cmd = new MySqlCommand(
+            "SELECT admin_pass FROM app_users WHERE id=@id LIMIT 1", conn) { CommandTimeout = 5 };
+        cmd.Parameters.AddWithValue("@id", userId);
+        var stored = await cmd.ExecuteScalarAsync() as string;
+        return !string.IsNullOrWhiteSpace(stored) && stored == password;
+    }
+
+    // ── Admin: user state toggles ──────────────────────────────────────────
+    public async Task SetUserActiveAsync(long userId, bool active)   => await SetUserFlagAsync(userId, "is_active", active);
+    public async Task SetUserStoppedAsync(long userId, bool stopped) => await SetUserFlagAsync(userId, "is_stopped", stopped);
+
+    public async Task SetUserBlacklistedAsync(long userId, bool blacklisted)
+    {
+        // Blacklisting also stops the app — mirrors the desktop manager.
+        await using var conn = DbFactory.Create();
+        await conn.OpenAsync();
+        await using var cmd = new MySqlCommand(
+            "UPDATE app_users SET is_blacklisted=@v, is_stopped=@v WHERE id=@id", conn) { CommandTimeout = 10 };
+        cmd.Parameters.AddWithValue("@v", blacklisted ? 1 : 0);
+        cmd.Parameters.AddWithValue("@id", userId);
+        await cmd.ExecuteNonQueryAsync();
+    }
+
+    // col is an internal constant ("is_active"/"is_stopped") — never user input.
+    private static async Task SetUserFlagAsync(long userId, string col, bool val)
+    {
+        await using var conn = DbFactory.Create();
+        await conn.OpenAsync();
+        await using var cmd = new MySqlCommand(
+            $"UPDATE app_users SET {col}=@v WHERE id=@id", conn) { CommandTimeout = 10 };
+        cmd.Parameters.AddWithValue("@v", val ? 1 : 0);
+        cmd.Parameters.AddWithValue("@id", userId);
+        await cmd.ExecuteNonQueryAsync();
     }
 
     // ── Admin: add subscription ───────────────────────────────────────────
