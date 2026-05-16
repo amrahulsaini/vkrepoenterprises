@@ -110,10 +110,11 @@ fun VehicleDetailScreen(
     val isAdmin    by authVm.isAdmin.collectAsState(initial = false)
     val context    = LocalContext.current
 
-    var showWaSheet    by remember { mutableStateOf(false) }
-    var showCopyDialog by remember { mutableStateOf(false) }
-    var showMoreMenu   by remember { mutableStateOf(false) }
-    var showSelection  by remember { mutableStateOf(false) }
+    var showWaSheet      by remember { mutableStateOf(false) }
+    var showCopyDialog   by remember { mutableStateOf(false) }
+    var showMoreMenu     by remember { mutableStateOf(false) }
+    var showSelection    by remember { mutableStateOf(false) }
+    var showBranchSheet  by remember { mutableStateOf(false) }
     var selectedBranchIdx by remember { mutableStateOf(0) }
     val selChecked = remember { mutableStateMapOf<String, Boolean>() }
 
@@ -135,8 +136,14 @@ fun VehicleDetailScreen(
             )
         }.distinctBy { "${it.branch}|||${it.financer}" }
          .filter { it.branch.isNotBlank() || it.financer.isNotBlank() }
-         // Newest upload first — most recent finance/branch records on top.
          .sortedByDescending { it.createdOn }
+    }
+
+    // Auto-show the "FOUND IN BRANCHES" bottom sheet for admins when there's
+    // more than one finance for this vehicle — they can switch directly from
+    // the sheet without scrolling.
+    LaunchedEffect(isAdmin, uniqueBranches.size) {
+        if (isAdmin && uniqueBranches.size > 1) showBranchSheet = true
     }
 
     val branchRecord: SearchResult? = uniqueBranches.getOrNull(selectedBranchIdx)?.record ?: item
@@ -200,6 +207,79 @@ fun VehicleDetailScreen(
 
     if (showCopyDialog && item != null) {
         CopyDialog(item = item, onDismiss = { showCopyDialog = false }, context = context)
+    }
+
+    // ── FOUND IN BRANCHES bottom sheet ────────────────────────────────────────
+    // Slides up from the bottom on entry (and on demand via the chip in the
+    // header). Tap a card → details panel updates with that finance's data.
+    if (showBranchSheet && uniqueBranches.isNotEmpty()) {
+        ModalBottomSheet(onDismissRequest = { showBranchSheet = false }) {
+            Column(
+                Modifier.padding(horizontal = 16.dp).padding(bottom = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier.padding(bottom = 4.dp)
+                ) {
+                    Icon(Icons.Default.AccountBalance, null,
+                        tint = Color(0xFFF57F17), modifier = Modifier.size(18.dp))
+                    Text(
+                        "FOUND IN BRANCHES",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFFF57F17)
+                    )
+                }
+                uniqueBranches.forEachIndexed { idx, entry ->
+                    val isSelected = idx == selectedBranchIdx
+                    Card(
+                        onClick  = {
+                            selectedBranchIdx = idx
+                            showBranchSheet = false
+                        },
+                        shape    = RoundedCornerShape(10.dp),
+                        border   = if (isSelected) BorderStroke(2.dp, Color(0xFFF57F17)) else null,
+                        colors   = CardDefaults.cardColors(
+                            containerColor = if (isSelected) Color(0xFFFFF8E1)
+                                             else MaterialTheme.colorScheme.surfaceVariant
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
+                            Row(
+                                Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    entry.financer.ifBlank { "—" },
+                                    style      = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color      = MaterialTheme.colorScheme.onSurface,
+                                    modifier   = Modifier.weight(1f)
+                                )
+                                Text(
+                                    entry.createdOn,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color(0xFFF57F17)
+                                )
+                            }
+                            if (entry.branch.isNotBlank()) {
+                                Text(
+                                    entry.branch,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(top = 3.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 
     Scaffold(
@@ -337,7 +417,8 @@ fun VehicleDetailScreen(
                     onBranchSelect    = { selectedBranchIdx = it },
                     showSelection     = showSelection,
                     onToggleSelection = { showSelection = !showSelection },
-                    selChecked        = selChecked
+                    selChecked        = selChecked,
+                    onShowBranchSheet = { showBranchSheet = true }
                 )
             } else {
                 BasicDetailView(item = item, agentName = agentName, agentPhone = agentPhone)
@@ -359,21 +440,45 @@ private fun AdminDetailView(
     onBranchSelect: (Int) -> Unit,
     showSelection: Boolean,
     onToggleSelection: () -> Unit,
-    selChecked: SnapshotStateMap<String, Boolean>
+    selChecked: SnapshotStateMap<String, Boolean>,
+    onShowBranchSheet: () -> Unit
 ) {
-    // Select fields toggle
+    // Top row: "Found in N branches" chip (left) + Select-fields toggle (right)
     Row(
         Modifier.fillMaxWidth().padding(bottom = 2.dp),
-        horizontalArrangement = Arrangement.End,
+        horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            "Select fields",
-            style = MaterialTheme.typography.labelSmall,
-            color = if (showSelection) Color(0xFF6A1B9A) else MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Spacer(Modifier.width(6.dp))
-        Switch(checked = showSelection, onCheckedChange = { onToggleSelection() })
+        if (uniqueBranches.size > 1) {
+            AssistChip(
+                onClick = onShowBranchSheet,
+                label = {
+                    Text(
+                        "Found in ${uniqueBranches.size} branches",
+                        fontWeight = FontWeight.Bold
+                    )
+                },
+                leadingIcon = {
+                    Icon(Icons.Default.AccountBalance, null,
+                        tint = Color(0xFFF57F17), modifier = Modifier.size(16.dp))
+                },
+                colors = AssistChipDefaults.assistChipColors(
+                    labelColor = Color(0xFFF57F17),
+                    containerColor = Color(0xFFFFF8E1)
+                )
+            )
+        } else {
+            Spacer(Modifier)
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                "Select fields",
+                style = MaterialTheme.typography.labelSmall,
+                color = if (showSelection) Color(0xFF6A1B9A) else MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.width(6.dp))
+            Switch(checked = showSelection, onCheckedChange = { onToggleSelection() })
+        }
     }
 
     // All fields in one compact card
@@ -487,68 +592,8 @@ private fun AdminDetailView(
         }
     }
 
-    // ── FOUND IN BRANCHES (at bottom, tappable) ────────────────────────────
-    if (uniqueBranches.isNotEmpty()) {
-        Row(
-            Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            Icon(Icons.Default.AccountBalance, null,
-                tint = Color(0xFFF57F17), modifier = Modifier.size(15.dp))
-            Text(
-                "FOUND IN BRANCHES",
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFFF57F17)
-            )
-        }
-        // Vertical stack of finance cards — matches the reference screenshot.
-        // Tap any card to load that finance/branch's data into the details above.
-        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            uniqueBranches.forEachIndexed { idx, entry ->
-                val isSelected = idx == selectedBranchIdx
-                Card(
-                    onClick  = { onBranchSelect(idx) },
-                    shape    = RoundedCornerShape(8.dp),
-                    border   = if (isSelected) BorderStroke(1.5.dp, Color(0xFFF57F17)) else null,
-                    colors   = CardDefaults.cardColors(
-                        containerColor = if (isSelected) Color(0xFFFFF8E1)
-                                         else MaterialTheme.colorScheme.surfaceVariant
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
-                        Row(
-                            Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                entry.financer.ifBlank { "—" },
-                                style      = MaterialTheme.typography.bodySmall,
-                                fontWeight = FontWeight.Bold,
-                                color      = MaterialTheme.colorScheme.onSurface,
-                                modifier   = Modifier.weight(1f)
-                            )
-                            Text(
-                                entry.createdOn,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        if (entry.branch.isNotBlank()) {
-                            Text(
-                                entry.branch,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
+    // The "FOUND IN BRANCHES" list lives in a bottom sheet now — it auto-opens
+    // on entry and the chip in the header re-opens it on demand. See parent.
 }
 
 // ── Non-admin basic view ───────────────────────────────────────────────────
