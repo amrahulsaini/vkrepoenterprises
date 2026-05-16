@@ -39,8 +39,10 @@ class SyncRepository @Inject constructor(
         for (b in branches) {
             if (b.uploadedAt == null) continue
             val savedState = syncStateDao.get(b.branchId)
-            val localCount = vehicleDao.countByBranch(b.branchId)
-            if (savedState?.uploadedAt != b.uploadedAt || localCount != b.totalRecords) return true
+            // Only the uploadedAt timestamp is authoritative — counts can drift
+            // legitimately (REPLACE on duplicate IDs, server-side row filtering)
+            // and would otherwise trigger a permanent "needs sync" red indicator.
+            if (savedState?.uploadedAt != b.uploadedAt) return true
         }
         return false
     }
