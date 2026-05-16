@@ -47,13 +47,14 @@ class AuthViewModel @Inject constructor(
     private val _state = MutableStateFlow<AuthUiState>(AuthUiState.Idle)
     val state: StateFlow<AuthUiState> = _state.asStateFlow()
 
-    val isLoggedIn    = prefs.isLoggedIn
-    val userId        = prefs.userId
-    val userName      = prefs.userName
-    val userMobile    = prefs.userMobile
-    val isAdmin       = prefs.isAdmin
-    val pfpUrl        = prefs.pfpUrl
-    val blockedReason = prefs.blockedReason  // used by background heartbeat worker
+    val isLoggedIn      = prefs.isLoggedIn
+    val userId          = prefs.userId
+    val userName        = prefs.userName
+    val userMobile      = prefs.userMobile
+    val isAdmin         = prefs.isAdmin
+    val pfpUrl          = prefs.pfpUrl
+    val subscriptionEnd = prefs.subscriptionEnd
+    val blockedReason   = prefs.blockedReason  // used by background heartbeat worker
 
     // Direct in-memory signal for foreground status polling — no DataStore delay
     private val _kickReason = MutableStateFlow<String?>(null)

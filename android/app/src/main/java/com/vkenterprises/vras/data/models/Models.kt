@@ -182,7 +182,11 @@ data class AdminUserItem(
     val name: String,
     val mobile: String,
     val address: String?,
-    val subEnd: String?
+    val subEnd: String?,
+    val isActive: Boolean = false,
+    val isAdmin: Boolean = false,
+    val isStopped: Boolean = false,
+    val isBlacklisted: Boolean = false
 )
 data class AdminAddSubRequest(
     val startDate: String,
@@ -190,3 +194,7 @@ data class AdminAddSubRequest(
     val amount: Double,
     val notes: String?
 )
+
+// Control Panel
+data class VerifyAdminPassRequest(val password: String)
+data class SetUserFlagRequest(val value: Boolean)
