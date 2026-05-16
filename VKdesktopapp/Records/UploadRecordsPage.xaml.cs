@@ -27,20 +27,21 @@ public partial class UploadRecordsPage : Page
             _recordsEditorWindow.Closed += (_, __) =>
             {
                 _recordsEditorWindow = null;
-                // Editor closed → bring the dashboard back.
+                // Editor closed → bring the dashboard back to the foreground.
                 if (dashboard != null)
                 {
-                    dashboard.Show();
                     if (dashboard.WindowState == WindowState.Minimized)
                         dashboard.WindowState = WindowState.Maximized;
                     dashboard.Activate();
                 }
             };
             _recordsEditorWindow.Show();
-            // One window on screen at a time — hide the dashboard while the
-            // editor is open. Sidesteps unreliable taskbar switching between
-            // borderless maximized windows.
-            dashboard?.Hide();
+            // Get the dashboard out of the way so the editor is the foreground
+            // window. Minimize — do NOT Hide(): the dashboard is shown via
+            // LoginWindow.ShowDialog(), and hiding a modal dialog ends that
+            // modal loop, which makes the login window pop back up.
+            if (dashboard != null)
+                dashboard.WindowState = WindowState.Minimized;
         }
         else
         {

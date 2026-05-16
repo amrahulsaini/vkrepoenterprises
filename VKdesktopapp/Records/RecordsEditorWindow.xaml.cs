@@ -305,11 +305,17 @@ public partial class RecordsEditorWindow : RibbonWindow
     private void btnVerifyRecords_Click(object sender, RoutedEventArgs e)
     {
         var validator = new RecordValidatorAndUploaderWindow(sp.ActiveSheet, _mappedColumns);
-        // One window at a time: hide the editor while verifying; restore it
-        // when the verify window closes.
-        validator.Closed += (_, __) => { Show(); Activate(); };
+        // Get the editor out of the way so the verify window is the foreground
+        // window; restore the editor when the verify window closes. Minimize —
+        // do NOT Hide(): a hidden editor drops off the taskbar entirely.
+        validator.Closed += (_, __) =>
+        {
+            if (WindowState == WindowState.Minimized)
+                WindowState = WindowState.Maximized;
+            Activate();
+        };
         validator.Show();
-        Hide();
+        WindowState = WindowState.Minimized;
     }
 
     private void btnMappingExplorer_Click(object sender, RoutedEventArgs e)

@@ -3,6 +3,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using VRASDesktopApp.AppUsers;
+using VRASDesktopApp.Blacklist;
 using VRASDesktopApp.Confirmations;
 using VRASDesktopApp.Finances;
 using VRASDesktopApp.Records;
@@ -20,6 +21,7 @@ public partial class MainWindow : Window
     private readonly Page _uploadRecordsPage;
     private readonly Page _confirmationsPage;
     private readonly Page _reportsPage;
+    private readonly Page _blacklistPage;
     private RecordsEditorWindow? _recordsEditorWindow;
 
     private static readonly SolidColorBrush ActiveBrush =
@@ -39,6 +41,7 @@ public partial class MainWindow : Window
         _uploadRecordsPage = new UploadRecordsPage();
         _confirmationsPage = new ConfirmationsManagerPage();
         _reportsPage = new ReportsPage();
+        _blacklistPage = new BlacklistPage();
 
         RefreshFirmLabels();
     }
@@ -117,6 +120,7 @@ public partial class MainWindow : Window
             case "DetailsViews": LoadPage(_detailsViewsPage); break;
             case "Confirmations": LoadPage(_confirmationsPage); break;
             case "Reports": LoadPage(_reportsPage); break;
+            case "Blacklist": LoadPage(_blacklistPage); break;
         }
     }
 
@@ -124,9 +128,21 @@ public partial class MainWindow : Window
     {
         if (_recordsEditorWindow == null)
         {
-            _recordsEditorWindow = new RecordsEditorWindow { Owner = this };
-            _recordsEditorWindow.Closed += (_, __) => _recordsEditorWindow = null;
+            _recordsEditorWindow = new RecordsEditorWindow();
+            _recordsEditorWindow.Closed += (_, __) =>
+            {
+                _recordsEditorWindow = null;
+                // Editor closed → bring the dashboard back to the foreground.
+                if (WindowState == WindowState.Minimized)
+                    WindowState = WindowState.Maximized;
+                Activate();
+            };
             _recordsEditorWindow.Show();
+            // Get the dashboard out of the way so the editor is the foreground
+            // window. Minimize — do NOT Hide(): this window is shown via
+            // LoginWindow.ShowDialog(), and hiding a modal dialog ends that
+            // modal loop, which makes the login window pop back up.
+            WindowState = WindowState.Minimized;
             return;
         }
 

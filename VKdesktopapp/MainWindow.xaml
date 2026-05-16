@@ -285,6 +285,18 @@
                                 </StackPanel>
                             </Grid>
                         </Button>
+                        <Button Tag="Blacklist" Click="TileButton_Click" MinHeight="80" Margin="8" HorizontalAlignment="Stretch" Style="{StaticResource DashboardTileButton}">
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="56" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                <Border Width="44" Height="44" CornerRadius="22" Background="{StaticResource Gray100}" VerticalAlignment="Center" HorizontalAlignment="Left">
+                                    <TextBlock Text="🚫" FontSize="16" VerticalAlignment="Center" HorizontalAlignment="Center" />
+                                </Border>
+                                <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
+                                    <TextBlock Text="Blacklist" FontWeight="SemiBold" Foreground="{StaticResource Gray900}" FontSize="14" />
+                                    <TextBlock Text="Restricted users" FontSize="11" Foreground="{StaticResource Gray600}" />
+                                </StackPanel>
+                            </Grid>
+                        </Button>
                     </UniformGrid>
                 </ScrollViewer>
             </Grid>
