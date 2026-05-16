@@ -29,13 +29,6 @@ public partial class RecordsEditorWindow : RibbonWindow
         _mappedColumns = new MappedColumns();
     }
 
-    // When this window closes, bring the dashboard back into view.
-    protected override void OnClosed(EventArgs e)
-    {
-        base.OnClosed(e);
-        var main = System.Windows.Application.Current.MainWindow;
-        if (main != null) { main.Show(); main.Activate(); }
-    }
 
     private Task EnsureMappingDetailsLoadedAsync()
     {

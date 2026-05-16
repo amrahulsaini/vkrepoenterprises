@@ -18,13 +18,29 @@ public partial class UploadRecordsPage : Page
     {
         if (_recordsEditorWindow == null)
         {
+            // The actual dashboard window hosting this page (NOT
+            // Application.Current.MainWindow, which still points at the
+            // closed login window).
+            var dashboard = Window.GetWindow(this);
+
             _recordsEditorWindow = new RecordsEditorWindow();
-            _recordsEditorWindow.Closed += (_, __) => _recordsEditorWindow = null;
+            _recordsEditorWindow.Closed += (_, __) =>
+            {
+                _recordsEditorWindow = null;
+                // Editor closed → bring the dashboard back.
+                if (dashboard != null)
+                {
+                    dashboard.Show();
+                    if (dashboard.WindowState == WindowState.Minimized)
+                        dashboard.WindowState = WindowState.Maximized;
+                    dashboard.Activate();
+                }
+            };
             _recordsEditorWindow.Show();
-            // One window at a time — hide the dashboard; the editor restores
-            // it on close. Avoids unreliable taskbar switching between
+            // One window on screen at a time — hide the dashboard while the
+            // editor is open. Sidesteps unreliable taskbar switching between
             // borderless maximized windows.
-            Application.Current.MainWindow?.Hide();
+            dashboard?.Hide();
         }
         else
         {
