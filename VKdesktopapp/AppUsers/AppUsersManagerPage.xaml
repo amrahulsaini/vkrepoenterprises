@@ -8,6 +8,8 @@
 
     <Page.Resources>
 
+        <BooleanToVisibilityConverter x:Key="BoolToVis" />
+
         <!-- Same styles as FinancesManagerPage for consistency -->
         <Style x:Key="PlusIconButton" TargetType="Button">
             <Setter Property="Width" Value="32" /><Setter Property="Height" Value="32" />
@@ -350,13 +352,19 @@
                                                     <ColumnDefinition Width="80" />
                                                 </Grid.ColumnDefinitions>
 
-                                                <!-- Avatar -->
-                                                <Border Grid.Column="0" Style="{StaticResource AvatarCircle}">
-                                                    <TextBlock Text="{Binding Initials}"
-                                                               FontSize="13" FontWeight="Bold"
-                                                               Foreground="{StaticResource Orange700}"
-                                                               HorizontalAlignment="Center"
-                                                               VerticalAlignment="Center" />
+                                                <!-- Avatar: PFP image when available, initials otherwise -->
+                                                <Border Grid.Column="0" Style="{StaticResource AvatarCircle}" ClipToBounds="True">
+                                                    <Grid>
+                                                        <Image Source="{Binding PfpUrl}"
+                                                               Stretch="UniformToFill"
+                                                               Visibility="{Binding HasPfp, Converter={StaticResource BoolToVis}}" />
+                                                        <TextBlock Text="{Binding Initials}"
+                                                                   FontSize="13" FontWeight="Bold"
+                                                                   Foreground="{StaticResource Orange700}"
+                                                                   HorizontalAlignment="Center"
+                                                                   VerticalAlignment="Center"
+                                                                   Visibility="{Binding HasNoPfp, Converter={StaticResource BoolToVis}}" />
+                                                    </Grid>
                                                 </Border>
 
                                                 <!-- Name + mobile -->
@@ -548,6 +556,140 @@
                                            FontSize="11" Foreground="{StaticResource Gray500}"
                                            TextWrapping="Wrap"
                                            FontFamily="Consolas" />
+                            </StackPanel>
+
+                            <!-- KYC documents section -->
+                            <StackPanel Margin="0,0,0,16">
+                                <TextBlock Text="KYC Documents" FontSize="13" FontWeight="SemiBold"
+                                           Foreground="{StaticResource Gray700}" Margin="0,0,0,8" />
+                                <UniformGrid Columns="3">
+                                    <!-- Aadhaar Front -->
+                                    <Border Margin="0,0,8,0" BorderBrush="{StaticResource Gray200}"
+                                            BorderThickness="1" CornerRadius="6"
+                                            Background="{StaticResource Gray50}">
+                                        <StackPanel Margin="6">
+                                            <TextBlock Text="Aadhaar Front" FontSize="10" FontWeight="SemiBold"
+                                                       Foreground="{StaticResource Gray600}" Margin="0,0,0,4" />
+                                            <Border Height="90" Background="White"
+                                                    BorderBrush="{StaticResource Gray200}" BorderThickness="1"
+                                                    ClipToBounds="True">
+                                                <Grid>
+                                                    <Image Name="imgKycAadhaarFront"
+                                                           Stretch="UniformToFill"
+                                                           Visibility="Collapsed" />
+                                                    <TextBlock Name="txtKycAadhaarFrontEmpty"
+                                                               Text="Not uploaded" FontSize="10"
+                                                               Foreground="{StaticResource Gray400}"
+                                                               HorizontalAlignment="Center"
+                                                               VerticalAlignment="Center" />
+                                                </Grid>
+                                            </Border>
+                                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                                <Button Name="btnKycDownloadAF" Content="↓ Download"
+                                                        FontSize="10" Padding="6,3"
+                                                        Background="Transparent"
+                                                        BorderBrush="{StaticResource Gray300}"
+                                                        BorderThickness="1" Cursor="Hand"
+                                                        Foreground="{StaticResource Gray700}"
+                                                        Tag="aadhaar_front"
+                                                        Click="btnKycDownload_Click"
+                                                        Margin="0,0,4,0" />
+                                                <Button Name="btnKycDeleteAF" Content="✕ Delete"
+                                                        FontSize="10" Padding="6,3"
+                                                        Background="Transparent"
+                                                        BorderBrush="{StaticResource Red500}"
+                                                        BorderThickness="1" Cursor="Hand"
+                                                        Foreground="{StaticResource Red500}"
+                                                        Tag="aadhaar_front"
+                                                        Click="btnKycDelete_Click" />
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Border>
+                                    <!-- Aadhaar Back -->
+                                    <Border Margin="0,0,8,0" BorderBrush="{StaticResource Gray200}"
+                                            BorderThickness="1" CornerRadius="6"
+                                            Background="{StaticResource Gray50}">
+                                        <StackPanel Margin="6">
+                                            <TextBlock Text="Aadhaar Back" FontSize="10" FontWeight="SemiBold"
+                                                       Foreground="{StaticResource Gray600}" Margin="0,0,0,4" />
+                                            <Border Height="90" Background="White"
+                                                    BorderBrush="{StaticResource Gray200}" BorderThickness="1"
+                                                    ClipToBounds="True">
+                                                <Grid>
+                                                    <Image Name="imgKycAadhaarBack"
+                                                           Stretch="UniformToFill"
+                                                           Visibility="Collapsed" />
+                                                    <TextBlock Name="txtKycAadhaarBackEmpty"
+                                                               Text="Not uploaded" FontSize="10"
+                                                               Foreground="{StaticResource Gray400}"
+                                                               HorizontalAlignment="Center"
+                                                               VerticalAlignment="Center" />
+                                                </Grid>
+                                            </Border>
+                                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                                <Button Name="btnKycDownloadAB" Content="↓ Download"
+                                                        FontSize="10" Padding="6,3"
+                                                        Background="Transparent"
+                                                        BorderBrush="{StaticResource Gray300}"
+                                                        BorderThickness="1" Cursor="Hand"
+                                                        Foreground="{StaticResource Gray700}"
+                                                        Tag="aadhaar_back"
+                                                        Click="btnKycDownload_Click"
+                                                        Margin="0,0,4,0" />
+                                                <Button Name="btnKycDeleteAB" Content="✕ Delete"
+                                                        FontSize="10" Padding="6,3"
+                                                        Background="Transparent"
+                                                        BorderBrush="{StaticResource Red500}"
+                                                        BorderThickness="1" Cursor="Hand"
+                                                        Foreground="{StaticResource Red500}"
+                                                        Tag="aadhaar_back"
+                                                        Click="btnKycDelete_Click" />
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Border>
+                                    <!-- PAN Front -->
+                                    <Border BorderBrush="{StaticResource Gray200}"
+                                            BorderThickness="1" CornerRadius="6"
+                                            Background="{StaticResource Gray50}">
+                                        <StackPanel Margin="6">
+                                            <TextBlock Text="PAN Front" FontSize="10" FontWeight="SemiBold"
+                                                       Foreground="{StaticResource Gray600}" Margin="0,0,0,4" />
+                                            <Border Height="90" Background="White"
+                                                    BorderBrush="{StaticResource Gray200}" BorderThickness="1"
+                                                    ClipToBounds="True">
+                                                <Grid>
+                                                    <Image Name="imgKycPanFront"
+                                                           Stretch="UniformToFill"
+                                                           Visibility="Collapsed" />
+                                                    <TextBlock Name="txtKycPanFrontEmpty"
+                                                               Text="Not uploaded" FontSize="10"
+                                                               Foreground="{StaticResource Gray400}"
+                                                               HorizontalAlignment="Center"
+                                                               VerticalAlignment="Center" />
+                                                </Grid>
+                                            </Border>
+                                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                                <Button Name="btnKycDownloadPF" Content="↓ Download"
+                                                        FontSize="10" Padding="6,3"
+                                                        Background="Transparent"
+                                                        BorderBrush="{StaticResource Gray300}"
+                                                        BorderThickness="1" Cursor="Hand"
+                                                        Foreground="{StaticResource Gray700}"
+                                                        Tag="pan_front"
+                                                        Click="btnKycDownload_Click"
+                                                        Margin="0,0,4,0" />
+                                                <Button Name="btnKycDeletePF" Content="✕ Delete"
+                                                        FontSize="10" Padding="6,3"
+                                                        Background="Transparent"
+                                                        BorderBrush="{StaticResource Red500}"
+                                                        BorderThickness="1" Cursor="Hand"
+                                                        Foreground="{StaticResource Red500}"
+                                                        Tag="pan_front"
+                                                        Click="btnKycDelete_Click" />
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Border>
+                                </UniformGrid>
                             </StackPanel>
 
                             <!-- Stop App section -->

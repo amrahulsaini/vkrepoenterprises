@@ -75,4 +75,10 @@ public class AppUserRepository
 
     public async Task SetFinanceRestrictionsAsync(long userId, List<int> financeIds)
         => await DesktopApiClient.SetUserFinanceRestrictionsAsync(userId, financeIds);
+
+    internal async Task<DesktopApiClient.KycDocsDto> GetKycAsync(long userId)
+        => await DesktopApiClient.GetUserKycAsync(userId);
+
+    internal async Task DeleteKycAsync(long userId, string docType)
+        => await DesktopApiClient.DeleteUserKycAsync(userId, docType);
 }

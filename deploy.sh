@@ -81,9 +81,14 @@ dotnet publish -c Release -o "$MOBILE_OUT" --nologo -v quiet
 # Copy env file so VKmobileapi can read MySQL credentials
 mkdir -p "$MOBILE_OUT/db"
 cp /home/vkapp/db/.env.local "$MOBILE_OUT/db/.env.local" 2>/dev/null || true
-# Ensure uploads directory exists and is writable by the service user
+# Ensure uploads directory exists and is writable by the mobile service user.
+# Also make files world-readable so LiteSpeed (running as nobody) can serve
+# them as static content at https://api.characterverse.tech/uploads/...
 mkdir -p "$MOBILE_OUT/uploads/pfp" "$MOBILE_OUT/uploads/kyc"
 chown -R www-data:www-data "$MOBILE_OUT/uploads"
+chmod -R o+rX "$MOBILE_OUT/uploads"
+# Make /opt and /opt/vkmobileapi traversable for the nobody user
+chmod o+x /opt /opt/vkmobileapi 2>/dev/null || true
 info "VKmobileapi built → $MOBILE_OUT"
 
 section "Restarting vkmobileapi service"

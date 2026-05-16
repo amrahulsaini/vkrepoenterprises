@@ -730,10 +730,25 @@ app.MapGet("/api/mgr/users", async (HttpContext ctx) =>
                    COALESCE(u.is_stopped,0), COALESCE(u.is_blacklisted,0)
             FROM app_users u ORDER BY u.created_at DESC";
         var users = new List<object>();
+        string baseUrl = $"{ctx.Request.Scheme}://{ctx.Request.Host}";
         await using (var cmd = new MySqlCommand(usersSql, conn) { CommandTimeout = 30 })
         {
             await using var rdr = await cmd.ExecuteReaderAsync();
             while (await rdr.ReadAsync())
+            {
+                var pfpRaw = rdr.IsDBNull(5) ? null : rdr.GetString(5);
+                // If pfp looks like a relative file path (no whitespace, contains '/'
+                // and no '+'/'=' typical of base64), turn it into a full URL that
+                // LiteSpeed serves from /uploads/. Legacy base64 entries pass through.
+                string? pfpOut = pfpRaw;
+                if (!string.IsNullOrEmpty(pfpRaw)
+                    && pfpRaw.Length < 256
+                    && pfpRaw.Contains('/')
+                    && !pfpRaw.Contains('+')
+                    && !pfpRaw.Contains('='))
+                {
+                    pfpOut = $"{baseUrl}/uploads/{pfpRaw.TrimStart('/')}";
+                }
                 users.Add(new
                 {
                     id            = rdr.GetInt64(0),
@@ -741,7 +756,7 @@ app.MapGet("/api/mgr/users", async (HttpContext ctx) =>
                     mobile        = rdr.GetString(2),
                     address       = rdr.IsDBNull(3) ? null : rdr.GetString(3),
                     pincode       = rdr.IsDBNull(4) ? null : rdr.GetString(4),
-                    pfpBase64     = rdr.IsDBNull(5) ? null : rdr.GetString(5),
+                    pfpBase64     = pfpOut,
                     deviceId      = rdr.IsDBNull(6) ? null : rdr.GetString(6),
                     isActive      = rdr.GetBoolean(7),
                     isAdmin       = rdr.GetBoolean(8),
@@ -751,6 +766,7 @@ app.MapGet("/api/mgr/users", async (HttpContext ctx) =>
                     isStopped     = rdr.GetBoolean(12),
                     isBlacklisted = rdr.GetBoolean(13),
                 });
+            }
         }
         return Results.Ok(new { stats = new { total, active, admins, withSub }, users });
     }
@@ -912,6 +928,84 @@ app.MapPut("/api/mgr/users/{id:long}/finance-restrictions", async (HttpContext c
                 "INSERT INTO user_finance_restrictions (user_id, finance_id) VALUES (@uid, @fid)",
                 conn, 10, ("@uid", id), ("@fid", fid));
         return Results.Ok();
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+// ── KYC documents ────────────────────────────────────────────────────────────
+// Returns the user's KYC document URLs (aadhaar_front, aadhaar_back, pan_front).
+// Mobile API stores them as relative paths like "kyc/42/aadhaar_front.jpg".
+// We build full URLs that LiteSpeed serves via the /uploads/ static context.
+app.MapGet("/api/mgr/users/{id:long}/kyc", async (HttpContext ctx, long id) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        await using var conn = new MySqlConnection(connStr);
+        await conn.OpenAsync();
+        await using var cmd = new MySqlCommand(
+            "SELECT aadhaar_front, aadhaar_back, pan_front FROM user_kyc WHERE user_id=@uid", conn);
+        cmd.Parameters.AddWithValue("@uid", id);
+        await using var rdr = await cmd.ExecuteReaderAsync();
+
+        string? af = null, ab = null, pf = null;
+        if (await rdr.ReadAsync())
+        {
+            af = rdr.IsDBNull(0) ? null : rdr.GetString(0);
+            ab = rdr.IsDBNull(1) ? null : rdr.GetString(1);
+            pf = rdr.IsDBNull(2) ? null : rdr.GetString(2);
+        }
+
+        string ToUrl(string? rel) => string.IsNullOrEmpty(rel)
+            ? ""
+            : $"{ctx.Request.Scheme}://{ctx.Request.Host}/uploads/{rel.TrimStart('/')}";
+
+        return Results.Ok(new
+        {
+            aadhaarFront = ToUrl(af),
+            aadhaarBack  = ToUrl(ab),
+            panFront     = ToUrl(pf)
+        });
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+// Clears a single KYC document from the DB and best-effort deletes the file.
+// docType must be one of: aadhaar_front, aadhaar_back, pan_front.
+app.MapDelete("/api/mgr/users/{id:long}/kyc/{docType}", async (HttpContext ctx, long id, string docType) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    if (docType != "aadhaar_front" && docType != "aadhaar_back" && docType != "pan_front")
+        return Results.BadRequest(new { message = "invalid docType" });
+    try
+    {
+        await using var conn = new MySqlConnection(connStr);
+        await conn.OpenAsync();
+
+        // Read the current file path so we can remove the file on disk too.
+        await using var sel = new MySqlCommand(
+            $"SELECT {docType} FROM user_kyc WHERE user_id=@uid", conn);
+        sel.Parameters.AddWithValue("@uid", id);
+        var rel = (await sel.ExecuteScalarAsync()) as string;
+
+        // Clear the column.
+        await MgrExec(
+            $"UPDATE user_kyc SET {docType}=NULL WHERE user_id=@uid",
+            conn, 10, ("@uid", id));
+
+        // Best-effort file delete — owned by www-data (VKmobileapi); may fail
+        // depending on cross-service file permissions. DB is the source of truth.
+        if (!string.IsNullOrEmpty(rel))
+        {
+            try
+            {
+                var fullPath = Path.Combine("/opt/vkmobileapi/uploads", rel.TrimStart('/'));
+                if (File.Exists(fullPath)) File.Delete(fullPath);
+            }
+            catch { /* file may be locked or unwritable — DB cleared, that's enough */ }
+        }
+
+        return Results.Ok(new { success = true });
     }
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });

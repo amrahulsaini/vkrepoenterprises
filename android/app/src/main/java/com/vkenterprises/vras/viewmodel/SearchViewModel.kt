@@ -33,7 +33,7 @@ data class SearchUiState(
     val syncTotal: Long               = 0L,
     val syncHasUpdates: Boolean       = false,
     val syncCompleted: Boolean        = false,
-    val onlineOnly: Boolean           = false,
+    val onlineOnly: Boolean           = true,
     val twoColumnView: Boolean        = true,
     val actionType: String            = "confirm"
 )

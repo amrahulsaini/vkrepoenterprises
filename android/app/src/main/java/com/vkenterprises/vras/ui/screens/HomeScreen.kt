@@ -197,6 +197,25 @@ fun HomeScreen(
                             Icon(Icons.Default.CardMembership, contentDescription = "Manage Subscriptions")
                         }
                     }
+
+                    // Online / Offline toggle — green cloud when online (default),
+                    // red cloud-off when offline. Tap to switch.
+                    IconButton(onClick = {
+                        val turningOff = ui.onlineOnly  // currently online → going offline
+                        searchVm.setOnlineOnly(!ui.onlineOnly)
+                        if (turningOff && ui.syncHasUpdates) {
+                            // Hint to user: tap the red blinking refresh to sync first
+                        }
+                    }) {
+                        Icon(
+                            imageVector       = if (ui.onlineOnly) Icons.Default.Cloud
+                                                else                Icons.Default.CloudOff,
+                            contentDescription = if (ui.onlineOnly) "Online mode (tap to go offline)"
+                                                 else                "Offline mode (tap to go online)",
+                            tint              = if (ui.onlineOnly) Color(0xFF388E3C)
+                                                else                Color(0xFFD32F2F)
+                        )
+                    }
                     val syncHasUpdates = ui.syncHasUpdates
                     val syncCompleted  = ui.syncCompleted
                     val infiniteTransition = rememberInfiniteTransition(label = "syncPulse")

@@ -247,6 +247,22 @@ internal static class DesktopApiClient
         resp.EnsureSuccessStatusCode();
     }
 
+    // ── KYC documents ──────────────────────────────────────────────────────
+    internal record KycDocsDto(string AadhaarFront, string AadhaarBack, string PanFront);
+
+    internal static async Task<KycDocsDto> GetUserKycAsync(long userId)
+    {
+        var resp = await Send(HttpMethod.Get, $"api/mgr/users/{userId}/kyc");
+        resp.EnsureSuccessStatusCode();
+        return (await resp.Content.ReadFromJsonAsync<KycDocsDto>(_json))!;
+    }
+
+    internal static async Task DeleteUserKycAsync(long userId, string docType)
+    {
+        var resp = await Send(HttpMethod.Delete, $"api/mgr/users/{userId}/kyc/{docType}");
+        resp.EnsureSuccessStatusCode();
+    }
+
     internal static async Task<List<BlacklistUserDto>> GetBlacklistedUsersAsync()
     {
         var resp = await Send(HttpMethod.Get, "api/mgr/blacklist");
