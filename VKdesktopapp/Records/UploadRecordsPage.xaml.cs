@@ -24,7 +24,12 @@ public partial class UploadRecordsPage : Page
         }
         else
         {
-            _recordsEditorWindow.Activate();
+            var w = _recordsEditorWindow;
+            if (w.WindowState == WindowState.Minimized) w.WindowState = WindowState.Maximized;
+            w.Show();
+            w.Activate();
+            w.Topmost = true;
+            w.Topmost = false;
         }
     }
 

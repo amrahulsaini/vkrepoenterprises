@@ -6,23 +6,34 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:sf="http://schemas.syncfusion.com/wpf"
     Title="Records Editor"
-    Height="700"
-    Width="1180"
-    WindowStartupLocation="CenterScreen"
+    Height="760"
+    Width="1366"
+    WindowState="Maximized"
     ShowInTaskbar="True"
     Loaded="RibbonWindow_Loaded">
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
+        <!-- Strip with a guaranteed way back to the dashboard -->
+        <Border Grid.Row="0" Background="#FF1A1A1A" Padding="6,4">
+            <Button Content="&#x1F3E0;  Back to Dashboard"
+                    Click="btnDashboard_Click"
+                    HorizontalAlignment="Left"
+                    Padding="14,5" FontSize="12" FontWeight="SemiBold"
+                    Background="#FFFF9800" Foreground="Black"
+                    BorderThickness="0" Cursor="Hand" />
+        </Border>
         <sf:SfSpreadsheetRibbon
             x:Name="rbn"
+            Grid.Row="1"
             DataContext="{Binding ElementName=sp}"
             Loaded="rbn_Loaded" />
         <sf:SfSpreadsheet
             x:Name="sp"
-            Grid.Row="1"
+            Grid.Row="2"
             WorkbookLoaded="sp_WorkbookLoaded"
             KeyDown="sp_KeyDown" />
     </Grid>

@@ -69,6 +69,20 @@ public partial class RecordValidatorAndUploaderWindow : Window
     private void btnMinimize_Click(object sender, RoutedEventArgs e)
         => WindowState = WindowState.Minimized;
 
+    // Force the main dashboard window to the foreground.
+    private void btnDashboard_Click(object sender, RoutedEventArgs e)
+    {
+        var main = System.Windows.Application.Current.MainWindow;
+        if (main == null) return;
+        if (main.WindowState == WindowState.Minimized)
+            main.WindowState = WindowState.Maximized;
+        main.Show();
+        main.Activate();
+        main.Topmost = true;
+        main.Topmost = false;
+        main.Focus();
+    }
+
     private void TitleBar_MouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
     {
         if (e.ButtonState == System.Windows.Input.MouseButtonState.Pressed) DragMove();
