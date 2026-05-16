@@ -510,7 +510,7 @@ public class MobileRepository
         vr.level3, vr.level3_contact, vr.level4, vr.level4_contact,
         vr.sender_mail1, vr.sender_mail2, vr.executive_name, vr.pos, vr.toss, vr.remark,
         COALESCE(vr.branch_name_raw,'') AS branch_name_raw,
-        COALESCE(DATE_FORMAT(vr.created_at,'%d %b %Y, %H:%i'),'') AS created_on";
+        COALESCE(DATE_FORMAT(vr.created_at,'%d %b %Y, %h:%i %p'),'') AS created_on";
 
     private static async Task<List<SearchResult>> SearchAsync(string sql, string query)
     {
