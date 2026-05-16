@@ -121,9 +121,9 @@ public partial class AppUsersManagerPage : Page
             txtAvatar.Visibility = Visibility.Visible;
         }
 
-        // Stop toggle
+        // App Active toggle — ON = app running, OFF = stopped (inverted semantics)
         _suppressStopToggle = true;
-        tglStopApp.IsChecked = user.IsStopped;
+        tglStopApp.IsChecked = !user.IsStopped;
         lblStopStatus.Text   = user.IsStopped ? "Stopped" : "Running";
         _suppressStopToggle  = false;
 
@@ -225,6 +225,19 @@ public partial class AppUsersManagerPage : Page
     private async void btnAddSubscription_Click(object sender, RoutedEventArgs e)
     {
         if (_selectedUser == null) return;
+
+        // Only one active plan allowed per user — delete the existing one first.
+        var existing = await _repo.GetSubscriptionsAsync(_selectedUser.Id);
+        if (existing.Count > 0)
+        {
+            MessageBox.Show(
+                "This user already has a plan. Delete the existing plan first " +
+                "(right-click the plan row → Delete Plan), then add a new one.",
+                "Plan already exists",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
         var dlg = new SubscriptionEditorWindow { Owner = Window.GetWindow(this) };
         if (dlg.ShowDialog() != true) return;
         try
@@ -297,17 +310,19 @@ public partial class AppUsersManagerPage : Page
         }
     }
 
-    // ── Stop App toggle ─────────────────────────────────────────────────
+    // ── App Active toggle (ON = running, OFF = stopped) ────────────────────
     private async void StopToggle_Checked(object sender, RoutedEventArgs e)
     {
+        // Toggle ON = mark app as running (IsStopped = false)
         if (_suppressStopToggle || _selectedUser == null) return;
-        await SetStoppedAsync(_selectedUser, true);
+        await SetStoppedAsync(_selectedUser, false);
     }
 
     private async void StopToggle_Unchecked(object sender, RoutedEventArgs e)
     {
+        // Toggle OFF = stop the app (IsStopped = true)
         if (_suppressStopToggle || _selectedUser == null) return;
-        await SetStoppedAsync(_selectedUser, false);
+        await SetStoppedAsync(_selectedUser, true);
     }
 
     private async Task SetStoppedAsync(AppUserListItem user, bool stopped)
@@ -320,11 +335,11 @@ public partial class AppUsersManagerPage : Page
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Failed to update stop state: {ex.Message}", "Stop App",
+            MessageBox.Show($"Failed to update state: {ex.Message}", "App Active",
                 MessageBoxButton.OK, MessageBoxImage.Error);
-            // Revert toggle
+            // Revert toggle to reflect actual server state (inverted semantics)
             _suppressStopToggle = true;
-            tglStopApp.IsChecked = user.IsStopped;
+            tglStopApp.IsChecked = !user.IsStopped;
             _suppressStopToggle  = false;
         }
     }

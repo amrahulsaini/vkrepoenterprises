@@ -8,7 +8,8 @@
     Title="Records Editor"
     Height="760"
     Width="1366"
-    WindowState="Maximized"
+    WindowStartupLocation="CenterScreen"
+    ShowInTaskbar="True"
     Loaded="RibbonWindow_Loaded">
     <Grid>
         <Grid.RowDefinitions>

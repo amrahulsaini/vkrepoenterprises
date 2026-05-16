@@ -7,11 +7,12 @@
     xmlns:md="clr-namespace:VRASDesktopApp.Material"
     xmlns:fa="http://schemas.fontawesome.com/icons/"
     FontFamily="Segoe UI"
+    Title="Verify &amp; Upload Records"
     Style="{StaticResource ChromeWindow}"
     Height="680"
     Width="1366"
-    WindowStartupLocation="CenterOwner"
-    WindowState="Maximized"
+    WindowStartupLocation="CenterScreen"
+    ShowInTaskbar="True"
     Loaded="Window_Loaded">
     <Grid>
         <Grid.ColumnDefinitions>
