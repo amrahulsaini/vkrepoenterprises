@@ -43,16 +43,6 @@ public partial class MainWindow : Window
         RefreshFirmLabels();
     }
 
-    // Borderless maximized WPF windows don't reliably raise from the taskbar.
-    // So whenever this window is activated, minimize the other big windows —
-    // that guarantees only one is up at a time and every taskbar click is a
-    // rock-solid "restore from minimized".
-    protected override void OnActivated(System.EventArgs e)
-    {
-        base.OnActivated(e);
-        WindowSwitch.MinimizeOthers(this);
-    }
-
     private void Window_Loaded(object sender, RoutedEventArgs e)
     {
         LoadPage(_homePage);

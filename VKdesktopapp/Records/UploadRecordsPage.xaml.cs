@@ -21,15 +21,14 @@ public partial class UploadRecordsPage : Page
             _recordsEditorWindow = new RecordsEditorWindow();
             _recordsEditorWindow.Closed += (_, __) => _recordsEditorWindow = null;
             _recordsEditorWindow.Show();
+            // One window at a time — hide the dashboard; the editor restores
+            // it on close. Avoids unreliable taskbar switching between
+            // borderless maximized windows.
+            Application.Current.MainWindow?.Hide();
         }
         else
         {
-            var w = _recordsEditorWindow;
-            if (w.WindowState == WindowState.Minimized) w.WindowState = WindowState.Maximized;
-            w.Show();
-            w.Activate();
-            w.Topmost = true;
-            w.Topmost = false;
+            _recordsEditorWindow.Activate();
         }
     }
 
