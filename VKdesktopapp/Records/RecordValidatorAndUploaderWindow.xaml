@@ -9,9 +9,9 @@
     FontFamily="Segoe UI"
     Title="Verify &amp; Upload Records"
     Style="{StaticResource ChromeWindow}"
-    Height="660"
-    Width="1180"
-    WindowStartupLocation="CenterScreen"
+    Height="760"
+    Width="1366"
+    WindowState="Maximized"
     ShowInTaskbar="True"
     Loaded="Window_Loaded">
     <Grid>
@@ -27,6 +27,7 @@
 
         <Grid Margin="1" MouseLeftButtonDown="TitleBar_MouseLeftButtonDown" Background="Transparent">
             <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="36" />
                 <ColumnDefinition Width="36" />
@@ -35,14 +36,31 @@
                 <RowDefinition Height="36" />
             </Grid.RowDefinitions>
             <TextBlock
+                Grid.Column="1"
                 Text="VERIFY AND UPLOAD RECORDS"
                 Style="{StaticResource Heading5}"
                 VerticalAlignment="Center"
                 Padding="16,0" />
             <Button
+                x:Name="btnDashboard"
+                Grid.Column="0"
+                Click="btnDashboard_Click"
+                Height="36"
+                Margin="6,0,0,0"
+                Padding="12,0"
+                Background="#FFFF9800"
+                BorderThickness="0"
+                Foreground="Black"
+                FontFamily="Segoe UI"
+                FontSize="12"
+                FontWeight="SemiBold"
+                Cursor="Hand"
+                Content="&#x1F3E0;  Back to Dashboard"
+                WindowChrome.IsHitTestVisibleInChrome="True" />
+            <Button
                 x:Name="btnMinimize"
                 Click="btnMinimize_Click"
-                Grid.Column="1"
+                Grid.Column="2"
                 Height="36"
                 Width="36"
                 Background="#FFD3D3D3"
@@ -57,7 +75,7 @@
             <Button
                 x:Name="btnClose"
                 Click="btnClose_Click"
-                Grid.Column="2"
+                Grid.Column="3"
                 Height="36"
                 Width="36"
                 Background="#FFD3D3D3"

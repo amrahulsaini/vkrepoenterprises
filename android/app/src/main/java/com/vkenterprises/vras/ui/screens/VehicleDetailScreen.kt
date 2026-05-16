@@ -55,7 +55,7 @@ private data class BranchEntry(
 )
 
 private val ALL_SEL_KEYS = listOf(
-    "Vehicle No", "Chassis No", "Eng No", "Agreement No",
+    "Vehicle No", "Chassis No", "Model", "Eng No", "Agreement No",
     "Cust Name", "Cust Address", "Cust Contact",
     "BKT", "OD", "POS", "TOS", "TBR",
     "Branch", "Area", "Region",
@@ -67,6 +67,7 @@ private val ALL_SEL_KEYS = listOf(
 private fun buildAdminFields(item: SearchResult, br: SearchResult): List<Pair<String, String>> = listOf(
     "Vehicle No"     to item.vehicleNo.orEmpty(),
     "Chassis No"     to item.chassisNo.orEmpty(),
+    "Model"          to item.model.orEmpty(),
     "Eng No"         to item.engineNo.orEmpty(),
     "Agreement No"   to item.agreementNo.orEmpty(),
     "Cust Name"      to item.customerName.orEmpty(),
@@ -501,6 +502,9 @@ private fun AdminDetailView(
             SRow("Chassis No",   item.chassisNo,   mono = true,
                 sel = showSelection, chk = selChecked["Chassis No"] == true
             ) { selChecked["Chassis No"] = it }
+            SRow("Model",        item.model,
+                sel = showSelection, chk = selChecked["Model"] == true
+            ) { selChecked["Model"] = it }
             SRow("Eng No",       item.engineNo,    mono = true,
                 sel = showSelection, chk = selChecked["Eng No"] == true
             ) { selChecked["Eng No"] = it }
