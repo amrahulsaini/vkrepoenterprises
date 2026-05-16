@@ -141,11 +141,10 @@ fun VehicleDetailScreen(
          .sortedByDescending { it.createdOn }
     }
 
-    // Auto-show the "FOUND IN BRANCHES" bottom sheet for admins when there's
-    // more than one finance for this vehicle — they can switch directly from
-    // the sheet without scrolling.
+    // Auto-show the "FOUND IN FINANCES" bottom sheet for admins whenever the
+    // vehicle has at least one finance — shown for single finance too.
     LaunchedEffect(isAdmin, uniqueBranches.size) {
-        if (isAdmin && uniqueBranches.size > 1) showBranchSheet = true
+        if (isAdmin && uniqueBranches.isNotEmpty()) showBranchSheet = true
     }
 
     val branchRecord: SearchResult? = uniqueBranches.getOrNull(selectedBranchIdx)?.record ?: item
@@ -453,12 +452,13 @@ private fun AdminDetailView(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        if (uniqueBranches.size > 1) {
+        if (uniqueBranches.isNotEmpty()) {
             AssistChip(
                 onClick = onShowBranchSheet,
                 label = {
                     Text(
-                        "Found in ${uniqueBranches.size} finances",
+                        "Found in ${uniqueBranches.size} finance" +
+                            if (uniqueBranches.size == 1) "" else "s",
                         fontWeight = FontWeight.Bold
                     )
                 },
