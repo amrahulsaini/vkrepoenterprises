@@ -86,6 +86,8 @@ fun ConfirmScreen(
         line("Vehicle Model", item?.model)
         line("Chassis No",    item?.chassisNo)
         line("Engine No",     item?.engineNo)
+        line("BKT",           item?.bucket)
+        line("OD",            item?.od)
 
         fun levelLine(label: String, name: String?, contact: String?) {
             val n = name?.trim().orEmpty(); val c = contact?.trim().orEmpty()

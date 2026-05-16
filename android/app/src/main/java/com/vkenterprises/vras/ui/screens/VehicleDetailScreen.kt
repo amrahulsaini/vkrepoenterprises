@@ -833,24 +833,29 @@ private fun SRow(
         }
         // Label in a fixed-width box, then the ":" as a separate element so
         // every colon lines up in one vertical column regardless of label length.
+        // Force SansSerif (Roboto) so the app's typography stays consistent even
+        // when the user has a custom phone font installed.
         Text(
             label,
-            style    = MaterialTheme.typography.labelSmall,
-            color    = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.width(if (sel) 90.dp else 110.dp)
+            style      = MaterialTheme.typography.labelSmall,
+            fontFamily = FontFamily.SansSerif,
+            fontWeight = FontWeight.SemiBold,
+            color      = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier   = Modifier.width(if (sel) 90.dp else 110.dp)
         )
         Text(
             ":",
-            style    = MaterialTheme.typography.labelSmall,
-            color    = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(end = 8.dp)
+            style      = MaterialTheme.typography.labelSmall,
+            fontFamily = FontFamily.SansSerif,
+            color      = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier   = Modifier.padding(end = 8.dp)
         )
         ClickableText(
             text = annotated,
             style = MaterialTheme.typography.bodySmall.copy(
                 color      = baseColor,
                 fontWeight = if (display.isBlank()) FontWeight.Normal else FontWeight.Bold,
-                fontFamily = if (mono) FontFamily.Monospace else FontFamily.Default
+                fontFamily = if (mono) FontFamily.Monospace else FontFamily.SansSerif
             ),
             onClick = { offset ->
                 annotated.getStringAnnotations(tag = "PHONE", start = offset, end = offset)
@@ -938,17 +943,18 @@ private fun DetailRow(
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically) {
         Text(label,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.weight(0.38f))
+            style      = MaterialTheme.typography.bodySmall,
+            fontFamily = FontFamily.SansSerif,
+            color      = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier   = Modifier.weight(0.38f))
         Row(Modifier.weight(0.62f), verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(value,
-                style = MaterialTheme.typography.bodySmall,
-                fontWeight = FontWeight.SemiBold,
+                style      = MaterialTheme.typography.bodySmall,
+                fontWeight = FontWeight.Bold,
                 fontFamily = if (label in listOf("Vehicle No","Chassis No","Engine No"))
-                    FontFamily.Monospace else FontFamily.Default,
-                color = if (invalid) MaterialTheme.colorScheme.error else valueColor)
+                    FontFamily.Monospace else FontFamily.SansSerif,
+                color      = if (invalid) MaterialTheme.colorScheme.error else valueColor)
             if (invalid) {
                 Surface(shape = RoundedCornerShape(4.dp),
                     color = MaterialTheme.colorScheme.errorContainer) {
