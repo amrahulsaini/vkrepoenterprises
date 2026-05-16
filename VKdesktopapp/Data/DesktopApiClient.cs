@@ -263,6 +263,22 @@ internal static class DesktopApiClient
         resp.EnsureSuccessStatusCode();
     }
 
+    // ── Admin / Control Panel password ──────────────────────────────────────
+    internal static async Task SetUserAdminPassAsync(long userId, string password)
+    {
+        var resp = await Send(HttpMethod.Patch, $"api/mgr/users/{userId}/admin-pass",
+            new { Password = password });
+        resp.EnsureSuccessStatusCode();
+    }
+
+    internal static async Task<bool> IsUserAdminPassSetAsync(long userId)
+    {
+        var resp = await Send(HttpMethod.Get, $"api/mgr/users/{userId}/admin-pass");
+        resp.EnsureSuccessStatusCode();
+        var r = await resp.Content.ReadFromJsonAsync<JsonElement>();
+        return r.GetProperty("isSet").GetBoolean();
+    }
+
     internal static async Task<List<BlacklistUserDto>> GetBlacklistedUsersAsync()
     {
         var resp = await Send(HttpMethod.Get, "api/mgr/blacklist");

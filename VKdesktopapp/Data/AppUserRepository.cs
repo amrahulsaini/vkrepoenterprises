@@ -81,4 +81,10 @@ public class AppUserRepository
 
     internal async Task DeleteKycAsync(long userId, string docType)
         => await DesktopApiClient.DeleteUserKycAsync(userId, docType);
+
+    internal async Task SetAdminPassAsync(long userId, string password)
+        => await DesktopApiClient.SetUserAdminPassAsync(userId, password);
+
+    internal async Task<bool> IsAdminPassSetAsync(long userId)
+        => await DesktopApiClient.IsUserAdminPassSetAsync(userId);
 }

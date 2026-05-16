@@ -109,6 +109,43 @@ public partial class AppUsersManagerPage : Page
         await LoadSubscriptionsAsync(user.Id);
         await LoadFinanceRestrictionsAsync(user.Id);
         await LoadKycAsync(user.Id);
+        await LoadAdminPassStatusAsync(user.Id);
+    }
+
+    // ── Control Panel password ──────────────────────────────────────────
+    private async Task LoadAdminPassStatusAsync(long userId)
+    {
+        txtAdminPass.Text = "";
+        txtAdminPassStatus.Text = "";
+        try
+        {
+            var isSet = await _repo.IsAdminPassSetAsync(userId);
+            txtAdminPassStatus.Text = isSet
+                ? "A password is currently set."
+                : "No password set — Control Panel locked for this admin.";
+        }
+        catch { /* silent */ }
+    }
+
+    private async void btnSaveAdminPass_Click(object sender, RoutedEventArgs e)
+    {
+        if (_selectedUser == null) return;
+        try
+        {
+            await _repo.SetAdminPassAsync(_selectedUser.Id, txtAdminPass.Text.Trim());
+            await LoadAdminPassStatusAsync(_selectedUser.Id);
+            MessageBox.Show(
+                string.IsNullOrWhiteSpace(txtAdminPass.Text)
+                    ? "Control Panel password cleared."
+                    : "Control Panel password saved.",
+                "Control Panel Password",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Failed to save password: {ex.Message}", "Control Panel Password",
+                MessageBoxButton.OK, MessageBoxImage.Error);
+        }
     }
 
     // Loads PFP into imgPfp from either a URL or legacy base64. Falls back to initials.

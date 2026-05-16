@@ -558,6 +558,28 @@
                                            FontFamily="Consolas" />
                             </StackPanel>
 
+                            <!-- Control Panel password (per-admin) -->
+                            <StackPanel Margin="0,0,0,16">
+                                <DockPanel Margin="0,0,0,6">
+                                    <Button DockPanel.Dock="Right" Content="Save Password"
+                                            Name="btnSaveAdminPass"
+                                            Style="{StaticResource PrimaryButton}"
+                                            Click="btnSaveAdminPass_Click" />
+                                    <TextBlock Text="Control Panel Password" FontSize="13" FontWeight="SemiBold"
+                                               Foreground="{StaticResource Gray700}"
+                                               VerticalAlignment="Center" />
+                                </DockPanel>
+                                <TextBlock Text="Password this admin types to open the mobile app Control Panel. Leave blank to clear."
+                                           FontSize="11" Foreground="{StaticResource Gray500}"
+                                           TextWrapping="Wrap" Margin="0,0,0,6" />
+                                <Border BorderBrush="{StaticResource Gray200}" BorderThickness="1" CornerRadius="6">
+                                    <TextBox Name="txtAdminPass" Padding="10,8" BorderThickness="0"
+                                             FontSize="13" Background="Transparent" />
+                                </Border>
+                                <TextBlock Name="txtAdminPassStatus" FontSize="11" Margin="0,4,0,0"
+                                           Foreground="{StaticResource Gray500}" />
+                            </StackPanel>
+
                             <!-- KYC documents section -->
                             <StackPanel Margin="0,0,0,16">
                                 <TextBlock Text="KYC Documents" FontSize="13" FontWeight="SemiBold"
