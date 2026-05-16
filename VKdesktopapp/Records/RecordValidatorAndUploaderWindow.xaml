@@ -9,8 +9,8 @@
     FontFamily="Segoe UI"
     Title="Verify &amp; Upload Records"
     Style="{StaticResource ChromeWindow}"
-    Height="680"
-    Width="1366"
+    Height="660"
+    Width="1180"
     WindowStartupLocation="CenterScreen"
     ShowInTaskbar="True"
     Loaded="Window_Loaded">
