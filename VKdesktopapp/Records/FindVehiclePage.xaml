@@ -80,8 +80,8 @@
         <Grid Grid.Row="2">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="380" />
-                <ColumnDefinition Width="360" />
+                <ColumnDefinition Width="240" />
+                <ColumnDefinition Width="1.4*" />
             </Grid.ColumnDefinitions>
 
             <!-- Column 1: Unique Vehicles -->
@@ -168,7 +168,10 @@
                         </WrapPanel>
                     </Border>
                     
-                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                    <ScrollViewer Grid.Row="1"
+                                  VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Auto"
+                                  PanningMode="HorizontalFirst">
                         <StackPanel Grid.IsSharedSizeScope="True">
                         <StackPanel.Resources>
                             <Style TargetType="Expander">
