@@ -135,6 +135,8 @@ fun VehicleDetailScreen(
             )
         }.distinctBy { "${it.branch}|||${it.financer}" }
          .filter { it.branch.isNotBlank() || it.financer.isNotBlank() }
+         // Newest upload first — most recent finance/branch records on top.
+         .sortedByDescending { it.createdOn }
     }
 
     val branchRecord: SearchResult? = uniqueBranches.getOrNull(selectedBranchIdx)?.record ?: item
@@ -501,6 +503,8 @@ private fun AdminDetailView(
                 color = Color(0xFFF57F17)
             )
         }
+        // Vertical stack of finance cards — matches the reference screenshot.
+        // Tap any card to load that finance/branch's data into the details above.
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
             uniqueBranches.forEachIndexed { idx, entry ->
                 val isSelected = idx == selectedBranchIdx
