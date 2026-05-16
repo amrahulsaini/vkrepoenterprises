@@ -19,6 +19,9 @@ data class SearchUiState(
     val inputText: String             = "",
     val mode: SearchMode              = SearchMode.RC,
     val results: List<SearchResult>   = emptyList(),
+    // Un-deduplicated full result set — a vehicle in N finances has N rows here.
+    // The detail screen uses this to build the "FOUND IN FINANCES" list.
+    val allResults: List<SearchResult> = emptyList(),
     val selectedResult: SearchResult? = null,
     val errorMsg: String?             = null,
     val subscriptionExpired: Boolean  = false,
@@ -116,7 +119,7 @@ class SearchViewModel @Inject constructor(
 
     fun setMode(mode: SearchMode) {
         searchJob?.cancel()
-        _ui.update { it.copy(mode = mode, inputText = "", results = emptyList(), errorMsg = null) }
+        _ui.update { it.copy(mode = mode, inputText = "", results = emptyList(), allResults = emptyList(), errorMsg = null) }
     }
 
     fun selectResult(result: SearchResult) {
@@ -124,7 +127,7 @@ class SearchViewModel @Inject constructor(
     }
 
     fun setOnlineOnly(v: Boolean) {
-        _ui.update { it.copy(onlineOnly = v, results = emptyList(), errorMsg = null, inputText = "") }
+        _ui.update { it.copy(onlineOnly = v, results = emptyList(), allResults = emptyList(), errorMsg = null, inputText = "") }
     }
 
     fun setTwoColumnView(v: Boolean) {
@@ -165,7 +168,8 @@ class SearchViewModel @Inject constructor(
                     it.vehicleNo == current.vehicleNo || it.chassisNo == current.chassisNo
                 }
                 if (match != null) {
-                    _ui.update { it.copy(selectedResult = match, results = result.data) }
+                    // allResults gets the full set so FOUND IN FINANCES works after refetch
+                    _ui.update { it.copy(selectedResult = match, results = result.data, allResults = result.data) }
                 }
             }
         }
@@ -177,12 +181,18 @@ class SearchViewModel @Inject constructor(
                 if (mode == SearchMode.RC) vehicleDao.searchByLast4(q)
                 else vehicleDao.searchByLast5(q)
             }
-            val filtered = if (mode == SearchMode.RC)
-                local.filter { it.vehicleNo.isValidRc() }.distinctBy { it.vehicleNo }
+            // Full set keeps every finance row; the list shows one per vehicle.
+            val all = if (mode == SearchMode.RC)
+                local.filter { it.vehicleNo.isValidRc() }
             else
-                local.distinctBy { it.chassisNo }
-            if (filtered.isNotEmpty()) {
-                _ui.update { it.copy(results = filtered.map { it.toSearchResult() }, errorMsg = null) }
+                local
+            if (all.isNotEmpty()) {
+                val full   = all.map { it.toSearchResult() }
+                val unique = if (mode == SearchMode.RC)
+                    full.distinctBy { it.vehicleNo }
+                else
+                    full.distinctBy { it.chassisNo }
+                _ui.update { it.copy(results = unique, allResults = full, errorMsg = null) }
                 return
             }
         }
@@ -195,11 +205,16 @@ class SearchViewModel @Inject constructor(
         _ui.update {
             when (result) {
                 is SearchResult2.Success -> {
-                    val data = if (mode == SearchMode.RC)
-                        result.data.filter { it.vehicleNo.isValidRc() }.distinctBy { it.vehicleNo }.sortedBy { it.vehicleNo }
+                    val full = if (mode == SearchMode.RC)
+                        result.data.filter { it.vehicleNo.isValidRc() }.sortedBy { it.vehicleNo }
                     else
-                        result.data.distinctBy { it.chassisNo }.sortedBy { it.chassisNo }
-                    it.copy(results = data, errorMsg = null)
+                        result.data.sortedBy { it.chassisNo }
+                    // List = one row per vehicle; allResults = every finance row.
+                    val unique = if (mode == SearchMode.RC)
+                        full.distinctBy { it.vehicleNo }
+                    else
+                        full.distinctBy { it.chassisNo }
+                    it.copy(results = unique, allResults = full, errorMsg = null)
                 }
                 is SearchResult2.SubscriptionExpired -> it.copy(subscriptionExpired = true)
                 is SearchResult2.AppStopped          -> it.copy(appStopped = true, appStoppedMsg = result.msg)

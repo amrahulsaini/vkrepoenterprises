@@ -118,9 +118,11 @@ fun VehicleDetailScreen(
     var selectedBranchIdx by remember { mutableStateOf(0) }
     val selChecked = remember { mutableStateMapOf<String, Boolean>() }
 
-    val vehicleRecords = remember(item?.vehicleNo, item?.chassisNo, ui.results) {
+    // Use the un-deduplicated allResults so a vehicle found in multiple
+    // finances shows every finance row in "FOUND IN FINANCES".
+    val vehicleRecords = remember(item?.vehicleNo, item?.chassisNo, ui.allResults) {
         if (item == null) emptyList()
-        else ui.results.filter { r ->
+        else ui.allResults.filter { r ->
             (item.vehicleNo.isNotBlank() && r.vehicleNo == item.vehicleNo) ||
             (item.chassisNo.isNotBlank() && r.chassisNo == item.chassisNo)
         }.ifEmpty { listOf(item) }
