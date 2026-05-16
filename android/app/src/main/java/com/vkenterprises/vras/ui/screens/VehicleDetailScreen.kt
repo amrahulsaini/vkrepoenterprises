@@ -226,7 +226,7 @@ fun VehicleDetailScreen(
                     Icon(Icons.Default.AccountBalance, null,
                         tint = Color(0xFFF57F17), modifier = Modifier.size(18.dp))
                     Text(
-                        "FOUND IN BRANCHES",
+                        "FOUND IN FINANCES",
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFFF57F17)
@@ -253,8 +253,9 @@ fun VehicleDetailScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
+                                // Finance = the DB branch name (the displayed "Finance")
                                 Text(
-                                    entry.financer.ifBlank { "—" },
+                                    entry.branch.ifBlank { "—" },
                                     style      = MaterialTheme.typography.bodyMedium,
                                     fontWeight = FontWeight.Bold,
                                     color      = MaterialTheme.colorScheme.onSurface,
@@ -267,9 +268,10 @@ fun VehicleDetailScreen(
                                     color = Color(0xFFF57F17)
                                 )
                             }
-                            if (entry.branch.isNotBlank()) {
+                            // Head Office = the DB finance name (financer)
+                            if (entry.financer.isNotBlank()) {
                                 Text(
-                                    entry.branch,
+                                    "Head Office: ${entry.financer}",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.padding(top = 3.dp)
@@ -454,7 +456,7 @@ private fun AdminDetailView(
                 onClick = onShowBranchSheet,
                 label = {
                     Text(
-                        "Found in ${uniqueBranches.size} branches",
+                        "Found in ${uniqueBranches.size} finances",
                         fontWeight = FontWeight.Bold
                     )
                 },
