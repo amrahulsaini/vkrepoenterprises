@@ -932,6 +932,43 @@ app.MapPut("/api/mgr/users/{id:long}/finance-restrictions", async (HttpContext c
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
 
+// ── Admin (Control Panel) password ──────────────────────────────────────────
+// Sets the per-admin Control Panel password. Desktop calls this from the
+// Users page for any admin user.
+app.MapMethods("/api/mgr/users/{id:long}/admin-pass", new[] { "PATCH" },
+    async (HttpContext ctx, long id, MgrSetAdminPassDto dto) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        await using var conn = new MySqlConnection(connStr);
+        await conn.OpenAsync();
+        await MgrExec("UPDATE app_users SET admin_pass=@p WHERE id=@id", conn, 10,
+            ("@p", string.IsNullOrWhiteSpace(dto.Password) ? (object)DBNull.Value : dto.Password),
+            ("@id", id));
+        return Results.Ok();
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+// Returns whether a user has an admin password set (so the desktop can show
+// "set" vs "not set" without exposing the password).
+app.MapGet("/api/mgr/users/{id:long}/admin-pass", async (HttpContext ctx, long id) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        await using var conn = new MySqlConnection(connStr);
+        await conn.OpenAsync();
+        await using var cmd = new MySqlCommand(
+            "SELECT admin_pass FROM app_users WHERE id=@id LIMIT 1", conn) { CommandTimeout = 5 };
+        cmd.Parameters.AddWithValue("@id", id);
+        var v = await cmd.ExecuteScalarAsync() as string;
+        return Results.Ok(new { isSet = !string.IsNullOrWhiteSpace(v) });
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
 // ── KYC documents ────────────────────────────────────────────────────────────
 // Returns the user's KYC document URLs (aadhaar_front, aadhaar_back, pan_front).
 // Mobile API stores them as relative paths like "kyc/42/aadhaar_front.jpg".
@@ -2214,3 +2251,4 @@ record MgrSetStoppedDto(bool Stopped);
 record MgrSetBlacklistedDto(bool Blacklisted);
 record MgrSetFinanceRestrictionsDto(List<int> FinanceIds);
 record MgrSetSubsPasswordDto(string Password);
+record MgrSetAdminPassDto(string Password);
