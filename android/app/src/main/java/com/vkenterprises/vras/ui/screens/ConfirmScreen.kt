@@ -175,6 +175,8 @@ fun ConfirmScreen(
                     SummaryRow("Chassis",   item.chassisNo,   mono = true)
                     SummaryRow("Engine",    item.engineNo,    mono = true)
                     SummaryRow("Model",     item.model)
+                    SummaryRow("BKT",       item.bucket)
+                    SummaryRow("OD",        item.od)
                     SummaryRow("Branch",    item.branchName)
                     SummaryRow("Financer",  item.financer)
                 }

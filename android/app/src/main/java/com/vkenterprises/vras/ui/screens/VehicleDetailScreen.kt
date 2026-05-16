@@ -827,11 +827,19 @@ private fun SRow(
             )
             Spacer(Modifier.width(6.dp))
         }
+        // Label in a fixed-width box, then the ":" as a separate element so
+        // every colon lines up in one vertical column regardless of label length.
         Text(
-            "$label :",
+            label,
             style    = MaterialTheme.typography.labelSmall,
             color    = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.width(if (sel) 90.dp else 110.dp)
+        )
+        Text(
+            ":",
+            style    = MaterialTheme.typography.labelSmall,
+            color    = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(end = 8.dp)
         )
         ClickableText(
             text = annotated,
