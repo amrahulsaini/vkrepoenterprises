@@ -43,14 +43,14 @@ public partial class MainWindow : Window
         RefreshFirmLabels();
     }
 
-    // When the taskbar activates the dashboard while an upload window covers
-    // it, force it to the foreground — borderless maximized WPF windows
-    // otherwise activate without being raised above the other window.
+    // Borderless maximized WPF windows don't reliably raise from the taskbar.
+    // So whenever this window is activated, minimize the other big windows —
+    // that guarantees only one is up at a time and every taskbar click is a
+    // rock-solid "restore from minimized".
     protected override void OnActivated(System.EventArgs e)
     {
         base.OnActivated(e);
-        Topmost = true;
-        Topmost = false;
+        WindowSwitch.MinimizeOthers(this);
     }
 
     private void Window_Loaded(object sender, RoutedEventArgs e)
