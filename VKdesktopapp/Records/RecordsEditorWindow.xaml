@@ -6,8 +6,8 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:sf="http://schemas.syncfusion.com/wpf"
     Title="Records Editor"
-    Height="760"
-    Width="1366"
+    Height="700"
+    Width="1180"
     WindowStartupLocation="CenterScreen"
     ShowInTaskbar="True"
     Loaded="RibbonWindow_Loaded">
