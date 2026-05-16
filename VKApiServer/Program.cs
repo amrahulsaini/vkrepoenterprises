@@ -1184,7 +1184,7 @@ app.MapGet("/api/mgr/search", async (HttpContext ctx, string? q, string? mode) =
             vr.level1, vr.level1_contact, vr.level2, vr.level2_contact,
             vr.level3, vr.level3_contact, vr.level4, vr.level4_contact,
             vr.sender_mail1, vr.sender_mail2, vr.executive_name, vr.pos, vr.toss, vr.remark,
-            COALESCE(DATE_FORMAT(vr.created_at,'%d %b %Y'),'') AS created_on,
+            COALESCE(DATE_FORMAT(vr.created_at,'%d %b %Y %h:%i %p'),'') AS created_on,
             b.name AS branch_name,
             COALESCE(f.name,'') AS financer,
             COALESCE(b.contact1,'') AS b_c1,
