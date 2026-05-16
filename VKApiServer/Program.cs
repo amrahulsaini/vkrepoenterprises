@@ -1129,6 +1129,11 @@ app.MapPost("/api/mgr/users/{id:long}/subscriptions", async (HttpContext ctx, lo
         cmd.Parameters.AddWithValue("@a",   dto.Amount);
         cmd.Parameters.AddWithValue("@n",   (object?)dto.Notes ?? DBNull.Value);
         await cmd.ExecuteNonQueryAsync();
+
+        // Invalidate the mobile API's 5-min subscription cache so the Android
+        // app sees the new plan on its very next search instead of after TTL.
+        _ = mobileHttp.PostAsync($"api/mobile/cache/invalidate-sub/{id}", null);
+
         return Results.Ok();
     }
     catch (Exception ex) { return Results.Problem(ex.Message); }
@@ -1141,7 +1146,22 @@ app.MapDelete("/api/mgr/subscriptions/{id:long}", async (HttpContext ctx, long i
     {
         await using var conn = new MySqlConnection(connStr);
         await conn.OpenAsync();
+
+        // Look up which user this sub belongs to so we can invalidate their cache.
+        long userId = 0;
+        await using (var sel = new MySqlCommand(
+            "SELECT user_id FROM subscriptions WHERE id=@id LIMIT 1", conn) { CommandTimeout = 5 })
+        {
+            sel.Parameters.AddWithValue("@id", id);
+            var v = await sel.ExecuteScalarAsync();
+            if (v != null && v != DBNull.Value) userId = Convert.ToInt64(v);
+        }
+
         await MgrExec("DELETE FROM subscriptions WHERE id=@id", conn, 10, ("@id", id));
+
+        if (userId > 0)
+            _ = mobileHttp.PostAsync($"api/mobile/cache/invalidate-sub/{userId}", null);
+
         return Results.Ok();
     }
     catch (Exception ex) { return Results.Problem(ex.Message); }
