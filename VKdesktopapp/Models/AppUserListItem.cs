@@ -24,6 +24,14 @@ public class AppUserListItem
         ? DateTime.TryParse(s, out var d) ? d.ToString("dd MMM yyyy") : s
         : "—";
     public bool HasPfp => !string.IsNullOrWhiteSpace(PfpBase64);
+    public bool HasNoPfp => !HasPfp;
+
+    // True when PfpBase64 is actually a URL (server now returns absolute URLs
+    // for file-stored PFPs). Used by WPF Image.Source which can fetch URLs natively.
+    public string? PfpUrl =>
+        !string.IsNullOrWhiteSpace(PfpBase64) && PfpBase64.StartsWith("http")
+            ? PfpBase64 : null;
+
     public string Initials => Name.Length > 0
         ? string.Concat(Name.Split(' ', StringSplitOptions.RemoveEmptyEntries)
             .Take(2).Select(w => char.ToUpper(w[0])))

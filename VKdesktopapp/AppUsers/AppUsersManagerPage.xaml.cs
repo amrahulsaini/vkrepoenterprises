@@ -93,33 +93,9 @@ public partial class AppUsersManagerPage : Page
         txtProfileJoined.Text  = user.CreatedDisplay;
         txtDeviceId.Text       = user.DeviceId ?? "(no device registered)";
 
-        // Load PFP image if available
-        if (!string.IsNullOrWhiteSpace(user.PfpBase64))
-        {
-            try
-            {
-                var bytes = Convert.FromBase64String(user.PfpBase64);
-                var bmp = new BitmapImage();
-                bmp.BeginInit();
-                bmp.CacheOption = BitmapCacheOption.OnLoad;
-                bmp.StreamSource = new MemoryStream(bytes);
-                bmp.EndInit();
-                bmp.Freeze();
-                imgPfp.Source = bmp;
-                imgPfp.Visibility = Visibility.Visible;
-                txtAvatar.Visibility = Visibility.Collapsed;
-            }
-            catch
-            {
-                imgPfp.Visibility = Visibility.Collapsed;
-                txtAvatar.Visibility = Visibility.Visible;
-            }
-        }
-        else
-        {
-            imgPfp.Visibility = Visibility.Collapsed;
-            txtAvatar.Visibility = Visibility.Visible;
-        }
+        // Load PFP — server may return a full URL (file-stored PFPs) or legacy
+        // base64. Detect and load appropriately.
+        await SetAvatarAsync(user.PfpBase64);
 
         // App Active toggle — ON = app running, OFF = stopped (inverted semantics)
         _suppressStopToggle = true;
@@ -132,6 +108,154 @@ public partial class AppUsersManagerPage : Page
 
         await LoadSubscriptionsAsync(user.Id);
         await LoadFinanceRestrictionsAsync(user.Id);
+        await LoadKycAsync(user.Id);
+    }
+
+    // Loads PFP into imgPfp from either a URL or legacy base64. Falls back to initials.
+    private async Task SetAvatarAsync(string? pfpRaw)
+    {
+        if (string.IsNullOrWhiteSpace(pfpRaw))
+        {
+            imgPfp.Visibility = Visibility.Collapsed;
+            txtAvatar.Visibility = Visibility.Visible;
+            return;
+        }
+        try
+        {
+            byte[] bytes;
+            if (pfpRaw.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+                bytes = await App.HttpClient.GetByteArrayAsync(pfpRaw);
+            else
+                bytes = Convert.FromBase64String(pfpRaw);
+
+            var bmp = new BitmapImage();
+            bmp.BeginInit();
+            bmp.CacheOption = BitmapCacheOption.OnLoad;
+            bmp.StreamSource = new MemoryStream(bytes);
+            bmp.EndInit();
+            bmp.Freeze();
+            imgPfp.Source = bmp;
+            imgPfp.Visibility = Visibility.Visible;
+            txtAvatar.Visibility = Visibility.Collapsed;
+        }
+        catch
+        {
+            imgPfp.Visibility = Visibility.Collapsed;
+            txtAvatar.Visibility = Visibility.Visible;
+        }
+    }
+
+    // ── KYC documents ───────────────────────────────────────────────────
+    private DesktopApiClient.KycDocsDto? _kycDocs;
+
+    private async Task LoadKycAsync(long userId)
+    {
+        imgKycAadhaarFront.Visibility = Visibility.Collapsed;
+        imgKycAadhaarBack.Visibility  = Visibility.Collapsed;
+        imgKycPanFront.Visibility     = Visibility.Collapsed;
+        txtKycAadhaarFrontEmpty.Visibility = Visibility.Visible;
+        txtKycAadhaarBackEmpty.Visibility  = Visibility.Visible;
+        txtKycPanFrontEmpty.Visibility     = Visibility.Visible;
+        _kycDocs = null;
+
+        try
+        {
+            _kycDocs = await _repo.GetKycAsync(userId);
+            await SetKycImageAsync(imgKycAadhaarFront, txtKycAadhaarFrontEmpty, _kycDocs.AadhaarFront);
+            await SetKycImageAsync(imgKycAadhaarBack,  txtKycAadhaarBackEmpty,  _kycDocs.AadhaarBack);
+            await SetKycImageAsync(imgKycPanFront,     txtKycPanFrontEmpty,     _kycDocs.PanFront);
+        }
+        catch { /* user has no KYC yet — UI stays in empty state */ }
+    }
+
+    private static async Task SetKycImageAsync(Image img, TextBlock emptyLabel, string url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            img.Visibility = Visibility.Collapsed;
+            emptyLabel.Visibility = Visibility.Visible;
+            return;
+        }
+        try
+        {
+            var bytes = await App.HttpClient.GetByteArrayAsync(url);
+            var bmp = new BitmapImage();
+            bmp.BeginInit();
+            bmp.CacheOption = BitmapCacheOption.OnLoad;
+            bmp.StreamSource = new MemoryStream(bytes);
+            bmp.EndInit();
+            bmp.Freeze();
+            img.Source = bmp;
+            img.Visibility = Visibility.Visible;
+            emptyLabel.Visibility = Visibility.Collapsed;
+        }
+        catch
+        {
+            img.Visibility = Visibility.Collapsed;
+            emptyLabel.Visibility = Visibility.Visible;
+        }
+    }
+
+    private string? GetKycUrl(string docType) => docType switch
+    {
+        "aadhaar_front" => _kycDocs?.AadhaarFront,
+        "aadhaar_back"  => _kycDocs?.AadhaarBack,
+        "pan_front"     => _kycDocs?.PanFront,
+        _ => null
+    };
+
+    private async void btnKycDownload_Click(object sender, RoutedEventArgs e)
+    {
+        if (_selectedUser == null) return;
+        if (sender is not Button btn || btn.Tag is not string docType) return;
+        var url = GetKycUrl(docType);
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            MessageBox.Show("This document is not uploaded.", "KYC",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+        var dlg = new Microsoft.Win32.SaveFileDialog
+        {
+            Title    = $"Save {docType.Replace('_', ' ')}",
+            FileName = $"{_selectedUser.Mobile}_{docType}.jpg",
+            Filter   = "JPEG image (*.jpg)|*.jpg|All files (*.*)|*.*",
+            DefaultExt = "jpg"
+        };
+        if (dlg.ShowDialog() != true) return;
+        try
+        {
+            var bytes = await App.HttpClient.GetByteArrayAsync(url);
+            await File.WriteAllBytesAsync(dlg.FileName, bytes);
+            MessageBox.Show($"Saved to {dlg.FileName}", "Download Complete",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Download failed: {ex.Message}", "Download",
+                MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private async void btnKycDelete_Click(object sender, RoutedEventArgs e)
+    {
+        if (_selectedUser == null) return;
+        if (sender is not Button btn || btn.Tag is not string docType) return;
+        var confirm = MessageBox.Show(
+            $"Delete {docType.Replace('_', ' ')} for {_selectedUser.Name}?\nThis cannot be undone.",
+            "Delete KYC Document",
+            MessageBoxButton.YesNo, MessageBoxImage.Warning);
+        if (confirm != MessageBoxResult.Yes) return;
+        try
+        {
+            await _repo.DeleteKycAsync(_selectedUser.Id, docType);
+            await LoadKycAsync(_selectedUser.Id);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Failed to delete: {ex.Message}", "Delete KYC",
+                MessageBoxButton.OK, MessageBoxImage.Error);
+        }
     }
 
     private async Task LoadFinanceRestrictionsAsync(long userId)
