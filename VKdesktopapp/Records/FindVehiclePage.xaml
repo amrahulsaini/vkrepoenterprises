@@ -162,8 +162,6 @@
                     <Border Grid.Row="0" Background="{StaticResource Gray100}" BorderBrush="{StaticResource Gray200}" BorderThickness="0,0,0,1" Padding="12,8">
                         <WrapPanel Orientation="Horizontal" HorizontalAlignment="Right">
                             <Button Name="btnCopy" Content="Copy Info" Padding="12,4" Margin="0,4,8,4" Click="btnCopy_Click" Background="{StaticResource Gray700}" Foreground="White" BorderThickness="0" Cursor="Hand" />
-                            <Button Name="btnRelease" Content="Mark/Unmark Release" Padding="12,4" Margin="0,4,8,4" Click="btnRelease_Click" Background="{StaticResource Green500}" Foreground="White" BorderThickness="0" Cursor="Hand" />
-                            <Button Name="btnConfirmNow" Content="Confirm Now" Padding="12,4" Margin="0,4,8,4" Click="btnConfirmNow_Click" Background="{StaticResource Orange600}" Foreground="White" BorderThickness="0" Cursor="Hand" />
                             <Button Name="btnDelete" Content="Delete" Padding="12,4" Margin="0,4,0,4" Click="btnDelete_Click" Background="{StaticResource Red500}" Foreground="White" BorderThickness="0" Cursor="Hand" />
                         </WrapPanel>
                     </Border>
@@ -172,267 +170,122 @@
                                   VerticalScrollBarVisibility="Auto"
                                   HorizontalScrollBarVisibility="Auto"
                                   PanningMode="HorizontalFirst">
-                        <StackPanel Grid.IsSharedSizeScope="True">
-                        <StackPanel.Resources>
-                            <Style TargetType="Expander">
-                                <Setter Property="IsExpanded" Value="True" />
-                                <Setter Property="Background" Value="{StaticResource Gray100}" />
-                                <Setter Property="BorderBrush" Value="{StaticResource Gray200}" />
-                                <Setter Property="BorderThickness" Value="1,1,1,0" />
-                                <Setter Property="Foreground" Value="{StaticResource Gray800}" />
-                                <Setter Property="FontWeight" Value="Bold" />
-                                <Setter Property="Padding" Value="4,6" />
-                            </Style>
-                            <Style x:Key="LabelBorder" TargetType="Border">
-                                <Setter Property="BorderBrush" Value="{StaticResource Gray200}" />
-                                <Setter Property="BorderThickness" Value="1,0,1,1" />
-                                <Setter Property="Padding" Value="8,5" />
-                                <Setter Property="Background" Value="{StaticResource Gray50}" />
-                            </Style>
-                            <Style x:Key="ValueBorder" TargetType="Border">
-                                <Setter Property="BorderBrush" Value="{StaticResource Gray200}" />
-                                <Setter Property="BorderThickness" Value="0,0,1,1" />
-                                <Setter Property="Padding" Value="8,5" />
-                            </Style>
-                            <Style x:Key="LabelText" TargetType="TextBlock">
-                                <Setter Property="Foreground" Value="{StaticResource Orange700}" />
-                                <Setter Property="VerticalAlignment" Value="Center" />
-                                <Setter Property="FontSize" Value="12" />
-                                <Setter Property="FontWeight" Value="Medium" />
-                            </Style>
-                            <Style x:Key="ValueText" TargetType="TextBlock">
-                                <Setter Property="Foreground" Value="{StaticResource Gray800}" />
-                                <Setter Property="VerticalAlignment" Value="Center" />
-                                <Setter Property="TextWrapping" Value="Wrap" />
-                                <Setter Property="FontSize" Value="13" />
-                            </Style>
-                        </StackPanel.Resources>
+                        <StackPanel>
+                            <StackPanel.Resources>
+                                <Style x:Key="LabelBorder" TargetType="Border">
+                                    <Setter Property="BorderBrush" Value="{StaticResource Gray200}" />
+                                    <Setter Property="BorderThickness" Value="0,0,1,1" />
+                                    <Setter Property="Padding" Value="10,6" />
+                                    <Setter Property="Background" Value="{StaticResource Gray50}" />
+                                </Style>
+                                <Style x:Key="ValueBorder" TargetType="Border">
+                                    <Setter Property="BorderBrush" Value="{StaticResource Gray200}" />
+                                    <Setter Property="BorderThickness" Value="0,0,0,1" />
+                                    <Setter Property="Padding" Value="10,6" />
+                                </Style>
+                                <Style x:Key="LabelText" TargetType="TextBlock">
+                                    <Setter Property="Foreground" Value="{StaticResource Gray600}" />
+                                    <Setter Property="VerticalAlignment" Value="Center" />
+                                    <Setter Property="FontSize" Value="12" />
+                                    <Setter Property="FontWeight" Value="SemiBold" />
+                                </Style>
+                                <Style x:Key="ValueText" TargetType="TextBlock">
+                                    <Setter Property="Foreground" Value="{StaticResource Gray900}" />
+                                    <Setter Property="VerticalAlignment" Value="Center" />
+                                    <Setter Property="TextWrapping" Value="Wrap" />
+                                    <Setter Property="FontSize" Value="13" />
+                                    <Setter Property="FontWeight" Value="Bold" />
+                                </Style>
+                                <Style x:Key="SectionDivider" TargetType="Border">
+                                    <Setter Property="Height" Value="8" />
+                                    <Setter Property="Background" Value="{StaticResource Gray100}" />
+                                </Style>
+                            </StackPanel.Resources>
 
-                        <!-- Vehicle Group -->
-                        <Expander Header="Vehicle">
-                            <Grid Background="White">
+                            <Grid>
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition SharedSizeGroup="LabelCol" Width="150" />
+                                    <ColumnDefinition Width="150" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <Border Grid.Row="0" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBlock Text="Vehicle No :" Style="{StaticResource LabelText}"/></Border>
+                                <Border Grid.Row="0" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBlock Text="{Binding VehicleNo}" Style="{StaticResource ValueText}" FontFamily="Consolas"/></Border>
+                                <Border Grid.Row="1" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBlock Text="Chassis No :" Style="{StaticResource LabelText}"/></Border>
+                                <Border Grid.Row="1" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBlock Text="{Binding ChassisNo}" Style="{StaticResource ValueText}" FontFamily="Consolas"/></Border>
+                                <Border Grid.Row="2" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBlock Text="Model/Make :" Style="{StaticResource LabelText}"/></Border>
+                                <Border Grid.Row="2" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBlock Text="{Binding Model}" Style="{StaticResource ValueText}"/></Border>
+                                <Border Grid.Row="3" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBlock Text="Engine No :" Style="{StaticResource LabelText}"/></Border>
+                                <Border Grid.Row="3" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBlock Text="{Binding EngineNo}" Style="{StaticResource ValueText}" FontFamily="Consolas"/></Border>
+                                <Border Grid.Row="4" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBlock Text="Agreement No :" Style="{StaticResource LabelText}"/></Border>
+                                <Border Grid.Row="4" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBlock Text="{Binding AgreementNo}" Style="{StaticResource ValueText}" FontFamily="Consolas"/></Border>
+                                <Border Grid.Row="5" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBlock Text="Cust. Name :" Style="{StaticResource LabelText}"/></Border>
+                                <Border Grid.Row="5" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBlock Text="{Binding CustomerName}" Style="{StaticResource ValueText}"/></Border>
+                                <Border Grid.Row="6" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBlock Text="Cust. Address :" Style="{StaticResource LabelText}"/></Border>
+                                <Border Grid.Row="6" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBlock Text="{Binding CustomerAddress}" Style="{StaticResource ValueText}"/></Border>
+                            </Grid>
+                            <Border Style="{StaticResource SectionDivider}" />
+
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="150" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <Border Grid.Row="0" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBlock Text="Bucket :" Style="{StaticResource LabelText}"/></Border>
+                                <Border Grid.Row="0" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBlock Text="{Binding Bucket}" Style="{StaticResource ValueText}"/></Border>
+                                <Border Grid.Row="1" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBlock Text="GV :" Style="{StaticResource LabelText}"/></Border>
+                                <Border Grid.Row="1" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBlock Text="{Binding GV}" Style="{StaticResource ValueText}"/></Border>
+                                <Border Grid.Row="2" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBlock Text="OD :" Style="{StaticResource LabelText}"/></Border>
+                                <Border Grid.Row="2" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBlock Text="{Binding OD}" Style="{StaticResource ValueText}"/></Border>
+                                <Border Grid.Row="3" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBlock Text="Region :" Style="{StaticResource LabelText}"/></Border>
+                                <Border Grid.Row="3" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBlock Text="{Binding Region}" Style="{StaticResource ValueText}"/></Border>
+                                <Border Grid.Row="4" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBlock Text="Area :" Style="{StaticResource LabelText}"/></Border>
+                                <Border Grid.Row="4" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBlock Text="{Binding Area}" Style="{StaticResource ValueText}"/></Border>
+                            </Grid>
+                            <Border Style="{StaticResource SectionDivider}" />
+
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="150" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <Border Grid.Row="0" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBlock Text="Branch (xlsx) :" Style="{StaticResource LabelText}"/></Border>
+                                <Border Grid.Row="0" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBlock Text="{Binding BranchFromExcel}" Style="{StaticResource ValueText}"/></Border>
+                                <Border Grid.Row="1" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBlock Text="Level 1 :" Style="{StaticResource LabelText}"/></Border>
+                                <Border Grid.Row="1" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBlock Text="{Binding Level1, StringFormat='{}{0}'}" Style="{StaticResource ValueText}"/></Border>
+                                <Border Grid.Row="2" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBlock Text="Level 2 :" Style="{StaticResource LabelText}"/></Border>
+                                <Border Grid.Row="2" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBlock Text="{Binding Level2}" Style="{StaticResource ValueText}"/></Border>
+                                <Border Grid.Row="3" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBlock Text="Level 3 :" Style="{StaticResource LabelText}"/></Border>
+                                <Border Grid.Row="3" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBlock Text="{Binding Level3}" Style="{StaticResource ValueText}"/></Border>
+                                <Border Grid.Row="4" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBlock Text="Level 4 :" Style="{StaticResource LabelText}"/></Border>
+                                <Border Grid.Row="4" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBlock Text="{Binding Level4}" Style="{StaticResource ValueText}"/></Border>
+                            </Grid>
+                            <Border Style="{StaticResource SectionDivider}" />
+
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="150" />
                                     <ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
                                 </Grid.RowDefinitions>
-                                
-                                <Border Grid.Row="0" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBlock Text="Status" Style="{StaticResource LabelText}"/></Border>
-                                <Border Grid.Row="0" Grid.Column="1" Style="{StaticResource ValueBorder}" Background="{StaticResource Orange500}"><TextBlock Text="{Binding ReleaseStatus}" Style="{StaticResource ValueText}" Foreground="White" /></Border>
-                                
-                                <Border Grid.Row="1" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBlock Text="VehicleNo" Style="{StaticResource LabelText}"/></Border>
-                                <Border Grid.Row="1" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBlock Text="{Binding VehicleNo}" Style="{StaticResource ValueText}"/></Border>
-                                
-                                <Border Grid.Row="2" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBlock Text="ChasisNo" Style="{StaticResource LabelText}"/></Border>
-                                <Border Grid.Row="2" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBlock Text="{Binding ChassisNo}" Style="{StaticResource ValueText}"/></Border>
-                                
-                                <Border Grid.Row="3" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBlock Text="Model" Style="{StaticResource LabelText}"/></Border>
-                                <Border Grid.Row="3" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBlock Text="{Binding Model}" Style="{StaticResource ValueText}"/></Border>
-                                
-                                <Border Grid.Row="4" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBlock Text="EngineNo" Style="{StaticResource LabelText}"/></Border>
-                                <Border Grid.Row="4" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBlock Text="{Binding EngineNo}" Style="{StaticResource ValueText}"/></Border>
+                                <Border Grid.Row="0" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBlock Text="Finance :" Style="{StaticResource LabelText}"/></Border>
+                                <Border Grid.Row="0" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBlock Text="{Binding Financer}" Style="{StaticResource ValueText}" Foreground="{StaticResource Orange700}"/></Border>
                             </Grid>
-                        </Expander>
-
-                        <!-- Customer Group -->
-                        <Expander Header="Customer">
-                            <Grid Background="White">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition SharedSizeGroup="LabelCol" />
-                                    <ColumnDefinition Width="*" />
-                                </Grid.ColumnDefinitions>
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                </Grid.RowDefinitions>
-                                
-                                <Border Grid.Row="0" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBlock Text="CustomerName" Style="{StaticResource LabelText}"/></Border>
-                                <Border Grid.Row="0" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBlock Text="{Binding CustomerName}" Style="{StaticResource ValueText}"/></Border>
-                                
-                                <Border Grid.Row="1" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBlock Text="CustomerContactNos" Style="{StaticResource LabelText}"/></Border>
-                                <Border Grid.Row="1" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBlock Text="{Binding CustomerContactNos}" Style="{StaticResource ValueText}"/></Border>
-                                
-                                <Border Grid.Row="2" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBlock Text="CustomerAddress" Style="{StaticResource LabelText}"/></Border>
-                                <Border Grid.Row="2" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBlock Text="{Binding CustomerAddress}" Style="{StaticResource ValueText}"/></Border>
-                            </Grid>
-                        </Expander>
-
-                        <!-- Finance Group -->
-                        <Expander Header="Finance">
-                            <Grid Background="White">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition SharedSizeGroup="LabelCol" />
-                                    <ColumnDefinition Width="*" />
-                                </Grid.ColumnDefinitions>
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                </Grid.RowDefinitions>
-                                
-                                <Border Grid.Row="0" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBlock Text="FinanceName" Style="{StaticResource LabelText}"/></Border>
-                                <Border Grid.Row="0" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBlock Text="{Binding Financer}" Style="{StaticResource ValueText}"/></Border>
-                                
-                                <Border Grid.Row="1" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBlock Text="BranchName" Style="{StaticResource LabelText}"/></Border>
-                                <Border Grid.Row="1" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBlock Text="{Binding BranchName}" Style="{StaticResource ValueText}"/></Border>
-                                
-                                <Border Grid.Row="2" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBlock Text="FirstContactDetails" Style="{StaticResource LabelText}"/></Border>
-                                <Border Grid.Row="2" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBlock Text="{Binding FirstContactDetails}" Style="{StaticResource ValueText}"/></Border>
-                                
-                                <Border Grid.Row="3" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBlock Text="SecondContactDetails" Style="{StaticResource LabelText}"/></Border>
-                                <Border Grid.Row="3" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBlock Text="{Binding SecondContactDetails}" Style="{StaticResource ValueText}"/></Border>
-                                
-                                <Border Grid.Row="4" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBlock Text="ThirdContactDetails" Style="{StaticResource LabelText}"/></Border>
-                                <Border Grid.Row="4" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBlock Text="{Binding ThirdContactDetails}" Style="{StaticResource ValueText}"/></Border>
-                                
-                                <Border Grid.Row="5" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBlock Text="Address" Style="{StaticResource LabelText}"/></Border>
-                                <Border Grid.Row="5" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBlock Text="{Binding Address}" Style="{StaticResource ValueText}"/></Border>
-                                
-                                <Border Grid.Row="6" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBlock Text="Branch from excel" Style="{StaticResource LabelText}"/></Border>
-                                <Border Grid.Row="6" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBlock Text="{Binding BranchFromExcel}" Style="{StaticResource ValueText}"/></Border>
-                                
-                                <Border Grid.Row="7" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBlock Text="ExecutiveName" Style="{StaticResource LabelText}"/></Border>
-                                <Border Grid.Row="7" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBlock Text="{Binding ExecutiveName}" Style="{StaticResource ValueText}"/></Border>
-                                
-                                <Border Grid.Row="8" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBlock Text="Level1" Style="{StaticResource LabelText}"/></Border>
-                                <Border Grid.Row="8" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBlock Text="{Binding Level1}" Style="{StaticResource ValueText}"/></Border>
-                                
-                                <Border Grid.Row="9" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBlock Text="Level1ContactNos" Style="{StaticResource LabelText}"/></Border>
-                                <Border Grid.Row="9" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBlock Text="{Binding Level1ContactNos}" Style="{StaticResource ValueText}"/></Border>
-                                
-                                <Border Grid.Row="10" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBlock Text="Level2" Style="{StaticResource LabelText}"/></Border>
-                                <Border Grid.Row="10" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBlock Text="{Binding Level2}" Style="{StaticResource ValueText}"/></Border>
-                                
-                                <Border Grid.Row="11" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBlock Text="Level2ContactNos" Style="{StaticResource LabelText}"/></Border>
-                                <Border Grid.Row="11" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBlock Text="{Binding Level2ContactNos}" Style="{StaticResource ValueText}"/></Border>
-                                
-                                <Border Grid.Row="12" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBlock Text="Level3" Style="{StaticResource LabelText}"/></Border>
-                                <Border Grid.Row="12" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBlock Text="{Binding Level3}" Style="{StaticResource ValueText}"/></Border>
-                                
-                                <Border Grid.Row="13" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBlock Text="Level3ContactNos" Style="{StaticResource LabelText}"/></Border>
-                                <Border Grid.Row="13" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBlock Text="{Binding Level3ContactNos}" Style="{StaticResource ValueText}"/></Border>
-                                
-                                <Border Grid.Row="14" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBlock Text="Level4" Style="{StaticResource LabelText}"/></Border>
-                                <Border Grid.Row="14" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBlock Text="{Binding Level4}" Style="{StaticResource ValueText}"/></Border>
-                                
-                                <Border Grid.Row="15" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBlock Text="Level4ContactNos" Style="{StaticResource LabelText}"/></Border>
-                                <Border Grid.Row="15" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBlock Text="{Binding Level4ContactNos}" Style="{StaticResource ValueText}"/></Border>
-                            </Grid>
-                        </Expander>
-
-                        <!-- Loan Group -->
-                        <Expander Header="Loan">
-                            <Grid Background="White">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition SharedSizeGroup="LabelCol" />
-                                    <ColumnDefinition Width="*" />
-                                </Grid.ColumnDefinitions>
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                </Grid.RowDefinitions>
-                                
-                                <Border Grid.Row="0" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBlock Text="AgreementNo" Style="{StaticResource LabelText}"/></Border>
-                                <Border Grid.Row="0" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBlock Text="{Binding AgreementNo}" Style="{StaticResource ValueText}"/></Border>
-                                
-                                <Border Grid.Row="1" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBlock Text="Region" Style="{StaticResource LabelText}"/></Border>
-                                <Border Grid.Row="1" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBlock Text="{Binding Region}" Style="{StaticResource ValueText}"/></Border>
-                                
-                                <Border Grid.Row="2" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBlock Text="Area" Style="{StaticResource LabelText}"/></Border>
-                                <Border Grid.Row="2" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBlock Text="{Binding Area}" Style="{StaticResource ValueText}"/></Border>
-                                
-                                <Border Grid.Row="3" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBlock Text="Bucket" Style="{StaticResource LabelText}"/></Border>
-                                <Border Grid.Row="3" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBlock Text="{Binding Bucket}" Style="{StaticResource ValueText}"/></Border>
-                                
-                                <Border Grid.Row="4" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBlock Text="GV" Style="{StaticResource LabelText}"/></Border>
-                                <Border Grid.Row="4" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBlock Text="{Binding GV}" Style="{StaticResource ValueText}"/></Border>
-                                
-                                <Border Grid.Row="5" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBlock Text="OD" Style="{StaticResource LabelText}"/></Border>
-                                <Border Grid.Row="5" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBlock Text="{Binding OD}" Style="{StaticResource ValueText}"/></Border>
-                                
-                                <Border Grid.Row="6" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBlock Text="Sec9Available" Style="{StaticResource LabelText}"/></Border>
-                                <Border Grid.Row="6" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBlock Text="{Binding Sec9Available}" Style="{StaticResource ValueText}"/></Border>
-                                
-                                <Border Grid.Row="7" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBlock Text="Sec17Available" Style="{StaticResource LabelText}"/></Border>
-                                <Border Grid.Row="7" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBlock Text="{Binding Sec17Available}" Style="{StaticResource ValueText}"/></Border>
-                                
-                                <Border Grid.Row="8" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBlock Text="TBRFlag" Style="{StaticResource LabelText}"/></Border>
-                                <Border Grid.Row="8" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBlock Text="{Binding TBRFlag}" Style="{StaticResource ValueText}"/></Border>
-                                
-                                <Border Grid.Row="9" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBlock Text="Seasoning" Style="{StaticResource LabelText}"/></Border>
-                                <Border Grid.Row="9" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBlock Text="{Binding Seasoning}" Style="{StaticResource ValueText}"/></Border>
-                                
-                                <Border Grid.Row="10" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBlock Text="SenderMailId1" Style="{StaticResource LabelText}"/></Border>
-                                <Border Grid.Row="10" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBlock Text="{Binding SenderMailId1}" Style="{StaticResource ValueText}"/></Border>
-                                
-                                <Border Grid.Row="11" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBlock Text="SenderMailId2" Style="{StaticResource LabelText}"/></Border>
-                                <Border Grid.Row="11" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBlock Text="{Binding SenderMailId2}" Style="{StaticResource ValueText}"/></Border>
-                                
-                                <Border Grid.Row="12" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBlock Text="POS" Style="{StaticResource LabelText}"/></Border>
-                                <Border Grid.Row="12" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBlock Text="{Binding POS}" Style="{StaticResource ValueText}"/></Border>
-                                
-                                <Border Grid.Row="13" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBlock Text="TOSS" Style="{StaticResource LabelText}"/></Border>
-                                <Border Grid.Row="13" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBlock Text="{Binding TOSS}" Style="{StaticResource ValueText}"/></Border>
-                                
-                                <Border Grid.Row="14" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBlock Text="Remark" Style="{StaticResource LabelText}"/></Border>
-                                <Border Grid.Row="14" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBlock Text="{Binding Remark}" Style="{StaticResource ValueText}"/></Border>
-                            </Grid>
-                        </Expander>
-
-                        <!-- Other Group -->
-                        <Expander Header="Other">
-                            <Grid Background="White">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition SharedSizeGroup="LabelCol" />
-                                    <ColumnDefinition Width="*" />
-                                </Grid.ColumnDefinitions>
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                </Grid.RowDefinitions>
-                                
-                                <Border Grid.Row="0" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBlock Text="Created on" Style="{StaticResource LabelText}"/></Border>
-                                <Border Grid.Row="0" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBlock Text="{Binding CreatedOn}" Style="{StaticResource ValueText}"/></Border>
-                                
-                                <Border Grid.Row="1" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBlock Text="Modified on" Style="{StaticResource LabelText}"/></Border>
-                                <Border Grid.Row="1" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBlock Text="{Binding UpdatedOn}" Style="{StaticResource ValueText}"/></Border>
-                            </Grid>
-                        </Expander>
-                    </StackPanel>
-                </ScrollViewer>
+                        </StackPanel>
+                    </ScrollViewer>
                 </Grid>
             </Border>
         </Grid>

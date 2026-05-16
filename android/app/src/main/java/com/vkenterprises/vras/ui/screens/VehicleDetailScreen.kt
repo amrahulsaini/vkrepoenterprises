@@ -775,7 +775,7 @@ private fun SRow(
             Spacer(Modifier.width(6.dp))
         }
         Text(
-            label,
+            "$label :",
             style    = MaterialTheme.typography.labelSmall,
             color    = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.width(if (sel) 90.dp else 110.dp)
@@ -784,7 +784,7 @@ private fun SRow(
             text = annotated,
             style = MaterialTheme.typography.bodySmall.copy(
                 color      = baseColor,
-                fontWeight = if (display.isBlank()) FontWeight.Normal else FontWeight.Medium,
+                fontWeight = if (display.isBlank()) FontWeight.Normal else FontWeight.Bold,
                 fontFamily = if (mono) FontFamily.Monospace else FontFamily.Default
             ),
             onClick = { offset ->
