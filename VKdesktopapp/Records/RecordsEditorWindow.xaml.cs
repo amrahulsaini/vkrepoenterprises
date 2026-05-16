@@ -29,19 +29,13 @@ public partial class RecordsEditorWindow : RibbonWindow
         _mappedColumns = new MappedColumns();
     }
 
-    // Force the main dashboard window to the foreground. Reliable regardless of
-    // taskbar grouping behaviour for same-process borderless windows.
-    private void btnDashboard_Click(object sender, RoutedEventArgs e)
+    // When the taskbar activates this window, force it to the foreground.
+    // Borderless / maximized WPF windows otherwise activate without raising.
+    protected override void OnActivated(EventArgs e)
     {
-        var main = System.Windows.Application.Current.MainWindow;
-        if (main == null) return;
-        if (main.WindowState == WindowState.Minimized)
-            main.WindowState = WindowState.Maximized;
-        main.Show();
-        main.Activate();
-        main.Topmost = true;
-        main.Topmost = false;
-        main.Focus();
+        base.OnActivated(e);
+        Topmost = true;
+        Topmost = false;
     }
 
     private Task EnsureMappingDetailsLoadedAsync()
