@@ -383,16 +383,71 @@ fun HomeScreen(
                     }
                 }
             } else if (ui.errorMsg == null) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Icon(Icons.Default.DirectionsCar, null, Modifier.size(48.dp),
-                            tint = MaterialTheme.colorScheme.outlineVariant)
-                        val hint = if (ui.mode == SearchMode.RC) "Enter last 4 digits of RC"
-                                   else "Enter last 5 digits of Chassis"
-                        Text(hint, style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.outlineVariant)
+                // ── Quick-access panel under the search bar ──────────────────
+                val subEnd by authVm.subscriptionEnd.collectAsState(initial = null)
+                val daysLeft = remember(subEnd) {
+                    subEnd?.takeIf { it.isNotBlank() }?.let {
+                        runCatching {
+                            java.time.temporal.ChronoUnit.DAYS.between(
+                                java.time.LocalDate.now(),
+                                java.time.LocalDate.parse(it)
+                            )
+                        }.getOrNull()
                     }
+                }
+                Column(
+                    Modifier.fillMaxSize().padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    // Subscription days-left card
+                    Card(
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            Modifier.padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.CardMembership, null,
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer)
+                            Spacer(Modifier.width(12.dp))
+                            Column {
+                                Text(
+                                    when {
+                                        daysLeft == null  -> "No active subscription"
+                                        daysLeft < 0      -> "Subscription expired"
+                                        daysLeft == 0L    -> "Expires today"
+                                        else              -> "$daysLeft days left"
+                                    },
+                                    fontWeight = FontWeight.Bold,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                                Text("Subscription",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer)
+                            }
+                        }
+                    }
+                    // Action tiles
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        HomeTile("Offline Records", Icons.Default.CloudDownload,
+                            Modifier.weight(1f)) { nav.navigate(Screen.Settings.route) }
+                        HomeTile("My Profile", Icons.Default.AccountCircle,
+                            Modifier.weight(1f)) { nav.navigate(Screen.Profile.route) }
+                    }
+                    if (isAdmin) {
+                        HomeTile("Control Panel", Icons.Default.Lock,
+                            Modifier.fillMaxWidth()) { nav.navigate(Screen.ControlPanel.route) }
+                    }
+                    Spacer(Modifier.weight(1f))
+                    val hint = if (ui.mode == SearchMode.RC) "Enter last 4 digits of RC to search"
+                               else "Enter last 5 digits of Chassis to search"
+                    Text(hint, style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.outlineVariant,
+                        modifier = Modifier.align(Alignment.CenterHorizontally).padding(bottom = 12.dp))
                 }
             }
         }
@@ -440,6 +495,31 @@ private fun VehicleGridCell(item: SearchResult, mode: SearchMode, onClick: () ->
         color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
         thickness = 0.5.dp
     )
+}
+
+@Composable
+private fun HomeTile(
+    label: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    Card(
+        onClick = onClick,
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        modifier = modifier
+    ) {
+        Row(
+            Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Icon(icon, null, tint = MaterialTheme.colorScheme.primary)
+            Text(label, fontWeight = FontWeight.SemiBold,
+                style = MaterialTheme.typography.bodyMedium)
+        }
+    }
 }
 
 @Composable

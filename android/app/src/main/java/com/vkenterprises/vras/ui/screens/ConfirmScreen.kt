@@ -33,6 +33,7 @@ fun ConfirmScreen(
     val actionType = ui.actionType
     val agentName  by authVm.userName.collectAsState(initial = "")
     val agentPhone by authVm.userMobile.collectAsState(initial = "")
+    val isAdmin    by authVm.isAdmin.collectAsState(initial = false)
 
     // SMS recipient checkboxes — pre-tick any contact that has a number
     var chkL1 by remember { mutableStateOf(item?.level1Contact?.isNotBlank() == true) }
@@ -70,26 +71,30 @@ fun ConfirmScreen(
             }
         }
 
-        if (item?.agreementNo?.isNotBlank() == true)
-            appendLine("Loan No: *${item.agreementNo}*")
-        if (item?.customerName?.isNotBlank() == true)
-            appendLine("Customer Name: *${item.customerName}*")
-        if (item?.branchName?.isNotBlank() == true)
-            appendLine("Branch: *${item.branchName}*")
-        if (item?.vehicleNo?.isNotBlank() == true)
-            appendLine("Vehicle No: *${item.vehicleNo}*")
-        if (item?.model?.isNotBlank() == true)
-            appendLine("Vehicle Model: *${item.model}*")
-        if (item?.chassisNo?.isNotBlank() == true)
-            appendLine("Chassis No: *${item.chassisNo}*")
-        if (item?.engineNo?.isNotBlank() == true)
-            appendLine("Engine No: *${item.engineNo}*")
-        if (item?.level1?.isNotBlank() == true || item?.level1Contact?.isNotBlank() == true)
-            appendLine("Level1: *${item?.level1 ?: ""} - ${item?.level1Contact ?: ""}*")
-        if (item?.level2?.isNotBlank() == true || item?.level2Contact?.isNotBlank() == true)
-            appendLine("Level2: *${item?.level2 ?: ""} - ${item?.level2Contact ?: ""}*")
-        if (item?.level3?.isNotBlank() == true || item?.level3Contact?.isNotBlank() == true)
-            appendLine("Level3: *${item?.level3 ?: ""} - ${item?.level3Contact ?: ""}*")
+        // On the admin side, empty fields are written as "null" so the admin
+        // can see exactly which data is missing. Non-admins skip empty fields.
+        fun line(label: String, value: String?) {
+            val v = value?.trim().orEmpty()
+            if (v.isNotBlank()) appendLine("$label: *$v*")
+            else if (isAdmin)   appendLine("$label: *null*")
+        }
+
+        line("Loan No",       item?.agreementNo)
+        line("Customer Name", item?.customerName)
+        line("Branch",        item?.branchName)
+        line("Vehicle No",    item?.vehicleNo)
+        line("Vehicle Model", item?.model)
+        line("Chassis No",    item?.chassisNo)
+        line("Engine No",     item?.engineNo)
+
+        fun levelLine(label: String, name: String?, contact: String?) {
+            val n = name?.trim().orEmpty(); val c = contact?.trim().orEmpty()
+            if (n.isNotBlank() || c.isNotBlank()) appendLine("$label: *$n - $c*")
+            else if (isAdmin)                     appendLine("$label: *null*")
+        }
+        levelLine("Level1", item?.level1, item?.level1Contact)
+        levelLine("Level2", item?.level2, item?.level2Contact)
+        levelLine("Level3", item?.level3, item?.level3Contact)
         if (vehicleAddress.isNotBlank())
             appendLine("Vehicle location: *${vehicleAddress.trim()}*")
         if (carriesGoods.isNotBlank())

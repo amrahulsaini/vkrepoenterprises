@@ -132,6 +132,12 @@ fun VKNavHost() {
             ManageSubscriptionsScreen(manageVm, userId, navController)
         }
 
+        composable(Screen.ControlPanel.route) {
+            val cpVm: com.vkenterprises.vras.viewmodel.ControlPanelViewModel = hiltViewModel()
+            val userId by authVm.userId.collectAsState(initial = -1L)
+            com.vkenterprises.vras.ui.screens.ControlPanelScreen(cpVm, userId, navController)
+        }
+
         composable(Screen.Profile.route) {
             val profileVm: ProfileViewModel = hiltViewModel()
             val userId by authVm.userId.collectAsState(initial = -1L)

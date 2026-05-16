@@ -89,4 +89,32 @@ interface ApiService {
         @Header("X-User-Id") adminId: Long,
         @Path("subId") subId: Long
     ): Response<Map<String, Any>>
+
+    // ── Control Panel ──────────────────────────────────────────────────────
+    @POST("api/mobile/admin/verify-admin-pass")
+    suspend fun verifyAdminPass(
+        @Header("X-User-Id") userId: Long,
+        @Body request: VerifyAdminPassRequest
+    ): Response<Map<String, Any>>
+
+    @PATCH("api/mobile/admin/users/{userId}/active")
+    suspend fun adminSetActive(
+        @Header("X-User-Id") adminId: Long,
+        @Path("userId") userId: Long,
+        @Body request: SetUserFlagRequest
+    ): Response<Map<String, Any>>
+
+    @PATCH("api/mobile/admin/users/{userId}/stopped")
+    suspend fun adminSetStopped(
+        @Header("X-User-Id") adminId: Long,
+        @Path("userId") userId: Long,
+        @Body request: SetUserFlagRequest
+    ): Response<Map<String, Any>>
+
+    @PATCH("api/mobile/admin/users/{userId}/blacklisted")
+    suspend fun adminSetBlacklisted(
+        @Header("X-User-Id") adminId: Long,
+        @Path("userId") userId: Long,
+        @Body request: SetUserFlagRequest
+    ): Response<Map<String, Any>>
 }
