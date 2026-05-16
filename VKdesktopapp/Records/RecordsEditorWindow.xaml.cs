@@ -29,12 +29,12 @@ public partial class RecordsEditorWindow : RibbonWindow
         _mappedColumns = new MappedColumns();
     }
 
-    // On activation, minimize the other big windows so taskbar switching is
-    // always a reliable restore-from-minimized.
-    protected override void OnActivated(EventArgs e)
+    // When this window closes, bring the dashboard back into view.
+    protected override void OnClosed(EventArgs e)
     {
-        base.OnActivated(e);
-        WindowSwitch.MinimizeOthers(this);
+        base.OnClosed(e);
+        var main = System.Windows.Application.Current.MainWindow;
+        if (main != null) { main.Show(); main.Activate(); }
     }
 
     private Task EnsureMappingDetailsLoadedAsync()
@@ -312,7 +312,11 @@ public partial class RecordsEditorWindow : RibbonWindow
     private void btnVerifyRecords_Click(object sender, RoutedEventArgs e)
     {
         var validator = new RecordValidatorAndUploaderWindow(sp.ActiveSheet, _mappedColumns);
+        // One window at a time: hide the editor while verifying; restore it
+        // when the verify window closes.
+        validator.Closed += (_, __) => { Show(); Activate(); };
         validator.Show();
+        Hide();
     }
 
     private void btnMappingExplorer_Click(object sender, RoutedEventArgs e)

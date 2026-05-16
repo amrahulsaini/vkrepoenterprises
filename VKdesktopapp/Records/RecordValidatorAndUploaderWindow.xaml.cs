@@ -69,13 +69,6 @@ public partial class RecordValidatorAndUploaderWindow : Window
     private void btnMinimize_Click(object sender, RoutedEventArgs e)
         => WindowState = WindowState.Minimized;
 
-    // On activation, minimize the other big windows so taskbar switching is
-    // always a reliable restore-from-minimized.
-    protected override void OnActivated(EventArgs e)
-    {
-        base.OnActivated(e);
-        WindowSwitch.MinimizeOthers(this);
-    }
 
     private void TitleBar_MouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
     {

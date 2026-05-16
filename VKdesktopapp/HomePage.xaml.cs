@@ -15,6 +15,7 @@ public partial class HomePage : Page
 {
     private DispatcherTimer? _refreshTimer;
     private bool _mapReady = false;
+    private bool _mapInitStarted = false;
     private List<DesktopApiClient.LiveUserDto> _lastLiveUsers = new();
 
     private record DeviceRequestRow(
@@ -59,6 +60,10 @@ public partial class HomePage : Page
 
     private async Task InitMapAsync()
     {
+        // WebView2 can only be initialized once per control. Page_Loaded fires
+        // again every time the user navigates back to Home — guard against it.
+        if (_mapInitStarted) return;
+        _mapInitStarted = true;
         try
         {
             // Custom user data folder under LocalAppData so installs in
