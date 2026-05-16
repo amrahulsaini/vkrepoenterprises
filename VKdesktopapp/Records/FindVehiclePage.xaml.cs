@@ -148,6 +148,10 @@ public partial class FindVehiclePage : Page
             var grouped = _fullResults
                 .GroupBy(x => chassis ? x.ChassisNo : x.VehicleNo)
                 .Select(g => g.First())
+                // Sort RC / chassis numbers alphabetically (case-insensitive,
+                // ordinal) so the results list is in predictable order.
+                .OrderBy(x => chassis ? x.ChassisNo : x.VehicleNo,
+                         StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
             dgResults.ItemsSource = grouped;
