@@ -714,10 +714,18 @@ app.MapGet("/api/mgr/users", async (HttpContext ctx) =>
             }
         }
 
+        // Balance now reflects the user's latest plan amount (most recent end_date),
+        // falling back to u.balance if they have no subscriptions yet.
         const string usersSql = @"
             SELECT u.id, u.name, u.mobile, u.address, u.pincode,
                    u.pfp, u.device_id, u.is_active, u.is_admin,
-                   u.balance, u.created_at,
+                   COALESCE(
+                       (SELECT s.amount FROM subscriptions s
+                          WHERE s.user_id = u.id
+                          ORDER BY s.end_date DESC LIMIT 1),
+                       u.balance
+                   ) AS balance,
+                   u.created_at,
                    (SELECT MAX(s.end_date) FROM subscriptions s WHERE s.user_id = u.id) AS sub_end,
                    COALESCE(u.is_stopped,0), COALESCE(u.is_blacklisted,0)
             FROM app_users u ORDER BY u.created_at DESC";
