@@ -29,13 +29,12 @@ public partial class RecordsEditorWindow : RibbonWindow
         _mappedColumns = new MappedColumns();
     }
 
-    // When the taskbar activates this window, force it to the foreground.
-    // Borderless / maximized WPF windows otherwise activate without raising.
+    // On activation, minimize the other big windows so taskbar switching is
+    // always a reliable restore-from-minimized.
     protected override void OnActivated(EventArgs e)
     {
         base.OnActivated(e);
-        Topmost = true;
-        Topmost = false;
+        WindowSwitch.MinimizeOthers(this);
     }
 
     private Task EnsureMappingDetailsLoadedAsync()

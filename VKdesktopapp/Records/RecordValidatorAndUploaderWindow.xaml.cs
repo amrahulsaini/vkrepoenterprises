@@ -69,13 +69,12 @@ public partial class RecordValidatorAndUploaderWindow : Window
     private void btnMinimize_Click(object sender, RoutedEventArgs e)
         => WindowState = WindowState.Minimized;
 
-    // Taskbar activation: force this window to the foreground (borderless
-    // maximized WPF windows otherwise activate without being raised).
+    // On activation, minimize the other big windows so taskbar switching is
+    // always a reliable restore-from-minimized.
     protected override void OnActivated(EventArgs e)
     {
         base.OnActivated(e);
-        Topmost = true;
-        Topmost = false;
+        WindowSwitch.MinimizeOthers(this);
     }
 
     private void TitleBar_MouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
