@@ -65,7 +65,15 @@ fun LiveUsersScreen(
         wv.evaluateJavascript("updateMarkers('$escaped')", null)
     }
 
-    LaunchedEffect(Unit) {
+    // Re-keyed on userId so this re-runs when AuthViewModel finally emits the
+    // real id (it starts as -1L on first composition). Without this, the
+    // server received X-User-Id: -1, IsAdminAsync(-1) returned false, and the
+    // endpoint replied 403.
+    LaunchedEffect(userId) {
+        if (userId <= 0L) {
+            loading = false
+            return@LaunchedEffect
+        }
         while (true) {
             runCatching {
                 val resp = ApiClient.api.getLiveUsers(userId)

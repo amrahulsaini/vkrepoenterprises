@@ -357,6 +357,8 @@
                                                     <Grid>
                                                         <Image Source="{Binding PfpUrl}"
                                                                Stretch="UniformToFill"
+                                                               HorizontalAlignment="Center"
+                                                               VerticalAlignment="Center"
                                                                Visibility="{Binding HasPfp, Converter={StaticResource BoolToVis}}" />
                                                         <TextBlock Text="{Binding Initials}"
                                                                    FontSize="13" FontWeight="Bold"
@@ -482,6 +484,8 @@
                                                    VerticalAlignment="Center" />
                                         <Image Name="imgPfp"
                                                Stretch="UniformToFill"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center"
                                                Visibility="Collapsed" />
                                     </Grid>
                                 </Border>
@@ -598,6 +602,8 @@
                                                 <Grid>
                                                     <Image Name="imgKycAadhaarFront"
                                                            Stretch="UniformToFill"
+                                                           HorizontalAlignment="Center"
+                                                           VerticalAlignment="Center"
                                                            Visibility="Collapsed" />
                                                     <TextBlock Name="txtKycAadhaarFrontEmpty"
                                                                Text="Not uploaded" FontSize="10"
@@ -640,6 +646,8 @@
                                                 <Grid>
                                                     <Image Name="imgKycAadhaarBack"
                                                            Stretch="UniformToFill"
+                                                           HorizontalAlignment="Center"
+                                                           VerticalAlignment="Center"
                                                            Visibility="Collapsed" />
                                                     <TextBlock Name="txtKycAadhaarBackEmpty"
                                                                Text="Not uploaded" FontSize="10"
@@ -682,6 +690,8 @@
                                                 <Grid>
                                                     <Image Name="imgKycPanFront"
                                                            Stretch="UniformToFill"
+                                                           HorizontalAlignment="Center"
+                                                           VerticalAlignment="Center"
                                                            Visibility="Collapsed" />
                                                     <TextBlock Name="txtKycPanFrontEmpty"
                                                                Text="Not uploaded" FontSize="10"

@@ -106,10 +106,14 @@ public partial class AppUsersManagerPage : Page
         pnlEmpty.Visibility   = Visibility.Collapsed;
         pnlProfile.Visibility = Visibility.Visible;
 
-        await LoadSubscriptionsAsync(user.Id);
-        await LoadFinanceRestrictionsAsync(user.Id);
-        await LoadKycAsync(user.Id);
-        await LoadAdminPassStatusAsync(user.Id);
+        // Kick off all four secondary loads in parallel — previously these ran
+        // sequentially which meant the user waited 4× the longest call before
+        // KYC images even started loading.
+        await Task.WhenAll(
+            LoadSubscriptionsAsync(user.Id),
+            LoadFinanceRestrictionsAsync(user.Id),
+            LoadKycAsync(user.Id),
+            LoadAdminPassStatusAsync(user.Id));
     }
 
     // ── Control Panel password ──────────────────────────────────────────
@@ -193,21 +197,50 @@ public partial class AppUsersManagerPage : Page
         txtKycAadhaarFrontEmpty.Visibility = Visibility.Visible;
         txtKycAadhaarBackEmpty.Visibility  = Visibility.Visible;
         txtKycPanFrontEmpty.Visibility     = Visibility.Visible;
+        txtKycAadhaarFrontEmpty.Text = "Loading…";
+        txtKycAadhaarBackEmpty.Text  = "Loading…";
+        txtKycPanFrontEmpty.Text     = "Loading…";
         _kycDocs = null;
 
-        try
-        {
-            _kycDocs = await _repo.GetKycAsync(userId);
-            await SetKycImageAsync(imgKycAadhaarFront, txtKycAadhaarFrontEmpty, _kycDocs.AadhaarFront);
-            await SetKycImageAsync(imgKycAadhaarBack,  txtKycAadhaarBackEmpty,  _kycDocs.AadhaarBack);
-            await SetKycImageAsync(imgKycPanFront,     txtKycPanFrontEmpty,     _kycDocs.PanFront);
-        }
-        catch { /* user has no KYC yet — UI stays in empty state */ }
+        DesktopApiClient.KycDocsDto? docs = null;
+        try { docs = await _repo.GetKycAsync(userId); }
+        catch { /* user may have no KYC yet */ }
+        _kycDocs = docs;
+
+        // Restore the "Not uploaded" placeholder text so any tile that ends up
+        // empty doesn't sit on "Loading…".
+        txtKycAadhaarFrontEmpty.Text = "Not uploaded";
+        txtKycAadhaarBackEmpty.Text  = "Not uploaded";
+        txtKycPanFrontEmpty.Text     = "Not uploaded";
+
+        if (docs == null) return;
+
+        // Download all three image bytes in parallel — previously sequential
+        // awaits made a single-doc load take 3× longer than necessary, and
+        // the UI showed "Not uploaded" for the entire duration.
+        var aFrontTask = LoadKycBytesAsync(docs.AadhaarFront);
+        var aBackTask  = LoadKycBytesAsync(docs.AadhaarBack);
+        var pFrontTask = LoadKycBytesAsync(docs.PanFront);
+        await Task.WhenAll(aFrontTask, aBackTask, pFrontTask);
+
+        ApplyKycImage(imgKycAadhaarFront, txtKycAadhaarFrontEmpty, await aFrontTask);
+        ApplyKycImage(imgKycAadhaarBack,  txtKycAadhaarBackEmpty,  await aBackTask);
+        ApplyKycImage(imgKycPanFront,     txtKycPanFrontEmpty,     await pFrontTask);
     }
 
-    private static async Task SetKycImageAsync(Image img, TextBlock emptyLabel, string url)
+    // Downloads the bytes for one KYC image — runs off the UI thread. Returns
+    // null on any failure (missing URL, network error) so the caller can show
+    // the empty state.
+    private static async Task<byte[]?> LoadKycBytesAsync(string url)
     {
-        if (string.IsNullOrWhiteSpace(url))
+        if (string.IsNullOrWhiteSpace(url)) return null;
+        try { return await App.HttpClient.GetByteArrayAsync(url); }
+        catch { return null; }
+    }
+
+    private static void ApplyKycImage(Image img, TextBlock emptyLabel, byte[]? bytes)
+    {
+        if (bytes == null || bytes.Length == 0)
         {
             img.Visibility = Visibility.Collapsed;
             emptyLabel.Visibility = Visibility.Visible;
@@ -215,7 +248,6 @@ public partial class AppUsersManagerPage : Page
         }
         try
         {
-            var bytes = await App.HttpClient.GetByteArrayAsync(url);
             var bmp = new BitmapImage();
             bmp.BeginInit();
             bmp.CacheOption = BitmapCacheOption.OnLoad;

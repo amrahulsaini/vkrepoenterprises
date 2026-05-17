@@ -2066,8 +2066,13 @@ app.MapGet("/api/mgr/export/branch-records", async (HttpContext ctx) =>
             total = Convert.ToInt64(await cntCmd.ExecuteScalarAsync());
         }
 
+        // RC pulled from rc_info, chassis from chassis_info — these are the
+        // canonical normalised values populated after every upload. Falls back
+        // to vehicle_records' own column if a lookup row is missing.
         const string fields = @"
-            vr.vehicle_no, vr.chassis_no, vr.engine_no, vr.model, vr.agreement_no,
+            COALESCE((SELECT ri.rc_number      FROM rc_info      ri WHERE ri.vehicle_record_id = vr.id LIMIT 1), vr.vehicle_no,'') AS vehicle_no,
+            COALESCE((SELECT ci.chassis_number FROM chassis_info ci WHERE ci.vehicle_record_id = vr.id LIMIT 1), vr.chassis_no,'') AS chassis_no,
+            vr.engine_no, vr.model, vr.agreement_no,
             vr.customer_name, vr.customer_contact, vr.customer_address,
             COALESCE(f.name,'') AS financer, COALESCE(b.name,'') AS branch_name,
             vr.bucket, vr.gv, vr.od, vr.seasoning, vr.tbr_flag,
@@ -2129,8 +2134,12 @@ app.MapGet("/api/mgr/export/finance-records", async (HttpContext ctx) =>
             total = Convert.ToInt64(await cntCmd.ExecuteScalarAsync());
         }
 
+        // RC pulled from rc_info, chassis from chassis_info — see note on
+        // /api/mgr/export/branch-records above.
         const string fields = @"
-            vr.vehicle_no, vr.chassis_no, vr.engine_no, vr.model, vr.agreement_no,
+            COALESCE((SELECT ri.rc_number      FROM rc_info      ri WHERE ri.vehicle_record_id = vr.id LIMIT 1), vr.vehicle_no,'') AS vehicle_no,
+            COALESCE((SELECT ci.chassis_number FROM chassis_info ci WHERE ci.vehicle_record_id = vr.id LIMIT 1), vr.chassis_no,'') AS chassis_no,
+            vr.engine_no, vr.model, vr.agreement_no,
             vr.customer_name, vr.customer_contact, vr.customer_address,
             COALESCE(f.name,'') AS financer, COALESCE(b.name,'') AS branch_name,
             vr.bucket, vr.gv, vr.od, vr.seasoning, vr.tbr_flag,

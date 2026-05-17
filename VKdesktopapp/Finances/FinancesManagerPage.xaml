@@ -182,9 +182,11 @@
         <!-- Two-column layout -->
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="1.15*" />
+                <!-- Head offices narrower so the wider Finances side fits
+                     Uploaded date column (with AM/PM) without truncation. -->
+                <ColumnDefinition Width="0.75*" />
                 <ColumnDefinition Width="16" />
-                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="1.4*" />
             </Grid.ColumnDefinitions>
 
             <!-- LEFT — Finance list -->
@@ -201,11 +203,24 @@
                             <Button Name="btnAddFinance"
                                     DockPanel.Dock="Right"
                                     Style="{StaticResource PlusIconButton}"
-                                    ToolTip="New Finance"
+                                    ToolTip="New Head Office"
                                     Click="btnAddFinance_Click" />
+                            <Button Name="btnRefreshFinances"
+                                    DockPanel.Dock="Right"
+                                    Margin="0,0,8,0"
+                                    Content="↻"
+                                    Width="32" Height="32"
+                                    FontSize="16" FontWeight="Bold"
+                                    Background="White"
+                                    BorderBrush="{StaticResource Gray200}"
+                                    BorderThickness="1"
+                                    Foreground="{StaticResource Gray700}"
+                                    Cursor="Hand"
+                                    ToolTip="Refresh head offices"
+                                    Click="btnRefreshFinances_Click" />
                             <Button Name="btnViewAll"
                                     DockPanel.Dock="Right"
-                                    Margin="0,0,10,0"
+                                    Margin="0,0,8,0"
                                     Content="View All"
                                     Style="{StaticResource OutlineButton}"
                                     ToolTip="Show all branches across all finances"
@@ -316,11 +331,29 @@
                                 </DataGridTextColumn>
                                 <DataGridTextColumn Header="Finances"
                                                     Binding="{Binding BranchCount}"
-                                                    Width="100">
+                                                    Width="80">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock" BasedOn="{StaticResource CellTextMuted}" />
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
+                                <!-- Per-row kebab menu: same actions as the
+                                     right-click context menu, but reachable
+                                     with a single left click. -->
+                                <DataGridTemplateColumn Width="44">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Button Content="&#x22EE;"
+                                                    Width="28" Height="28"
+                                                    FontSize="18" FontWeight="Bold"
+                                                    Background="Transparent"
+                                                    BorderThickness="0"
+                                                    Foreground="{StaticResource Gray500}"
+                                                    Cursor="Hand"
+                                                    Tag="{Binding}"
+                                                    Click="FinanceKebab_Click" />
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
                             </DataGrid.Columns>
                         </DataGrid>
 
@@ -342,8 +375,21 @@
                             <Button Name="btnAddBranch"
                                     DockPanel.Dock="Right"
                                     Style="{StaticResource PlusIconButton}"
-                                    ToolTip="New Branch"
+                                    ToolTip="New Finance"
                                     Click="btnAddBranch_Click" />
+                            <Button Name="btnRefreshBranches"
+                                    DockPanel.Dock="Right"
+                                    Margin="0,0,8,0"
+                                    Content="↻"
+                                    Width="32" Height="32"
+                                    FontSize="16" FontWeight="Bold"
+                                    Background="White"
+                                    BorderBrush="{StaticResource Gray200}"
+                                    BorderThickness="1"
+                                    Foreground="{StaticResource Gray700}"
+                                    Cursor="Hand"
+                                    ToolTip="Refresh finances"
+                                    Click="btnRefreshBranches_Click" />
                             <StackPanel VerticalAlignment="Center">
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Text="FINANCES"
@@ -418,6 +464,18 @@
                     </Border>
 
                     <Grid Margin="14,6,14,14">
+                        <!-- Empty state shown when no head office is selected -->
+                        <StackPanel Name="pnlBranchEmpty"
+                                    HorizontalAlignment="Center" VerticalAlignment="Center"
+                                    Visibility="Collapsed">
+                            <TextBlock Text="&#xE8F1;"
+                                       FontFamily="Segoe MDL2 Assets" FontSize="40"
+                                       Foreground="{StaticResource Gray300}"
+                                       HorizontalAlignment="Center" />
+                            <TextBlock Text="Select a head office to view its finances"
+                                       FontSize="13" Foreground="{StaticResource Gray400}"
+                                       HorizontalAlignment="Center" Margin="0,10,0,0" />
+                        </StackPanel>
                         <DataGrid Name="dgBranches"
                                   Style="{StaticResource MaterialDataGrid}"
                                   AutoGenerateColumns="False"
@@ -454,18 +512,34 @@
                                 </DataGridTextColumn>
                                 <DataGridTextColumn Header="Uploaded"
                                                     Binding="{Binding UpdatedOn}"
-                                                    Width="145">
+                                                    Width="160">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock" BasedOn="{StaticResource CellTextMuted}" />
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
                                 <DataGridTextColumn Header="Records"
                                                     Binding="{Binding Records}"
-                                                    Width="90">
+                                                    Width="80">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock" BasedOn="{StaticResource CellTextMuted}" />
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
+                                <!-- Per-row kebab menu (Edit / Download / Clear / Delete) -->
+                                <DataGridTemplateColumn Width="44">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Button Content="&#x22EE;"
+                                                    Width="28" Height="28"
+                                                    FontSize="18" FontWeight="Bold"
+                                                    Background="Transparent"
+                                                    BorderThickness="0"
+                                                    Foreground="{StaticResource Gray500}"
+                                                    Cursor="Hand"
+                                                    Tag="{Binding}"
+                                                    Click="BranchKebab_Click" />
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
                             </DataGrid.Columns>
                         </DataGrid>
 
