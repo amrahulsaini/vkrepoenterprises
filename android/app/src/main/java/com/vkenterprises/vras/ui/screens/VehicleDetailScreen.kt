@@ -19,8 +19,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.snapshots.SnapshotStateMap
 import androidx.compose.ui.*
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
@@ -465,6 +468,18 @@ private fun QuickSearchBar(
     else
         "Search by last 5 digits of Chassis"
 
+    // Auto-focus the field (and pop the numeric keyboard) as soon as a
+    // vehicle's records are shown, so the next search needs no extra tap.
+    val focusRequester = remember { FocusRequester() }
+    val keyboard = LocalSoftwareKeyboardController.current
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.delay(250)   // wait for the screen to settle
+        runCatching {
+            focusRequester.requestFocus()
+            keyboard?.show()
+        }
+    }
+
     Surface(
         color = MaterialTheme.colorScheme.surfaceVariant,
         modifier = Modifier.fillMaxWidth()
@@ -491,7 +506,10 @@ private fun QuickSearchBar(
                 fontFamily    = FontFamily.Monospace,
                 letterSpacing = 3.sp
             ),
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp)
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 10.dp, vertical = 8.dp)
+                .focusRequester(focusRequester)
         )
     }
 }
