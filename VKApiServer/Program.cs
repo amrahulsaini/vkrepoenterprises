@@ -1953,8 +1953,11 @@ app.MapGet("/api/mgr/export/rc-records", async (HttpContext ctx) =>
         await using (var cntCmd = new MySqlCommand("SELECT COUNT(*) FROM rc_info", conn) { CommandTimeout = 30 })
             total = Convert.ToInt64(await cntCmd.ExecuteScalarAsync());
 
+        // The RC export pulls the RC number from rc_info (the dedicated
+        // lookup table) — that's the whole point of having this endpoint
+        // separate from /export/vehicle-records.
         const string fields = @"
-            vr.vehicle_no, vr.chassis_no, vr.engine_no, vr.model, vr.agreement_no,
+            ri.rc_number AS vehicle_no, vr.chassis_no, vr.engine_no, ri.model, vr.agreement_no,
             vr.customer_name, vr.customer_contact, vr.customer_address,
             COALESCE(f.name,'') AS financer, COALESCE(b.name,'') AS branch_name,
             vr.bucket, vr.gv, vr.od, vr.seasoning, vr.tbr_flag,
@@ -2006,8 +2009,11 @@ app.MapGet("/api/mgr/export/chassis-records", async (HttpContext ctx) =>
         await using (var cntCmd = new MySqlCommand("SELECT COUNT(*) FROM chassis_info", conn) { CommandTimeout = 30 })
             total = Convert.ToInt64(await cntCmd.ExecuteScalarAsync());
 
+        // The chassis export pulls the chassis number from chassis_info (the
+        // dedicated lookup table) — separate from /export/vehicle-records on
+        // purpose.
         const string fields = @"
-            vr.vehicle_no, vr.chassis_no, vr.engine_no, vr.model, vr.agreement_no,
+            vr.vehicle_no, ci.chassis_number AS chassis_no, vr.engine_no, ci.model, vr.agreement_no,
             vr.customer_name, vr.customer_contact, vr.customer_address,
             COALESCE(f.name,'') AS financer, COALESCE(b.name,'') AS branch_name,
             vr.bucket, vr.gv, vr.od, vr.seasoning, vr.tbr_flag,
@@ -2066,13 +2072,11 @@ app.MapGet("/api/mgr/export/branch-records", async (HttpContext ctx) =>
             total = Convert.ToInt64(await cntCmd.ExecuteScalarAsync());
         }
 
-        // RC pulled from rc_info, chassis from chassis_info — these are the
-        // canonical normalised values populated after every upload. Falls back
-        // to vehicle_records' own column if a lookup row is missing.
+        // Branch export = vehicle records for one branch. All fields come
+        // straight from vehicle_records. RC/chassis lookup tables are reserved
+        // for the dedicated /export/rc-records and /export/chassis-records.
         const string fields = @"
-            COALESCE((SELECT ri.rc_number      FROM rc_info      ri WHERE ri.vehicle_record_id = vr.id LIMIT 1), vr.vehicle_no,'') AS vehicle_no,
-            COALESCE((SELECT ci.chassis_number FROM chassis_info ci WHERE ci.vehicle_record_id = vr.id LIMIT 1), vr.chassis_no,'') AS chassis_no,
-            vr.engine_no, vr.model, vr.agreement_no,
+            vr.vehicle_no, vr.chassis_no, vr.engine_no, vr.model, vr.agreement_no,
             vr.customer_name, vr.customer_contact, vr.customer_address,
             COALESCE(f.name,'') AS financer, COALESCE(b.name,'') AS branch_name,
             vr.bucket, vr.gv, vr.od, vr.seasoning, vr.tbr_flag,
@@ -2134,12 +2138,10 @@ app.MapGet("/api/mgr/export/finance-records", async (HttpContext ctx) =>
             total = Convert.ToInt64(await cntCmd.ExecuteScalarAsync());
         }
 
-        // RC pulled from rc_info, chassis from chassis_info — see note on
-        // /api/mgr/export/branch-records above.
+        // Finance export = vehicle records across all branches of one finance.
+        // All fields straight from vehicle_records — see /export/branch-records.
         const string fields = @"
-            COALESCE((SELECT ri.rc_number      FROM rc_info      ri WHERE ri.vehicle_record_id = vr.id LIMIT 1), vr.vehicle_no,'') AS vehicle_no,
-            COALESCE((SELECT ci.chassis_number FROM chassis_info ci WHERE ci.vehicle_record_id = vr.id LIMIT 1), vr.chassis_no,'') AS chassis_no,
-            vr.engine_no, vr.model, vr.agreement_no,
+            vr.vehicle_no, vr.chassis_no, vr.engine_no, vr.model, vr.agreement_no,
             vr.customer_name, vr.customer_contact, vr.customer_address,
             COALESCE(f.name,'') AS financer, COALESCE(b.name,'') AS branch_name,
             vr.bucket, vr.gv, vr.od, vr.seasoning, vr.tbr_flag,
