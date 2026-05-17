@@ -149,13 +149,29 @@ public partial class RecordValidatorAndUploaderWindow : Window
     //  Validation (RC number format check)
     // ──────────────────────────────────────────────────────────────
 
+    // Validate against the original raw VehicleNo (stripped of separators) so
+    // we don't have to reason about the hyphen-prefixing / suffix-swapping
+    // applied to FormatedVehicleNo. Accepted formats:
+    //   * Standard:    MH12AB1234   — 2 state + 2 district + 1-3 series + 4 unique
+    //   * Legacy long: HR736546     — 2 state + 5-7 digits (govt / older)
+    //   * Bharat (BH): 22BH2271E    — 2 year + BH + 4 digits + 1-2 letters
     private static readonly Regex RcRegex =
-        new(@"^[A-Z]{2}-\d+-[A-Z]*-\d{4}|[A-Z]{2}-\d+-\d{4}$", RegexOptions.Compiled);
+        new(@"^([A-Z]{2}[0-9]{2}[A-Z]{1,3}[0-9]{4}|[A-Z]{2}[0-9]{5,7}|[0-9]{2}BH[0-9]{4}[A-Z]{1,2})$",
+            RegexOptions.Compiled);
+
+    private static readonly Regex AlphaNumOnly =
+        new("[^A-Za-z0-9]", RegexOptions.Compiled);
+
+    private static bool IsValidRc(UploadRecord r)
+    {
+        var plain = AlphaNumOnly.Replace(r.VehicleNo ?? string.Empty, "").ToUpperInvariant();
+        return RcRegex.IsMatch(plain);
+    }
 
     private List<UploadRecord> FilterRecords(RecordFilters filter) => filter switch
     {
-        RecordFilters.Invalid => _records.Where(r => !RcRegex.IsMatch(r.FormatedVehicleNo)).ToList(),
-        RecordFilters.Valid   => _records.Where(r =>  RcRegex.IsMatch(r.FormatedVehicleNo)).ToList(),
+        RecordFilters.Invalid => _records.Where(r => !IsValidRc(r)).ToList(),
+        RecordFilters.Valid   => _records.Where(r =>  IsValidRc(r)).ToList(),
         _                     => _records.ToList()
     };
 

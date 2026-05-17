@@ -239,7 +239,17 @@ class SearchViewModel @Inject constructor(
     }
 }
 
-private val RC_REGEX = Regex("^[A-Z]{2}[0-9]{2}[A-Z]{1,3}[0-9]{4}$")
+// Accept all three real-world Indian RC formats:
+//   * Standard:    2 state letters + 2 district digits + 1-3 series letters + 4 unique digits
+//                  e.g. MH12AB1234
+//   * Legacy long: 2 state letters + 5-7 digits (govt / older registrations)
+//                  e.g. HR736546, MH50488, MH506585
+//   * Bharat (BH): 2-digit registration year + "BH" + 4 unique digits + 1-2 letters
+//                  e.g. 22BH2271E, 23BH3473F
+// Strip non-alphanumerics first so hyphens / spaces in stored values do not break the match.
+private val RC_REGEX = Regex(
+    "^([A-Z]{2}[0-9]{2}[A-Z]{1,3}[0-9]{4}|[A-Z]{2}[0-9]{5,7}|[0-9]{2}BH[0-9]{4}[A-Z]{1,2})$"
+)
 private fun String.isValidRc() = replace(Regex("[^A-Z0-9]"), "").uppercase().matches(RC_REGEX)
 
 private fun VehicleCache.toSearchResult() = SearchResult(

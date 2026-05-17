@@ -43,7 +43,10 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlin.coroutines.resume
 
-private val RC_REGEX = Regex("^[A-Z]{2}[0-9]{2}[A-Z]{1,3}[0-9]{4}$")
+// Standard / legacy-long / Bharat-series — see SearchViewModel for full notes.
+private val RC_REGEX = Regex(
+    "^([A-Z]{2}[0-9]{2}[A-Z]{1,3}[0-9]{4}|[A-Z]{2}[0-9]{5,7}|[0-9]{2}BH[0-9]{4}[A-Z]{1,2})$"
+)
 private fun String.isValidRc(): Boolean =
     replace(Regex("[^A-Z0-9]"), "").uppercase().matches(RC_REGEX)
 
@@ -404,31 +407,92 @@ fun VehicleDetailScreen(
             return@Scaffold
         }
 
-        Column(
-            Modifier
-                .padding(pad)
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            if (isAdmin) {
-                AdminDetailView(
-                    item              = item,
-                    branchRecord      = branchRecord ?: item,
-                    uniqueBranches    = uniqueBranches,
-                    selectedBranchIdx = selectedBranchIdx,
-                    onBranchSelect    = { selectedBranchIdx = it },
-                    showSelection     = showSelection,
-                    onToggleSelection = { showSelection = !showSelection },
-                    selChecked        = selChecked,
-                    onShowBranchSheet = { showBranchSheet = true }
-                )
-            } else {
-                BasicDetailView(item = item, agentName = agentName, agentPhone = agentPhone)
+        Column(Modifier.padding(pad).fillMaxSize()) {
+            // Sticky quick-search bar so the user can search another vehicle
+            // without having to back out of this screen first.
+            QuickSearchBar(
+                searchVm = searchVm,
+                authVm   = authVm,
+                onSubmit = { nav.popBackStack() }
+            )
+
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                if (isAdmin) {
+                    AdminDetailView(
+                        item              = item,
+                        branchRecord      = branchRecord ?: item,
+                        uniqueBranches    = uniqueBranches,
+                        selectedBranchIdx = selectedBranchIdx,
+                        onBranchSelect    = { selectedBranchIdx = it },
+                        showSelection     = showSelection,
+                        onToggleSelection = { showSelection = !showSelection },
+                        selChecked        = selChecked,
+                        onShowBranchSheet = { showBranchSheet = true }
+                    )
+                } else {
+                    BasicDetailView(item = item, agentName = agentName, agentPhone = agentPhone)
+                }
+                Spacer(Modifier.height(8.dp))
             }
-            Spacer(Modifier.height(8.dp))
         }
+    }
+}
+
+// Compact search input pinned at the top of the detail screen. Mirrors the
+// home-screen behaviour: digits-only, capped at 4 (RC) or 5 (Chassis). When
+// the input fills to the required length it kicks off a fresh search via the
+// shared SearchViewModel and pops back to the results list.
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun QuickSearchBar(
+    searchVm: SearchViewModel,
+    authVm: AuthViewModel,
+    onSubmit: () -> Unit
+) {
+    val ui     by searchVm.ui.collectAsState()
+    val userId by authVm.userId.collectAsState(initial = -1L)
+    val mode   = ui.mode
+    val maxLen = if (mode == com.vkenterprises.vras.viewmodel.SearchMode.RC) 4 else 5
+    val placeholder = if (mode == com.vkenterprises.vras.viewmodel.SearchMode.RC)
+        "Search by last 4 digits of RC"
+    else
+        "Search by last 5 digits of Chassis"
+
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        OutlinedTextField(
+            value = ui.inputText,
+            onValueChange = { raw ->
+                val digits = raw.filter { it.isDigit() }.take(maxLen)
+                searchVm.onInputChange(digits, userId)
+                if (digits.length == maxLen) onSubmit()
+            },
+            placeholder = { Text(placeholder, style = MaterialTheme.typography.bodySmall) },
+            leadingIcon = { Icon(Icons.Default.Search, null, Modifier.size(18.dp)) },
+            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                keyboardType = androidx.compose.ui.text.input.KeyboardType.Number
+            ),
+            singleLine = true,
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedContainerColor   = MaterialTheme.colorScheme.surface,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surface
+            ),
+            textStyle = MaterialTheme.typography.bodyMedium.copy(
+                fontFamily    = FontFamily.Monospace,
+                letterSpacing = 3.sp
+            ),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp)
+        )
     }
 }
 
