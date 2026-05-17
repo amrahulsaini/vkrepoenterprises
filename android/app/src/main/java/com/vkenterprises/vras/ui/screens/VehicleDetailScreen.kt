@@ -852,7 +852,7 @@ private fun SRow(
         )
         ClickableText(
             text = annotated,
-            style = MaterialTheme.typography.bodySmall.copy(
+            style = MaterialTheme.typography.bodyMedium.copy(
                 color      = baseColor,
                 fontWeight = if (display.isBlank()) FontWeight.Normal else FontWeight.Bold,
                 fontFamily = if (mono) FontFamily.Monospace else FontFamily.SansSerif

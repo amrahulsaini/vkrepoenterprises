@@ -38,7 +38,11 @@ data class SearchUiState(
     val syncCompleted: Boolean        = false,
     val onlineOnly: Boolean           = true,
     val twoColumnView: Boolean        = true,
-    val actionType: String            = "confirm"
+    val actionType: String            = "confirm",
+    // Number of vehicle rows currently cached on-device (Room SQLite). Shown
+    // on the home screen "Offline Records" tile so the user can see at a
+    // glance how much data is available without the server.
+    val offlineCount: Long            = 0L
 )
 
 @HiltViewModel
@@ -62,6 +66,7 @@ class SearchViewModel @Inject constructor(
         viewModelScope.launch(Dispatchers.IO) {
             val hasUpdates = runCatching { syncRepo.hasUpdates() }.getOrDefault(false)
             _ui.update { it.copy(syncHasUpdates = hasUpdates) }
+            refreshOfflineCount()
         }
         // Poll every 60s — cheap timestamp comparison, downloads only when needed
         viewModelScope.launch(Dispatchers.IO) {
@@ -69,8 +74,16 @@ class SearchViewModel @Inject constructor(
                 kotlinx.coroutines.delay(60_000L)
                 val hasUpdates = runCatching { syncRepo.hasUpdates() }.getOrDefault(false)
                 _ui.update { it.copy(syncHasUpdates = hasUpdates) }
+                refreshOfflineCount()
             }
         }
+    }
+
+    // Reads the Room cache size and pushes it into state so the home screen
+    // tile shows the current local-record count.
+    suspend fun refreshOfflineCount() {
+        val n = runCatching { vehicleDao.count() }.getOrDefault(0L)
+        _ui.update { it.copy(offlineCount = n) }
     }
 
     fun triggerSync() {

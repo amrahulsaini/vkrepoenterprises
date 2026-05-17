@@ -60,6 +60,8 @@ fun HomeScreen(
     // ── Location gate ─────────────────────────────────────────────────────────
     // App cannot be used without location services enabled + permission granted.
     var showLocationDialog by remember { mutableStateOf(false) }
+    // Holds the new online/offline state to confirm in the dialog.
+    var pendingOnlineModeChange by remember { mutableStateOf<Boolean?>(null) }
 
     fun isLocationEnabled(): Boolean {
         val lm = context.getSystemService(android.content.Context.LOCATION_SERVICE) as LocationManager
@@ -103,6 +105,51 @@ fun HomeScreen(
         }
         lifecycleOwner.lifecycle.addObserver(obs)
         onDispose { lifecycleOwner.lifecycle.removeObserver(obs) }
+    }
+
+    // Online / Offline confirmation dialog — appears whenever the cloud icon
+    // is tapped so the user explicitly acknowledges which mode they are in.
+    pendingOnlineModeChange?.let { goingOnline ->
+        AlertDialog(
+            onDismissRequest = { pendingOnlineModeChange = null },
+            icon = {
+                Icon(
+                    imageVector = if (goingOnline) Icons.Default.Cloud else Icons.Default.CloudOff,
+                    contentDescription = null,
+                    tint = if (goingOnline) Color(0xFF388E3C) else Color(0xFFD32F2F)
+                )
+            },
+            title = {
+                Text(
+                    if (goingOnline) "Switch to Online?" else "Switch to Offline?",
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Text(
+                    if (goingOnline)
+                        "You will be ONLINE. Vehicle searches will hit the live server and you will receive the latest records."
+                    else
+                        "You will be OFFLINE. Searches will only use the records already downloaded to this phone. Sync first if you want the latest data."
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        searchVm.setOnlineOnly(goingOnline)
+                        pendingOnlineModeChange = null
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (goingOnline) Color(0xFF388E3C) else Color(0xFFD32F2F)
+                    )
+                ) {
+                    Text(if (goingOnline) "Go Online" else "Go Offline", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingOnlineModeChange = null }) { Text("Cancel") }
+            }
+        )
     }
 
     if (showLocationDialog) {
@@ -199,14 +246,9 @@ fun HomeScreen(
                     }
 
                     // Online / Offline toggle — green cloud when online (default),
-                    // red cloud-off when offline. Tap to switch.
-                    IconButton(onClick = {
-                        val turningOff = ui.onlineOnly  // currently online → going offline
-                        searchVm.setOnlineOnly(!ui.onlineOnly)
-                        if (turningOff && ui.syncHasUpdates) {
-                            // Hint to user: tap the red blinking refresh to sync first
-                        }
-                    }) {
+                    // red cloud-off when offline. Tap shows a confirmation dialog
+                    // so the user always knows which mode they are in.
+                    IconButton(onClick = { pendingOnlineModeChange = !ui.onlineOnly }) {
                         Icon(
                             imageVector       = if (ui.onlineOnly) Icons.Default.Cloud
                                                 else                Icons.Default.CloudOff,
@@ -431,10 +473,15 @@ fun HomeScreen(
                             }
                         }
                     }
-                    // Action tiles
+                    // Action tiles — Offline Records shows the live Room count
+                    // so the user knows how many vehicles are cached locally.
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        HomeTile("Offline Records", Icons.Default.CloudDownload,
-                            Modifier.weight(1f)) { nav.navigate(Screen.Settings.route) }
+                        HomeTile(
+                            label    = "Offline Records",
+                            icon     = Icons.Default.CloudDownload,
+                            subtitle = "${formatRoomCount(ui.offlineCount)} on this phone",
+                            modifier = Modifier.weight(1f)
+                        ) { nav.navigate(Screen.Settings.route) }
                         HomeTile("My Profile", Icons.Default.AccountCircle,
                             Modifier.weight(1f)) { nav.navigate(Screen.Profile.route) }
                     }
@@ -471,8 +518,8 @@ private fun VehicleGridCell(item: SearchResult, mode: SearchMode, onClick: () ->
     ) {
         Text(
             display,
-            style = MaterialTheme.typography.bodySmall,
-            fontWeight = FontWeight.Medium,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Bold,
             fontFamily = FontFamily.Monospace,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
@@ -502,6 +549,7 @@ private fun HomeTile(
     label: String,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     modifier: Modifier = Modifier,
+    subtitle: String? = null,
     onClick: () -> Unit
 ) {
     Card(
@@ -516,11 +564,25 @@ private fun HomeTile(
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Icon(icon, null, tint = MaterialTheme.colorScheme.primary)
-            Text(label, fontWeight = FontWeight.SemiBold,
-                style = MaterialTheme.typography.bodyMedium)
+            Column {
+                Text(label, fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.bodyMedium)
+                if (!subtitle.isNullOrBlank()) {
+                    Text(
+                        subtitle,
+                        style      = MaterialTheme.typography.labelSmall,
+                        color      = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
         }
     }
 }
+
+// 1,234 → "1,234" / 12345 → "12,345" / 1234567 → "1,234,567"
+private fun formatRoomCount(n: Long): String =
+    java.text.NumberFormat.getInstance(java.util.Locale.US).format(n)
 
 @Composable
 private fun ModeTab(label: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier) {
@@ -558,8 +620,8 @@ private fun VehicleListRow(item: SearchResult, mode: SearchMode, onClick: () -> 
     ) {
         Text(
             rcOrChassis,
-            style = MaterialTheme.typography.bodySmall,
-            fontWeight = FontWeight.Medium,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Bold,
             fontFamily = FontFamily.Monospace,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
@@ -567,7 +629,9 @@ private fun VehicleListRow(item: SearchResult, mode: SearchMode, onClick: () -> 
         )
         Text(
             model,
-            style = MaterialTheme.typography.bodySmall,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Bold,
+            fontFamily = FontFamily.SansSerif,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             color = MaterialTheme.colorScheme.onSurfaceVariant,

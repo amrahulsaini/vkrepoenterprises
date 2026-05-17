@@ -73,11 +73,12 @@ public partial class FinancesManagerPage : Page
 
             RebuildFinanceList(finances);
 
-            if (_allFinances.Count > 0)
-            {
-                dgFinances.SelectedIndex = 0;
-                await LoadBranchesForFinanceAsync(_allFinances[0].Id, _allFinances[0].Name);
-            }
+            // Start with NO head office selected — branch pane shows its empty
+            // state instead of auto-loading branches for the first finance.
+            // This matches user expectation: "finances should only open if a
+            // head office is selected".
+            dgFinances.SelectedIndex = -1;
+            ShowBranchEmptyState("Select a head office to view its finances");
         }
         catch (Exception ex)
         {
@@ -184,12 +185,108 @@ public partial class FinancesManagerPage : Page
         _isViewAll = false;
         if (dgFinances.SelectedItem is FinanceListItem fi)
             await LoadBranchesForFinanceAsync(fi.Id, fi.Name);
+        else
+            ShowBranchEmptyState("Select a head office to view its finances");
+    }
+
+    // Hides the branches grid and shows the empty-state placeholder. Used when
+    // no head office is selected on initial load or after a deletion.
+    private void ShowBranchEmptyState(string subtitle)
+    {
+        _allCurrentBranches = new List<BranchSummaryItem>();
+        _displayedBranches.Clear();
+        txtBranchSubtitle.Text  = subtitle;
+        dgBranches.Visibility   = Visibility.Collapsed;
+        pnlBranchEmpty.Visibility = Visibility.Visible;
+    }
+
+    private void HideBranchEmptyState()
+    {
+        dgBranches.Visibility   = Visibility.Visible;
+        pnlBranchEmpty.Visibility = Visibility.Collapsed;
+    }
+
+    // Per-row kebab menus — same actions as the right-click context menu,
+    // but reached with a single left click on the ⋮ button.
+    private void FinanceKebab_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button btn) return;
+        if (btn.Tag is not FinanceListItem fi) return;
+
+        // Select the row so the existing Edit/Download/Delete handlers (which
+        // read dgFinances.SelectedItem) operate on the right finance.
+        var idx = _allFinances.FindIndex(x => x.Id == fi.Id);
+        if (idx >= 0)
+        {
+            _suppressSelectionChange = true;
+            dgFinances.SelectedIndex = idx;
+            _suppressSelectionChange = false;
+        }
+
+        var menu = new ContextMenu { PlacementTarget = btn };
+        var edit  = new MenuItem { Header = "Edit Head Office" };
+        edit.Click  += FinanceEdit_Click;
+        var dl    = new MenuItem { Header = "Download All Records" };
+        dl.Click    += FinanceDownloadAll_Click;
+        var del   = new MenuItem { Header = "Delete Head Office", Foreground = Brushes.Crimson };
+        del.Click   += FinanceDelete_Click;
+        menu.Items.Add(edit);
+        menu.Items.Add(dl);
+        menu.Items.Add(new Separator());
+        menu.Items.Add(del);
+        menu.IsOpen = true;
+    }
+
+    private void BranchKebab_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button btn) return;
+        if (btn.Tag is not BranchSummaryItem bi) return;
+
+        dgBranches.SelectedItem = bi;
+
+        var menu = new ContextMenu { PlacementTarget = btn };
+        var edit  = new MenuItem { Header = "Edit Finance" };
+        edit.Click  += BranchEdit_Click;
+        var dl    = new MenuItem { Header = "Download Records" };
+        dl.Click    += BranchDownload_Click;
+        var clear = new MenuItem { Header = "Clear All Records", Foreground = Brushes.DarkOrange };
+        clear.Click += BranchClearRecords_Click;
+        var del   = new MenuItem { Header = "Delete Finance", Foreground = Brushes.Crimson };
+        del.Click   += BranchDelete_Click;
+        menu.Items.Add(edit);
+        menu.Items.Add(dl);
+        menu.Items.Add(clear);
+        menu.Items.Add(new Separator());
+        menu.Items.Add(del);
+        menu.IsOpen = true;
+    }
+
+    // Refresh buttons — drop caches so the next click re-fetches from the API.
+    private async void btnRefreshFinances_Click(object sender, RoutedEventArgs e)
+    {
+        _branchCache.Clear();
+        await ReloadFinancesAsync();
+    }
+
+    private async void btnRefreshBranches_Click(object sender, RoutedEventArgs e)
+    {
+        if (_isViewAll)
+        {
+            await LoadViewAllAsync();
+            return;
+        }
+        if (dgFinances.SelectedItem is FinanceListItem fi)
+        {
+            _branchCache.Remove(fi.Id);
+            await LoadBranchesForFinanceAsync(fi.Id, fi.Name);
+        }
     }
 
     private async Task LoadBranchesForFinanceAsync(int financeId, string financeName)
     {
         txtBranchSubtitle.Text = financeName;
         _loadingForFinanceId   = financeId;
+        HideBranchEmptyState();
 
         // Show cached data instantly — feels ~0 ms on repeat selection
         if (_branchCache.TryGetValue(financeId, out var cached))
@@ -245,6 +342,7 @@ public partial class FinancesManagerPage : Page
         _isViewAll             = true;
         _loadingForFinanceId   = -1;
         txtBranchSubtitle.Text = "All Finances";
+        HideBranchEmptyState();
         SetBranchLoading(true);
         try
         {
