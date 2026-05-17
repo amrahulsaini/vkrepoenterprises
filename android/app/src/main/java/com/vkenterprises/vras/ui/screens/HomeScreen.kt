@@ -426,53 +426,12 @@ fun HomeScreen(
                 }
             } else if (ui.errorMsg == null) {
                 // ── Quick-access panel under the search bar ──────────────────
-                val subEnd by authVm.subscriptionEnd.collectAsState(initial = null)
-                val daysLeft = remember(subEnd) {
-                    subEnd?.takeIf { it.isNotBlank() }?.let {
-                        runCatching {
-                            java.time.temporal.ChronoUnit.DAYS.between(
-                                java.time.LocalDate.now(),
-                                java.time.LocalDate.parse(it)
-                            )
-                        }.getOrNull()
-                    }
-                }
+                // Subscription days-left card was removed at user's request —
+                // all subscription information lives in the Control Panel now.
                 Column(
                     Modifier.fillMaxSize().padding(12.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    // Subscription days-left card
-                    Card(
-                        shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.primaryContainer),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            Modifier.padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(Icons.Default.CardMembership, null,
-                                tint = MaterialTheme.colorScheme.onPrimaryContainer)
-                            Spacer(Modifier.width(12.dp))
-                            Column {
-                                Text(
-                                    when {
-                                        daysLeft == null  -> "No active subscription"
-                                        daysLeft < 0      -> "Subscription expired"
-                                        daysLeft == 0L    -> "Expires today"
-                                        else              -> "$daysLeft days left"
-                                    },
-                                    fontWeight = FontWeight.Bold,
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                                )
-                                Text("Subscription",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer)
-                            }
-                        }
-                    }
                     // Action tiles — Offline Records shows the live Room count
                     // so the user knows how many vehicles are cached locally.
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {

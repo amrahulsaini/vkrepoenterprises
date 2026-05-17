@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.vkenterprises.vras.data.api.ApiService
 import com.vkenterprises.vras.data.models.AdminAddSubRequest
 import com.vkenterprises.vras.data.models.AdminUserItem
+import com.vkenterprises.vras.data.models.ProfileResponse
 import com.vkenterprises.vras.data.models.SetUserFlagRequest
 import com.vkenterprises.vras.data.models.SubscriptionRecord
 import com.vkenterprises.vras.data.models.VerifyAdminPassRequest
@@ -27,9 +28,13 @@ data class ControlPanelUiState(
     val selectedUser: AdminUserItem?   = null,
     val subs: List<SubscriptionRecord> = emptyList(),
     val subsLoading: Boolean           = false,
+    // Full profile of the selected user — KYC, bank details, address, pincode,
+    // balance, joined date. Loaded in parallel with subs when a user is opened.
+    val selectedProfile: ProfileResponse? = null,
+    val profileLoading: Boolean        = false,
     val showAddDialog: Boolean         = false,
-    val addStartDate: String           = "",
-    val addEndDate: String             = "",
+    val addStartDate: String           = "",   // YYYY-MM-DD
+    val addEndDate: String             = "",   // YYYY-MM-DD
     val addAmount: String              = "",
     val addNotes: String               = "",
     val addError: String?              = null,
@@ -93,7 +98,17 @@ class ControlPanelViewModel @Inject constructor(
     fun onFilterChange(v: String) = _ui.update { it.copy(filterText = v) }
 
     fun selectUser(user: AdminUserItem) {
-        _ui.update { it.copy(selectedUser = user, subs = emptyList(), subsLoading = true) }
+        _ui.update {
+            it.copy(
+                selectedUser    = user,
+                subs            = emptyList(),
+                subsLoading     = true,
+                selectedProfile = null,
+                profileLoading  = true
+            )
+        }
+        // Subscriptions + full profile (KYC + bank) loaded in parallel so the
+        // detail screen paints quickly with everything an admin needs.
         viewModelScope.launch {
             runCatching {
                 val resp = api.getUserSubscriptions(adminUserId, user.id)
@@ -105,9 +120,23 @@ class ControlPanelViewModel @Inject constructor(
                 _ui.update { it.copy(subsLoading = false, errorMsg = "Network error. Try again.") }
             }
         }
+        viewModelScope.launch {
+            runCatching {
+                val resp = api.getProfile(user.id)
+                if (resp.isSuccessful) {
+                    _ui.update { it.copy(profileLoading = false, selectedProfile = resp.body()) }
+                } else {
+                    _ui.update { it.copy(profileLoading = false) }
+                }
+            }.onFailure {
+                _ui.update { it.copy(profileLoading = false) }
+            }
+        }
     }
 
-    fun clearUser() = _ui.update { it.copy(selectedUser = null, subs = emptyList()) }
+    fun clearUser() = _ui.update {
+        it.copy(selectedUser = null, subs = emptyList(), selectedProfile = null)
+    }
 
     // ── User state toggles ─────────────────────────────────────────────────
     private fun mutateSelected(transform: (AdminUserItem) -> AdminUserItem) {
