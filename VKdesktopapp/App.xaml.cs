@@ -146,18 +146,13 @@ public partial class App : Application
         return text;
     }
 
+    // Historically this function moved any characters AFTER the first 4-digit
+    // run to the front, separated by '/'. That mangled Bharat-series numbers
+    // ("22-BH-2271-E" → "-E/22-BH-2271") which broke both display and the
+    // mobile-app regex match. The hyphen-formatted form already sorts
+    // sensibly, so the function is now an identity passthrough.
     public static string GetVehicleNoInSearchableFormated(string vehicleNo)
     {
-        var match = Regex.Match(vehicleNo, "\\d{4}");
-        if (match.Success)
-        {
-            var index = match.Index;
-            if (index + 4 < vehicleNo.Length)
-            {
-                var suffix = vehicleNo.Substring(index + 4);
-                vehicleNo = suffix + "/" + vehicleNo.Substring(0, index + 4);
-            }
-        }
         return vehicleNo;
     }
 
