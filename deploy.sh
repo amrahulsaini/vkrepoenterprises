@@ -35,34 +35,48 @@ dotnet publish -c Release -o "$VKAPI_OUT" --nologo -v quiet
 cp /home/vkapp/db/.env.local "$VKAPI_OUT/db/.env.local" 2>/dev/null || true
 info "VKApiServer built → $VKAPI_OUT"
 
-# Sync download page + installer into LiteSpeed docRoot (world-readable, no 403)
-DOCROOT_DOWNLOADS="/home/characterverse.tech/api.characterverse.tech/downloads"
-mkdir -p "$DOCROOT_DOWNLOADS"
-cp "$VKAPI_SRC/downloads/index.html" "$DOCROOT_DOWNLOADS/index.html"
-if [ -f "$REPO_DIR/installer-output/VKEnterprises_Setup.exe" ]; then
-    cp "$REPO_DIR/installer-output/VKEnterprises_Setup.exe" "$DOCROOT_DOWNLOADS/VKEnterprises_Setup.exe"
-    info "Installer copied → $DOCROOT_DOWNLOADS/VKEnterprises_Setup.exe"
-fi
-chmod 755 "$DOCROOT_DOWNLOADS"
-find "$DOCROOT_DOWNLOADS" -type f -exec chmod 644 {} \;
-# LiteSpeed (nobody) needs traverse permission on every parent in the chain
-chmod o+x /home/characterverse.tech /home/characterverse.tech/api.characterverse.tech 2>/dev/null || true
-# CyberPanel-OLS enforces strict ownership — files must be owned by the
-# domain user (auto-detected from the parent docRoot), not root.
-DOMAIN_OWNER=$(stat -c '%U:%G' /home/characterverse.tech/api.characterverse.tech 2>/dev/null)
-[ -n "$DOMAIN_OWNER" ] && chown -R "$DOMAIN_OWNER" "$DOCROOT_DOWNLOADS" || true
-info "Download folder ready → https://api.characterverse.tech/downloads/"
+# Sync /downloads/ (installer + index) and /public/ (map HTML + Leaflet) into
+# every domain's LiteSpeed docRoot. To support a new domain, just add its
+# docRoot path to the array below — everything else loops automatically.
+DOMAIN_DOCROOTS=(
+    "/home/characterverse.tech/api.characterverse.tech"
+    "/home/crmrecoverysoftware.com/api.crmrecoverysoftware.com"
+)
 
-# Sync /public/ assets (map HTML + Leaflet) — desktop app fetches these
-# at runtime so map fixes ship to all clients without a re-install.
-DOCROOT_PUBLIC="/home/characterverse.tech/api.characterverse.tech/public"
-rm -rf "$DOCROOT_PUBLIC"
-mkdir -p "$DOCROOT_PUBLIC"
-cp -r "$VKAPI_SRC/public/." "$DOCROOT_PUBLIC/"
-find "$DOCROOT_PUBLIC" -type d -exec chmod 755 {} \;
-find "$DOCROOT_PUBLIC" -type f -exec chmod 644 {} \;
-[ -n "$DOMAIN_OWNER" ] && chown -R "$DOMAIN_OWNER" "$DOCROOT_PUBLIC" || true
-info "Public assets ready → https://api.characterverse.tech/public/"
+for DOCROOT in "${DOMAIN_DOCROOTS[@]}"; do
+    if [ ! -d "$DOCROOT" ]; then
+        info "Skipping $DOCROOT (not present)"
+        continue
+    fi
+    PARENT_DIR="$(dirname "$DOCROOT")"
+    # LiteSpeed (nobody) needs traverse permission on every parent in the chain
+    chmod o+x "$PARENT_DIR" "$DOCROOT" 2>/dev/null || true
+    # CyberPanel-OLS enforces strict ownership — files must be owned by the
+    # domain user (auto-detected from the docRoot), not root.
+    DOMAIN_OWNER=$(stat -c '%U:%G' "$DOCROOT" 2>/dev/null)
+
+    # /downloads/  — installer + download page
+    DL="$DOCROOT/downloads"
+    mkdir -p "$DL"
+    cp "$VKAPI_SRC/downloads/index.html" "$DL/index.html"
+    if [ -f "$REPO_DIR/installer-output/VKEnterprises_Setup.exe" ]; then
+        cp "$REPO_DIR/installer-output/VKEnterprises_Setup.exe" "$DL/VKEnterprises_Setup.exe"
+    fi
+    chmod 755 "$DL"
+    find "$DL" -type f -exec chmod 644 {} \;
+    [ -n "$DOMAIN_OWNER" ] && chown -R "$DOMAIN_OWNER" "$DL" || true
+    info "Downloads ready → $DL"
+
+    # /public/  — map HTML + Leaflet (re-synced fresh each deploy)
+    PB="$DOCROOT/public"
+    rm -rf "$PB"
+    mkdir -p "$PB"
+    cp -r "$VKAPI_SRC/public/." "$PB/"
+    find "$PB" -type d -exec chmod 755 {} \;
+    find "$PB" -type f -exec chmod 644 {} \;
+    [ -n "$DOMAIN_OWNER" ] && chown -R "$DOMAIN_OWNER" "$PB" || true
+    info "Public assets ready → $PB"
+done
 
 section "Restarting vkapi service"
 systemctl restart vkapi
