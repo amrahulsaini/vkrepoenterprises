@@ -19,9 +19,16 @@ class VKApp : Application(), Configuration.Provider {
 
     override fun onCreate() {
         super.onCreate()
-        scheduleSyncWork()
-        scheduleLocationWork()
-        kickStartSyncChain()
+        // Scheduling work touches WorkManager's internal database. Doing it on
+        // the main thread here delays the very first frame (white screen on
+        // launch). Run it on a background thread so onCreate() returns fast.
+        Thread {
+            runCatching {
+                scheduleSyncWork()
+                scheduleLocationWork()
+                kickStartSyncChain()
+            }
+        }.start()
     }
 
     private fun scheduleLocationWork() {
