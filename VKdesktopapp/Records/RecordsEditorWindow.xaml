@@ -5,6 +5,8 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:sf="http://schemas.syncfusion.com/wpf"
+    xmlns:skin="clr-namespace:Syncfusion.SfSkinManager;assembly=Syncfusion.SfSkinManager.WPF"
+    skin:SfSkinManager.Theme="{skin:SkinManagerExtension ThemeName=Windows11Light}"
     Title="Records Editor"
     Height="760"
     Width="1366"
