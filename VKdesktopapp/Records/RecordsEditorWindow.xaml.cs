@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -204,8 +205,36 @@ public partial class RecordsEditorWindow : RibbonWindow
             FilterIndex = 1,
             Title       = "Select an Excel File"
         };
-        if (openFileDialog.ShowDialog() == true)
-            sp.Open(openFileDialog.FileName);
+        if (openFileDialog.ShowDialog() != true) return;
+
+        try
+        {
+            // The chosen workbook may still be open in MS Excel, which keeps
+            // an exclusive lock — sp.Open() on it would fail. Copying the file
+            // first works because we open the SOURCE with FileShare.ReadWrite
+            // (allowed even while Excel holds it); the spreadsheet then loads
+            // the unlocked temp copy. Result: an already-open file uploads fine.
+            var srcPath  = openFileDialog.FileName;
+            var tempPath = Path.Combine(
+                Path.GetTempPath(),
+                $"vkupload_{Guid.NewGuid():N}{Path.GetExtension(srcPath)}");
+
+            using (var src = new FileStream(srcPath, FileMode.Open,
+                                            FileAccess.Read, FileShare.ReadWrite))
+            using (var dst = new FileStream(tempPath, FileMode.Create,
+                                            FileAccess.Write, FileShare.None))
+            {
+                src.CopyTo(dst);
+            }
+
+            sp.Open(tempPath);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                $"Could not open the Excel file.\n\n{ex.Message}",
+                "Open Excel", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
     }
 
     private void MapColumns()
