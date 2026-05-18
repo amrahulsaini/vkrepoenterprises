@@ -145,16 +145,7 @@ public partial class FindVehiclePage : Page
                 colChassis.Visibility = Visibility.Collapsed;
             }
 
-            var grouped = _fullResults
-                .GroupBy(x => chassis ? x.ChassisNo : x.VehicleNo)
-                .Select(g => g.First())
-                // Sort RC / chassis numbers alphabetically (case-insensitive,
-                // ordinal) so the results list is in predictable order.
-                .OrderBy(x => chassis ? x.ChassisNo : x.VehicleNo,
-                         StringComparer.OrdinalIgnoreCase)
-                .ToList();
-
-            dgResults.ItemsSource = grouped;
+            RebindResultsGrid();
         }
         catch (OperationCanceledException) { }
         catch (Exception ex)
@@ -166,6 +157,23 @@ public partial class FindVehiclePage : Page
             prgSearching.Visibility = Visibility.Collapsed;
             btnSearch.IsEnabled     = true;
         }
+    }
+
+    // Rebuilds the results grid from _fullResults — one row per vehicle,
+    // sorted by RC/chassis. Used after a search and after a deletion, so
+    // removing one vehicle never wipes the rest of the results.
+    private void RebindResultsGrid()
+    {
+        var chassis = IsChassisMode();
+        var grouped = _fullResults
+            .GroupBy(x => chassis ? x.ChassisNo : x.VehicleNo)
+            .Select(g => g.First())
+            .OrderBy(x => chassis ? x.ChassisNo : x.VehicleNo,
+                     StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        dgResults.ItemsSource = grouped;
+        lblResults.Text     = _fullResults.Count.ToString("N0");
+        lblBranchCount.Text = _fullResults.Select(r => r.BranchName).Distinct().Count().ToString("N0");
     }
 
     private void dgResults_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -269,27 +277,63 @@ Agency Contact : 0";
     {
         if (brdDetails.DataContext is not VehicleSearchItem record) return;
 
-        var confirm = MessageBox.Show(
-            $"Are you sure you want to permanently delete {record.VehicleNo}?",
-            "Confirm Delete", MessageBoxButton.YesNo, MessageBoxImage.Warning);
-        if (confirm != MessageBoxResult.Yes) return;
+        var chassis = IsChassisMode();
+        var key     = chassis ? record.ChassisNo : record.VehicleNo;
+
+        // Every finance copy of this vehicle currently in the results.
+        var copies = _fullResults
+            .Where(x => (chassis ? x.ChassisNo : x.VehicleNo) == key)
+            .ToList();
+
+        List<VehicleSearchItem> toDelete;
+        if (copies.Count > 1)
+        {
+            // Vehicle is in multiple finances — ask which one(s) to delete from.
+            var picker = new DeleteRecordPickerWindow(record.VehicleNo, copies)
+            {
+                Owner = Window.GetWindow(this)
+            };
+            if (picker.ShowDialog() != true || picker.SelectedRecords.Count == 0)
+                return;
+            toDelete = picker.SelectedRecords;
+        }
+        else
+        {
+            var financeName = string.IsNullOrWhiteSpace(record.Financer)
+                ? "this finance" : record.Financer;
+            var confirm = MessageBox.Show(
+                $"Permanently delete {record.VehicleNo} from {financeName}?",
+                "Confirm Delete", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+            if (confirm != MessageBoxResult.Yes) return;
+            toDelete = copies;
+        }
 
         try
         {
             btnDelete.IsEnabled = false;
-            await _searchRepo.DeleteRecordAsync(long.Parse(record.Id));
-            _fullResults.Remove(record);
-            var chassis   = IsChassisMode();
-            var key       = chassis ? record.ChassisNo : record.VehicleNo;
-            var remaining = _fullResults.Where(x => (chassis ? x.ChassisNo : x.VehicleNo) == key).ToList();
+            foreach (var r in toDelete)
+            {
+                await _searchRepo.DeleteRecordAsync(long.Parse(r.Id));
+                _fullResults.Remove(r);
+            }
+
+            // Re-render the grid from what's left — other vehicles stay put.
+            RebindResultsGrid();
+
+            var remaining = _fullResults
+                .Where(x => (chassis ? x.ChassisNo : x.VehicleNo) == key)
+                .ToList();
             if (remaining.Any())
             {
+                // Vehicle still exists in other finances — refresh its panel.
                 lstBranches.ItemsSource   = remaining;
                 lstBranches.SelectedIndex = 0;
             }
             else
             {
-                dgResults.ItemsSource  = null;
+                // This vehicle is fully gone; hide its panels but KEEP the
+                // rest of the search results visible.
+                dgResults.SelectedItem = null;
                 brdBranches.Visibility = Visibility.Collapsed;
                 brdDetails.Visibility  = Visibility.Collapsed;
             }
