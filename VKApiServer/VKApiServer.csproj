@@ -11,4 +11,12 @@
     <PackageReference Include="MySqlConnector" Version="2.3.7" />
   </ItemGroup>
 
+  <!-- Ship the per-tenant schema template alongside the binary so the
+       agency-approve endpoint can apply it to each new tenant database. -->
+  <ItemGroup>
+    <None Include="..\dbschema\tenant_template.sql"
+          Link="dbschema\tenant_template.sql"
+          CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

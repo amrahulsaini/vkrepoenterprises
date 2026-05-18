@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Manage Agencies — CRMRS</title>
+<link rel="icon" href="assets/favicon.ico">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<header class="site-header">
+    <div class="container">
+        <a class="brand" href="/">
+            <img src="assets/logo-full.webp" alt="CRMRS" onerror="this.onerror=null;this.src='assets/logo-short.webp'">
+        </a>
+        <nav class="nav-actions">
+            <a class="btn btn-ghost btn-sm" href="register.html">Register</a>
+            <button class="btn btn-outline btn-sm hidden" id="logout-btn">Sign out</button>
+        </nav>
+    </div>
+</header>
+
+<main>
+    <section class="section">
+        <div class="container">
+
+            <!-- Password gate -->
+            <div class="container-narrow" id="gate">
+                <div class="card text-center">
+                    <div style="width:56px; height:56px; border-radius:14px; background:var(--primary-tint); color:var(--primary); display:inline-flex; align-items:center; justify-content:center; font-size:24px; margin-bottom:14px;">🔒</div>
+                    <h2>Administrator access</h2>
+                    <p class="subtitle">Enter the manage password to review agency applications.</p>
+                    <form id="gate-form" class="text-center">
+                        <input class="input" type="password" id="gate-pass" placeholder="Password" autocomplete="current-password" required>
+                        <div class="field-error hidden mt-1" id="gate-err"></div>
+                        <button class="btn btn-primary btn-block mt-2" type="submit">Unlock</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Manage panel -->
+            <div class="hidden" id="panel">
+                <div class="flex items-center justify-between mb-3">
+                    <div>
+                        <h2 style="margin:0; font-size:22px; font-weight:800;">Agency applications</h2>
+                        <p class="text-muted" style="margin:4px 0 0; font-size:14px;">
+                            Review and approve registered agencies. Approving provisions a dedicated database for the agency.
+                        </p>
+                    </div>
+                    <button class="btn btn-outline btn-sm" id="refresh-btn">↻ Refresh</button>
+                </div>
+
+                <div class="card table-card">
+                    <div class="table-toolbar">
+                        <h2>Agencies</h2>
+                        <div class="tabs" id="tabs">
+                            <button data-status="pending"  class="active">Pending</button>
+                            <button data-status="approved">Approved</button>
+                            <button data-status="rejected">Rejected</button>
+                            <button data-status="all">All</button>
+                        </div>
+                    </div>
+
+                    <div id="table-area">
+                        <div class="empty">
+                            <div class="ico">⏳</div>
+                            <div>Loading…</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </section>
+</main>
+
+<!-- Reject reason modal -->
+<div class="modal-backdrop" id="reject-modal" role="dialog">
+    <div class="modal">
+        <h3>Reject application</h3>
+        <p>Optionally provide a reason — it will be saved against the agency record.</p>
+        <textarea class="textarea" id="reject-reason" placeholder="Reason (optional)"></textarea>
+        <div class="otp-actions mt-2">
+            <span></span>
+            <div style="display:flex; gap:8px;">
+                <button class="btn btn-outline btn-sm" id="reject-cancel">Cancel</button>
+                <button class="btn btn-danger btn-sm" id="reject-confirm">Reject</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="toast-container" id="toasts"></div>
+
+<footer class="site-footer">
+    <div class="container">
+        <div>© <span id="year"></span> CRMRS</div>
+        <div>Developed by <a href="mailto:rahul@loopwar.dev">rahul@loopwar.dev</a></div>
+    </div>
+</footer>
+
+<script>document.getElementById('year').textContent = new Date().getFullYear();</script>
+<script src="js/api.js"></script>
+<script src="js/manage.js"></script>
+</body>
+</html>

@@ -2238,6 +2238,23 @@ if (Directory.Exists(downloadsPath))
     app.MapGet("/download", () => Results.Redirect("/downloads/index.html"));
 }
 
+// ── Agency uploads (logos) — served as /agency-uploads/ static files ─────────
+var agencyUploads = "/opt/vkapi/agency-uploads";
+Directory.CreateDirectory(agencyUploads);
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(agencyUploads),
+    RequestPath  = "/agency-uploads",
+    ServeUnknownFileTypes = true
+});
+
+// ── CRMRS Agency Portal endpoints (/api/agency/*) ────────────────────────────
+{
+    var mysqlHost = Environment.GetEnvironmentVariable("MYSQL_HOST") ?? "127.0.0.1";
+    var mysqlPort = int.TryParse(Environment.GetEnvironmentVariable("MYSQL_PORT"), out var ap) ? ap : 3306;
+    AgencyPortal.Map(app, mysqlHost, mysqlPort);
+}
+
 app.Run($"http://localhost:{port}");
 
 // Local functions must appear before type declarations (CS8803)
