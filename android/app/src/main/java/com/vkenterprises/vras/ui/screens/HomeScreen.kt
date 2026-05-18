@@ -477,8 +477,8 @@ private fun VehicleGridCell(item: SearchResult, mode: SearchMode, onClick: () ->
     ) {
         Text(
             display,
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Bold,
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.ExtraBold,
             fontFamily = FontFamily.Monospace,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
@@ -579,8 +579,8 @@ private fun VehicleListRow(item: SearchResult, mode: SearchMode, onClick: () -> 
     ) {
         Text(
             rcOrChassis,
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Bold,
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.ExtraBold,
             fontFamily = FontFamily.Monospace,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
