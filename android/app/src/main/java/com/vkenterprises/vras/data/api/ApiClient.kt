@@ -9,10 +9,18 @@ import java.util.concurrent.TimeUnit
 
 object ApiClient {
     private val okHttp = OkHttpClient.Builder()
-        .connectTimeout(10, TimeUnit.SECONDS)
-        .readTimeout(15, TimeUnit.SECONDS)
+        .connectTimeout(15, TimeUnit.SECONDS)
+        .readTimeout(30, TimeUnit.SECONDS)
+        .writeTimeout(30, TimeUnit.SECONDS)
+        // Hard cap on the whole call so a stalled request can never hang forever.
+        .callTimeout(90, TimeUnit.SECONDS)
         .addInterceptor(HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BODY
+            // CRITICAL: never log full bodies in a release build. BODY logging
+            // buffers every entire request+response into memory and a string —
+            // the sync payloads are large, so this caused random memory
+            // pressure / out-of-memory white screens. Bodies only in debug.
+            level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.BASIC
+                    else HttpLoggingInterceptor.Level.NONE
         })
         .build()
 
