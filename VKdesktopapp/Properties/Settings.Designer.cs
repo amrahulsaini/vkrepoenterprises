@@ -15,7 +15,7 @@ namespace VRASDesktopApp.Properties
 
         [UserScopedSetting]
         [DebuggerNonUserCode]
-        [DefaultSettingValue("https://api.characterverse.tech/")]
+        [DefaultSettingValue("https://api.crmrecoverysoftware.com/")]
         public string ApiBaseUrl
         {
             get => (string)this[nameof(ApiBaseUrl)];

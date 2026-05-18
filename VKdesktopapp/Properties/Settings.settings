@@ -3,7 +3,7 @@
   <Profiles />
   <Settings>
     <Setting Name="ApiBaseUrl" Type="System.String" Scope="User">
-      <Value Profile="(Default)">https://api.characterverse.tech/</Value>
+      <Value Profile="(Default)">https://api.crmrecoverysoftware.com/</Value>
     </Setting>
     <Setting Name="Password" Type="System.String" Scope="User">
       <Value Profile="(Default)"></Value>

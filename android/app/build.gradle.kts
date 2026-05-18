@@ -16,7 +16,7 @@ android {
         versionCode   = 1
         versionName   = "1.0"
 
-        buildConfigField("String", "BASE_URL", "\"https://api.characterverse.tech/\"")
+        buildConfigField("String", "BASE_URL", "\"https://api.crmrecoverysoftware.com/\"")
     }
 
     buildTypes {

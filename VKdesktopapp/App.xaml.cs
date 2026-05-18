@@ -43,6 +43,16 @@ public partial class App : Application
             Settings.Default.Save();
         }
 
+        // One-time migration: every existing install carries a per-user
+        // ApiBaseUrl saved to its user.config. Without this, upgrading the
+        // installer would leave them pointed at the retired URL. Auto-bump
+        // anyone still on the legacy host to the new domain.
+        if (Settings.Default.ApiBaseUrl == "https://api.characterverse.tech/")
+        {
+            Settings.Default.ApiBaseUrl = "https://api.crmrecoverysoftware.com/";
+            Settings.Default.Save();
+        }
+
         HttpClient = new HttpClient();
         HttpClient.DefaultRequestHeaders.Add("Connection", "keep-alive");
         HttpClient.Timeout = TimeSpan.FromMinutes(20.0);
