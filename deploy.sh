@@ -35,6 +35,16 @@ dotnet publish -c Release -o "$VKAPI_OUT" --nologo -v quiet
 cp /home/vkapp/db/.env.local "$VKAPI_OUT/db/.env.local" 2>/dev/null || true
 info "VKApiServer built → $VKAPI_OUT"
 
+# Agency logo uploads — vkapi writes compressed agency logos here and serves
+# them as static files at /agency-uploads/... . The directory MUST exist and be
+# writable by the vkapi service user (www-data) before the service starts,
+# otherwise startup throws and the service crash-loops.
+mkdir -p /opt/vkapi/agency-uploads
+chown -R www-data:www-data /opt/vkapi/agency-uploads
+chmod -R o+rX /opt/vkapi/agency-uploads
+chmod o+x /opt /opt/vkapi 2>/dev/null || true
+info "Agency uploads dir ready → /opt/vkapi/agency-uploads"
+
 # Sync /downloads/ (installer + index) and /public/ (map HTML + Leaflet) into
 # every domain's LiteSpeed docRoot. To support a new domain, just add its
 # docRoot path to the array below — everything else loops automatically.

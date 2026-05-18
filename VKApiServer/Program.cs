@@ -2239,14 +2239,18 @@ if (Directory.Exists(downloadsPath))
 }
 
 // ── Agency uploads (logos) — served as /agency-uploads/ static files ─────────
+// Defensive: never let a missing/unwritable folder crash startup.
 var agencyUploads = "/opt/vkapi/agency-uploads";
-Directory.CreateDirectory(agencyUploads);
-app.UseStaticFiles(new StaticFileOptions
+try { Directory.CreateDirectory(agencyUploads); } catch { /* deploy.sh creates it */ }
+if (Directory.Exists(agencyUploads))
 {
-    FileProvider = new PhysicalFileProvider(agencyUploads),
-    RequestPath  = "/agency-uploads",
-    ServeUnknownFileTypes = true
-});
+    app.UseStaticFiles(new StaticFileOptions
+    {
+        FileProvider = new PhysicalFileProvider(agencyUploads),
+        RequestPath  = "/agency-uploads",
+        ServeUnknownFileTypes = true
+    });
+}
 
 // ── CRMRS Agency Portal endpoints (/api/agency/*) ────────────────────────────
 {
