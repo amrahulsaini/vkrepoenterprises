@@ -66,7 +66,8 @@ internal static class AgencyPortal
             FromName = Env("SMTP_FROM_NAME", "CRMRS TEAM"),
         };
 
-        Directory.CreateDirectory(LOGO_DIR);
+        // Best-effort — deploy.sh creates this with the right ownership.
+        try { Directory.CreateDirectory(LOGO_DIR); } catch { }
 
         // =============================================================
         //   OTP — send & verify
