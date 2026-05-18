@@ -1,0 +1,628 @@
+// ─────────────────────────────────────────────────────────────────────
+//  CRMRS Agency Portal endpoints — registration + admin manage
+//
+//  Routes under  /api/agency/*  served by VKApiServer (port 5002), proxied
+//  by OpenLiteSpeed for  https://agency.crmrecoverysoftware.com/api/agency/*
+//
+//  Wire-up:  in Program.cs, after the rest of the endpoints, call:
+//      AgencyPortal.Map(app, connStr);
+// ─────────────────────────────────────────────────────────────────────
+using System;
+using System.IO;
+using System.Net;
+using System.Net.Mail;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.RegularExpressions;
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Routing;
+using MySqlConnector;
+
+namespace VKApiServer;
+
+internal static class AgencyPortal
+{
+    // Hardcoded for now — the /manage password gate
+    private const string MANAGE_PASSWORD = "crmrs@kc.12";
+
+    // Where new tenant logos land on disk. Served by OLS via the
+    // /agency-uploads/ static context on the agency vhost.
+    private const string LOGO_DIR = "/opt/vkapi/agency-uploads";
+
+    // Server secret used to derive each tenant's DB password deterministically.
+    // Override in env (TENANT_DB_SECRET) for production.
+    private static readonly string TenantDbSecret =
+        Environment.GetEnvironmentVariable("TENANT_DB_SECRET")
+        ?? "crmrs-tenant-secret-rotate-me-2026";
+
+    public static void Map(WebApplication app, string mysqlHost, int mysqlPort)
+    {
+        // ── Connection strings to crm_master ─────────────────────────
+        // crm_master_app   →  CRUD on crm_master only
+        // crm_provisioner  →  full privileges, used ONLY at approve time
+        // Secrets (passwords, SMTP key, tenant secret) come from the systemd
+        // service environment on the server — NOT committed here. Usernames /
+        // hostnames / ports are fine to keep as defaults.
+        string masterConn =
+            $"server={mysqlHost};port={mysqlPort};database=crm_master;" +
+            $"uid={Env("MASTER_DB_USER",     "crm_master_app")};" +
+            $"pwd={Env("MASTER_DB_PASSWORD", "SET_VIA_ENV")};" +
+             "Pooling=true;DefaultCommandTimeout=30;";
+        string provConn =
+            $"server={mysqlHost};port={mysqlPort};database=mysql;" +
+            $"uid={Env("PROVISIONER_DB_USER",     "crm_provisioner")};" +
+            $"pwd={Env("PROVISIONER_DB_PASSWORD", "SET_VIA_ENV")};" +
+             "Pooling=false;DefaultCommandTimeout=60;AllowUserVariables=true;";
+
+        // ── SMTP (Brevo) — sends the OTP emails ──────────────────────
+        var smtp = new SmtpConfig {
+            Host     = Env("SMTP_HOST",      "smtp-relay.brevo.com"),
+            Port     = int.Parse(Env("SMTP_PORT", "587")),
+            User     = Env("SMTP_USER",      "9a47c5001@smtp-brevo.com"),
+            Pass     = Env("SMTP_PASS",      "SET_VIA_ENV"),
+            FromAddr = Env("SMTP_FROM",      "team@crmrecoverysoftware.com"),
+            FromName = Env("SMTP_FROM_NAME", "CRMRS TEAM"),
+        };
+
+        Directory.CreateDirectory(LOGO_DIR);
+
+        // =============================================================
+        //   OTP — send & verify
+        // =============================================================
+        app.MapPost("/api/agency/otp/send", async (HttpRequest req) =>
+        {
+            var dto = await ReadJsonAsync(req);
+            string email = (dto.GetValueOrDefault("email") ?? "").Trim().ToLowerInvariant();
+            if (!IsValidEmail(email))
+                return Results.BadRequest(new { message = "Please provide a valid email address." });
+
+            string code = GenerateOtp();
+            var expiresAt = DateTime.UtcNow.AddMinutes(10);
+
+            await using var conn = new MySqlConnection(masterConn);
+            await conn.OpenAsync();
+            await using (var cmd = new MySqlCommand(
+                "INSERT INTO agency_otps (email, code, purpose, expires_at) VALUES (@e, @c, 'register', @x)", conn))
+            {
+                cmd.Parameters.AddWithValue("@e", email);
+                cmd.Parameters.AddWithValue("@c", code);
+                cmd.Parameters.AddWithValue("@x", expiresAt);
+                await cmd.ExecuteNonQueryAsync();
+            }
+
+            try
+            {
+                await SendOtpEmail(smtp, email, code);
+            }
+            catch (Exception ex)
+            {
+                return Results.Problem("Failed to send email: " + ex.Message);
+            }
+            return Results.Ok(new { sent = true });
+        });
+
+        app.MapPost("/api/agency/otp/verify", async (HttpRequest req) =>
+        {
+            var dto = await ReadJsonAsync(req);
+            string email = (dto.GetValueOrDefault("email") ?? "").Trim().ToLowerInvariant();
+            string code  = (dto.GetValueOrDefault("code") ?? "").Trim();
+            if (string.IsNullOrEmpty(email) || code.Length != 6)
+                return Results.BadRequest(new { message = "Email and 6-digit code required." });
+
+            await using var conn = new MySqlConnection(masterConn);
+            await conn.OpenAsync();
+            // Mark the most recent matching OTP consumed
+            await using var cmd = new MySqlCommand(@"
+                UPDATE agency_otps
+                   SET consumed = 1
+                 WHERE email = @e AND code = @c AND purpose = 'register'
+                   AND consumed = 0 AND expires_at > UTC_TIMESTAMP()
+                 ORDER BY id DESC LIMIT 1;", conn);
+            cmd.Parameters.AddWithValue("@e", email);
+            cmd.Parameters.AddWithValue("@c", code);
+            int n = await cmd.ExecuteNonQueryAsync();
+            if (n == 0) return Results.BadRequest(new { message = "Invalid or expired code." });
+            return Results.Ok(new { verified = true });
+        });
+
+        // =============================================================
+        //   Final registration (multipart: text fields + logo)
+        // =============================================================
+        app.MapPost("/api/agency/register", async (HttpRequest req) =>
+        {
+            if (!req.HasFormContentType)
+                return Results.BadRequest(new { message = "multipart/form-data required" });
+            var form = await req.ReadFormAsync();
+
+            string name    = (form["name"].ToString() ?? "").Trim();
+            string mobile1 = (form["mobile1"].ToString() ?? "").Trim();
+            string mobile2 = (form["mobile2"].ToString() ?? "").Trim();
+            string address = (form["address"].ToString() ?? "").Trim();
+            string email1  = (form["email1"].ToString() ?? "").Trim().ToLowerInvariant();
+            string email2  = (form["email2"].ToString() ?? "").Trim().ToLowerInvariant();
+            string password= form["password"].ToString() ?? "";
+
+            if (name.Length < 2 || string.IsNullOrWhiteSpace(mobile1)
+                || string.IsNullOrWhiteSpace(address) || !IsValidEmail(email1)
+                || string.IsNullOrEmpty(password))
+                return Results.BadRequest(new { message = "Missing required fields." });
+            if (!string.IsNullOrEmpty(email2) && !IsValidEmail(email2))
+                return Results.BadRequest(new { message = "Secondary email is invalid." });
+
+            await using var conn = new MySqlConnection(masterConn);
+            await conn.OpenAsync();
+
+            // Both emails must have a recently-consumed verification OTP
+            if (!await WasRecentlyVerified(conn, email1))
+                return Results.BadRequest(new { message = "Primary email is not verified — verify the OTP first." });
+            if (!string.IsNullOrEmpty(email2) && !await WasRecentlyVerified(conn, email2))
+                return Results.BadRequest(new { message = "Secondary email is not verified." });
+
+            // Email1 must be unique
+            await using (var dup = new MySqlCommand("SELECT COUNT(*) FROM agencies WHERE email1 = @e", conn))
+            {
+                dup.Parameters.AddWithValue("@e", email1);
+                var c = Convert.ToInt32(await dup.ExecuteScalarAsync());
+                if (c > 0)
+                    return Results.BadRequest(new { message = "An agency with this primary email already exists." });
+            }
+
+            string slug = await GenerateUniqueSlug(conn, name);
+
+            // Save the logo (already client-side compressed to ~JPEG)
+            string? logoRel = null;
+            var logoFile = form.Files["logo"];
+            if (logoFile != null && logoFile.Length > 0 && logoFile.Length < 5 * 1024 * 1024)
+            {
+                var ext = (Path.GetExtension(logoFile.FileName) ?? ".jpg").ToLowerInvariant();
+                if (ext.Length > 5 || !Regex.IsMatch(ext, @"^\.[a-z]+$")) ext = ".jpg";
+                var fname = $"{slug}{ext}";
+                var fpath = Path.Combine(LOGO_DIR, fname);
+                await using var fs = File.Create(fpath);
+                await logoFile.CopyToAsync(fs);
+                logoRel = "/agency-uploads/" + fname;
+            }
+
+            // Insert pending agency
+            await using (var ins = new MySqlCommand(@"
+                INSERT INTO agencies
+                  (name, slug, mobile1, mobile2, address, logo_path,
+                   email1, email2, password_hash, status, created_at)
+                VALUES
+                  (@name, @slug, @m1, @m2, @addr, @logo,
+                   @e1, @e2, @ph, 'pending', UTC_TIMESTAMP());", conn))
+            {
+                ins.Parameters.AddWithValue("@name", name);
+                ins.Parameters.AddWithValue("@slug", slug);
+                ins.Parameters.AddWithValue("@m1", mobile1);
+                ins.Parameters.AddWithValue("@m2", (object?)NullIfEmpty(mobile2) ?? DBNull.Value);
+                ins.Parameters.AddWithValue("@addr", address);
+                ins.Parameters.AddWithValue("@logo", (object?)logoRel ?? DBNull.Value);
+                ins.Parameters.AddWithValue("@e1", email1);
+                ins.Parameters.AddWithValue("@e2", (object?)NullIfEmpty(email2) ?? DBNull.Value);
+                ins.Parameters.AddWithValue("@ph", HashPassword(password));
+                await ins.ExecuteNonQueryAsync();
+            }
+
+            return Results.Ok(new { ok = true, slug });
+        });
+
+        // =============================================================
+        //   /manage  password gate
+        // =============================================================
+        app.MapPost("/api/agency/manage/login", async (HttpRequest req) =>
+        {
+            var dto = await ReadJsonAsync(req);
+            string password = dto.GetValueOrDefault("password") ?? "";
+            if (password != MANAGE_PASSWORD)
+                return Results.Json(new { message = "Incorrect password" }, statusCode: 401);
+
+            string token = NewToken();
+            await using var conn = new MySqlConnection(masterConn);
+            await conn.OpenAsync();
+            await using var cmd = new MySqlCommand(
+                "INSERT INTO manage_sessions (token, expires_at) VALUES (@t, DATE_ADD(UTC_TIMESTAMP(), INTERVAL 12 HOUR));", conn);
+            cmd.Parameters.AddWithValue("@t", token);
+            await cmd.ExecuteNonQueryAsync();
+            return Results.Ok(new { token });
+        });
+
+        // =============================================================
+        //   /manage  list / approve / reject
+        // =============================================================
+        app.MapGet("/api/agency/manage/list", async (HttpContext ctx, string? status) =>
+        {
+            if (!await IsManageTokenValid(masterConn, ctx))
+                return Results.Json(new { message = "Unauthorized" }, statusCode: 401);
+
+            string where = "";
+            var paramz = new (string k, object v)[0];
+            if (!string.IsNullOrEmpty(status) && status != "all")
+            {
+                where = " WHERE status = @s";
+                paramz = new[] { ("@s", (object)status) };
+            }
+
+            await using var conn = new MySqlConnection(masterConn);
+            await conn.OpenAsync();
+            await using var cmd = new MySqlCommand(@"
+                SELECT id, name, slug, mobile1, mobile2, address, logo_path,
+                       email1, email2, db_name, status, rejected_reason,
+                       created_at, approved_at
+                  FROM agencies " + where + " ORDER BY created_at DESC LIMIT 500;", conn);
+            foreach (var (k, v) in paramz) cmd.Parameters.AddWithValue(k, v);
+
+            var rows = new System.Collections.Generic.List<object>();
+            await using var rdr = await cmd.ExecuteReaderAsync();
+            while (await rdr.ReadAsync())
+            {
+                rows.Add(new {
+                    id              = rdr.GetInt32("id"),
+                    name            = rdr.GetString("name"),
+                    slug            = rdr.GetString("slug"),
+                    mobile1         = rdr.GetString("mobile1"),
+                    mobile2         = rdr.IsDBNull(rdr.GetOrdinal("mobile2"))      ? null : rdr.GetString("mobile2"),
+                    address         = rdr.IsDBNull(rdr.GetOrdinal("address"))      ? null : rdr.GetString("address"),
+                    logoPath        = rdr.IsDBNull(rdr.GetOrdinal("logo_path"))    ? null : rdr.GetString("logo_path"),
+                    email1          = rdr.GetString("email1"),
+                    email2          = rdr.IsDBNull(rdr.GetOrdinal("email2"))       ? null : rdr.GetString("email2"),
+                    dbName          = rdr.IsDBNull(rdr.GetOrdinal("db_name"))      ? null : rdr.GetString("db_name"),
+                    status          = rdr.GetString("status"),
+                    rejectedReason  = rdr.IsDBNull(rdr.GetOrdinal("rejected_reason")) ? null : rdr.GetString("rejected_reason"),
+                    createdAt       = rdr.GetDateTime("created_at").ToString("O"),
+                    approvedAt      = rdr.IsDBNull(rdr.GetOrdinal("approved_at"))  ? null : rdr.GetDateTime("approved_at").ToString("O"),
+                });
+            }
+            return Results.Ok(new { agencies = rows });
+        });
+
+        app.MapPost("/api/agency/manage/approve/{id:int}", async (HttpContext ctx, int id) =>
+        {
+            if (!await IsManageTokenValid(masterConn, ctx))
+                return Results.Json(new { message = "Unauthorized" }, statusCode: 401);
+
+            await using var conn = new MySqlConnection(masterConn);
+            await conn.OpenAsync();
+
+            string? slug = null, email1 = null, name = null;
+            await using (var sel = new MySqlCommand(
+                "SELECT slug, email1, name FROM agencies WHERE id=@id AND status='pending' LIMIT 1;", conn))
+            {
+                sel.Parameters.AddWithValue("@id", id);
+                await using var rdr = await sel.ExecuteReaderAsync();
+                if (!await rdr.ReadAsync())
+                    return Results.BadRequest(new { message = "Agency not found or not pending." });
+                slug   = rdr.GetString(0);
+                email1 = rdr.GetString(1);
+                name   = rdr.GetString(2);
+            }
+
+            string dbName = "crmr_" + slug;
+            string dbUser = "tu_"   + slug;     // tenant-user (≤16 chars usually fine)
+            if (dbUser.Length > 32) dbUser = dbUser.Substring(0, 32);
+            string dbPass = DeriveTenantPassword(slug);
+
+            // Provision the tenant DB + user, then apply the schema template
+            try
+            {
+                await ProvisionTenant(provConn, mysqlHost, mysqlPort, dbName, dbUser, dbPass);
+            }
+            catch (Exception ex)
+            {
+                return Results.Problem("Provisioning failed: " + ex.Message);
+            }
+
+            // Save dbName + dbUser onto the agency row; mark approved
+            await using (var upd = new MySqlCommand(@"
+                UPDATE agencies
+                   SET status = 'approved',
+                       approved_at = UTC_TIMESTAMP(),
+                       db_name = @db,
+                       db_user = @du
+                 WHERE id = @id;", conn))
+            {
+                upd.Parameters.AddWithValue("@db", dbName);
+                upd.Parameters.AddWithValue("@du", dbUser);
+                upd.Parameters.AddWithValue("@id", id);
+                await upd.ExecuteNonQueryAsync();
+            }
+
+            // Notify the agency by email — best-effort, non-fatal
+            try
+            {
+                await SendApprovedEmail(smtp, email1!, name!);
+            } catch { /* ignore */ }
+
+            return Results.Ok(new { ok = true, dbName });
+        });
+
+        app.MapPost("/api/agency/manage/reject/{id:int}", async (HttpContext ctx, int id, HttpRequest req) =>
+        {
+            if (!await IsManageTokenValid(masterConn, ctx))
+                return Results.Json(new { message = "Unauthorized" }, statusCode: 401);
+
+            var dto = await ReadJsonAsync(req);
+            string reason = dto.GetValueOrDefault("reason") ?? "";
+
+            await using var conn = new MySqlConnection(masterConn);
+            await conn.OpenAsync();
+            await using var cmd = new MySqlCommand(@"
+                UPDATE agencies SET status = 'rejected', rejected_reason = @r
+                 WHERE id = @id AND status = 'pending';", conn);
+            cmd.Parameters.AddWithValue("@r", (object?)NullIfEmpty(reason) ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@id", id);
+            int n = await cmd.ExecuteNonQueryAsync();
+            if (n == 0) return Results.BadRequest(new { message = "Agency not found or not pending." });
+            return Results.Ok(new { ok = true });
+        });
+    }
+
+    // ─────────────────────────────────────────────────────────────────
+    //   Helpers
+    // ─────────────────────────────────────────────────────────────────
+
+    private static string Env(string key, string fallback) =>
+        Environment.GetEnvironmentVariable(key) is { Length: > 0 } v ? v : fallback;
+
+    private static async Task<System.Collections.Generic.Dictionary<string, string>>
+        ReadJsonAsync(HttpRequest req)
+    {
+        try
+        {
+            using var sr = new StreamReader(req.Body);
+            var json = await sr.ReadToEndAsync();
+            if (string.IsNullOrWhiteSpace(json)) return new();
+            var doc = System.Text.Json.JsonDocument.Parse(json).RootElement;
+            var d = new System.Collections.Generic.Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            if (doc.ValueKind == System.Text.Json.JsonValueKind.Object)
+                foreach (var p in doc.EnumerateObject())
+                    d[p.Name] = p.Value.ValueKind == System.Text.Json.JsonValueKind.String
+                        ? (p.Value.GetString() ?? "")
+                        : p.Value.ToString();
+            return d;
+        }
+        catch { return new(); }
+    }
+
+    private static bool IsValidEmail(string e) =>
+        !string.IsNullOrEmpty(e) && Regex.IsMatch(e, @"^[^\s@]+@[^\s@]+\.[^\s@]+$");
+
+    private static string? NullIfEmpty(string s) => string.IsNullOrWhiteSpace(s) ? null : s;
+
+    private static string GenerateOtp()
+    {
+        // Cryptographic random 6-digit code (000000–999999)
+        var bytes = RandomNumberGenerator.GetBytes(4);
+        int v = BitConverter.ToInt32(bytes, 0) & 0x7FFFFFFF;
+        return (v % 1000000).ToString("D6");
+    }
+
+    private static string NewToken()
+    {
+        var bytes = RandomNumberGenerator.GetBytes(32);
+        return Convert.ToHexString(bytes);
+    }
+
+    // PBKDF2-SHA256, 100k iterations. Format: pbkdf2$<iter>$<salt-b64>$<hash-b64>
+    private static string HashPassword(string password)
+    {
+        const int iter = 100_000;
+        var salt = RandomNumberGenerator.GetBytes(16);
+        using var kdf = new Rfc2898DeriveBytes(password, salt, iter, HashAlgorithmName.SHA256);
+        var hash = kdf.GetBytes(32);
+        return $"pbkdf2${iter}${Convert.ToBase64String(salt)}${Convert.ToBase64String(hash)}";
+    }
+
+    // Used by future Login endpoint (batch 2).
+    public static bool VerifyPassword(string password, string stored)
+    {
+        try
+        {
+            var parts = stored.Split('$');
+            if (parts.Length != 4 || parts[0] != "pbkdf2") return false;
+            int iter = int.Parse(parts[1]);
+            var salt = Convert.FromBase64String(parts[2]);
+            var hash = Convert.FromBase64String(parts[3]);
+            using var kdf = new Rfc2898DeriveBytes(password, salt, iter, HashAlgorithmName.SHA256);
+            var check = kdf.GetBytes(hash.Length);
+            return CryptographicOperations.FixedTimeEquals(hash, check);
+        }
+        catch { return false; }
+    }
+
+    // Deterministic per-tenant DB password from a server secret + slug — so
+    // we never have to store the cleartext (decryptable) DB password.
+    public static string DeriveTenantPassword(string slug)
+    {
+        using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(TenantDbSecret));
+        var bytes = hmac.ComputeHash(Encoding.UTF8.GetBytes("tenant:" + slug));
+        // Use URL-safe base64, trim to a comfortable 28 chars, prepend a marker
+        return "T1!" + Convert.ToBase64String(bytes).Replace('+','-').Replace('/','_').Substring(0, 25);
+    }
+
+    private static async Task<bool> WasRecentlyVerified(MySqlConnection conn, string email)
+    {
+        // The most recent consumed OTP for this email must be within last 15 min.
+        await using var cmd = new MySqlCommand(@"
+            SELECT MAX(expires_at) FROM agency_otps
+             WHERE email = @e AND purpose = 'register' AND consumed = 1
+               AND expires_at > UTC_TIMESTAMP() - INTERVAL 30 MINUTE;", conn);
+        cmd.Parameters.AddWithValue("@e", email);
+        var v = await cmd.ExecuteScalarAsync();
+        return v != null && v != DBNull.Value;
+    }
+
+    private static async Task<bool> IsManageTokenValid(string masterConn, HttpContext ctx)
+    {
+        string? token = ctx.Request.Headers["X-Manage-Token"].FirstOrDefault();
+        if (string.IsNullOrEmpty(token) || token.Length != 64) return false;
+        await using var conn = new MySqlConnection(masterConn);
+        await conn.OpenAsync();
+        await using var cmd = new MySqlCommand(
+            "SELECT 1 FROM manage_sessions WHERE token=@t AND expires_at > UTC_TIMESTAMP() LIMIT 1;", conn);
+        cmd.Parameters.AddWithValue("@t", token);
+        var r = await cmd.ExecuteScalarAsync();
+        return r != null;
+    }
+
+    private static async Task<string> GenerateUniqueSlug(MySqlConnection conn, string name)
+    {
+        // Slugify: lowercase alphanumerics + underscore. Strip everything else.
+        string baseSlug = Regex.Replace(name.ToLowerInvariant(), @"[^a-z0-9]+", "_").Trim('_');
+        if (baseSlug.Length < 2) baseSlug = "agency";
+        if (baseSlug.Length > 40) baseSlug = baseSlug.Substring(0, 40);
+        string slug = baseSlug;
+        int suffix = 1;
+        while (true)
+        {
+            await using var cmd = new MySqlCommand("SELECT COUNT(*) FROM agencies WHERE slug = @s", conn);
+            cmd.Parameters.AddWithValue("@s", slug);
+            if (Convert.ToInt32(await cmd.ExecuteScalarAsync()) == 0) return slug;
+            suffix++;
+            slug = baseSlug + "_" + suffix;
+            if (suffix > 9999) throw new Exception("Could not derive a unique slug.");
+        }
+    }
+
+    private static async Task ProvisionTenant(string provConn, string mysqlHost, int mysqlPort,
+                                              string dbName, string dbUser, string dbPass)
+    {
+        // Validate identifiers — defence in depth. Only [a-z0-9_]+
+        if (!Regex.IsMatch(dbName, "^[a-z0-9_]+$") || !Regex.IsMatch(dbUser, "^[a-z0-9_]+$"))
+            throw new Exception("Internal: invalid identifier in provisioning.");
+
+        // 1) CREATE DATABASE + CREATE USER + GRANT (using crm_provisioner)
+        await using (var conn = new MySqlConnection(provConn))
+        {
+            await conn.OpenAsync();
+
+            // The single SQL block does the trio. Using STATEMENT for each so a partial
+            // failure can be cleanly diagnosed in the log.
+            await Exec(conn, $"CREATE DATABASE IF NOT EXISTS `{dbName}` CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;");
+            await Exec(conn, $"CREATE USER IF NOT EXISTS `{dbUser}`@`localhost` IDENTIFIED BY @pwd;", ("@pwd", dbPass));
+            await Exec(conn, $"GRANT ALL PRIVILEGES ON `{dbName}`.* TO `{dbUser}`@`localhost`;");
+            await Exec(conn, "FLUSH PRIVILEGES;");
+        }
+
+        // 2) Apply the schema template via a fresh connection AS THE TENANT USER
+        string tenantConn =
+            $"server={mysqlHost};port={mysqlPort};database={dbName};" +
+            $"uid={dbUser};pwd={dbPass};" +
+             "Pooling=false;AllowUserVariables=true;DefaultCommandTimeout=120;";
+
+        // tenant_template.sql is shipped alongside the published app
+        string schemaPath = Path.Combine(AppContext.BaseDirectory, "dbschema", "tenant_template.sql");
+        if (!File.Exists(schemaPath))
+            // also try ../ relative for dev runs
+            schemaPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "dbschema", "tenant_template.sql"));
+        if (!File.Exists(schemaPath))
+            throw new Exception("tenant_template.sql not found alongside the API binary.");
+
+        string ddl = await File.ReadAllTextAsync(schemaPath);
+
+        await using (var conn = new MySqlConnection(tenantConn))
+        {
+            await conn.OpenAsync();
+            await RunSqlScript(conn, ddl);
+        }
+    }
+
+    // Executes a multi-statement SQL script (a mysqldump --no-data file).
+    // MySqlConnector has no MySqlScript, so we split statement-by-statement:
+    // skip blank / "--" comment lines, and treat a line ending in ';' as the
+    // end of a statement. Safe for schema dumps (no ';' inside literals).
+    private static async Task RunSqlScript(MySqlConnection conn, string sql)
+    {
+        var buf = new StringBuilder();
+        foreach (var raw in sql.Split('\n'))
+        {
+            var line    = raw.TrimEnd('\r');
+            var trimmed = line.TrimStart();
+            if (trimmed.Length == 0 || trimmed.StartsWith("--")) continue;
+            buf.Append(line).Append('\n');
+            if (line.TrimEnd().EndsWith(";"))
+            {
+                var stmt = buf.ToString().Trim();
+                buf.Clear();
+                if (stmt.Length == 0 || stmt == ";") continue;
+                await using var cmd = new MySqlCommand(stmt, conn);
+                await cmd.ExecuteNonQueryAsync();
+            }
+        }
+        var last = buf.ToString().Trim();
+        if (last.Length > 0 && last != ";")
+        {
+            await using var cmd = new MySqlCommand(last, conn);
+            await cmd.ExecuteNonQueryAsync();
+        }
+    }
+
+    private static async Task Exec(MySqlConnection conn, string sql, params (string k, object v)[] paramz)
+    {
+        await using var cmd = new MySqlCommand(sql, conn);
+        foreach (var (k, v) in paramz) cmd.Parameters.AddWithValue(k, v);
+        await cmd.ExecuteNonQueryAsync();
+    }
+
+    // ── Email senders ─────────────────────────────────────────────────
+    private sealed class SmtpConfig
+    {
+        public string Host = ""; public int Port;
+        public string User = ""; public string Pass = "";
+        public string FromAddr = ""; public string FromName = "";
+    }
+
+    private static async Task SendOtpEmail(SmtpConfig s, string to, string code)
+    {
+        string subject = $"Your CRMRS verification code: {code}";
+        string html = $@"
+<div style=""font-family:Inter,Segoe UI,Arial,sans-serif;max-width:520px;margin:0 auto;padding:32px;color:#0F172A;background:#F6F8FB;"">
+  <div style=""background:#fff;border-radius:14px;border:1px solid #E4E9F0;padding:32px;"">
+    <h2 style=""margin:0 0 8px;font-size:20px;font-weight:800;color:#4F46E5;"">CRMRS Agency Portal</h2>
+    <p style=""margin:0 0 22px;color:#64748B;font-size:14px;"">Use the code below to verify your email address. It is valid for 10 minutes.</p>
+    <div style=""font-size:36px;font-weight:800;letter-spacing:.18em;text-align:center;padding:18px;background:#EEF2FF;color:#4338CA;border-radius:10px;"">{code}</div>
+    <p style=""margin:22px 0 0;color:#64748B;font-size:12.5px;"">If you did not request this code, you can safely ignore this email.</p>
+  </div>
+  <p style=""text-align:center;color:#94A3B8;font-size:11px;margin-top:14px;"">© CRMRS · team@crmrecoverysoftware.com</p>
+</div>";
+        await SendMail(s, to, subject, html);
+    }
+
+    private static async Task SendApprovedEmail(SmtpConfig s, string to, string agencyName)
+    {
+        string subject = "Your CRMRS agency has been approved";
+        string html = $@"
+<div style=""font-family:Inter,Segoe UI,Arial,sans-serif;max-width:520px;margin:0 auto;padding:32px;color:#0F172A;background:#F6F8FB;"">
+  <div style=""background:#fff;border-radius:14px;border:1px solid #E4E9F0;padding:32px;"">
+    <h2 style=""margin:0 0 8px;font-size:22px;font-weight:800;color:#10B981;"">You're approved 🎉</h2>
+    <p style=""margin:0 0 18px;color:#0F172A;font-size:15px;""><strong>{System.Net.WebUtility.HtmlEncode(agencyName)}</strong>, your CRMRS agency account is now active.</p>
+    <p style=""margin:0 0 18px;color:#64748B;font-size:14px;"">You can sign in to the desktop application using your primary email and the password you set during registration.</p>
+    <p style=""margin:0;color:#64748B;font-size:13px;"">A dedicated database has been created for your agency — your data is fully isolated.</p>
+  </div>
+  <p style=""text-align:center;color:#94A3B8;font-size:11px;margin-top:14px;"">© CRMRS · team@crmrecoverysoftware.com</p>
+</div>";
+        await SendMail(s, to, subject, html);
+    }
+
+    private static async Task SendMail(SmtpConfig s, string to, string subject, string html)
+    {
+        using var msg = new MailMessage();
+        msg.From = new MailAddress(s.FromAddr, s.FromName, Encoding.UTF8);
+        msg.To.Add(new MailAddress(to));
+        msg.Subject = subject;
+        msg.SubjectEncoding = Encoding.UTF8;
+        msg.Body = html;
+        msg.BodyEncoding = Encoding.UTF8;
+        msg.IsBodyHtml = true;
+
+        using var client = new SmtpClient(s.Host, s.Port)
+        {
+            Credentials = new NetworkCredential(s.User, s.Pass),
+            EnableSsl = true,
+            DeliveryMethod = SmtpDeliveryMethod.Network,
+        };
+        await client.SendMailAsync(msg);
+    }
+}

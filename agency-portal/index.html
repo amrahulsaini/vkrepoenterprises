@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CRMRS — Customer Relationship Management Recovery Software</title>
+<meta name="description" content="The professional vehicle-recovery operations platform — register your agency or manage applications.">
+<link rel="icon" href="assets/favicon.ico">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<header class="site-header">
+    <div class="container">
+        <a class="brand" href="/">
+            <img src="assets/logo-full.webp" alt="CRMRS" onerror="this.onerror=null;this.src='assets/logo-short.webp'">
+        </a>
+        <nav class="nav-actions">
+            <a class="btn btn-ghost btn-sm" href="manage.html">Manage</a>
+            <a class="btn btn-primary btn-sm" href="register.html">Register your agency</a>
+        </nav>
+    </div>
+</header>
+
+<main>
+    <section class="hero">
+        <div class="container-narrow">
+            <span class="eyebrow">CRMRS · Agency Portal</span>
+            <h1>Run your vehicle-recovery operations from one professional platform.</h1>
+            <p class="lead">
+                Register your agency, set up your dedicated workspace, and bring your field
+                team online with desktop + mobile tools designed for serious recovery work.
+            </p>
+            <div class="hero-cta">
+                <a class="btn btn-primary btn-lg" href="register.html">Register your agency →</a>
+                <a class="btn btn-outline btn-lg" href="manage.html">I'm an administrator</a>
+            </div>
+        </div>
+    </section>
+
+    <section class="section-sm">
+        <div class="container">
+            <div class="feature-grid">
+                <div class="feature">
+                    <div class="ico">●</div>
+                    <h3>Your own database</h3>
+                    <p>Every approved agency gets a fully isolated database. Your data never sits next to anyone else's.</p>
+                </div>
+                <div class="feature">
+                    <div class="ico">●</div>
+                    <h3>Verified onboarding</h3>
+                    <p>Two-step email verification with OTP at registration, then administrator review before activation.</p>
+                </div>
+                <div class="feature">
+                    <div class="ico">●</div>
+                    <h3>Desktop + field mobile</h3>
+                    <p>A Windows admin console for your office and an Android app for your field agents — both ready on day one.</p>
+                </div>
+                <div class="feature">
+                    <div class="ico">●</div>
+                    <h3>Built for compliance</h3>
+                    <p>Audit trail of every search, KYC on every agent, device-binding, and role-based access out of the box.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+</main>
+
+<footer class="site-footer">
+    <div class="container">
+        <div>© <span id="year"></span> CRMRS · Customer Relationship Management Recovery Software</div>
+        <div>Developed by <a href="mailto:rahul@loopwar.dev">rahul@loopwar.dev</a></div>
+    </div>
+</footer>
+
+<script>document.getElementById('year').textContent = new Date().getFullYear();</script>
+</body>
+</html>

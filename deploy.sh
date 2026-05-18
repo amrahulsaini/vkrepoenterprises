@@ -78,6 +78,27 @@ for DOCROOT in "${DOMAIN_DOCROOTS[@]}"; do
     info "Public assets ready → $PB"
 done
 
+# ── CRMRS Agency Portal — static site at agency.crmrecoverysoftware.com ───────
+AGENCY_DOCROOT="/home/crmrecoverysoftware.com/agency.crmrecoverysoftware.com"
+if [ -d "$AGENCY_DOCROOT" ]; then
+    chmod o+x /home/crmrecoverysoftware.com "$AGENCY_DOCROOT" 2>/dev/null || true
+    AGENCY_OWNER=$(stat -c '%U:%G' "$AGENCY_DOCROOT" 2>/dev/null)
+    # Re-sync the portal files (html / css / js / assets), keep any logs folder.
+    for item in index.html register.html manage.html css js assets; do
+        rm -rf "$AGENCY_DOCROOT/$item"
+        cp -r "$REPO_DIR/agency-portal/$item" "$AGENCY_DOCROOT/$item"
+    done
+    find "$AGENCY_DOCROOT" -type d -exec chmod 755 {} \;
+    find "$AGENCY_DOCROOT" -type f -exec chmod 644 {} \;
+    [ -n "$AGENCY_OWNER" ] && chown -R "$AGENCY_OWNER" \
+        "$AGENCY_DOCROOT/index.html" "$AGENCY_DOCROOT/register.html" \
+        "$AGENCY_DOCROOT/manage.html" "$AGENCY_DOCROOT/css" \
+        "$AGENCY_DOCROOT/js" "$AGENCY_DOCROOT/assets" 2>/dev/null || true
+    info "Agency portal ready → $AGENCY_DOCROOT"
+else
+    info "Skipping agency portal ($AGENCY_DOCROOT not present — create the child domain first)"
+fi
+
 section "Restarting vkapi service"
 systemctl restart vkapi
 sleep 2

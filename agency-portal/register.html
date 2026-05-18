@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Register Your Agency — CRMRS</title>
+<link rel="icon" href="assets/favicon.ico">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<header class="site-header">
+    <div class="container">
+        <a class="brand" href="/">
+            <img src="assets/logo-full.webp" alt="CRMRS" onerror="this.onerror=null;this.src='assets/logo-short.webp'">
+        </a>
+        <nav class="nav-actions">
+            <a class="btn btn-ghost btn-sm" href="manage.html">Manage</a>
+        </nav>
+    </div>
+</header>
+
+<main>
+    <section class="section">
+        <div class="container-narrow">
+            <div class="card" id="form-card">
+                <h2>Register your agency</h2>
+                <p class="subtitle">
+                    Fill in your agency details below. We'll verify both email addresses with a one-time
+                    code, then our team will review your application — you'll be notified once activated.
+                </p>
+
+                <form id="register-form" novalidate>
+
+                    <div class="form-group">
+                        <label class="label" for="name">Agency name *</label>
+                        <input class="input" type="text" id="name" maxlength="200" required>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="label" for="mobile1">Mobile number 1 *</label>
+                            <input class="input" type="tel" id="mobile1" maxlength="20" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="label" for="mobile2">Mobile number 2</label>
+                            <input class="input" type="tel" id="mobile2" maxlength="20">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="label" for="address">Agency address *</label>
+                        <textarea class="textarea" id="address" maxlength="1000" required></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="label" for="logo">Agency logo</label>
+                        <label class="file-drop" for="logo" id="logo-label">
+                            <input type="file" id="logo" accept="image/*">
+                            <div><strong>Click to upload</strong> &nbsp;<span class="text-muted">(PNG / JPG / WEBP, auto-compressed)</span></div>
+                            <div class="file-name" id="logo-name">No file selected</div>
+                        </label>
+                        <div class="file-preview hidden" id="logo-preview">
+                            <img id="logo-img" alt="">
+                            <div>
+                                <div id="logo-meta" class="muted"></div>
+                                <button type="button" class="btn btn-ghost btn-sm" id="logo-clear">Remove</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr style="border:0; border-top:1px solid var(--border-soft); margin: 22px 0;">
+
+                    <div class="form-group">
+                        <label class="label" for="email1">Primary email *</label>
+                        <div class="email-row">
+                            <input class="input" type="email" id="email1" required>
+                            <button type="button" class="btn btn-outline" id="verify-email1">Verify</button>
+                        </div>
+                        <div class="help" id="email1-help">A 6-digit code will be sent for verification.</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="label" for="email2">Secondary email</label>
+                        <div class="email-row">
+                            <input class="input" type="email" id="email2">
+                            <button type="button" class="btn btn-outline" id="verify-email2" disabled>Verify</button>
+                        </div>
+                        <div class="help" id="email2-help">Optional. If provided, must also be verified.</div>
+                    </div>
+
+                    <hr style="border:0; border-top:1px solid var(--border-soft); margin: 22px 0;">
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="label" for="password">Password *</label>
+                            <input class="input" type="password" id="password" required>
+                            <div class="help">Choose any password — no complexity requirements.</div>
+                        </div>
+                        <div class="form-group">
+                            <label class="label" for="password2">Confirm password *</label>
+                            <input class="input" type="password" id="password2" required>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-block btn-lg mt-2" id="submit-btn">
+                        Create my agency account
+                    </button>
+                </form>
+            </div>
+
+            <!-- Success state -->
+            <div class="card hidden text-center" id="success-card">
+                <div style="font-size:48px; line-height:1;">🎉</div>
+                <h2 class="mt-2">Application received</h2>
+                <p class="subtitle">
+                    Thank you! Your agency registration has been submitted successfully.<br>
+                    <strong>Your account will be approved after a detailed verification by our team.</strong>
+                    You'll receive an email at <span id="success-email"></span> once your agency is activated.
+                </p>
+                <a class="btn btn-primary mt-2" href="/">Back to home</a>
+            </div>
+        </div>
+    </section>
+</main>
+
+<!-- OTP modal -->
+<div class="modal-backdrop" id="otp-modal" role="dialog" aria-modal="true">
+    <div class="modal">
+        <h3 id="otp-title">Verify your email</h3>
+        <p id="otp-desc">Enter the 6-digit code we just sent to <strong id="otp-email"></strong>.</p>
+        <div class="otp" id="otp-input">
+            <input maxlength="1" inputmode="numeric" autocomplete="one-time-code"><input maxlength="1" inputmode="numeric"><input maxlength="1" inputmode="numeric"><input maxlength="1" inputmode="numeric"><input maxlength="1" inputmode="numeric"><input maxlength="1" inputmode="numeric">
+        </div>
+        <div class="field-error hidden" id="otp-error"></div>
+        <div class="otp-actions">
+            <button type="button" class="btn btn-ghost btn-sm" id="otp-resend">Resend code</button>
+            <div style="display:flex; gap:8px;">
+                <button type="button" class="btn btn-outline btn-sm" id="otp-cancel">Cancel</button>
+                <button type="button" class="btn btn-primary btn-sm" id="otp-confirm">Verify</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="toast-container" id="toasts"></div>
+
+<footer class="site-footer">
+    <div class="container">
+        <div>© <span id="year"></span> CRMRS</div>
+        <div>Developed by <a href="mailto:rahul@loopwar.dev">rahul@loopwar.dev</a></div>
+    </div>
+</footer>
+
+<script>document.getElementById('year').textContent = new Date().getFullYear();</script>
+<script src="js/api.js"></script>
+<script src="js/register.js"></script>
+</body>
+</html>
