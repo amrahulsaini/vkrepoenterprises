@@ -81,7 +81,9 @@ fun ConfirmScreen(
 
         line("Loan No",       item?.agreementNo)
         line("Customer Name", item?.customerName)
-        line("Branch",        item?.branchName)
+        // Branch = the raw branch from the uploaded Excel (branch_name_raw),
+        // NOT the finance/branch-master name.
+        line("Branch",        item?.branchFromExcel)
         line("Vehicle No",    item?.vehicleNo)
         line("Vehicle Model", item?.model)
         line("Chassis No",    item?.chassisNo)

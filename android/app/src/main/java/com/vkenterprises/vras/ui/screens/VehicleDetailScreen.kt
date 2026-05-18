@@ -470,13 +470,18 @@ private fun QuickSearchBar(
 
     // Auto-focus the field (and pop the numeric keyboard) as soon as a
     // vehicle's records are shown, so the next search needs no extra tap.
+    // requestFocus() throws until the field is actually laid out, so we
+    // retry for up to ~1.5 s instead of relying on a single fixed delay.
     val focusRequester = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
     LaunchedEffect(Unit) {
-        kotlinx.coroutines.delay(250)   // wait for the screen to settle
-        runCatching {
-            focusRequester.requestFocus()
-            keyboard?.show()
+        repeat(15) {
+            kotlinx.coroutines.delay(100)
+            val focused = runCatching { focusRequester.requestFocus() }.isSuccess
+            if (focused) {
+                keyboard?.show()
+                return@LaunchedEffect
+            }
         }
     }
 
@@ -842,7 +847,8 @@ private fun buildQuickWaMessage(
     appendLine("*Respected sir,*")
     appendLine("Loan No: *${item.agreementNo.orEmpty().ifBlank { "-" }}*")
     appendLine("Customer Name: *${item.customerName.orEmpty().ifBlank { "-" }}*")
-    appendLine("Branch: *${item.branchName.orEmpty().ifBlank { "-" }}*")
+    // Branch = raw Excel branch (branch_name_raw), not the finance name.
+    appendLine("Branch: *${item.branchFromExcel.orEmpty().ifBlank { "-" }}*")
     appendLine("Vehicle No: *${item.vehicleNo.orEmpty()}*")
     appendLine("Model/Maker: *${item.model.orEmpty().ifBlank { "-" }}*")
     appendLine("Chassis No: *${item.chassisNo.orEmpty()}*")
@@ -919,24 +925,24 @@ private fun SRow(
         // when the user has a custom phone font installed.
         Text(
             label,
-            style      = MaterialTheme.typography.labelSmall,
+            fontSize   = 14.sp,
             fontFamily = FontFamily.SansSerif,
             fontWeight = FontWeight.SemiBold,
             color      = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier   = Modifier.width(if (sel) 90.dp else 110.dp)
+            modifier   = Modifier.width(if (sel) 104.dp else 128.dp)
         )
         Text(
             ":",
-            style      = MaterialTheme.typography.labelSmall,
+            fontSize   = 14.sp,
             fontFamily = FontFamily.SansSerif,
             color      = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier   = Modifier.padding(end = 8.dp)
         )
         ClickableText(
             text = annotated,
-            style = MaterialTheme.typography.bodyMedium.copy(
+            style = MaterialTheme.typography.bodyLarge.copy(
                 color      = baseColor,
-                fontWeight = if (display.isBlank()) FontWeight.Normal else FontWeight.Bold,
+                fontWeight = if (display.isBlank()) FontWeight.Normal else FontWeight.ExtraBold,
                 fontFamily = if (mono) FontFamily.Monospace else FontFamily.SansSerif
             ),
             onClick = { offset ->
