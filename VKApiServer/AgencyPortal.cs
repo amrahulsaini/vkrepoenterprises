@@ -581,21 +581,33 @@ internal static class AgencyPortal
             $"uid={dbUser};pwd={dbPass};" +
              "Pooling=false;AllowUserVariables=true;DefaultCommandTimeout=120;";
 
-        // tenant_template.sql is shipped alongside the published app
-        string schemaPath = Path.Combine(AppContext.BaseDirectory, "dbschema", "tenant_template.sql");
-        if (!File.Exists(schemaPath))
-            // also try ../ relative for dev runs
-            schemaPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "dbschema", "tenant_template.sql"));
-        if (!File.Exists(schemaPath))
-            throw new Exception("tenant_template.sql not found alongside the API binary.");
-
-        string ddl = await File.ReadAllTextAsync(schemaPath);
+        // tenant_template.sql (schema) + tenant_seed.sql (default column types
+        // / mappings) ship alongside the published app. Both are applied on the
+        // same connection, so every new tenant DB is born seeded — with no
+        // runtime communication with vkre_db1 or any other database.
+        string  ddl      = await File.ReadAllTextAsync(ResolveSchemaFile("tenant_template.sql", required: true)!);
+        string? seedPath = ResolveSchemaFile("tenant_seed.sql", required: false);
+        string? seed     = seedPath is null ? null : await File.ReadAllTextAsync(seedPath);
 
         await using (var conn = new MySqlConnection(tenantConn))
         {
             await conn.OpenAsync();
             await RunSqlScript(conn, ddl);
+            if (!string.IsNullOrWhiteSpace(seed))
+                await RunSqlScript(conn, seed);
         }
+    }
+
+    // Locates a file shipped under dbschema/ next to the API binary, with a
+    // dev-run fallback to the repo's ../dbschema/ folder.
+    private static string? ResolveSchemaFile(string name, bool required)
+    {
+        string p = Path.Combine(AppContext.BaseDirectory, "dbschema", name);
+        if (!File.Exists(p))
+            p = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "dbschema", name));
+        if (File.Exists(p)) return p;
+        if (required) throw new Exception($"{name} not found alongside the API binary.");
+        return null;
     }
 
     // Executes a multi-statement SQL script (a mysqldump --no-data file that
