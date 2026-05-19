@@ -175,7 +175,7 @@ public partial class MainWindow : Window
     }
 
     // Downloads the signed-in agency's logo and shows it in the menu header.
-    // Best-effort — on any failure the default CRMRS mark stays in place.
+    // Best-effort — on any failure the default CRMS mark stays in place.
     private async void LoadAgencyLogo()
     {
         try

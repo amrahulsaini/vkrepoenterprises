@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────
-//  CRMRS Agency Portal endpoints — registration + admin manage
+//  CRMS Agency Portal endpoints — registration + admin manage
 //
 //  Routes under  /api/agency/*  served by VKApiServer (port 5002), proxied
 //  by OpenLiteSpeed for  https://agency.crmrecoverysoftware.com/api/agency/*
@@ -63,7 +63,7 @@ internal static class AgencyPortal
             User     = Env("SMTP_USER",      "9a47c5001@smtp-brevo.com"),
             Pass     = Env("SMTP_PASS",      "SET_VIA_ENV"),
             FromAddr = Env("SMTP_FROM",      "team@crmrecoverysoftware.com"),
-            FromName = Env("SMTP_FROM_NAME", "CRMRS TEAM"),
+            FromName = Env("SMTP_FROM_NAME", "CRMS TEAM"),
         };
 
         // Best-effort — deploy.sh creates this with the right ownership.
@@ -405,8 +405,8 @@ internal static class AgencyPortal
                 string msg = status switch
                 {
                     "pending"   => "Your agency account is still awaiting verification. You'll be able to sign in once an administrator approves it.",
-                    "rejected"  => "Your agency registration was not approved. Please contact CRMRS support.",
-                    "suspended" => "Your agency account has been suspended. Please contact CRMRS support.",
+                    "rejected"  => "Your agency registration was not approved. Please contact CRMS support.",
+                    "suspended" => "Your agency account has been suspended. Please contact CRMS support.",
                     _           => "Your agency account is not active.",
                 };
                 return Results.Json(new { message = msg }, statusCode: 403);
@@ -675,32 +675,32 @@ internal static class AgencyPortal
 
     private static async Task SendOtpEmail(SmtpConfig s, string to, string code)
     {
-        string subject = $"Your CRMRS verification code: {code}";
+        string subject = $"Your CRMS verification code: {code}";
         string html = $@"
 <div style=""font-family:Inter,Segoe UI,Arial,sans-serif;max-width:520px;margin:0 auto;padding:32px;color:#0F172A;background:#F6F8FB;"">
   <div style=""background:#fff;border-radius:14px;border:1px solid #E4E9F0;padding:32px;"">
-    <h2 style=""margin:0 0 8px;font-size:20px;font-weight:800;color:#4F46E5;"">CRMRS Agency Portal</h2>
+    <h2 style=""margin:0 0 8px;font-size:20px;font-weight:800;color:#4F46E5;"">CRMS Agency Portal</h2>
     <p style=""margin:0 0 22px;color:#64748B;font-size:14px;"">Use the code below to verify your email address. It is valid for 10 minutes.</p>
     <div style=""font-size:36px;font-weight:800;letter-spacing:.18em;text-align:center;padding:18px;background:#EEF2FF;color:#4338CA;border-radius:10px;"">{code}</div>
     <p style=""margin:22px 0 0;color:#64748B;font-size:12.5px;"">If you did not request this code, you can safely ignore this email.</p>
   </div>
-  <p style=""text-align:center;color:#94A3B8;font-size:11px;margin-top:14px;"">© CRMRS · team@crmrecoverysoftware.com</p>
+  <p style=""text-align:center;color:#94A3B8;font-size:11px;margin-top:14px;"">© CRMS · team@crmrecoverysoftware.com</p>
 </div>";
         await SendMail(s, to, subject, html);
     }
 
     private static async Task SendApprovedEmail(SmtpConfig s, string to, string agencyName)
     {
-        string subject = "Your CRMRS agency has been approved";
+        string subject = "Your CRMS agency has been approved";
         string html = $@"
 <div style=""font-family:Inter,Segoe UI,Arial,sans-serif;max-width:520px;margin:0 auto;padding:32px;color:#0F172A;background:#F6F8FB;"">
   <div style=""background:#fff;border-radius:14px;border:1px solid #E4E9F0;padding:32px;"">
     <h2 style=""margin:0 0 8px;font-size:22px;font-weight:800;color:#10B981;"">You're approved 🎉</h2>
-    <p style=""margin:0 0 18px;color:#0F172A;font-size:15px;""><strong>{System.Net.WebUtility.HtmlEncode(agencyName)}</strong>, your CRMRS agency account is now active.</p>
+    <p style=""margin:0 0 18px;color:#0F172A;font-size:15px;""><strong>{System.Net.WebUtility.HtmlEncode(agencyName)}</strong>, your CRMS agency account is now active.</p>
     <p style=""margin:0 0 18px;color:#64748B;font-size:14px;"">You can sign in to the desktop application using your primary email and the password you set during registration.</p>
     <p style=""margin:0;color:#64748B;font-size:13px;"">A dedicated database has been created for your agency — your data is fully isolated.</p>
   </div>
-  <p style=""text-align:center;color:#94A3B8;font-size:11px;margin-top:14px;"">© CRMRS · team@crmrecoverysoftware.com</p>
+  <p style=""text-align:center;color:#94A3B8;font-size:11px;margin-top:14px;"">© CRMS · team@crmrecoverysoftware.com</p>
 </div>";
         await SendMail(s, to, subject, html);
     }

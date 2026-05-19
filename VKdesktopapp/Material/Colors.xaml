@@ -3,7 +3,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
     <!-- ════════════════════════════════════════════════════════════════════
-         VK Enterprises — Design System: Colour Tokens
+         CRMS — Design System: Colour Tokens
          Brand: Black / White / Orange.  Every key here is consumed across
          25+ XAML files — keys are STABLE, only values are tuned.
          ════════════════════════════════════════════════════════════════════ -->
