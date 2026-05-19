@@ -13,11 +13,18 @@ public record RegisterRequest(
     string? AadhaarBack,
     string? PanFront,
     string? AccountNumber,
-    string? IfscCode);
+    string? IfscCode,
+    // Agency the user is joining + the agency's primary mobile (verification gate)
+    string? Slug = null,
+    string? AgencyMobile = null);
 
 public record LoginRequest(
-    string Mobile,
-    string DeviceId);
+    string  Mobile,
+    string  DeviceId,
+    string? Slug = null);
+
+// One entry of the agency picker shown on the register / login screens.
+public record AgencyListItem(long Id, string Name, string Slug);
 
 public record HeartbeatRequest(long UserId, double? Lat, double? Lng);
 
@@ -40,7 +47,10 @@ public record AuthResponse(
     string? Mobile,
     bool   IsAdmin,
     string? PfpUrl,
-    string? SubscriptionEndDate);
+    string? SubscriptionEndDate,
+    // Signed tenant token — the app sends it back as the X-Tenant-Token header
+    // so every subsequent request is routed to this agency's database.
+    string? TenantToken = null);
 
 // ── Search ──────────────────────────────────────────────
 public record SearchResult(

@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using MySqlConnector;
+using VKmobileapi;
 using VKmobileapi.Models;
 
 namespace VKmobileapi.Data;
@@ -32,8 +33,9 @@ public class MobileRepository
     private static readonly TimeSpan CacheTtl = TimeSpan.FromMinutes(1);
 
     // ── Subscription status cache — avoids DB hit on every request ─────────
-    // Key: userId — value: (hasActiveSub, cachedAt). TTL 5 min.
-    private static readonly ConcurrentDictionary<long, (bool Active, DateTime At)> _subCache = new();
+    // Key: "<tenant>:<userId>" — value: (hasActiveSub, cachedAt). TTL 5 min.
+    // The tenant prefix keeps one agency's cached flags out of another's.
+    private static readonly ConcurrentDictionary<string, (bool Active, DateTime At)> _subCache = new();
     private static readonly TimeSpan SubCacheTtl = TimeSpan.FromMinutes(5);
 
     public static void InvalidateSearchCache()
@@ -43,7 +45,37 @@ public class MobileRepository
 
     public static void InvalidateSubCache(long userId)
     {
-        _subCache.TryRemove(userId, out _);
+        // Subscription changes are rare — just clear every tenant's cached flags.
+        _subCache.Clear();
+    }
+
+    // ── Agency registry (crm_master) ───────────────────────────────────────
+    public async Task<List<AgencyListItem>> GetApprovedAgenciesAsync()
+    {
+        await using var conn = DbFactory.CreateMaster();
+        await conn.OpenAsync();
+        await using var cmd = new MySqlCommand(
+            "SELECT id, name, slug FROM agencies WHERE status='approved' ORDER BY name ASC", conn);
+        var list = new List<AgencyListItem>();
+        await using var rdr = await cmd.ExecuteReaderAsync();
+        while (await rdr.ReadAsync())
+            list.Add(new AgencyListItem(rdr.GetInt64(0), rdr.GetString(1), rdr.GetString(2)));
+        return list;
+    }
+
+    public async Task<(bool Found, string Name, string Mobile1, string Status)> GetAgencyBySlugAsync(string slug)
+    {
+        await using var conn = DbFactory.CreateMaster();
+        await conn.OpenAsync();
+        await using var cmd = new MySqlCommand(
+            "SELECT name, mobile1, status FROM agencies WHERE slug=@s LIMIT 1", conn);
+        cmd.Parameters.AddWithValue("@s", slug);
+        await using var rdr = await cmd.ExecuteReaderAsync();
+        if (!await rdr.ReadAsync()) return (false, "", "", "");
+        return (true,
+                rdr.GetString(0),
+                rdr.IsDBNull(1) ? "" : rdr.GetString(1),
+                rdr.GetString(2));
     }
 
 
@@ -248,7 +280,8 @@ public class MobileRepository
     // ── Subscription check (cached 5 min) ─────────────────────────────────
     public async Task<bool> HasActiveSubscriptionAsync(long userId)
     {
-        if (_subCache.TryGetValue(userId, out var sc) && DateTime.UtcNow - sc.At < SubCacheTtl)
+        var ck = $"{TenantContext.Key}:{userId}";
+        if (_subCache.TryGetValue(ck, out var sc) && DateTime.UtcNow - sc.At < SubCacheTtl)
             return sc.Active;
 
         await using var conn = DbFactory.Create();
@@ -258,7 +291,7 @@ public class MobileRepository
         cmd.Parameters.AddWithValue("@uid", userId);
         var active = Convert.ToInt64(await cmd.ExecuteScalarAsync()) > 0;
 
-        _subCache[userId] = (active, DateTime.UtcNow);
+        _subCache[ck] = (active, DateTime.UtcNow);
         return active;
     }
 

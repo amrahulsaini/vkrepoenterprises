@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vkenterprises.vras.data.api.ApiClient
+import com.vkenterprises.vras.data.api.SessionTokens
+import com.vkenterprises.vras.data.models.AgencyListItem
 import com.vkenterprises.vras.data.models.LoginRequest
 import com.vkenterprises.vras.data.models.RegisterRequest
 import com.vkenterprises.vras.data.repository.AuthRepository
@@ -55,6 +57,19 @@ class AuthViewModel @Inject constructor(
     val pfpUrl          = prefs.pfpUrl
     val subscriptionEnd = prefs.subscriptionEnd
     val blockedReason   = prefs.blockedReason  // used by background heartbeat worker
+    val agencySlug      = prefs.agencySlug
+    val agencyName      = prefs.agencyName
+
+    // Approved agencies for the register / login picker.
+    private val _agencies = MutableStateFlow<List<AgencyListItem>>(emptyList())
+    val agencies: StateFlow<List<AgencyListItem>> = _agencies.asStateFlow()
+
+    fun loadAgencies() = viewModelScope.launch {
+        when (val r = repo.getAgencies()) {
+            is AuthResult.Success -> _agencies.value = r.data
+            is AuthResult.Error   -> { /* leave empty — the screen shows a hint */ }
+        }
+    }
 
     // Direct in-memory signal for foreground status polling — no DataStore delay
     private val _kickReason = MutableStateFlow<String?>(null)
@@ -87,6 +102,11 @@ class AuthViewModel @Inject constructor(
     }
 
     init {
+        // Restore the tenant token into memory so authed requests route
+        // correctly even before the first login of this app session.
+        viewModelScope.launch {
+            SessionTokens.tenantToken = prefs.tenantToken.first()
+        }
         viewModelScope.launch {
             prefs.subscriptionEnd.collect { subEnd ->
                 if (!subEnd.isNullOrBlank()) {
@@ -106,7 +126,8 @@ class AuthViewModel @Inject constructor(
         pfpBase64: String?,
         aadhaarFront: String?, aadhaarBack: String?,
         panFront: String?,
-        accountNumber: String?, ifscCode: String?
+        accountNumber: String?, ifscCode: String?,
+        slug: String, agencyName: String, agencyMobile: String
     ) = viewModelScope.launch {
         _state.value = AuthUiState.Loading
         val deviceId = DeviceIdUtil.get(context)
@@ -116,25 +137,32 @@ class AuthViewModel @Inject constructor(
                 address?.trim(), pincode?.trim(),
                 pfpBase64, deviceId,
                 aadhaarFront, aadhaarBack, panFront,
-                accountNumber?.trim(), ifscCode?.trim()
+                accountNumber?.trim(), ifscCode?.trim(),
+                slug.trim(), agencyMobile.trim()
             )
         )
         _state.value = when (result) {
-            is AuthResult.Success -> AuthUiState.RegisterSuccess
+            is AuthResult.Success -> {
+                prefs.saveAgency(slug.trim(), agencyName)
+                AuthUiState.RegisterSuccess
+            }
             is AuthResult.Error   -> AuthUiState.Error(result.message)
         }
     }
 
-    fun login(mobile: String) = viewModelScope.launch {
+    fun login(mobile: String, slug: String, agencyName: String) = viewModelScope.launch {
         _state.value = AuthUiState.Loading
         val deviceId = DeviceIdUtil.get(context)
-        val result = repo.login(LoginRequest(mobile.trim(), deviceId))
+        val result = repo.login(LoginRequest(mobile.trim(), deviceId, slug.trim()))
         _state.value = when (result) {
             is AuthResult.Success -> {
                 val user = result.data
+                SessionTokens.tenantToken = user.tenantToken
+                prefs.saveAgency(slug.trim(), agencyName)
                 prefs.saveSession(
                     user.userId ?: 0L, user.name ?: "", user.mobile ?: "",
-                    user.isAdmin, user.subscriptionEndDate, user.pfpUrl
+                    user.isAdmin, user.subscriptionEndDate, user.pfpUrl,
+                    user.tenantToken
                 )
                 val subEnd = user.subscriptionEndDate
                 if (subEnd != null && LocalDate.parse(subEnd).isBefore(LocalDate.now()))

@@ -4,28 +4,52 @@ namespace VKmobileapi.Data;
 
 public static class DbFactory
 {
-    public static MySqlConnection Create()
+    private static string _masterConn = "";
+
+    // Called once at startup — captures env config into TenantContext and
+    // builds the crm_master connection string.
+    public static void Init()
     {
         var host = Environment.GetEnvironmentVariable("MYSQL_HOST")     ?? "127.0.0.1";
         var user = Environment.GetEnvironmentVariable("MYSQL_USER")     ?? "vkre_db1";
         var pass = Environment.GetEnvironmentVariable("MYSQL_PASSWORD") ?? "db1";
         var db   = Environment.GetEnvironmentVariable("MYSQL_DATABASE") ?? "vkre_db1";
-        var port = Environment.GetEnvironmentVariable("MYSQL_PORT")     ?? "3306";
+        uint port = uint.TryParse(Environment.GetEnvironmentVariable("MYSQL_PORT"), out var p) ? p : 3306u;
 
-        var cs = new MySqlConnectionStringBuilder
+        TenantContext.MysqlHost = host;
+        TenantContext.MysqlPort = (int)port;
+        TenantContext.DefaultConn = new MySqlConnectionStringBuilder
         {
             Server          = host,
             UserID          = user,
             Password        = pass,
             Database        = db,
-            Port            = uint.TryParse(port, out var p) ? p : 3306u,
+            Port            = port,
             SslMode         = MySqlSslMode.None,
             Pooling         = true,
             MaximumPoolSize = 20,
-            ConnectionTimeout      = 10,
-            DefaultCommandTimeout  = 30
+            ConnectionTimeout     = 10,
+            DefaultCommandTimeout = 30,
         }.ConnectionString;
 
-        return new MySqlConnection(cs);
+        // crm_master registry — agency list + registration verification gate.
+        _masterConn = new MySqlConnectionStringBuilder
+        {
+            Server   = host,
+            Port     = port,
+            Database = "crm_master",
+            UserID   = Environment.GetEnvironmentVariable("MASTER_DB_USER")     ?? "crm_master_app",
+            Password = Environment.GetEnvironmentVariable("MASTER_DB_PASSWORD") ?? "SET_VIA_ENV",
+            SslMode  = MySqlSslMode.None,
+            Pooling  = true,
+            ConnectionTimeout     = 10,
+            DefaultCommandTimeout = 30,
+        }.ConnectionString;
     }
+
+    /// <summary>Connection to the current request's tenant DB (vkre_db1 by default).</summary>
+    public static MySqlConnection Create() => new(TenantContext.Conn);
+
+    /// <summary>Connection to the crm_master agency registry.</summary>
+    public static MySqlConnection CreateMaster() => new(_masterConn);
 }

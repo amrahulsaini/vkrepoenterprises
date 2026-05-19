@@ -68,6 +68,8 @@ public partial class HomePage : Page
         _refreshTimer.Start();
     }
 
+    private string _mapUrl = "";
+
     private async Task InitMapAsync()
     {
         // WebView2 can only be initialized once per control. Page_Loaded fires
@@ -87,22 +89,61 @@ public partial class HomePage : Page
             await mapView.EnsureCoreWebView2Async(env);
 
             // Map HTML is hosted on the server so fixes don't require an installer update.
-            var baseUrl = App.ApiBaseUrl.TrimEnd('/');
-            var url = $"{baseUrl}/public/map_live.html";
+            _mapUrl = $"{App.ApiBaseUrl.TrimEnd('/')}/public/map_live.html";
 
             mapView.CoreWebView2.NavigationCompleted += (_, ev) =>
             {
-                if (!ev.IsSuccess)
-                    LogMapError($"Navigation failed to {url}\nWebErrorStatus: {ev.WebErrorStatus}");
+                if (ev.IsSuccess) HideMapError();
+                else ShowMapError($"Could not load the map page.\n{_mapUrl}\n(WebErrorStatus: {ev.WebErrorStatus})");
             };
-            mapView.CoreWebView2.Navigate(url);
+            mapView.CoreWebView2.ProcessFailed += (_, ev) =>
+                ShowMapError($"The map browser process stopped ({ev.ProcessFailedKind}). Click Retry.");
 
+            mapView.CoreWebView2.Navigate(_mapUrl);
             _ = PollForMapReadyAsync();
         }
         catch (Exception ex)
         {
-            LogMapError($"WebView2 init failed: {ex}");
+            ShowMapError("The map component could not start — the WebView2 runtime may be missing.\n\n" + ex.Message);
         }
+    }
+
+    private void MapRetry_Click(object sender, RoutedEventArgs e)
+    {
+        HideMapError();
+        if (mapView.CoreWebView2 != null && !string.IsNullOrEmpty(_mapUrl))
+        {
+            mapView.CoreWebView2.Navigate(_mapUrl);
+            _ = PollForMapReadyAsync();
+        }
+        else
+        {
+            // CoreWebView2 never initialized — allow a fresh attempt.
+            _mapInitStarted = false;
+            _ = InitMapAsync();
+        }
+    }
+
+    // Surfaces a map failure both on screen (so a blank panel is never a
+    // silent mystery) and in the diagnostic log file.
+    private void ShowMapError(string detail)
+    {
+        LogMapError(detail);
+        try
+        {
+            if (mapErrorDetail  != null) mapErrorDetail.Text       = detail;
+            if (mapErrorOverlay != null) mapErrorOverlay.Visibility = Visibility.Visible;
+        }
+        catch { }
+    }
+
+    private void HideMapError()
+    {
+        try
+        {
+            if (mapErrorOverlay != null) mapErrorOverlay.Visibility = Visibility.Collapsed;
+        }
+        catch { }
     }
 
     // Writes map failures to %LOCALAPPDATA%\VKEnterprises\map-errors.log so we
