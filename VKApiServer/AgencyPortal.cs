@@ -598,34 +598,52 @@ internal static class AgencyPortal
         }
     }
 
-    // Executes a multi-statement SQL script (a mysqldump --no-data file).
-    // MySqlConnector has no MySqlScript, so we split statement-by-statement:
-    // skip blank / "--" comment lines, and treat a line ending in ';' as the
-    // end of a statement. Safe for schema dumps (no ';' inside literals).
+    // Executes a multi-statement SQL script (a mysqldump --no-data file that
+    // may also carry stored routines). MySqlConnector has no MySqlScript and
+    // rejects the mysql-client `DELIMITER` directive, so we parse it ourselves:
+    //   • track the active statement delimiter (a DELIMITER line switches it),
+    //   • skip blank / "--" lines only when between statements,
+    //   • strip mysqldump's `DEFINER=` clause — the tenant user can't set a
+    //     routine's definer to another account, so the routine ends up owned
+    //     by the tenant user instead.
     private static async Task RunSqlScript(MySqlConnection conn, string sql)
     {
+        string delimiter = ";";
         var buf = new StringBuilder();
+
         foreach (var raw in sql.Split('\n'))
         {
             var line    = raw.TrimEnd('\r');
-            var trimmed = line.TrimStart();
-            if (trimmed.Length == 0 || trimmed.StartsWith("--")) continue;
-            buf.Append(line).Append('\n');
-            if (line.TrimEnd().EndsWith(";"))
+            var trimmed = line.Trim();
+
+            if (buf.Length == 0 && (trimmed.Length == 0 || trimmed.StartsWith("--")))
+                continue;
+
+            if (trimmed.StartsWith("DELIMITER ", StringComparison.OrdinalIgnoreCase))
             {
-                var stmt = buf.ToString().Trim();
-                buf.Clear();
-                if (stmt.Length == 0 || stmt == ";") continue;
-                await using var cmd = new MySqlCommand(stmt, conn);
-                await cmd.ExecuteNonQueryAsync();
+                delimiter = trimmed.Substring("DELIMITER ".Length).Trim();
+                continue;
             }
+
+            buf.Append(line).Append('\n');
+            if (!trimmed.EndsWith(delimiter, StringComparison.Ordinal))
+                continue;
+
+            var stmt = buf.ToString().Trim();
+            buf.Clear();
+            stmt = stmt.Substring(0, stmt.Length - delimiter.Length).Trim();
+            await ExecScriptStatement(conn, stmt);
         }
-        var last = buf.ToString().Trim();
-        if (last.Length > 0 && last != ";")
-        {
-            await using var cmd = new MySqlCommand(last, conn);
-            await cmd.ExecuteNonQueryAsync();
-        }
+        await ExecScriptStatement(conn, buf.ToString().Trim());
+    }
+
+    private static async Task ExecScriptStatement(MySqlConnection conn, string stmt)
+    {
+        if (stmt.Length == 0 || stmt == ";") return;
+        // mysqldump tags routines with the source server's DEFINER account.
+        stmt = Regex.Replace(stmt, @"DEFINER\s*=\s*`[^`]*`@`[^`]*`\s*", "");
+        await using var cmd = new MySqlCommand(stmt, conn);
+        await cmd.ExecuteNonQueryAsync();
     }
 
     private static async Task Exec(MySqlConnection conn, string sql, params (string k, object v)[] paramz)
