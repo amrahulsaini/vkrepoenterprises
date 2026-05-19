@@ -376,6 +376,28 @@
 
             <!-- Leaflet map via WebView2 -->
             <wv2:WebView2 Name="mapView" Grid.Row="2" />
+
+            <!-- Shown only when the map fails to load, so a blank panel is
+                 never a silent mystery — the reason is visible on screen. -->
+            <Border Name="mapErrorOverlay" Grid.Row="2" Visibility="Collapsed"
+                    Background="#1A1A1A">
+                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="24">
+                    <TextBlock Text="&#x1F5FA;" FontSize="40" TextAlignment="Center"
+                               Foreground="#888888" Margin="0,0,0,10" />
+                    <TextBlock Text="Live map unavailable"
+                               FontSize="15" FontWeight="SemiBold"
+                               Foreground="#DDDDDD" TextAlignment="Center" />
+                    <TextBlock Name="mapErrorDetail"
+                               FontSize="11" Foreground="#999999"
+                               TextAlignment="Center" TextWrapping="Wrap"
+                               MaxWidth="340" Margin="0,6,0,0" />
+                    <Button Name="mapRetryBtn" Content="Retry"
+                            Click="MapRetry_Click"
+                            Margin="0,14,0,0" Padding="20,7"
+                            HorizontalAlignment="Center" Cursor="Hand"
+                            Background="#FF9800" Foreground="White" BorderThickness="0" />
+                </StackPanel>
+            </Border>
         </Grid>
     </Grid>
 </Page>

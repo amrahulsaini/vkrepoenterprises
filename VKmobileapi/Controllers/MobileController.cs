@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using VKmobileapi;
 using VKmobileapi.Data;
 using VKmobileapi.Models;
 
@@ -16,6 +17,25 @@ public class MobileController : ControllerBase
             ? null
             : $"{Request.Scheme}://{Request.Host}/uploads/{relativePath.TrimStart('/')}";
 
+    // Keeps only digits — tolerant compare of mobile numbers regardless of
+    // spaces, +91 prefixes or punctuation.
+    private static string Digits(string? s) =>
+        string.IsNullOrEmpty(s) ? "" : new string(s.Where(char.IsDigit).ToArray());
+
+    // GET /api/mobile/agencies — approved agencies for the register / login picker
+    [HttpGet("agencies")]
+    public async Task<IActionResult> GetAgencies()
+    {
+        try
+        {
+            return Ok(await _repo.GetApprovedAgenciesAsync());
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new ApiError(false, $"Failed to load agencies: {ex.Message}"));
+        }
+    }
+
     // POST /api/mobile/register
     [HttpPost("register")]
     public async Task<IActionResult> Register([FromBody] RegisterRequest req)
@@ -26,6 +46,21 @@ public class MobileController : ControllerBase
                 return BadRequest(new ApiError(false, "Mobile and name are required."));
             if (string.IsNullOrWhiteSpace(req.DeviceId))
                 return BadRequest(new ApiError(false, "Device ID is required."));
+            if (string.IsNullOrWhiteSpace(req.Slug))
+                return BadRequest(new ApiError(false, "Please select your agency."));
+
+            // Verify the agency exists & is approved, and that the entered
+            // agency mobile number matches the agency's registered one. This
+            // gate stops anyone registering under an agency they don't belong to.
+            var agency = await _repo.GetAgencyBySlugAsync(req.Slug.Trim());
+            if (!agency.Found || agency.Status != "approved")
+                return BadRequest(new ApiError(false, "That agency is not available. Please pick another."));
+            var enteredAgencyMobile = Digits(req.AgencyMobile);
+            if (enteredAgencyMobile.Length == 0 || enteredAgencyMobile != Digits(agency.Mobile1))
+                return BadRequest(new ApiError(false, "The agency's mobile number does not match. Please confirm it with your agency."));
+
+            // All checks passed → register into that agency's own database.
+            TenantContext.UseAgency(req.Slug.Trim());
 
             var (success, reason, userId) = await _repo.RegisterAsync(
                 req.Mobile.Trim(), req.Name.Trim(),
@@ -53,10 +88,22 @@ public class MobileController : ControllerBase
         {
             if (string.IsNullOrWhiteSpace(req.Mobile) || string.IsNullOrWhiteSpace(req.DeviceId))
                 return BadRequest(new ApiError(false, "Mobile and device ID are required."));
+            if (string.IsNullOrWhiteSpace(req.Slug))
+                return BadRequest(new ApiError(false, "Please select your agency."));
+
+            // Validate the agency, then route this login to its database.
+            var agency = await _repo.GetAgencyBySlugAsync(req.Slug.Trim());
+            if (!agency.Found || agency.Status != "approved")
+                return BadRequest(new ApiError(false, "That agency is not available."));
+            TenantContext.UseAgency(req.Slug.Trim());
 
             var result = await _repo.LoginAsync(req.Mobile.Trim(), req.DeviceId.Trim());
             if (result.Reason == "ok")
-                result = result with { PfpUrl = AbsUrl(result.PfpUrl) };
+                result = result with
+                {
+                    PfpUrl      = AbsUrl(result.PfpUrl),
+                    TenantToken = MobileToken.Issue(req.Slug.Trim())
+                };
 
             return result.Reason switch
             {

@@ -27,6 +27,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.*
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import com.vkenterprises.vras.data.models.AgencyListItem
 import com.vkenterprises.vras.navigation.Screen
 import com.vkenterprises.vras.viewmodel.AuthUiState
 import com.vkenterprises.vras.viewmodel.AuthViewModel
@@ -60,6 +61,12 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
     var ifscCode        by remember { mutableStateOf("") }
 
     var error by remember { mutableStateOf("") }
+
+    // Agency selection (multi-tenant)
+    val agencies by vm.agencies.collectAsState()
+    var selectedAgency by remember { mutableStateOf<AgencyListItem?>(null) }
+    var agencyMobile   by remember { mutableStateOf("") }
+    LaunchedEffect(Unit) { vm.loadAgencies() }
 
     fun uriToBase64(uri: Uri): String? = runCatching {
         val bytes = context.contentResolver.openInputStream(uri)?.readBytes()
@@ -145,6 +152,33 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
             Text(
                 "Profile photo (optional)",
                 Modifier.align(Alignment.CenterHorizontally),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            // ── Agency ─────────────────────────────────────────────────
+            SectionHeader("Your Agency")
+            Text(
+                "Select the agency you work for, then confirm its primary mobile number.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            AgencyPickerField(
+                agencies = agencies,
+                selected = selectedAgency,
+                onSelect = { selectedAgency = it }
+            )
+            FocusedField(scrollState) {
+                OutlinedTextField(
+                    value = agencyMobile, onValueChange = { agencyMobile = it },
+                    label = { Text("Agency's Primary Mobile Number *") },
+                    leadingIcon = { Icon(Icons.Default.Phone, null) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone, imeAction = ImeAction.Next),
+                    singleLine = true, modifier = Modifier.fillMaxWidth().then(it)
+                )
+            }
+            Text(
+                "This must match the mobile number your agency registered with — it verifies your request.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -254,16 +288,24 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
             Button(
                 onClick = {
                     focusManager.clearFocus()
+                    val agency = selectedAgency
+                    if (agency == null) { error = "Please select your agency."; return@Button }
                     if (mobile.isBlank() || name.isBlank()) {
                         error = "Mobile and name are required."
                         return@Button
                     }
+                    if (agencyMobile.isBlank()) {
+                        error = "Enter your agency's primary mobile number."
+                        return@Button
+                    }
+                    error = ""
                     vm.register(
                         mobile, name,
                         address.ifBlank { null }, pincode.ifBlank { null },
                         pfpB64,
                         aadhaarFrontB64, aadhaarBackB64, panFrontB64,
-                        accountNumber.ifBlank { null }, ifscCode.ifBlank { null }
+                        accountNumber.ifBlank { null }, ifscCode.ifBlank { null },
+                        agency.slug, agency.name, agencyMobile
                     )
                 },
                 enabled  = state !is AuthUiState.Loading,

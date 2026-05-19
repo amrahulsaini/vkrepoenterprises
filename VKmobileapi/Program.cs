@@ -4,6 +4,7 @@ using VKmobileapi;
 using VKmobileapi.Data;
 
 LocalEnv.LoadBestEffort();
+DbFactory.Init();   // capture DB config + build the default/master connections
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -27,6 +28,28 @@ app.UseStaticFiles(new StaticFileOptions
 });
 
 app.UseCors();
+
+// ── Multi-tenant routing ─────────────────────────────────────────────────────
+// A request carrying a valid mobile tenant token (issued at login) is routed,
+// for its whole lifetime, to that agency's own database. register / login
+// carry no token yet — they bind the tenant themselves from the request body.
+app.Use(async (ctx, next) =>
+{
+    var token = ctx.Request.Headers["X-Tenant-Token"].FirstOrDefault();
+    if (!string.IsNullOrEmpty(token))
+    {
+        var slug = MobileToken.Verify(token);
+        if (slug == null)
+        {
+            ctx.Response.StatusCode = 401;
+            await ctx.Response.WriteAsJsonAsync(new { success = false, message = "Session expired — please sign in again." });
+            return;
+        }
+        TenantContext.UseAgency(slug);
+    }
+    await next();
+});
+
 app.MapControllers();
 
 app.MapGet("/", () => Results.Ok(new { status = "VK Mobile API running" }));

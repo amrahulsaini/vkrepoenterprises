@@ -6,6 +6,9 @@ import retrofit2.http.*
 
 interface ApiService {
 
+    @GET("api/mobile/agencies")
+    suspend fun getAgencies(): Response<List<AgencyListItem>>
+
     @POST("api/mobile/register")
     suspend fun register(@Body request: RegisterRequest): Response<Map<String, Any>>
 

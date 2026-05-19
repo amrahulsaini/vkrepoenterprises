@@ -117,7 +117,7 @@ function rowHtml(a) {
         ? `<button class="btn btn-success btn-sm" data-act="approve" data-id="${a.id}">Approve</button>
            <button class="btn btn-outline btn-sm" data-act="reject"  data-id="${a.id}">Reject</button>`
         : a.status === 'approved'
-            ? `<span class="text-muted">DB: <code>${escapeHtml(a.dbName || '—')}</code></span>`
+            ? `<span class="text-muted">✓ Active</span>`
             : `<span class="text-muted" title="${escapeHtml(a.rejectedReason || '')}">Reason: ${escapeHtml(a.rejectedReason || '—')}</span>`;
     return `
         <tr>
@@ -173,10 +173,10 @@ async function handleAction(act, id) {
         return;
     }
     if (act === 'approve') {
-        if (!confirm('Approve this agency? A dedicated database will be provisioned for them.')) return;
+        if (!confirm('Approve this agency? They will be activated and emailed their sign-in details.')) return;
         try {
-            const r = await api(`/manage/approve/${id}`, { method: 'POST' });
-            toast(`Approved — database "${r.dbName}" provisioned`, 'success', 5000);
+            await api(`/manage/approve/${id}`, { method: 'POST' });
+            toast('Agency approved & activated', 'success', 4000);
             loadList();
         } catch (e) {
             toast(e.message || 'Approval failed', 'error', 6000);

@@ -15,6 +15,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.*
 import androidx.navigation.NavController
+import com.vkenterprises.vras.data.models.AgencyListItem
 import com.vkenterprises.vras.navigation.Screen
 import com.vkenterprises.vras.viewmodel.AuthUiState
 import com.vkenterprises.vras.viewmodel.AuthViewModel
@@ -25,6 +26,18 @@ fun LoginScreen(vm: AuthViewModel, nav: NavController) {
 
     var mobile by remember { mutableStateOf("") }
     var error  by remember { mutableStateOf("") }
+
+    // Agency selection (multi-tenant) — pre-filled from the last login if any.
+    val agencies by vm.agencies.collectAsState()
+    val rememberedSlug by vm.agencySlug.collectAsState(initial = null)
+    val rememberedName by vm.agencyName.collectAsState(initial = null)
+    var selectedAgency by remember { mutableStateOf<AgencyListItem?>(null) }
+    LaunchedEffect(Unit) { vm.loadAgencies() }
+    LaunchedEffect(rememberedSlug, rememberedName) {
+        val slug = rememberedSlug
+        if (selectedAgency == null && slug != null)
+            selectedAgency = AgencyListItem(0L, rememberedName ?: slug, slug)
+    }
 
     LaunchedEffect(state) {
         when (state) {
@@ -88,17 +101,20 @@ fun LoginScreen(vm: AuthViewModel, nav: NavController) {
         ) {
             Spacer(Modifier.height(40.dp))
 
-            // Logo area
+            // CRMRS brand mark
             Surface(
-                shape = RoundedCornerShape(24.dp),
+                shape = RoundedCornerShape(20.dp),
                 color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(80.dp)
+                modifier = Modifier.height(72.dp)
             ) {
-                Box(contentAlignment = Alignment.Center) {
+                Box(
+                    Modifier.padding(horizontal = 24.dp),
+                    contentAlignment = Alignment.Center
+                ) {
                     Text(
-                        "VK",
+                        "CRMRS",
                         color = MaterialTheme.colorScheme.onPrimary,
-                        fontSize = 32.sp,
+                        fontSize = 28.sp,
                         fontWeight = FontWeight.Black
                     )
                 }
@@ -111,13 +127,19 @@ fun LoginScreen(vm: AuthViewModel, nav: NavController) {
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    "Sign in to VK Enterprises",
+                    "Sign in to CRMRS",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 
             Spacer(Modifier.height(8.dp))
+
+            AgencyPickerField(
+                agencies = agencies,
+                selected = selectedAgency,
+                onSelect = { selectedAgency = it }
+            )
 
             OutlinedTextField(
                 value = mobile,
@@ -149,8 +171,10 @@ fun LoginScreen(vm: AuthViewModel, nav: NavController) {
             Button(
                 onClick = {
                     error = ""
+                    val agency = selectedAgency
+                    if (agency == null) { error = "Please select your agency."; return@Button }
                     if (mobile.isBlank()) { error = "Enter your mobile number."; return@Button }
-                    vm.login(mobile)
+                    vm.login(mobile, agency.slug, agency.name)
                 },
                 enabled = state !is AuthUiState.Loading,
                 modifier = Modifier.fillMaxWidth().height(52.dp),

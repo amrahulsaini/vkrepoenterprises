@@ -14,12 +14,16 @@ data class RegisterRequest(
     val aadhaarBack: String?,
     val panFront: String?,
     val accountNumber: String?,
-    val ifscCode: String?
+    val ifscCode: String?,
+    // Agency the user is joining + the agency's primary mobile (verification gate)
+    val slug: String? = null,
+    val agencyMobile: String? = null
 )
 
 data class LoginRequest(
     val mobile: String,
-    val deviceId: String
+    val deviceId: String,
+    val slug: String? = null
 )
 
 data class AuthResponse(
@@ -31,7 +35,17 @@ data class AuthResponse(
     val mobile: String?,
     val isAdmin: Boolean,
     val pfpUrl: String?,
-    val subscriptionEndDate: String?
+    val subscriptionEndDate: String?,
+    // Signed tenant token — sent back as the X-Tenant-Token header so every
+    // later request is routed to this agency's database.
+    val tenantToken: String? = null
+)
+
+// One entry of the agency picker on the register / login screens.
+data class AgencyListItem(
+    val id: Long,
+    val name: String,
+    val slug: String
 )
 
 data class SearchResult(

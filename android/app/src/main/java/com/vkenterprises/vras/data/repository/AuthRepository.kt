@@ -49,6 +49,12 @@ class AuthRepository {
         }
     }.getOrElse { AuthResult.Error(it.message ?: "Network error") }
 
+    suspend fun getAgencies(): AuthResult<List<AgencyListItem>> = runCatching {
+        val resp = api.getAgencies()
+        if (resp.isSuccessful && resp.body() != null) AuthResult.Success(resp.body()!!)
+        else AuthResult.Error(parseError(resp))
+    }.getOrElse { AuthResult.Error(it.message ?: "Network error") }
+
     private fun <T> parseError(resp: Response<T>): String =
         resp.errorBody()?.string()?.let {
             Regex("\"message\":\"([^\"]+)\"").find(it)?.groupValues?.getOrNull(1)
