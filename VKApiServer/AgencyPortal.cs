@@ -213,6 +213,9 @@ internal static class AgencyPortal
         // =============================================================
         //   /manage  password gate
         // =============================================================
+        // Where the admin OTP for the manage page is sent. Override in env.
+        string manageOtpEmail = Env("MANAGE_OTP_EMAIL", "rahul@loopwar.dev");
+
         app.MapPost("/api/agency/manage/login", async (HttpRequest req) =>
         {
             var dto = await ReadJsonAsync(req);
@@ -227,6 +230,67 @@ internal static class AgencyPortal
                 "INSERT INTO manage_sessions (token, expires_at) VALUES (@t, DATE_ADD(UTC_TIMESTAMP(), INTERVAL 12 HOUR));", conn);
             cmd.Parameters.AddWithValue("@t", token);
             await cmd.ExecuteNonQueryAsync();
+            return Results.Ok(new { token });
+        });
+
+        // Step 1 of the 2-step admin gate: verify the manage password, then
+        // email a 6-digit OTP to the administrator address.
+        app.MapPost("/api/agency/manage/otp/request", async (HttpRequest req) =>
+        {
+            var dto = await ReadJsonAsync(req);
+            string password = dto.GetValueOrDefault("password") ?? "";
+            if (password != MANAGE_PASSWORD)
+                return Results.Json(new { message = "Incorrect password" }, statusCode: 401);
+
+            string code = GenerateOtp();
+            var expiresAt = DateTime.UtcNow.AddMinutes(10);
+            await using var conn = new MySqlConnection(masterConn);
+            await conn.OpenAsync();
+            await using (var cmd = new MySqlCommand(
+                "INSERT INTO agency_otps (email, code, purpose, expires_at) VALUES (@e, @c, 'manage', @x)", conn))
+            {
+                cmd.Parameters.AddWithValue("@e", manageOtpEmail);
+                cmd.Parameters.AddWithValue("@c", code);
+                cmd.Parameters.AddWithValue("@x", expiresAt);
+                await cmd.ExecuteNonQueryAsync();
+            }
+            try   { await SendManageOtpEmail(smtp, manageOtpEmail, code); }
+            catch (Exception ex) { return Results.Problem("Failed to send code: " + ex.Message); }
+
+            return Results.Ok(new { sent = true });
+        });
+
+        // Step 2: verify the OTP. On success, issue the same manage token the
+        // /manage/login endpoint hands out.
+        app.MapPost("/api/agency/manage/otp/verify", async (HttpRequest req) =>
+        {
+            var dto = await ReadJsonAsync(req);
+            string code = (dto.GetValueOrDefault("code") ?? "").Trim();
+            if (code.Length != 6)
+                return Results.BadRequest(new { message = "Enter the 6-digit code." });
+
+            await using var conn = new MySqlConnection(masterConn);
+            await conn.OpenAsync();
+            // Consume the most recent matching, unconsumed, unexpired manage OTP.
+            int n;
+            await using (var upd = new MySqlCommand(@"
+                UPDATE agency_otps
+                   SET consumed = 1
+                 WHERE purpose = 'manage' AND code = @c AND consumed = 0
+                   AND expires_at > UTC_TIMESTAMP()
+                 ORDER BY id DESC LIMIT 1;", conn))
+            {
+                upd.Parameters.AddWithValue("@c", code);
+                n = await upd.ExecuteNonQueryAsync();
+            }
+            if (n == 0)
+                return Results.BadRequest(new { message = "Invalid or expired code." });
+
+            string token = NewToken();
+            await using var ins = new MySqlCommand(
+                "INSERT INTO manage_sessions (token, expires_at) VALUES (@t, DATE_ADD(UTC_TIMESTAMP(), INTERVAL 12 HOUR));", conn);
+            ins.Parameters.AddWithValue("@t", token);
+            await ins.ExecuteNonQueryAsync();
             return Results.Ok(new { token });
         });
 
@@ -698,9 +762,25 @@ internal static class AgencyPortal
     <h2 style=""margin:0 0 8px;font-size:22px;font-weight:800;color:#10B981;"">You're approved 🎉</h2>
     <p style=""margin:0 0 18px;color:#0F172A;font-size:15px;""><strong>{System.Net.WebUtility.HtmlEncode(agencyName)}</strong>, your CRMS agency account is now active.</p>
     <p style=""margin:0 0 18px;color:#64748B;font-size:14px;"">You can sign in to the desktop application using your primary email and the password you set during registration.</p>
-    <p style=""margin:0;color:#64748B;font-size:13px;"">A dedicated database has been created for your agency — your data is fully isolated.</p>
+    <p style=""margin:0;color:#64748B;font-size:13px;"">Your agency has its own private workspace — your data is fully isolated from every other agency.</p>
   </div>
   <p style=""text-align:center;color:#94A3B8;font-size:11px;margin-top:14px;"">© CRMS · team@crmrecoverysoftware.com</p>
+</div>";
+        await SendMail(s, to, subject, html);
+    }
+
+    private static async Task SendManageOtpEmail(SmtpConfig s, string to, string code)
+    {
+        string subject = $"CRMS admin sign-in code: {code}";
+        string html = $@"
+<div style=""font-family:Inter,Segoe UI,Arial,sans-serif;max-width:520px;margin:0 auto;padding:32px;color:#0F172A;background:#F6F8FB;"">
+  <div style=""background:#fff;border-radius:14px;border:1px solid #E4E9F0;padding:32px;"">
+    <h2 style=""margin:0 0 8px;font-size:20px;font-weight:800;color:#EA580C;"">CRMS Administrator</h2>
+    <p style=""margin:0 0 22px;color:#64748B;font-size:14px;"">Use the code below to finish signing in to the manage page. It is valid for 10 minutes.</p>
+    <div style=""font-size:36px;font-weight:800;letter-spacing:.18em;text-align:center;padding:18px;background:#FFF3EA;color:#9A3412;border-radius:10px;"">{code}</div>
+    <p style=""margin:22px 0 0;color:#64748B;font-size:12.5px;"">If you did not request this code, someone may have tried to access the admin page — you can safely ignore the email.</p>
+  </div>
+  <p style=""text-align:center;color:#94A3B8;font-size:11px;margin-top:14px;"">© CRMS · admin sign-in</p>
 </div>";
         await SendMail(s, to, subject, html);
     }
