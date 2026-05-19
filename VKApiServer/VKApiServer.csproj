@@ -11,11 +11,15 @@
     <PackageReference Include="MySqlConnector" Version="2.3.7" />
   </ItemGroup>
 
-  <!-- Ship the per-tenant schema template alongside the binary so the
-       agency-approve endpoint can apply it to each new tenant database. -->
+  <!-- Ship the per-tenant schema template + default seed data alongside the
+       binary so the agency-approve endpoint can apply them to each new
+       tenant database (no runtime dependency on vkre_db1). -->
   <ItemGroup>
     <None Include="..\dbschema\tenant_template.sql"
           Link="dbschema\tenant_template.sql"
+          CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\dbschema\tenant_seed.sql"
+          Link="dbschema\tenant_seed.sql"
           CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
