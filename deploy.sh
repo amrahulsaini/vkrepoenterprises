@@ -69,8 +69,8 @@ for DOCROOT in "${DOMAIN_DOCROOTS[@]}"; do
     DL="$DOCROOT/downloads"
     mkdir -p "$DL"
     cp "$VKAPI_SRC/downloads/index.html" "$DL/index.html"
-    if [ -f "$REPO_DIR/installer-output/VKEnterprises_Setup.exe" ]; then
-        cp "$REPO_DIR/installer-output/VKEnterprises_Setup.exe" "$DL/VKEnterprises_Setup.exe"
+    if [ -f "$REPO_DIR/installer-output/CRMS_Setup.exe" ]; then
+        cp "$REPO_DIR/installer-output/CRMS_Setup.exe" "$DL/CRMS_Setup.exe"
     fi
     chmod 755 "$DL"
     find "$DL" -type f -exec chmod 644 {} \;

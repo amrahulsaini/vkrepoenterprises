@@ -1,23 +1,26 @@
-; VK Enterprises — Inno Setup installer script
+; CRMS — Inno Setup installer script
 ; Build: open in Inno Setup Compiler → Compile (Ctrl+F9)
-; Output: installer-output\VKEnterprises_Setup.exe
+; Output: installer-output\CRMS_Setup.exe
 
-#define AppName    "VK Enterprises"
+#define AppName    "CRMS"
 #define AppVersion "1.0"
 #define AppExe     "VRASDesktopApp.exe"
 #define PublishDir "VKdesktopapp\publish-fresh"
 
 [Setup]
+; Stable GUID — keep across future versions so upgrades replace the same install.
+AppId={{9F4A1B2C-5E3D-4F8A-B7C2-1D2E3F4A5B6C}
 AppName={#AppName}
 AppVersion={#AppVersion}
-AppPublisher=VK Enterprises
-AppPublisherURL=https://vkenterprises.com
+AppPublisher=CRMS
+AppPublisherURL=https://crmrecoverysoftware.com
 DefaultDirName={autopf}\{#AppName}
 DefaultGroupName={#AppName}
 OutputDir=installer-output
-OutputBaseFilename=VKEnterprises_Setup
+OutputBaseFilename=CRMS_Setup
 SetupIconFile=VKdesktopapp\public\favicon.ico
 UninstallDisplayIcon={app}\{#AppExe}
+UninstallDisplayName={#AppName}
 Compression=lzma2/ultra64
 SolidCompression=yes
 WizardStyle=modern
@@ -42,4 +45,4 @@ Name: "{commondesktop}\{#AppName}"; Filename: "{app}\{#AppExe}"
 Filename: "{app}\{#AppExe}"; Description: "Launch {#AppName} now"; Flags: nowait postinstall skipifsilent
 
 [Messages]
-FinishedLabel=VK Enterprises has been installed successfully.%n%nTo pin it to your taskbar: right-click the Desktop shortcut and choose "Pin to taskbar".
+FinishedLabel=CRMS has been installed successfully.%n%nTo pin it to your taskbar: right-click the Desktop shortcut and choose "Pin to taskbar".
