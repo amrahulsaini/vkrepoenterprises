@@ -397,7 +397,7 @@ public partial class ReportsPage : Page
             var hdrFont   = new PdfStandardFont(PdfFontFamily.Helvetica, 6.5f, PdfFontStyle.Bold);
 
             var firstPage = doc.Pages.Add();
-            string title = $"VK Enterprises — Users  ({DateTime.Today:dd MMM yyyy})  •  {rows.Count:N0} records" +
+            string title = $"{App.BrandName} — Users  ({DateTime.Today:dd MMM yyyy})  •  {rows.Count:N0} records" +
                            (capped ? $"  [capped at {PdfRowCap:N0}]" : "");
             firstPage.Graphics.DrawString(title, titleFont, PdfBrushes.Black,
                 new Syncfusion.Drawing.PointF(0, 0));
@@ -472,7 +472,7 @@ public partial class ReportsPage : Page
             var hdrFont   = new PdfStandardFont(PdfFontFamily.Helvetica, 6.5f, PdfFontStyle.Bold);
 
             var firstPage = doc.Pages.Add();
-            string title = $"VK Enterprises — Subscriptions  ({DateTime.Today:dd MMM yyyy})  •  {rows.Count:N0} records" +
+            string title = $"{App.BrandName} — Subscriptions  ({DateTime.Today:dd MMM yyyy})  •  {rows.Count:N0} records" +
                            (capped ? $"  [capped at {PdfRowCap:N0}]" : "");
             firstPage.Graphics.DrawString(title, titleFont, PdfBrushes.Black,
                 new Syncfusion.Drawing.PointF(0, 0));
@@ -574,7 +574,7 @@ public partial class ReportsPage : Page
             var hdrFont   = new PdfStandardFont(PdfFontFamily.Helvetica, 5.5f, PdfFontStyle.Bold);
 
             var firstDocPage = doc.Pages.Add();
-            string titleText = $"VK Enterprises — {reportTitle}  ({DateTime.Today:dd MMM yyyy})  •  {allRows.Count:N0} records" +
+            string titleText = $"{App.BrandName} — {reportTitle}  ({DateTime.Today:dd MMM yyyy})  •  {allRows.Count:N0} records" +
                                (capped ? $"  [capped at {PdfRowCap:N0}]" : "");
             firstDocPage.Graphics.DrawString(titleText, titleFont, PdfBrushes.Black,
                 new Syncfusion.Drawing.PointF(0, 0));

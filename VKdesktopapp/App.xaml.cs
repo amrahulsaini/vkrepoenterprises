@@ -27,6 +27,15 @@ public partial class App : Application
 
     public static string ApiKey => Settings.Default.ApiKey;
 
+    /// <summary>
+    /// Display name for report / PDF exports: the signed-in agency's name when
+    /// running as a tenant, otherwise the product name.
+    /// </summary>
+    public static string BrandName =>
+        (SignedAppUser?.IsAgency == true && !string.IsNullOrWhiteSpace(SignedAppUser.AgencyName))
+            ? SignedAppUser!.AgencyName
+            : "CRMRS";
+
     public App()
     {
         // Load environment variables from project .env if present (for local dev)
