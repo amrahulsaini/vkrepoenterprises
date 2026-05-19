@@ -1,7 +1,10 @@
+using System;
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using VRASDesktopApp.AppUsers;
 using VRASDesktopApp.Blacklist;
 using VRASDesktopApp.Confirmations;
@@ -54,6 +57,7 @@ public partial class MainWindow : Window
         {
             clmMenuContainer.Width = new GridLength(320);
         }
+        LoadAgencyLogo();
     }
 
     private void LoadPage(Page page)
@@ -154,19 +158,44 @@ public partial class MainWindow : Window
         _recordsEditorWindow.Activate();
     }
 
+    // Shows the signed-in agency's name / contact / address in the menu header.
+    // Falls back to the locally-configured firm when no agency session exists.
     private void RefreshFirmLabels()
     {
-        var nameTb = FindName("lblFirmName") as TextBlock;
-        if (nameTb != null) nameTb.Text = App.Firm.FirmName;
+        var u = App.SignedAppUser;
+        bool agency = u != null && u.IsAgency;
 
-        if (FindName("lblFirmMobile") is TextBlock mobileTb)
-        {
-            mobileTb.Text = App.Firm.ContactNos;
-        }
+        string name   = agency && !string.IsNullOrWhiteSpace(u!.AgencyName) ? u.AgencyName : App.Firm.FirmName;
+        string mobile = agency && !string.IsNullOrWhiteSpace(u!.Mobile1)    ? u.Mobile1    : App.Firm.ContactNos;
+        string addr   = agency && !string.IsNullOrWhiteSpace(u!.Address)    ? u.Address    : App.Firm.Address;
 
-        if (FindName("lblFirmAddress") is TextBlock addrTb)
+        if (FindName("lblFirmName")    is TextBlock nameTb)   nameTb.Text   = name;
+        if (FindName("lblFirmMobile")  is TextBlock mobileTb) mobileTb.Text = mobile;
+        if (FindName("lblFirmAddress") is TextBlock addrTb)   addrTb.Text   = addr;
+    }
+
+    // Downloads the signed-in agency's logo and shows it in the menu header.
+    // Best-effort — on any failure the default CRMRS mark stays in place.
+    private async void LoadAgencyLogo()
+    {
+        try
         {
-            addrTb.Text = App.Firm.Address;
+            var u = App.SignedAppUser;
+            if (u == null || !u.IsAgency || string.IsNullOrWhiteSpace(u.LogoPath)) return;
+            if (FindName("imgAgencyLogo") is not Image img) return;
+
+            var url = App.ApiBaseUrl.TrimEnd('/') + "/" + u.LogoPath.TrimStart('/');
+            var bytes = await App.HttpClient.GetByteArrayAsync(url);
+
+            using var ms = new MemoryStream(bytes);
+            var bmp = new BitmapImage();
+            bmp.BeginInit();
+            bmp.StreamSource = ms;
+            bmp.CacheOption  = BitmapCacheOption.OnLoad;
+            bmp.EndInit();
+            bmp.Freeze();
+            img.Source = bmp;
         }
+        catch { /* keep the default logo */ }
     }
 }

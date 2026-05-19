@@ -9,8 +9,8 @@
     Style="{StaticResource ChromeWindow}"
     Background="{StaticResource Gray50}"
     Icon="public/favicon.ico"
-    Title="VK Enterprises - Login"
-    Height="640"
+    Title="CRMRS - Login"
+    Height="560"
     Width="420"
     WindowStartupLocation="CenterScreen"
     KeyDown="Window_KeyDown"
@@ -28,7 +28,7 @@
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="40" />
             </Grid.ColumnDefinitions>
-            <TextBlock Text="VK Enterprises"
+            <TextBlock Text="CRMRS"
                        VerticalAlignment="Center" Margin="14,0,0,0"
                        FontSize="12" FontWeight="SemiBold"
                        Foreground="{StaticResource Orange500}"
@@ -59,76 +59,65 @@
         <!-- Login Form -->
         <StackPanel Grid.Row="1">
             <!-- Logo (favicon.ico) -->
-            <Grid Width="90" Height="90" Margin="0,24,0,4">
-                <Rectangle RadiusX="90" RadiusY="90"
+            <Grid Width="96" Height="96" Margin="0,32,0,8">
+                <Rectangle RadiusX="96" RadiusY="96"
                            Stroke="{StaticResource Gray300}" StrokeThickness="1.5"
                            StrokeDashArray="3,2" />
-                <Border CornerRadius="45" Height="72" Width="72"
+                <Border CornerRadius="48" Height="76" Width="76"
                         Background="{StaticResource Gray900}" />
                 <Image Source="/public/favicon.ico"
-                       Width="48" Height="48"
+                       Width="52" Height="52"
+                       RenderOptions.BitmapScalingMode="HighQuality"
                        HorizontalAlignment="Center" VerticalAlignment="Center" />
             </Grid>
 
-            <!-- Firm Name -->
-            <TextBlock Name="lblFirmName"
-                       Text="VK Enterprises"
+            <!-- Product Name -->
+            <TextBlock Text="CRMRS"
                        TextAlignment="Center"
-                       FontSize="20" FontWeight="Bold"
+                       FontSize="26" FontWeight="Bold"
                        Foreground="{StaticResource Gray900}"
-                       Margin="16,0,16,4"
+                       Margin="16,4,16,0" />
+            <TextBlock Text="Customer Relationship Management Recovery Software"
+                       TextAlignment="Center"
+                       FontSize="11"
+                       Foreground="{StaticResource Gray500}"
+                       Margin="28,2,28,0"
                        TextWrapping="Wrap" />
 
-            <!-- Contact Info -->
-            <StackPanel Margin="20,4">
-                <TextBlock Padding="0,8,0,2" Text="CONTACT"
-                           Foreground="{StaticResource Gray500}"
-                           FontSize="10" FontWeight="SemiBold" />
-                <TextBlock Name="lblFirmMobile"
-                           Text="9850637363"
-                           FontSize="14"
-                           Foreground="{StaticResource Gray800}" />
-                <TextBlock Padding="0,10,0,2" Text="ADDRESS"
-                           Foreground="{StaticResource Gray500}"
-                           FontSize="10" FontWeight="SemiBold" />
-                <TextBlock Name="lblFirmAddress"
-                           Text="VK Maharashtra"
-                           FontSize="13"
-                           Foreground="{StaticResource Gray700}"
-                           TextWrapping="Wrap" />
-            </StackPanel>
-
             <!-- Divider -->
-            <Border Height="1" Background="{StaticResource Gray200}" Margin="20,8" />
+            <Border Height="1" Background="{StaticResource Gray200}" Margin="28,18,28,4" />
 
-            <!-- Mobile Input -->
-            <StackPanel Margin="20,8">
-                <TextBlock Text="MOBILE NUMBER"
+            <TextBlock Text="Sign in to your agency account"
+                       TextAlignment="Center"
+                       FontSize="12"
+                       Foreground="{StaticResource Gray600}"
+                       Margin="16,6,16,0" />
+
+            <!-- Email Input -->
+            <StackPanel Margin="28,10,28,0">
+                <TextBlock Text="EMAIL ADDRESS"
                            Foreground="{StaticResource Gray600}"
                            FontSize="11" FontWeight="SemiBold" />
                 <Border BorderBrush="{StaticResource Gray300}" BorderThickness="1"
                         CornerRadius="4" Margin="0,4,0,0" Background="White">
-                    <TextBox Name="txtMobileNo"
-                             Text="9850637363"
-                             FontSize="16"
-                             TextAlignment="Center"
+                    <TextBox Name="txtEmail"
+                             FontSize="15"
                              BorderThickness="0"
                              Padding="12,10"
-                             MaxLength="10"
                              Foreground="{StaticResource Gray900}"
                              CaretBrush="{StaticResource Orange500}" />
                 </Border>
             </StackPanel>
 
             <!-- Password Input -->
-            <StackPanel Margin="20,8">
+            <StackPanel Margin="28,12,28,0">
                 <TextBlock Text="PASSWORD"
                            Foreground="{StaticResource Gray600}"
                            FontSize="11" FontWeight="SemiBold" />
                 <Border BorderBrush="{StaticResource Gray300}" BorderThickness="1"
                         CornerRadius="4" Margin="0,4,0,0" Background="White">
                     <PasswordBox Name="txtPassword"
-                                 FontSize="16"
+                                 FontSize="15"
                                  Padding="12,10"
                                  Foreground="{StaticResource Gray900}"
                                  CaretBrush="{StaticResource Orange500}"
@@ -139,9 +128,9 @@
             <!-- Login Button -->
             <Button Name="btnLogin" Click="btnLogin_Click"
                     Content="SIGN IN"
-                    Margin="20,16,20,0"
-                    Height="48"
-                    FontSize="15" FontWeight="Bold"
+                    Margin="28,20,28,0"
+                    Height="46"
+                    FontSize="14" FontWeight="Bold"
                     Foreground="White"
                     Background="{StaticResource Orange500}"
                     BorderThickness="0"
@@ -167,9 +156,10 @@
             <!-- Status -->
             <TextBlock Name="lblStatus"
                        TextAlignment="Center"
-                       Margin="0,14,0,0"
+                       Margin="20,14,20,0"
                        Foreground="{StaticResource Gray500}"
-                       FontSize="12" />
+                       FontSize="12"
+                       TextWrapping="Wrap" />
         </StackPanel>
     </Grid>
 </Window>

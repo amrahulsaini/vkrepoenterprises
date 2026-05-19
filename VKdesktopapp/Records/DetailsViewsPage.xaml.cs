@@ -327,7 +327,7 @@ public partial class DetailsViewsPage : Page
                 var hdrFont   = new PdfStandardFont(PdfFontFamily.Helvetica, 6.5f, PdfFontStyle.Bold);
 
                 var firstPage = doc.Pages.Add();
-                var title = $"VK Enterprises — Search Logs  ({DateTime.Today:dd MMM yyyy})  •  {snapshot.Count:N0} records" +
+                var title = $"{App.BrandName} — Search Logs  ({DateTime.Today:dd MMM yyyy})  •  {snapshot.Count:N0} records" +
                             (capped ? $"  [showing latest {PdfRowCap:N0}]" : "");
                 firstPage.Graphics.DrawString(title, titleFont, PdfBrushes.Black,
                     new Syncfusion.Drawing.PointF(0, 0));

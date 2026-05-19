@@ -21,7 +21,9 @@ builder.Services.AddCors(options =>
 builder.Services.AddMemoryCache();
 builder.WebHost.ConfigureKestrel(opts => opts.Limits.MaxRequestBodySize = 200 * 1024 * 1024); // 200 MB for bulk uploads
 
-var connStr = new MySqlConnectionStringBuilder
+// Legacy single-tenant database (vkre_db1). Agency requests are routed to
+// their own tenant DB per-request by the middleware below; see TenantContext.
+TenantContext.DefaultConn = new MySqlConnectionStringBuilder
 {
     Server   = Environment.GetEnvironmentVariable("MYSQL_HOST")     ?? "127.0.0.1",
     UserID   = Environment.GetEnvironmentVariable("MYSQL_USER")     ?? "vkre_db1",
@@ -40,8 +42,43 @@ var desktopLoginPassword = Environment.GetEnvironmentVariable("DESKTOP_LOGIN_PAS
 var privateKey = Environment.GetEnvironmentVariable("PRIVATEKEY") ?? "vk_enterprises_local_jwt_key";
 var port = Environment.GetEnvironmentVariable("PORT") ?? "5002";
 
+// MySQL host/port — used for the default DB connection and per-tenant routing.
+var mysqlHost = Environment.GetEnvironmentVariable("MYSQL_HOST") ?? "127.0.0.1";
+var mysqlPort = int.TryParse(Environment.GetEnvironmentVariable("MYSQL_PORT"), out var mysqlPortParsed) ? mysqlPortParsed : 3306;
+
 var app = builder.Build();
 app.UseCors();
+
+// ── Multi-tenant request routing ─────────────────────────────────────────────
+// A valid CRMRS agency Bearer token (issued by /api/agency/desktop/login) routes
+// this request — for its whole async lifetime — to that agency's own isolated
+// database. No token, or a legacy desktop token → the default vkre_db1 database.
+app.Use(async (ctx, next) =>
+{
+    var path = ctx.Request.Path.Value ?? "";
+    // /api/agency/* endpoints manage their own auth and always use crm_master.
+    if (!path.StartsWith("/api/agency", StringComparison.OrdinalIgnoreCase))
+    {
+        var authHeader = ctx.Request.Headers.Authorization.FirstOrDefault();
+        string? token = authHeader != null
+            && authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)
+            ? authHeader.Substring(7).Trim()
+            : null;
+        if (AgencyToken.LooksLikeAgencyToken(token))
+        {
+            var parsed = AgencyToken.Verify(token);
+            if (parsed is not { } agency)
+            {
+                ctx.Response.StatusCode = 401;
+                await ctx.Response.WriteAsJsonAsync(new { message = "Session expired — please sign in again." });
+                return;
+            }
+            TenantContext.Conn = TenantContext.BuildTenantConn(mysqlHost, mysqlPort, agency.slug);
+            TenantContext.Key  = agency.slug;
+        }
+    }
+    await next();
+});
 
 // Shared HttpClient for forwarding mobile requests to VKmobileapi (port 5001)
 var mobileHttp = new HttpClient
@@ -63,7 +100,7 @@ app.MapPost("/api/AppUsers/Login", async (LoginRequest request) =>
 
     try
     {
-        await using var conn = new MySqlConnection(connStr);
+        await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
         await using var cmd = new MySqlCommand(
             "SELECT id, name FROM users WHERE mobile = @m AND status = 'ACTIVE' LIMIT 1", conn);
@@ -95,16 +132,16 @@ app.MapPost("/api/AppUsers/Login", async (LoginRequest request) =>
 
 app.MapGet("/api/Overview", async (IMemoryCache cache) =>
     Results.Ok(await GetCachedAsync(cache, "home-dashboard",
-        () => DashboardRepository.BuildHomeDashboardAsync(connStr), 30)));
+        () => DashboardRepository.BuildHomeDashboardAsync(TenantContext.Conn), 30)));
 
 app.MapGet("/api/Records/Search", async (string? q, string? mode) =>
-    Results.Ok(await DashboardRepository.BuildVehicleSearchAsync(connStr, q, mode)));
+    Results.Ok(await DashboardRepository.BuildVehicleSearchAsync(TenantContext.Conn, q, mode)));
 
 app.MapPost("/api/Records/MarkReleased/{id}", async (string id) =>
 {
     try
     {
-        await using var conn = new MySqlConnection(connStr);
+        await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
         await using var getCmd = new MySqlCommand(
             "SELECT is_released FROM vehicle_records WHERE id = @id LIMIT 1", conn);
@@ -126,7 +163,7 @@ app.MapDelete("/api/Records/Delete/{id}", async (string id) =>
 {
     try
     {
-        await using var conn = new MySqlConnection(connStr);
+        await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
         await using var cmd = new MySqlCommand("DELETE FROM vehicle_records WHERE id = @id", conn);
         cmd.Parameters.AddWithValue("@id", id);
@@ -160,7 +197,7 @@ app.MapPost("/api/Records/PostRecordsFile", async (HttpRequest req) =>
             return Results.BadRequest(new { message = "CSV file is empty." });
 
         int successCount = 0;
-        await using var conn = new MySqlConnection(connStr);
+        await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
 
         foreach (var line in lines)
@@ -265,7 +302,7 @@ app.MapGet("/api/Branches/GetBranches/{financeId}", async (int financeId) =>
 {
     try
     {
-        await using var conn = new MySqlConnection(connStr);
+        await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
         await using var cmd = new MySqlCommand(
             "SELECT id, name, contact1, contact2 FROM branches WHERE finance_id = @fid AND is_active = 1 ORDER BY name LIMIT 100",
@@ -292,41 +329,41 @@ app.MapGet("/api/Branches/GetBranches/{financeId}", async (int financeId) =>
 
 app.MapGet("/api/Finances", async (IMemoryCache cache) =>
     Results.Ok(await GetCachedAsync(cache, "finance-dashboard",
-        () => DashboardRepository.BuildFinanceDashboardAsync(connStr), 45)));
+        () => DashboardRepository.BuildFinanceDashboardAsync(TenantContext.Conn), 45)));
 
 app.MapGet("/api/AppUsers", async (IMemoryCache cache) =>
     Results.Ok(await GetCachedAsync(cache, "users-dashboard",
-        () => DashboardRepository.BuildUsersDashboardAsync(connStr), 45)));
+        () => DashboardRepository.BuildUsersDashboardAsync(TenantContext.Conn), 45)));
 
 app.MapGet("/api/Uploads", async (IMemoryCache cache) =>
     Results.Ok(await GetCachedAsync(cache, "uploads-dashboard",
-        () => DashboardRepository.BuildUploadsDashboardAsync(connStr), 45)));
+        () => DashboardRepository.BuildUploadsDashboardAsync(TenantContext.Conn), 45)));
 
 app.MapGet("/api/DetailsViews", async (IMemoryCache cache) =>
     Results.Ok(await GetCachedAsync(cache, "details-dashboard",
-        () => DashboardRepository.BuildDetailsDashboardAsync(connStr), 30)));
+        () => DashboardRepository.BuildDetailsDashboardAsync(TenantContext.Conn), 30)));
 
 app.MapGet("/api/OTPs", async (IMemoryCache cache) =>
     Results.Ok(await GetCachedAsync(cache, "otp-dashboard",
-        () => DashboardRepository.BuildOtpDashboardAsync(connStr), 30)));
+        () => DashboardRepository.BuildOtpDashboardAsync(TenantContext.Conn), 30)));
 
 app.MapGet("/api/Reports", async (IMemoryCache cache) =>
     Results.Ok(await GetCachedAsync(cache, "reports-dashboard",
-        () => DashboardRepository.BuildReportsDashboardAsync(connStr), 60)));
+        () => DashboardRepository.BuildReportsDashboardAsync(TenantContext.Conn), 60)));
 
 app.MapGet("/api/Payments", async (IMemoryCache cache) =>
     Results.Ok(await GetCachedAsync(cache, "payments-dashboard",
-        () => DashboardRepository.BuildPaymentsDashboardAsync(connStr), 45)));
+        () => DashboardRepository.BuildPaymentsDashboardAsync(TenantContext.Conn), 45)));
 
 app.MapGet("/api/PaymentMethods", async (IMemoryCache cache) =>
     Results.Ok((await GetCachedAsync(cache, "payments-dashboard",
-        () => DashboardRepository.BuildPaymentsDashboardAsync(connStr), 45)).PaymentMethods));
+        () => DashboardRepository.BuildPaymentsDashboardAsync(TenantContext.Conn), 45)).PaymentMethods));
 
 app.MapPost("/api/Confirmations", async (ConfirmationRequest req) =>
 {
     try
     {
-        await using var conn = new MySqlConnection(connStr);
+        await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
         await using var cmd = new MySqlCommand(@"
             INSERT INTO repoconformations
@@ -373,7 +410,7 @@ app.MapGet("/api/Confirmations", async () =>
 {
     try
     {
-        await using var conn = new MySqlConnection(connStr);
+        await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
         await using var cmd = new MySqlCommand(
             "SELECT id,vehicle_no,chassis_no,model,seizer_name,status,created_at FROM repoconformations ORDER BY created_at DESC",
@@ -400,7 +437,7 @@ app.MapGet("/api/Confirmations", async () =>
 
 app.MapGet("/api/Modules/{moduleKey}", async (string moduleKey, IMemoryCache cache) =>
     Results.Ok(await GetCachedAsync(cache, $"module-{moduleKey}",
-        () => DashboardRepository.BuildModuleStatusAsync(connStr, moduleKey), 45)));
+        () => DashboardRepository.BuildModuleStatusAsync(TenantContext.Conn, moduleKey), 45)));
 
 app.MapGet("/", () => Results.Ok(new
 {
@@ -431,7 +468,7 @@ app.MapGet("/api/mgr/finances", async (HttpContext ctx) =>
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
     try
     {
-        await using var conn = new MySqlConnection(connStr);
+        await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
         const string sql = @"
             SELECT f.id, f.name,
@@ -465,7 +502,7 @@ app.MapPost("/api/mgr/finances", async (HttpContext ctx, MgrCreateFinanceDto dto
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
     try
     {
-        await using var conn = new MySqlConnection(connStr);
+        await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
         await using var cmd = new MySqlCommand(
             "INSERT INTO finances (name,description) VALUES (@n,@d); SELECT LAST_INSERT_ID();", conn);
@@ -482,7 +519,7 @@ app.MapPut("/api/mgr/finances/{id:int}", async (HttpContext ctx, int id, MgrUpda
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
     try
     {
-        await using var conn = new MySqlConnection(connStr);
+        await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
         await MgrExec("UPDATE finances SET name=@n WHERE id=@id", conn, 30, ("@n", dto.Name), ("@id", id));
         return Results.Ok();
@@ -495,7 +532,7 @@ app.MapDelete("/api/mgr/finances/{id:int}", async (HttpContext ctx, int id) =>
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
     try
     {
-        await using var conn = new MySqlConnection(connStr);
+        await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
         await MgrExec("SET foreign_key_checks=0", conn);
         // Multi-table DELETE: removes rc_info + chassis_info + vehicle_records for all branches of this finance
@@ -520,7 +557,7 @@ app.MapGet("/api/mgr/branches", async (HttpContext ctx, int? financeId) =>
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
     try
     {
-        await using var conn = new MySqlConnection(connStr);
+        await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
         string sql; MySqlCommand cmd;
         if (financeId.HasValue)
@@ -570,7 +607,7 @@ app.MapGet("/api/mgr/branches/{id:int}", async (HttpContext ctx, int id) =>
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
     try
     {
-        await using var conn = new MySqlConnection(connStr);
+        await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
         await using var cmd = new MySqlCommand(
             "SELECT id,name,COALESCE(contact1,''),COALESCE(contact2,''),COALESCE(contact3,''),COALESCE(address,''),COALESCE(branch_code,'') FROM branches WHERE id=@id LIMIT 1", conn);
@@ -590,7 +627,7 @@ app.MapPost("/api/mgr/branches", async (HttpContext ctx, MgrCreateBranchDto dto)
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
     try
     {
-        await using var conn = new MySqlConnection(connStr);
+        await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
         await using var cmd = new MySqlCommand(@"
             INSERT INTO branches (finance_id,name,contact1,contact2,contact3,address,branch_code,city,state,postal_code,notes)
@@ -618,7 +655,7 @@ app.MapPut("/api/mgr/branches/{id:int}", async (HttpContext ctx, int id, MgrUpda
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
     try
     {
-        await using var conn = new MySqlConnection(connStr);
+        await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
         await using var cmd = new MySqlCommand(
             "UPDATE branches SET name=@n,contact1=@c1,contact2=@c2,contact3=@c3,address=@addr,branch_code=@bcode WHERE id=@id", conn);
@@ -641,7 +678,7 @@ app.MapPost("/api/mgr/branches/{id:int}/clear", async (HttpContext ctx, int id) 
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
     try
     {
-        await using var conn = new MySqlConnection(connStr);
+        await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
 
         int deletedCount = 0;
@@ -670,7 +707,7 @@ app.MapDelete("/api/mgr/branches/{id:int}", async (HttpContext ctx, int id) =>
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
     try
     {
-        await using var conn = new MySqlConnection(connStr);
+        await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
         await MgrExec("SET foreign_key_checks=0", conn);
         await MgrExec(@"DELETE vr, rc, ci
@@ -692,7 +729,7 @@ app.MapGet("/api/mgr/users", async (HttpContext ctx) =>
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
     try
     {
-        await using var conn = new MySqlConnection(connStr);
+        await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
 
         const string statsSql = @"
@@ -779,7 +816,7 @@ app.MapGet("/api/mgr/users/picker", async (HttpContext ctx) =>
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
     try
     {
-        await using var conn = new MySqlConnection(connStr);
+        await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
         const string sql = @"
             SELECT id, name, mobile, COALESCE(address,'') AS address, is_active
@@ -806,7 +843,7 @@ app.MapGet("/api/mgr/users/stats", async (HttpContext ctx) =>
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
     try
     {
-        await using var conn = new MySqlConnection(connStr);
+        await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
         const string sql = @"
             SELECT COUNT(*) AS total,
@@ -833,7 +870,7 @@ app.MapMethods("/api/mgr/users/{id:long}/active", new[] { "PATCH" }, async (Http
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
     try
     {
-        await using var conn = new MySqlConnection(connStr);
+        await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
         await MgrExec("UPDATE app_users SET is_active=@v WHERE id=@id", conn, 10,
             ("@v", dto.Active ? 1 : 0), ("@id", id));
@@ -847,7 +884,7 @@ app.MapMethods("/api/mgr/users/{id:long}/admin", new[] { "PATCH" }, async (HttpC
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
     try
     {
-        await using var conn = new MySqlConnection(connStr);
+        await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
         await MgrExec("UPDATE app_users SET is_admin=@v WHERE id=@id", conn, 10,
             ("@v", dto.Admin ? 1 : 0), ("@id", id));
@@ -861,7 +898,7 @@ app.MapPost("/api/mgr/users/{id:long}/reset-device", async (HttpContext ctx, lon
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
     try
     {
-        await using var conn = new MySqlConnection(connStr);
+        await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
         await MgrExec("UPDATE app_users SET device_id=NULL WHERE id=@id", conn, 10, ("@id", id));
         return Results.Ok();
@@ -874,7 +911,7 @@ app.MapMethods("/api/mgr/users/{id:long}/stopped", new[] { "PATCH" }, async (Htt
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
     try
     {
-        await using var conn = new MySqlConnection(connStr);
+        await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
         await MgrExec("UPDATE app_users SET is_stopped=@v WHERE id=@id", conn, 10,
             ("@v", dto.Stopped ? 1 : 0), ("@id", id));
@@ -888,7 +925,7 @@ app.MapMethods("/api/mgr/users/{id:long}/blacklisted", new[] { "PATCH" }, async 
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
     try
     {
-        await using var conn = new MySqlConnection(connStr);
+        await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
         await MgrExec("UPDATE app_users SET is_blacklisted=@v, is_stopped=@v WHERE id=@id", conn, 10,
             ("@v", dto.Blacklisted ? 1 : 0), ("@id", id));
@@ -902,7 +939,7 @@ app.MapGet("/api/mgr/users/{id:long}/finance-restrictions", async (HttpContext c
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
     try
     {
-        await using var conn = new MySqlConnection(connStr);
+        await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
         await using var cmd = new MySqlCommand(
             "SELECT finance_id FROM user_finance_restrictions WHERE user_id=@uid", conn);
@@ -920,7 +957,7 @@ app.MapPut("/api/mgr/users/{id:long}/finance-restrictions", async (HttpContext c
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
     try
     {
-        await using var conn = new MySqlConnection(connStr);
+        await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
         await MgrExec("DELETE FROM user_finance_restrictions WHERE user_id=@uid", conn, 10, ("@uid", id));
         foreach (var fid in dto.FinanceIds)
@@ -941,7 +978,7 @@ app.MapMethods("/api/mgr/users/{id:long}/admin-pass", new[] { "PATCH" },
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
     try
     {
-        await using var conn = new MySqlConnection(connStr);
+        await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
         await MgrExec("UPDATE app_users SET admin_pass=@p WHERE id=@id", conn, 10,
             ("@p", string.IsNullOrWhiteSpace(dto.Password) ? (object)DBNull.Value : dto.Password),
@@ -958,7 +995,7 @@ app.MapGet("/api/mgr/users/{id:long}/admin-pass", async (HttpContext ctx, long i
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
     try
     {
-        await using var conn = new MySqlConnection(connStr);
+        await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
         await using var cmd = new MySqlCommand(
             "SELECT admin_pass FROM app_users WHERE id=@id LIMIT 1", conn) { CommandTimeout = 5 };
@@ -978,7 +1015,7 @@ app.MapGet("/api/mgr/users/{id:long}/kyc", async (HttpContext ctx, long id) =>
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
     try
     {
-        await using var conn = new MySqlConnection(connStr);
+        await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
         await using var cmd = new MySqlCommand(
             "SELECT aadhaar_front, aadhaar_back, pan_front FROM user_kyc WHERE user_id=@uid", conn);
@@ -1016,7 +1053,7 @@ app.MapDelete("/api/mgr/users/{id:long}/kyc/{docType}", async (HttpContext ctx, 
         return Results.BadRequest(new { message = "invalid docType" });
     try
     {
-        await using var conn = new MySqlConnection(connStr);
+        await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
 
         // Read the current file path so we can remove the file on disk too.
@@ -1052,7 +1089,7 @@ app.MapGet("/api/mgr/blacklist", async (HttpContext ctx) =>
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
     try
     {
-        await using var conn = new MySqlConnection(connStr);
+        await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
         const string sql = @"
             SELECT id, name, mobile, COALESCE(address,'') AS address, created_at
@@ -1073,7 +1110,7 @@ app.MapGet("/api/mgr/users/all-simple", async (HttpContext ctx) =>
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
     try
     {
-        await using var conn = new MySqlConnection(connStr);
+        await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
         const string sql = @"
             SELECT id, name, mobile, COALESCE(address,'') AS address,
@@ -1096,7 +1133,7 @@ app.MapGet("/api/mgr/settings/subs-password", async (HttpContext ctx) =>
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
     try
     {
-        await using var conn = new MySqlConnection(connStr);
+        await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
         await using var cmd = new MySqlCommand(
             "SELECT `value` FROM app_settings WHERE `key`='subs_password' LIMIT 1", conn);
@@ -1111,7 +1148,7 @@ app.MapPut("/api/mgr/settings/subs-password", async (HttpContext ctx, MgrSetSubs
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
     try
     {
-        await using var conn = new MySqlConnection(connStr);
+        await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
         await MgrExec(
             "INSERT INTO app_settings (`key`, `value`) VALUES ('subs_password', @v) ON DUPLICATE KEY UPDATE `value`=@v",
@@ -1126,7 +1163,7 @@ app.MapGet("/api/mgr/users/{id:long}/subscriptions", async (HttpContext ctx, lon
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
     try
     {
-        await using var conn = new MySqlConnection(connStr);
+        await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
         const string sql = @"
             SELECT id, start_date, end_date, amount, notes, created_at
@@ -1155,7 +1192,7 @@ app.MapPost("/api/mgr/users/{id:long}/subscriptions", async (HttpContext ctx, lo
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
     try
     {
-        await using var conn = new MySqlConnection(connStr);
+        await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
         await using var cmd = new MySqlCommand(
             "INSERT INTO subscriptions (user_id,start_date,end_date,amount,notes) VALUES (@uid,@s,@e,@a,@n)",
@@ -1181,7 +1218,7 @@ app.MapDelete("/api/mgr/subscriptions/{id:long}", async (HttpContext ctx, long i
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
     try
     {
-        await using var conn = new MySqlConnection(connStr);
+        await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
 
         // Look up which user this sub belongs to so we can invalidate their cache.
@@ -1245,7 +1282,7 @@ app.MapGet("/api/mgr/search", async (HttpContext ctx, string? q, string? mode) =
                  WHERE ri.last4 = @q
                  ORDER BY b.name, vr.vehicle_no LIMIT 500";
 
-        await using var conn = new MySqlConnection(connStr);
+        await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
         await using var cmd = new MySqlCommand(sql, conn) { CommandTimeout = 15 };
         cmd.Parameters.AddWithValue("@q", q.ToUpper().Trim());
@@ -1284,7 +1321,7 @@ app.MapGet("/api/mgr/dashboard-stats", async (HttpContext ctx) =>
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
     try
     {
-        await using var conn = new MySqlConnection(connStr);
+        await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
         const string sql = @"
             SELECT
@@ -1311,7 +1348,7 @@ app.MapGet("/api/mgr/device-requests", async (HttpContext ctx) =>
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
     try
     {
-        await using var conn = new MySqlConnection(connStr);
+        await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
         const string sql = @"
             SELECT id, user_id, user_name, user_mobile, new_device_id,
@@ -1340,7 +1377,7 @@ app.MapPost("/api/mgr/device-requests/{id:long}/approve", async (HttpContext ctx
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
     try
     {
-        await using var conn = new MySqlConnection(connStr);
+        await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
         long userId = 0; string newDev = "";
         await using (var sel = new MySqlCommand(
@@ -1365,7 +1402,7 @@ app.MapDelete("/api/mgr/device-requests/{id:long}", async (HttpContext ctx, long
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
     try
     {
-        await using var conn = new MySqlConnection(connStr);
+        await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
         await MgrExec("DELETE FROM device_change_requests WHERE id=@id", conn, 10, ("@id", id));
         return Results.Ok();
@@ -1380,7 +1417,7 @@ app.MapGet("/api/mgr/live-users", async (HttpContext ctx, string? since) =>
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
     try
     {
-        await using var conn = new MySqlConnection(connStr);
+        await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
 
         // since = "HH:mm" 24h — show all users seen after that time today
@@ -1438,7 +1475,7 @@ app.MapGet("/api/mgr/search-logs", async (HttpContext ctx,
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
     try
     {
-        await using var conn = new MySqlConnection(connStr);
+        await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
 
         var sql = @"
@@ -1511,7 +1548,7 @@ app.MapGet("/api/mgr/column-mappings", async (HttpContext ctx) =>
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
     try
     {
-        await using var conn = new MySqlConnection(connStr);
+        await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
         var types = new List<object>();
         await using (var cmd = new MySqlCommand(
@@ -1538,7 +1575,7 @@ app.MapPost("/api/mgr/column-mappings", async (HttpContext ctx, MgrCreateMapping
     try
     {
         var normalized = System.Text.RegularExpressions.Regex.Replace(dto.RawName, "[^A-Za-z0-9]", "").ToLower();
-        await using var conn = new MySqlConnection(connStr);
+        await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
         await using var cmd = new MySqlCommand(
             "INSERT INTO column_mappings (column_type_id, name) VALUES (@tid, @name); SELECT LAST_INSERT_ID();", conn);
@@ -1555,7 +1592,7 @@ app.MapDelete("/api/mgr/column-mappings/{id:int}", async (HttpContext ctx, int i
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
     try
     {
-        await using var conn = new MySqlConnection(connStr);
+        await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
         await MgrExec("DELETE FROM column_mappings WHERE id=@id", conn, 10, ("@id", id));
         return Results.Ok();
@@ -1568,7 +1605,7 @@ app.MapPost("/api/mgr/column-types", async (HttpContext ctx, MgrCreateColumnType
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
     try
     {
-        await using var conn = new MySqlConnection(connStr);
+        await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
         await using var cmd = new MySqlCommand(
             "INSERT INTO column_types (name) VALUES (@name); SELECT LAST_INSERT_ID();", conn);
@@ -1689,7 +1726,7 @@ app.MapPost("/api/mgr/records/upload", async (HttpContext ctx) =>
 
         // ── 4. Open DB, clear old records ─────────────────────────────────
         await Push(15, "Connecting to database…");
-        await using var conn = new MySqlConnection(connStr);
+        await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
         await MgrExec("SET foreign_key_checks = 0", conn);
         await MgrExec("SET unique_checks = 0", conn);
@@ -1772,7 +1809,7 @@ app.MapPost("/api/mgr/records/upload", async (HttpContext ctx) =>
         _ = Task.WhenAll(
             Task.Run(async () =>
             {
-                await using var c = new MySqlConnection(connStr);
+                await using var c = new MySqlConnection(TenantContext.Conn);
                 await c.OpenAsync();
                 await MgrExec("SET foreign_key_checks=0", c); await MgrExec("SET unique_checks=0", c);
                 await MgrExec(@"DELETE ri FROM rc_info ri
@@ -1794,7 +1831,7 @@ app.MapPost("/api/mgr/records/upload", async (HttpContext ctx) =>
             }),
             Task.Run(async () =>
             {
-                await using var c = new MySqlConnection(connStr);
+                await using var c = new MySqlConnection(TenantContext.Conn);
                 await c.OpenAsync();
                 await MgrExec("SET foreign_key_checks=0", c); await MgrExec("SET unique_checks=0", c);
                 await MgrExec(@"DELETE ci FROM chassis_info ci
@@ -1824,7 +1861,7 @@ app.MapGet("/api/mgr/export/users", async (HttpContext ctx) =>
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
     try
     {
-        await using var conn = new MySqlConnection(connStr);
+        await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
         const string sql = @"
             SELECT u.id, u.name, u.mobile, u.address, u.pincode,
@@ -1864,7 +1901,7 @@ app.MapGet("/api/mgr/export/subscriptions", async (HttpContext ctx) =>
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
     try
     {
-        await using var conn = new MySqlConnection(connStr);
+        await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
         const string sql = @"
             SELECT s.id, s.user_id, u.name, u.mobile,
@@ -1903,7 +1940,7 @@ app.MapGet("/api/mgr/export/vehicle-records", async (HttpContext ctx) =>
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
     try
     {
-        await using var conn = new MySqlConnection(connStr);
+        await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
         long total;
         await using (var cntCmd = new MySqlCommand("SELECT COUNT(*) FROM vehicle_records", conn) { CommandTimeout = 30 })
@@ -1955,7 +1992,7 @@ app.MapGet("/api/mgr/export/rc-records", async (HttpContext ctx) =>
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
     try
     {
-        await using var conn = new MySqlConnection(connStr);
+        await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
         long total;
         await using (var cntCmd = new MySqlCommand("SELECT COUNT(*) FROM rc_info", conn) { CommandTimeout = 30 })
@@ -2011,7 +2048,7 @@ app.MapGet("/api/mgr/export/chassis-records", async (HttpContext ctx) =>
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
     try
     {
-        await using var conn = new MySqlConnection(connStr);
+        await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
         long total;
         await using (var cntCmd = new MySqlCommand("SELECT COUNT(*) FROM chassis_info", conn) { CommandTimeout = 30 })
@@ -2070,7 +2107,7 @@ app.MapGet("/api/mgr/export/branch-records", async (HttpContext ctx) =>
     if (branchId <= 0) return Results.BadRequest(new { message = "branchId required" });
     try
     {
-        await using var conn = new MySqlConnection(connStr);
+        await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
         long total;
         await using (var cntCmd = new MySqlCommand(
@@ -2134,7 +2171,7 @@ app.MapGet("/api/mgr/export/finance-records", async (HttpContext ctx) =>
     if (financeId <= 0) return Results.BadRequest(new { message = "financeId required" });
     try
     {
-        await using var conn = new MySqlConnection(connStr);
+        await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
         long total;
         await using (var cntCmd = new MySqlCommand(
@@ -2253,17 +2290,16 @@ if (Directory.Exists(agencyUploads))
 }
 
 // ── CRMRS Agency Portal endpoints (/api/agency/*) ────────────────────────────
-{
-    var mysqlHost = Environment.GetEnvironmentVariable("MYSQL_HOST") ?? "127.0.0.1";
-    var mysqlPort = int.TryParse(Environment.GetEnvironmentVariable("MYSQL_PORT"), out var ap) ? ap : 3306;
-    AgencyPortal.Map(app, mysqlHost, mysqlPort);
-}
+AgencyPortal.Map(app, mysqlHost, mysqlPort);
 
 app.Run($"http://localhost:{port}");
 
 // Local functions must appear before type declarations (CS8803)
 static async Task<T> GetCachedAsync<T>(IMemoryCache cache, string key, Func<Task<T>> factory, int seconds)
 {
+    // Tenant-scope the cache key so one agency's cached dashboard is never
+    // served to another agency (or to the legacy default tenant).
+    key = TenantContext.Key + ":" + key;
     if (cache.TryGetValue(key, out T? cached) && cached is not null)
         return cached;
     var result = await factory();

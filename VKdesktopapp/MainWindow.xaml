@@ -9,7 +9,7 @@
     Style="{StaticResource ChromeWindow}"
     Background="{StaticResource Gray200}"
     Icon="public/favicon.ico"
-    Title="VK Enterprises"
+    Title="CRMRS"
     Width="1366" Height="768"
     WindowState="Maximized"
     Loaded="Window_Loaded">
@@ -38,9 +38,10 @@
                         IsHitTestVisible="False">
                 <Image Source="public/favicon.ico" Width="20" Height="20" Margin="0,0,8,0"
                        VerticalAlignment="Center" RenderOptions.BitmapScalingMode="HighQuality" />
-                <TextBlock Text="VK" FontSize="14" FontWeight="Bold"
-                           Foreground="{StaticResource Orange500}" Margin="0,0,4,0" />
-                <TextBlock Text="ENTERPRISES" FontSize="11" FontWeight="SemiBold"
+                <TextBlock Text="CRMRS" FontSize="14" FontWeight="Bold"
+                           Foreground="{StaticResource Orange500}" Margin="0,0,6,0"
+                           VerticalAlignment="Center" />
+                <TextBlock Text="RECOVERY SOFTWARE" FontSize="11" FontWeight="SemiBold"
                            Foreground="{StaticResource Gray400}" VerticalAlignment="Center" />
             </StackPanel>
             <Button Name="btnMinimize" Click="btnMinimize_Click"
@@ -176,7 +177,8 @@
                         <Border Width="48" Height="48" CornerRadius="8"
                                 Background="{StaticResource Gray900}"
                                 VerticalAlignment="Top">
-                            <Image Source="public/favicon.ico" Width="32" Height="32"
+                            <Image x:Name="imgAgencyLogo" Source="public/favicon.ico"
+                                   Width="40" Height="40" Stretch="UniformToFill"
                                    HorizontalAlignment="Center" VerticalAlignment="Center"
                                    RenderOptions.BitmapScalingMode="HighQuality" />
                         </Border>
@@ -184,7 +186,7 @@
                              admin / firm names with descenders (g, y, j) don't
                              have their bottoms clipped by parent height rules. -->
                         <StackPanel Margin="10,0,0,0" VerticalAlignment="Top" MaxWidth="220">
-                            <TextBlock x:Name="lblFirmName" Text="VK Enterprises"
+                            <TextBlock x:Name="lblFirmName" Text="CRMRS"
                                        FontSize="14" FontWeight="Bold"
                                        Foreground="{StaticResource Gray900}"
                                        TextWrapping="Wrap"

@@ -1,10 +1,9 @@
-using System.Net;
 using System.Net.Http;
 using System.Net.Http.Json;
+using System.Text.Json;
 using System.Windows;
 using System.Windows.Input;
 using VRASDesktopApp.Models;
-using VRASDesktopApp.Properties;
 
 namespace VRASDesktopApp;
 
@@ -13,9 +12,6 @@ public partial class LoginWindow : Window
     public LoginWindow()
     {
         InitializeComponent();
-        lblFirmName.Text = App.Firm.FirmName;
-        lblFirmMobile.Text = App.Firm.ContactNos;
-        lblFirmAddress.Text = App.Firm.Address;
     }
 
     /// <summary>Allow dragging the window by the title bar.</summary>
@@ -27,9 +23,11 @@ public partial class LoginWindow : Window
 
     private async void btnLogin_Click(object sender, RoutedEventArgs e)
     {
-        if (string.IsNullOrWhiteSpace(txtMobileNo.Text) || txtMobileNo.Text.Length < 10)
+        var email = txtEmail.Text.Trim();
+        if (string.IsNullOrWhiteSpace(email) || !email.Contains('@') || !email.Contains('.'))
         {
-            MessageBox.Show("Please enter a valid 10-digit mobile number.", "Validation", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show("Please enter a valid email address.", "Validation", MessageBoxButton.OK, MessageBoxImage.Warning);
+            txtEmail.Focus();
             return;
         }
 
@@ -67,75 +65,88 @@ public partial class LoginWindow : Window
 
     public async Task Login()
     {
+        var formData = new
+        {
+            email    = txtEmail.Text.Trim().ToLowerInvariant(),
+            password = txtPassword.Password
+        };
+
+        // Drop any stale Bearer token from a previous session before signing in,
+        // so the tenant-routing middleware never rejects the login request itself.
+        App.HttpClient.DefaultRequestHeaders.Authorization = null;
+
+        using var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(20));
+        HttpResponseMessage response;
         try
         {
-            var formData = new
-            {
-                mobileno = txtMobileNo.Text,
-                password = txtPassword.Password
-            };
-
-            using var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(15));
-            HttpResponseMessage response;
-            try
-            {
-                response = await App.HttpClient.PostAsync(
-                    App.ApiBaseUrl + "api/AppUsers/Login",
-                    JsonContent.Create(formData),
-                    cts.Token);
-            }
-            catch (OperationCanceledException)
-            {
-                lblStatus.Text = "";
-                MessageBox.Show("Cannot connect to the server. Please check that the server is running and the API URL is correct.", "Connection Timeout", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
-            catch (HttpRequestException rex) when (rex.InnerException is System.Net.Sockets.SocketException)
-            {
-                lblStatus.Text = "";
-                MessageBox.Show("Cannot reach the server. Please check the API URL in settings.", "Connection Error", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
-
-            response.EnsureSuccessStatusCode();
-
-            App.SignedAppUser = await response.Content.ReadFromJsonAsync<SignedAppUser>();
-            App.SetAuthToken(App.SignedAppUser?.Token ?? "");
-
-            // Construct the main window first to catch any initialization/XAML errors
-            MainWindow window;
-            try
-            {
-                window = new MainWindow();
-            }
-            catch (Exception)
-            {
-                // If main window fails to construct, do not hide the login window — let outer catch handle logging
-                throw;
-            }
-
-            // Only hide the login window after the main window is successfully constructed.
-            Hide();
-            try
-            {
-                window.ShowDialog();
-            }
-            finally
-            {
-                // Ensure the login window is visible again if the main window closes or if ShowDialog throws.
-                Show();
-            }
+            response = await App.HttpClient.PostAsync(
+                App.ApiBaseUrl + "api/agency/desktop/login",
+                JsonContent.Create(formData),
+                cts.Token);
         }
-        catch (HttpRequestException ex)
+        catch (OperationCanceledException)
         {
-            if (ex.StatusCode == HttpStatusCode.BadRequest)
+            lblStatus.Text = "";
+            MessageBox.Show("Cannot connect to the server. Please check that the server is running and the API URL is correct.", "Connection Timeout", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+        catch (HttpRequestException rex) when (rex.InnerException is System.Net.Sockets.SocketException)
+        {
+            lblStatus.Text = "";
+            MessageBox.Show("Cannot reach the server. Please check the API URL in settings.", "Connection Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        if (!response.IsSuccessStatusCode)
+        {
+            lblStatus.Text = "";
+            string msg = "Sign in failed. Please check your email and password.";
+            try
             {
-                MessageBox.Show("Invalid mobile number or password.", "Access Denied", MessageBoxButton.OK, MessageBoxImage.Warning);
+                var body = await response.Content.ReadAsStringAsync();
+                using var doc = JsonDocument.Parse(body);
+                if (doc.RootElement.TryGetProperty("message", out var m))
+                    msg = m.GetString() ?? msg;
             }
-            else
-            {
-                MessageBox.Show($"Server error: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
+            catch { }
+            MessageBox.Show(msg, "Sign in failed", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        var signed = await response.Content.ReadFromJsonAsync<SignedAppUser>();
+        if (signed == null || string.IsNullOrEmpty(signed.Token))
+        {
+            lblStatus.Text = "";
+            MessageBox.Show("Unexpected response from the server. Please try again.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            return;
+        }
+
+        App.SignedAppUser = signed;
+        App.SetAuthToken(signed.Token);
+
+        // Construct the main window first to catch any initialization/XAML errors
+        MainWindow window;
+        try
+        {
+            window = new MainWindow();
+        }
+        catch (Exception)
+        {
+            // If main window fails to construct, do not hide the login window — let outer catch handle logging
+            throw;
+        }
+
+        // Only hide the login window after the main window is successfully constructed.
+        lblStatus.Text = "";
+        Hide();
+        try
+        {
+            window.ShowDialog();
+        }
+        finally
+        {
+            // Ensure the login window is visible again if the main window closes or if ShowDialog throws.
+            Show();
         }
     }
 

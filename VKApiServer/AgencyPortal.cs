@@ -358,6 +358,74 @@ internal static class AgencyPortal
             if (n == 0) return Results.BadRequest(new { message = "Agency not found or not pending." });
             return Results.Ok(new { ok = true });
         });
+
+        // =============================================================
+        //   Desktop app login — email + password → agency session token
+        //   The returned token is an HMAC-signed AgencyToken; the desktop
+        //   sends it as a Bearer header and the routing middleware uses it
+        //   to serve every request from the agency's own tenant database.
+        // =============================================================
+        app.MapPost("/api/agency/desktop/login", async (HttpRequest req) =>
+        {
+            var dto = await ReadJsonAsync(req);
+            string email    = (dto.GetValueOrDefault("email") ?? "").Trim().ToLowerInvariant();
+            string password =  dto.GetValueOrDefault("password") ?? "";
+            if (!IsValidEmail(email) || string.IsNullOrEmpty(password))
+                return Results.BadRequest(new { message = "Enter your email and password." });
+
+            await using var conn = new MySqlConnection(masterConn);
+            await conn.OpenAsync();
+
+            int id = 0;
+            string name = "", slug = "", status = "", hash = "";
+            string? logoPath = null, mobile1 = null, address = null;
+            await using (var cmd = new MySqlCommand(@"
+                SELECT id, name, slug, status, password_hash, logo_path, mobile1, address
+                  FROM agencies WHERE email1 = @e LIMIT 1;", conn))
+            {
+                cmd.Parameters.AddWithValue("@e", email);
+                await using var rdr = await cmd.ExecuteReaderAsync();
+                if (!await rdr.ReadAsync())
+                    return Results.BadRequest(new { message = "Invalid email or password." });
+                id       = rdr.GetInt32("id");
+                name     = rdr.GetString("name");
+                slug     = rdr.GetString("slug");
+                status   = rdr.GetString("status");
+                hash     = rdr.IsDBNull(rdr.GetOrdinal("password_hash")) ? "" : rdr.GetString("password_hash");
+                logoPath = rdr.IsDBNull(rdr.GetOrdinal("logo_path"))     ? null : rdr.GetString("logo_path");
+                mobile1  = rdr.IsDBNull(rdr.GetOrdinal("mobile1"))       ? null : rdr.GetString("mobile1");
+                address  = rdr.IsDBNull(rdr.GetOrdinal("address"))       ? null : rdr.GetString("address");
+            }
+
+            if (!VerifyPassword(password, hash))
+                return Results.BadRequest(new { message = "Invalid email or password." });
+
+            if (status != "approved")
+            {
+                string msg = status switch
+                {
+                    "pending"   => "Your agency account is still awaiting verification. You'll be able to sign in once an administrator approves it.",
+                    "rejected"  => "Your agency registration was not approved. Please contact CRMRS support.",
+                    "suspended" => "Your agency account has been suspended. Please contact CRMRS support.",
+                    _           => "Your agency account is not active.",
+                };
+                return Results.Json(new { message = msg }, statusCode: 403);
+            }
+
+            string token = AgencyToken.Issue(id, slug);
+            return Results.Ok(new
+            {
+                token,
+                agencyId   = id,
+                agencyName = name,
+                slug,
+                email,
+                mobile1    = mobile1 ?? "",
+                address    = address ?? "",
+                logoPath   = logoPath ?? "",
+                isAgency   = true,
+            });
+        });
     }
 
     // ─────────────────────────────────────────────────────────────────
