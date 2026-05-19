@@ -50,7 +50,7 @@ var app = builder.Build();
 app.UseCors();
 
 // ── Multi-tenant request routing ─────────────────────────────────────────────
-// A valid CRMRS agency Bearer token (issued by /api/agency/desktop/login) routes
+// A valid CRMS agency Bearer token (issued by /api/agency/desktop/login) routes
 // this request — for its whole async lifetime — to that agency's own isolated
 // database. No token, or a legacy desktop token → the default vkre_db1 database.
 app.Use(async (ctx, next) =>
@@ -96,7 +96,7 @@ app.MapPost("/api/AppUsers/Login", async (LoginRequest request) =>
         return Results.BadRequest(new { message = "Invalid mobile number or password." });
 
     int appUserId = 0;
-    string fullName = "VK ENTERPRISES ADMIN";
+    string fullName = "CRMS ADMIN";
 
     try
     {
@@ -114,7 +114,7 @@ app.MapPost("/api/AppUsers/Login", async (LoginRequest request) =>
     }
     catch { }
 
-    if (string.IsNullOrWhiteSpace(fullName)) fullName = "VK ENTERPRISES ADMIN";
+    if (string.IsNullOrWhiteSpace(fullName)) fullName = "CRMS ADMIN";
     var nameParts = fullName.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
     var tokenPayload = $"{request.mobileno}:{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}:{privateKey}";
 
@@ -441,7 +441,7 @@ app.MapGet("/api/Modules/{moduleKey}", async (string moduleKey, IMemoryCache cac
 
 app.MapGet("/", () => Results.Ok(new
 {
-    name = "VK Enterprises API Server",
+    name = "CRMS API Server",
     mode = "mysql",
     port
 }));
@@ -2289,7 +2289,7 @@ if (Directory.Exists(agencyUploads))
     });
 }
 
-// ── CRMRS Agency Portal endpoints (/api/agency/*) ────────────────────────────
+// ── CRMS Agency Portal endpoints (/api/agency/*) ────────────────────────────
 AgencyPortal.Map(app, mysqlHost, mysqlPort);
 
 app.Run($"http://localhost:{port}");

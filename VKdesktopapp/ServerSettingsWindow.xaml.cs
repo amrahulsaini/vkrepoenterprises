@@ -1,4 +1,5 @@
 using System.Windows;
+using System.Windows.Input;
 using VRASDesktopApp.Data;
 using VRASDesktopApp.Properties;
 
@@ -6,6 +7,15 @@ namespace VRASDesktopApp;
 
 public partial class ServerSettingsWindow : Window
 {
+    /// <summary>Drag the window by its custom title bar.</summary>
+    private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ClickCount == 1 && WindowState != WindowState.Maximized)
+            DragMove();
+    }
+
+    private void btnClose_Click(object sender, RoutedEventArgs e) => Close();
+
     public ServerSettingsWindow()
     {
         InitializeComponent();

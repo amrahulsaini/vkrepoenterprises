@@ -3,7 +3,7 @@
 //
 //  Every API endpoint opens MySQL with  TenantContext.Conn  — which is the
 //  legacy single-tenant database (vkre_db1) by default. When a request
-//  carries a valid CRMRS agency Bearer token, the routing middleware in
+//  carries a valid CRMS agency Bearer token, the routing middleware in
 //  Program.cs swaps Conn (for that request's async flow only) to the
 //  agency's own isolated  crmr_<slug>  database — so the same ~60 endpoints
 //  transparently serve every agency from its own schema.

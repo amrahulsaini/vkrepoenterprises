@@ -59,7 +59,7 @@ fun SettingsScreen(
                 val bgColor    = if (isAdmin) Color(0xFF1A237E) else MaterialTheme.colorScheme.primaryContainer
                 val textColor  = if (isAdmin) Color.White else MaterialTheme.colorScheme.onPrimaryContainer
                 val roleLabel  = if (isAdmin) "Administrator" else "Agent"
-                val roleDesc   = if (isAdmin) "You are Admin" else "You are a user of VK Enterprises"
+                val roleDesc   = if (isAdmin) "You are Admin" else "You are an agency user of CRMS"
                 val roleIcon   = if (isAdmin) Icons.Default.AdminPanelSettings else Icons.Default.Person
                 Surface(
                     color  = bgColor,

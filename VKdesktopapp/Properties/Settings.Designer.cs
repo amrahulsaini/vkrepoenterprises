@@ -33,7 +33,7 @@ namespace VRASDesktopApp.Properties
 
         [UserScopedSetting]
         [DebuggerNonUserCode]
-        [DefaultSettingValue("VK Enterprises")]
+        [DefaultSettingValue("CRMS")]
         public string FirmName
         {
             get => (string)this[nameof(FirmName)];

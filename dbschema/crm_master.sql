@@ -1,5 +1,5 @@
 -- ─────────────────────────────────────────────────────────────────────────
---  CRMRS — MASTER DATABASE
+--  CRMS — MASTER DATABASE
 --  Holds the central registry of agencies and email-OTP state used by the
 --  agency.crmrecoverysoftware.com portal. Per-agency application data lives
 --  in its own `crmr_<slug>` database (see dbschema/tenant_template.sql).

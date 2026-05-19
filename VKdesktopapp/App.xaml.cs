@@ -34,7 +34,7 @@ public partial class App : Application
     public static string BrandName =>
         (SignedAppUser?.IsAgency == true && !string.IsNullOrWhiteSpace(SignedAppUser.AgencyName))
             ? SignedAppUser!.AgencyName
-            : "CRMRS";
+            : "CRMS";
 
     public App()
     {

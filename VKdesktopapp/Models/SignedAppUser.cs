@@ -15,7 +15,7 @@ public class SignedAppUser
     public string LastName { get; set; } = string.Empty;
     public string Token { get; set; } = string.Empty;
 
-    // ── CRMRS agency session (set by /api/agency/desktop/login) ──────────────
+    // ── CRMS agency session (set by /api/agency/desktop/login) ──────────────
     // When IsAgency is true, this app instance is signed in as a tenant agency
     // and every API request is routed to that agency's own database server-side.
     public bool   IsAgency   { get; set; }

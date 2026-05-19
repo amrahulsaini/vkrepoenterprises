@@ -14,7 +14,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.*
+import androidx.compose.foundation.Image
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.navigation.NavController
+import com.vkenterprises.vras.R
 import com.vkenterprises.vras.data.models.AgencyListItem
 import com.vkenterprises.vras.navigation.Screen
 import com.vkenterprises.vras.viewmodel.AuthUiState
@@ -101,23 +106,19 @@ fun LoginScreen(vm: AuthViewModel, nav: NavController) {
         ) {
             Spacer(Modifier.height(40.dp))
 
-            // CRMRS brand mark
+            // CRMS logo — bundled as a drawable, white background per brand guide.
             Surface(
                 shape = RoundedCornerShape(20.dp),
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.height(72.dp)
+                color = Color.White,
+                shadowElevation = 2.dp,
+                modifier = Modifier.size(112.dp)
             ) {
-                Box(
-                    Modifier.padding(horizontal = 24.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        "CRMRS",
-                        color = MaterialTheme.colorScheme.onPrimary,
-                        fontSize = 28.sp,
-                        fontWeight = FontWeight.Black
-                    )
-                }
+                Image(
+                    painter = painterResource(id = R.drawable.crmrs_logo),
+                    contentDescription = "CRMS",
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier.fillMaxSize().padding(10.dp)
+                )
             }
 
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -127,7 +128,7 @@ fun LoginScreen(vm: AuthViewModel, nav: NavController) {
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    "Sign in to CRMRS",
+                    "Sign in to CRMS",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

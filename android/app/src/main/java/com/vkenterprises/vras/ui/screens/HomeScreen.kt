@@ -230,7 +230,7 @@ fun HomeScreen(
             TopAppBar(
                 title = {
                     Column {
-                        Text("VK Enterprises", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        Text("CRMS", fontWeight = FontWeight.Bold, fontSize = 16.sp)
                         if (userName.isNotEmpty())
                             Text("Hello, $userName",
                                 style = MaterialTheme.typography.bodySmall,

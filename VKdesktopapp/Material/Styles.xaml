@@ -3,7 +3,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
     <!-- ════════════════════════════════════════════════════════════════════
-         VK Enterprises — Design System: Styles
+         CRMS — Design System: Styles
          Every x:Key here is referenced across the app — keys are STABLE.
          This file upgrades the visual language: soft elevation, refined
          typography, focus-aware inputs, a full button family and polished

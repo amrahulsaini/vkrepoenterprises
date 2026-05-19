@@ -88,7 +88,7 @@ for DOCROOT in "${DOMAIN_DOCROOTS[@]}"; do
     info "Public assets ready → $PB"
 done
 
-# ── CRMRS Agency Portal — static site at agency.crmrecoverysoftware.com ───────
+# ── CRMS Agency Portal — static site at agency.crmrecoverysoftware.com ───────
 AGENCY_DOCROOT="/home/crmrecoverysoftware.com/agency.crmrecoverysoftware.com"
 if [ -d "$AGENCY_DOCROOT" ]; then
     chmod o+x /home/crmrecoverysoftware.com "$AGENCY_DOCROOT" 2>/dev/null || true

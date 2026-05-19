@@ -3,8 +3,11 @@ package com.vkenterprises.vras.viewmodel
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.work.WorkManager
 import com.vkenterprises.vras.data.api.ApiClient
 import com.vkenterprises.vras.data.api.SessionTokens
+import com.vkenterprises.vras.data.local.BranchSyncStateDao
+import com.vkenterprises.vras.data.local.VehicleCacheDao
 import com.vkenterprises.vras.data.models.AgencyListItem
 import com.vkenterprises.vras.data.models.LoginRequest
 import com.vkenterprises.vras.data.models.RegisterRequest
@@ -41,8 +44,20 @@ sealed class AuthUiState {
 @HiltViewModel
 class AuthViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val prefs: PreferencesManager
+    private val prefs: PreferencesManager,
+    private val vehicleCacheDao: VehicleCacheDao,
+    private val branchSyncStateDao: BranchSyncStateDao
 ) : ViewModel() {
+
+    // Wipes every locally-cached record. Called when the session is dropped
+    // and whenever the user signs in to a different agency — so one agency's
+    // synced offline records can never be searched while signed in to another.
+    private suspend fun clearOfflineCache() {
+        runCatching {
+            vehicleCacheDao.deleteAll()
+            branchSyncStateDao.clearAll()
+        }
+    }
 
     private val repo = AuthRepository()
 
@@ -152,6 +167,13 @@ class AuthViewModel @Inject constructor(
 
     fun login(mobile: String, slug: String, agencyName: String) = viewModelScope.launch {
         _state.value = AuthUiState.Loading
+        // If the user is signing in to a different agency than last time,
+        // wipe the offline cache first so the old agency's records never
+        // remain searchable under the new one.
+        val prevSlug = prefs.agencySlug.first()
+        if (prevSlug != null && prevSlug != slug.trim())
+            clearOfflineCache()
+
         val deviceId = DeviceIdUtil.get(context)
         val result = repo.login(LoginRequest(mobile.trim(), deviceId, slug.trim()))
         _state.value = when (result) {
@@ -204,6 +226,12 @@ class AuthViewModel @Inject constructor(
         pollingJob?.cancel()
         pollingJob = null
         _kickReason.value = null
+        // Stop the tenant-routing header from going out, cancel any scheduled
+        // sync workers, and wipe the offline cache so nothing of this agency's
+        // data survives the logout.
+        SessionTokens.tenantToken = null
+        runCatching { WorkManager.getInstance(context).cancelAllWork() }
+        clearOfflineCache()
         prefs.clearSession()
         _state.value = AuthUiState.Idle
     }
