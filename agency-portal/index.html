@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>CRMS — Customer Relationship Management Recovery Software</title>
-<meta name="description" content="The professional vehicle-recovery operations platform — register your agency or manage applications.">
+<title>CRMS — Recovery operations platform</title>
+<meta name="description" content="Run your vehicle-recovery operations from one professional platform — register your agency, then bring your office and field team online.">
 <link rel="icon" href="assets/favicon.ico">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -16,54 +16,120 @@
 <header class="site-header">
     <div class="container">
         <a class="brand" href="/">
-            <img src="assets/logo-full.webp" alt="CRMS" onerror="this.onerror=null;this.src='assets/logo-short.webp'">
+            <img class="brand-logo" src="assets/crmrs-logo.webp" alt="CRMS"
+                 onerror="this.onerror=null;this.src='assets/logo-short.webp'">
+            <span class="brand-word"><b>CRM</b>S</span>
         </a>
         <nav class="nav-actions">
-            <a class="btn btn-ghost btn-sm" href="manage.html">Manage</a>
-            <a class="btn btn-primary btn-sm" href="register.html">Register your agency</a>
+            <a class="btn btn-ghost btn-sm" href="manage.html">Administrator</a>
+            <a class="btn btn-primary btn-sm" href="register.html">Register agency</a>
         </nav>
     </div>
 </header>
 
 <main>
+    <!-- ── Hero ─────────────────────────────────────────────────────── -->
     <section class="hero">
-        <div class="container-narrow">
-            <span class="eyebrow">CRMS · Agency Portal</span>
-            <h1>Run your vehicle-recovery operations from one professional platform.</h1>
-            <p class="lead">
-                Register your agency, set up your dedicated workspace, and bring your field
-                team online with desktop + mobile tools designed for serious recovery work.
-            </p>
-            <div class="hero-cta">
-                <a class="btn btn-primary btn-lg" href="register.html">Register your agency →</a>
-                <a class="btn btn-outline btn-lg" href="manage.html">I'm an administrator</a>
+        <span class="eyebrow reveal">Agency Portal</span>
+        <h1 class="reveal d1">
+            Run your <span class="hl">vehicle-recovery</span><br>
+            operations from one professional platform.
+        </h1>
+        <p class="lead reveal d2">
+            Register your agency, get verified by our team, then bring your office
+            and field agents online with desktop + mobile tools built for serious
+            recovery work.
+        </p>
+        <div class="hero-cta reveal d3">
+            <a class="btn btn-primary btn-lg" href="register.html">
+                Register your agency
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+            </a>
+            <a class="btn btn-dark btn-lg" href="manage.html">I'm an administrator</a>
+        </div>
+        <div class="hero-meta reveal d4">
+            <span>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+                Email-verified onboarding
+            </span>
+            <span>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+                Isolated per-agency workspace
+            </span>
+            <span>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+                Desktop + Android, day one
+            </span>
+        </div>
+    </section>
+
+    <!-- ── Features ─────────────────────────────────────────────────── -->
+    <section class="section">
+        <div class="container">
+            <div class="section-head reveal">
+                <div class="kicker">What you get</div>
+                <h2>Everything an agency needs, none of the noise.</h2>
+                <p>A clean, focused workspace for your office staff and a fast Android app for the team on the road.</p>
+            </div>
+            <div class="feature-grid">
+                <div class="feature reveal d1">
+                    <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+                    <h3>Private &amp; secure</h3>
+                    <p>Every approved agency gets its own fully isolated, private workspace. Your data is never shared with — or visible to — anyone else.</p>
+                </div>
+                <div class="feature reveal d2">
+                    <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg></div>
+                    <h3>Verified onboarding</h3>
+                    <p>Email OTP on both addresses at registration, then a human review by our team before your account is activated.</p>
+                </div>
+                <div class="feature reveal d3">
+                    <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="14" height="11" rx="2"/><path d="M6 19h6"/><path d="M9 15v4"/><rect x="17" y="10" width="5" height="11" rx="1.5"/></svg></div>
+                    <h3>Desktop + field mobile</h3>
+                    <p>A Windows admin console for your office and an Android app for your field agents — both ready from day one.</p>
+                </div>
+                <div class="feature reveal d4">
+                    <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M9 7h6M9 11h6M9 15h3"/><path d="M16 14l2 2 3-3"/></svg></div>
+                    <h3>Built for compliance</h3>
+                    <p>Audit trail on every search, KYC on every agent, device-binding, and role-based access — out of the box.</p>
+                </div>
             </div>
         </div>
     </section>
 
+    <!-- ── How it works ─────────────────────────────────────────────── -->
     <section class="section-sm">
         <div class="container">
-            <div class="feature-grid">
-                <div class="feature">
-                    <div class="ico">●</div>
-                    <h3>Private &amp; secure</h3>
-                    <p>Every approved agency gets its own fully isolated, private workspace. Your data is never shared with — or visible to — any other agency.</p>
+            <div class="section-head reveal">
+                <div class="kicker">How it works</div>
+                <h2>From registration to live in three steps.</h2>
+            </div>
+            <div class="steps">
+                <div class="step-card reveal d1">
+                    <h3>Register your agency</h3>
+                    <p>Submit your details, verify both email addresses with a one-time code, and choose your sign-in password.</p>
                 </div>
-                <div class="feature">
-                    <div class="ico">●</div>
-                    <h3>Verified onboarding</h3>
-                    <p>Two-step email verification with OTP at registration, then administrator review before activation.</p>
+                <div class="step-card reveal d2">
+                    <h3>Get verified by our team</h3>
+                    <p>An administrator reviews the application. We email you the moment your agency is activated.</p>
                 </div>
-                <div class="feature">
-                    <div class="ico">●</div>
-                    <h3>Desktop + field mobile</h3>
-                    <p>A Windows admin console for your office and an Android app for your field agents — both ready on day one.</p>
+                <div class="step-card reveal d3">
+                    <h3>Bring your team online</h3>
+                    <p>Sign in to the desktop console, add your branches and field agents, hand out the mobile app — and you're operational.</p>
                 </div>
-                <div class="feature">
-                    <div class="ico">●</div>
-                    <h3>Built for compliance</h3>
-                    <p>Audit trail of every search, KYC on every agent, device-binding, and role-based access out of the box.</p>
-                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ── CTA band ─────────────────────────────────────────────────── -->
+    <section class="section">
+        <div class="container">
+            <div class="cta-band reveal">
+                <h2>Ready to bring your agency online?</h2>
+                <p>Registration takes a couple of minutes. Activation is usually same-day.</p>
+                <a class="btn btn-dark btn-lg" href="register.html">
+                    Start the registration
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+                </a>
             </div>
         </div>
     </section>
@@ -71,8 +137,8 @@
 
 <footer class="site-footer">
     <div class="container">
-        <div>© <span id="year"></span> CRMS · Customer Relationship Management Recovery Software</div>
-        <div>Developed by <a href="mailto:rahul@loopwar.dev">rahul@loopwar.dev</a></div>
+        <div>© <span id="year"></span> CRMS — Recovery operations platform</div>
+        <div>Built by <a href="mailto:rahul@loopwar.dev">rahul@loopwar.dev</a></div>
     </div>
 </footer>
 
