@@ -2,9 +2,8 @@ package com.vkenterprises.vras.data.repository
 
 import com.vkenterprises.vras.data.api.ApiService
 import com.vkenterprises.vras.data.local.BranchSyncState
-import com.vkenterprises.vras.data.local.BranchSyncStateDao
+import com.vkenterprises.vras.data.local.TenantDb
 import com.vkenterprises.vras.data.local.VehicleCache
-import com.vkenterprises.vras.data.local.VehicleCacheDao
 import com.vkenterprises.vras.data.models.SyncBranch
 import kotlinx.coroutines.*
 import java.util.concurrent.atomic.AtomicLong
@@ -14,9 +13,12 @@ import javax.inject.Singleton
 @Singleton
 class SyncRepository @Inject constructor(
     private val api: ApiService,
-    private val vehicleDao: VehicleCacheDao,
-    private val syncStateDao: BranchSyncStateDao
+    private val db: TenantDb
 ) {
+    // Resolve DAOs through TenantDb each time so this singleton always reads
+    // and writes the CURRENT agency's vk_cache_<slug>.db — never a stale one.
+    private val vehicleDao   get() = db.vehicleCacheDao()
+    private val syncStateDao get() = db.branchSyncStateDao()
     data class Progress(
         val current: Long,
         val total: Long,

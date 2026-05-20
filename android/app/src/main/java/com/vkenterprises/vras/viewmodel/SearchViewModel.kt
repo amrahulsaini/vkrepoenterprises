@@ -2,8 +2,8 @@ package com.vkenterprises.vras.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.vkenterprises.vras.data.local.TenantDb
 import com.vkenterprises.vras.data.local.VehicleCache
-import com.vkenterprises.vras.data.local.VehicleCacheDao
 import com.vkenterprises.vras.data.models.SearchResult
 import com.vkenterprises.vras.data.repository.SearchRepository
 import com.vkenterprises.vras.data.repository.SearchResult2
@@ -47,9 +47,13 @@ data class SearchUiState(
 
 @HiltViewModel
 class SearchViewModel @Inject constructor(
-    private val vehicleDao: VehicleCacheDao,
+    private val db: TenantDb,
     private val syncRepo: SyncRepository
 ) : ViewModel() {
+
+    // Re-resolved each call so a mid-session agency switch immediately routes
+    // local reads to the new vk_cache_<slug>.db.
+    private val vehicleDao get() = db.vehicleCacheDao()
 
     private val serverRepo = SearchRepository()
 
