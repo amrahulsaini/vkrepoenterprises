@@ -23,6 +23,7 @@ class PreferencesManager(private val context: Context) {
         val KEY_TENANT_TOKEN   = stringPreferencesKey("tenant_token")
         val KEY_AGENCY_SLUG    = stringPreferencesKey("agency_slug")
         val KEY_AGENCY_NAME    = stringPreferencesKey("agency_name")
+        val KEY_AGENCY_LOGO    = stringPreferencesKey("agency_logo")
     }
 
     val isLoggedIn: Flow<Boolean> = context.dataStore.data
@@ -58,6 +59,9 @@ class PreferencesManager(private val context: Context) {
     val agencyName: Flow<String?> = context.dataStore.data
         .map { it[KEY_AGENCY_NAME]?.ifBlank { null } }
 
+    val agencyLogo: Flow<String?> = context.dataStore.data
+        .map { it[KEY_AGENCY_LOGO]?.ifBlank { null } }
+
     suspend fun saveSession(
         userId: Long, name: String, mobile: String,
         isAdmin: Boolean, subEnd: String?, pfp: String? = null,
@@ -75,11 +79,13 @@ class PreferencesManager(private val context: Context) {
         }
     }
 
-    // Remembers the agency the user picked, so the login screen can pre-fill it.
-    suspend fun saveAgency(slug: String, name: String) {
+    // Remembers the agency the user picked, so the login screen can pre-fill
+    // it and the home screen can show the agency logo.
+    suspend fun saveAgency(slug: String, name: String, logoPath: String = "") {
         context.dataStore.edit { prefs ->
             prefs[KEY_AGENCY_SLUG] = slug
             prefs[KEY_AGENCY_NAME] = name
+            prefs[KEY_AGENCY_LOGO] = logoPath
         }
     }
 
@@ -109,9 +115,11 @@ class PreferencesManager(private val context: Context) {
         context.dataStore.edit { prefs ->
             val slug = prefs[KEY_AGENCY_SLUG]
             val name = prefs[KEY_AGENCY_NAME]
+            val logo = prefs[KEY_AGENCY_LOGO]
             prefs.clear()
             if (slug != null) prefs[KEY_AGENCY_SLUG] = slug
             if (name != null) prefs[KEY_AGENCY_NAME] = name
+            if (logo != null) prefs[KEY_AGENCY_LOGO] = logo
         }
     }
 }

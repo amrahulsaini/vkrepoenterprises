@@ -2,6 +2,7 @@ package com.vkenterprises.vras.ui.screens
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -12,10 +13,14 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.*
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.*
 import androidx.navigation.NavController
+import coil.compose.AsyncImage
+import com.vkenterprises.vras.BuildConfig
 import com.vkenterprises.vras.navigation.Screen
 import com.vkenterprises.vras.viewmodel.AuthViewModel
 import com.vkenterprises.vras.viewmodel.SearchViewModel
@@ -326,6 +331,55 @@ fun SettingsScreen(
                         Spacer(Modifier.width(6.dp))
                         Text("Logout")
                     }
+                }
+            }
+
+            // ── Footer: agency logo + developer credit ───────────────────
+            item {
+                val agencyName by authVm.agencyName.collectAsState(initial = null)
+                val agencyLogo by authVm.agencyLogo.collectAsState(initial = null)
+                val logoUrl = agencyLogo?.takeIf { it.isNotBlank() }
+                    ?.let { BuildConfig.BASE_URL.trimEnd('/') + "/" + it.trimStart('/') }
+
+                Column(
+                    Modifier.fillMaxWidth().padding(top = 24.dp, bottom = 12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Surface(
+                        shape  = RoundedCornerShape(14.dp),
+                        color  = Color.White,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                        modifier = Modifier.size(72.dp)
+                    ) {
+                        if (logoUrl != null) {
+                            AsyncImage(
+                                model = logoUrl, contentDescription = agencyName,
+                                contentScale = ContentScale.Fit,
+                                modifier = Modifier.fillMaxSize().padding(6.dp)
+                            )
+                        } else {
+                            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                Text("CRMS", fontWeight = FontWeight.Black,
+                                    fontSize = 18.sp,
+                                    color = MaterialTheme.colorScheme.primary)
+                            }
+                        }
+                    }
+                    if (!agencyName.isNullOrBlank())
+                        Text(agencyName!!,
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            textAlign = TextAlign.Center)
+                    Spacer(Modifier.height(2.dp))
+                    Text("Developed by CRMS",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center)
+                    Text("rahul@loopwar.dev",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        textAlign = TextAlign.Center)
                 }
             }
 

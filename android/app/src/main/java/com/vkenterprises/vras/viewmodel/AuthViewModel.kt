@@ -73,6 +73,7 @@ class AuthViewModel @Inject constructor(
     val blockedReason   = prefs.blockedReason  // used by background heartbeat worker
     val agencySlug      = prefs.agencySlug
     val agencyName      = prefs.agencyName
+    val agencyLogo      = prefs.agencyLogo
 
     // Approved agencies for the register / login picker.
     private val _agencies = MutableStateFlow<List<AgencyListItem>>(emptyList())
@@ -143,7 +144,8 @@ class AuthViewModel @Inject constructor(
         aadhaarFront: String?, aadhaarBack: String?,
         panFront: String?,
         accountNumber: String?, ifscCode: String?,
-        slug: String, agencyName: String, agencyMobile: String
+        slug: String, agencyName: String, agencyMobile: String,
+        agencyLogo: String = ""
     ) = viewModelScope.launch {
         _state.value = AuthUiState.Loading
         val deviceId = DeviceIdUtil.get(context)
@@ -159,14 +161,14 @@ class AuthViewModel @Inject constructor(
         )
         _state.value = when (result) {
             is AuthResult.Success -> {
-                prefs.saveAgency(slug.trim(), agencyName)
+                prefs.saveAgency(slug.trim(), agencyName, agencyLogo)
                 AuthUiState.RegisterSuccess
             }
             is AuthResult.Error   -> AuthUiState.Error(result.message)
         }
     }
 
-    fun login(mobile: String, slug: String, agencyName: String) = viewModelScope.launch {
+    fun login(mobile: String, slug: String, agencyName: String, agencyLogo: String = "") = viewModelScope.launch {
         _state.value = AuthUiState.Loading
         val newSlug  = slug.trim()
         val prevSlug = prefs.agencySlug.first()
@@ -188,7 +190,7 @@ class AuthViewModel @Inject constructor(
             is AuthResult.Success -> {
                 val user = result.data
                 SessionTokens.tenantToken = user.tenantToken
-                prefs.saveAgency(slug.trim(), agencyName)
+                prefs.saveAgency(slug.trim(), agencyName, agencyLogo)
                 prefs.saveSession(
                     user.userId ?: 0L, user.name ?: "", user.mobile ?: "",
                     user.isAdmin, user.subscriptionEndDate, user.pfpUrl,

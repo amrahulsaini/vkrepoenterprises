@@ -36,6 +36,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.*
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import com.vkenterprises.vras.BuildConfig
 import com.vkenterprises.vras.data.models.SearchResult
 import com.vkenterprises.vras.navigation.Screen
 import com.vkenterprises.vras.viewmodel.AuthViewModel
@@ -49,11 +50,16 @@ fun HomeScreen(
     authVm: AuthViewModel,
     nav: NavController
 ) {
-    val ui         by searchVm.ui.collectAsState()
-    val userId     by authVm.userId.collectAsState(initial = -1L)
-    val userName   by authVm.userName.collectAsState(initial = "")
-    val isAdmin    by authVm.isAdmin.collectAsState(initial = false)
-    val kickReason by authVm.kickReason.collectAsState()
+    val ui          by searchVm.ui.collectAsState()
+    val userId      by authVm.userId.collectAsState(initial = -1L)
+    val userName    by authVm.userName.collectAsState(initial = "")
+    val isAdmin     by authVm.isAdmin.collectAsState(initial = false)
+    val kickReason  by authVm.kickReason.collectAsState()
+    val agencyName  by authVm.agencyName.collectAsState(initial = null)
+    val agencyLogo  by authVm.agencyLogo.collectAsState(initial = null)
+    val agencyLogoUrl = agencyLogo
+        ?.takeIf { it.isNotBlank() }
+        ?.let { BuildConfig.BASE_URL.trimEnd('/') + "/" + it.trimStart('/') }
     val context    = LocalContext.current
 
     // Ask for location permission so the worker can send GPS heartbeats
@@ -229,12 +235,48 @@ fun HomeScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Column {
-                        Text("CRMS", fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                        if (userName.isNotEmpty())
-                            Text("Hello, $userName",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        // White-background card so the logo (which may have
+                        // any colours / transparency) is always legible.
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = Color.White,
+                            tonalElevation = 0.dp,
+                            shadowElevation = 0.dp,
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp, MaterialTheme.colorScheme.outlineVariant
+                            ),
+                            modifier = Modifier.size(38.dp)
+                        ) {
+                            if (agencyLogoUrl != null) {
+                                AsyncImage(
+                                    model = agencyLogoUrl,
+                                    contentDescription = agencyName ?: "Agency",
+                                    contentScale = ContentScale.Fit,
+                                    modifier = Modifier.fillMaxSize().padding(3.dp)
+                                )
+                            } else {
+                                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                    Text("CRMS", fontWeight = FontWeight.Black, fontSize = 11.sp,
+                                        color = MaterialTheme.colorScheme.primary)
+                                }
+                            }
+                        }
+                        Spacer(Modifier.width(10.dp))
+                        Column {
+                            Text(
+                                agencyName ?: "Agency",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 15.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            if (userName.isNotEmpty())
+                                Text("Hello, $userName",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
                     }
                 },
                 actions = {
@@ -328,20 +370,10 @@ fun HomeScreen(
                 color = MaterialTheme.colorScheme.surfaceVariant,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    // Mode toggle
-                    Row(
-                        Modifier.fillMaxWidth()
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(MaterialTheme.colorScheme.surface)
-                    ) {
-                        ModeTab("RC Number",  ui.mode == SearchMode.RC,
-                            { searchVm.setMode(SearchMode.RC) }, Modifier.weight(1f))
-                        ModeTab("Chassis No", ui.mode == SearchMode.CHASSIS,
-                            { searchVm.setMode(SearchMode.CHASSIS) }, Modifier.weight(1f))
-                    }
-
-                    // Search input — capped at 4 (RC) or 5 (Chassis) digits, no spinner
+                Column(Modifier.padding(10.dp)) {
+                    // Single search field — the mode toggle (RC ⇄ CH) lives
+                    // inside the field as a trailing pill so the screen has more
+                    // room for results.
                     val maxLen = if (ui.mode == SearchMode.RC) 4 else 5
                     OutlinedTextField(
                         value = ui.inputText,
@@ -354,6 +386,39 @@ fun HomeScreen(
                             )
                         },
                         leadingIcon = { Icon(Icons.Default.Search, null, Modifier.size(18.dp)) },
+                        trailingIcon = {
+                            Surface(
+                                shape = RoundedCornerShape(50),
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier
+                                    .padding(end = 6.dp)
+                                    .clickable {
+                                        searchVm.setMode(
+                                            if (ui.mode == SearchMode.RC) SearchMode.CHASSIS
+                                            else SearchMode.RC
+                                        )
+                                    }
+                            ) {
+                                Row(
+                                    Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(5.dp)
+                                ) {
+                                    Text(
+                                        if (ui.mode == SearchMode.RC) "RC" else "CH",
+                                        color = MaterialTheme.colorScheme.onPrimary,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 12.sp,
+                                        letterSpacing = 0.5.sp
+                                    )
+                                    Icon(
+                                        Icons.Default.SwapHoriz, "Switch mode",
+                                        tint = MaterialTheme.colorScheme.onPrimary,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                }
+                            }
+                        },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),

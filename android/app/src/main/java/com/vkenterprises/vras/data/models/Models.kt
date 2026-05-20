@@ -42,10 +42,13 @@ data class AuthResponse(
 )
 
 // One entry of the agency picker on the register / login screens.
+// logoPath is the server-relative path (e.g. /agency-uploads/<slug>.jpg);
+// the app prepends BuildConfig.BASE_URL to render it.
 data class AgencyListItem(
     val id: Long,
     val name: String,
-    val slug: String
+    val slug: String,
+    val logoPath: String = ""
 )
 
 data class SearchResult(
