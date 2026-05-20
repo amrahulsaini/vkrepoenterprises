@@ -29,6 +29,9 @@ info "Code is up to date"
 
 # ── 2. Build & deploy VKApiServer (desktop/web API — port 5002) ───────────────
 section "Building VKApiServer"
+# Stop the service first so it releases the .pdb file lock before dotnet publish
+# tries to overwrite it (MSB3027 otherwise).
+systemctl stop vkapi 2>/dev/null || true
 cd "$VKAPI_SRC"
 dotnet publish -c Release -o "$VKAPI_OUT" --nologo -v quiet
 # Copy env file
@@ -121,6 +124,7 @@ fi
 
 # ── 4. Build & deploy VKmobileapi (mobile API — port 5001) ───────────────────
 section "Building VKmobileapi"
+systemctl stop vkmobileapi 2>/dev/null || true
 cd "$MOBILE_SRC"
 dotnet publish -c Release -o "$MOBILE_OUT" --nologo -v quiet
 # Copy env file so VKmobileapi can read MySQL credentials
