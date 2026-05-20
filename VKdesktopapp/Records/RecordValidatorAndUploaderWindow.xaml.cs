@@ -322,16 +322,23 @@ public partial class RecordValidatorAndUploaderWindow : Window
             return;
         }
 
-        var validRecords = FilterRecords(RecordFilters.Valid);
-        if (validRecords.Count == 0)
+        // Upload records that have a valid RC -OR- a non-empty chassis number.
+        // Records with an invalid/placeholder RC (e.g. "AF") but a real chassis
+        // are still useful: they appear in chassis searches and are shown as
+        // invalid in the UI. The server rc_info SQL already filters them out so
+        // they never pollute RC-number searches.
+        var uploadableRecords = _records
+            .Where(r => IsValidRc(r) || !string.IsNullOrWhiteSpace(r.ChasisNo))
+            .ToList();
+        if (uploadableRecords.Count == 0)
         {
-            MessageBox.Show("No valid records to upload.", "No Valid Records",
-                MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show("No records to upload (no valid RC numbers and no chassis numbers found).",
+                "Nothing to Upload", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
 
-        var uploadRecords  = DeduplicateRecords(validRecords);
-        int trueDuplicates = validRecords.Count - uploadRecords.Count;
+        var uploadRecords  = DeduplicateRecords(uploadableRecords);
+        int trueDuplicates = uploadableRecords.Count - uploadRecords.Count;
 
         btnUpload.IsEnabled  = false;
         txtPBR.Visibility    = Visibility.Visible;
@@ -375,7 +382,7 @@ public partial class RecordValidatorAndUploaderWindow : Window
             txtPBR.Text    = $"✓ {inserted:N0} records saved in {totalSec:F1}s";
 
             var dupLine = trueDuplicates > 0
-                ? $"\n({trueDuplicates:N0} exact duplicates skipped out of {validRecords.Count:N0} valid records)"
+                ? $"\n({trueDuplicates:N0} exact duplicates skipped out of {uploadableRecords.Count:N0} records)"
                 : "";
             MessageBox.Show(
                 $"{inserted:N0} records saved to \"{SelectedBranch.BranchName}\".\n" +
