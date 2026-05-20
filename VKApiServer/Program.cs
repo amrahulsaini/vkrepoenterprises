@@ -1815,17 +1815,19 @@ app.MapPost("/api/mgr/records/upload", async (HttpContext ctx) =>
                 await MgrExec(@"DELETE ri FROM rc_info ri
                     INNER JOIN vehicle_records vr ON vr.id = ri.vehicle_record_id
                     WHERE vr.branch_id = @bid", c, 300, ("@bid", branchId));
-                // last4 = the right-most 4-digit cluster, ignoring any trailing
-                // non-digits. So MH12AB1234 → "1234", HR736546 → "6546",
-                // and Bharat-series 22BH2271E → "2271" (not "271E", which
-                // wouldn't be reachable from a digits-only mobile search box).
+                // last4 = the right-most 4-digit cluster (e.g. MH-12-AB-1234 → "1234",
+                // HR-73-6546 → "6546", 22-BH-2271-E → "2271").
+                // Only insert rows whose stripped vehicle_no is a recognised Indian RC
+                // format — prevents junk like "AF1234" or bare digit strings from
+                // polluting rc_info and showing up in searches.
                 await MgrExec(@"INSERT INTO rc_info (vehicle_record_id,rc_number,model,last4)
                     SELECT id, vehicle_no, COALESCE(model,''),
                            LEFT(REGEXP_SUBSTR(vehicle_no,'[0-9]{4}[^0-9]*$'), 4)
                     FROM vehicle_records
                     WHERE branch_id=@bid
                       AND vehicle_no IS NOT NULL AND vehicle_no!=''
-                      AND REGEXP_SUBSTR(vehicle_no,'[0-9]{4}[^0-9]*$') IS NOT NULL",
+                      AND REGEXP_REPLACE(UPPER(vehicle_no),'[^A-Z0-9]','') REGEXP
+                          '^([A-Z]{2}[0-9]{1,3}[A-Z]{1,3}[0-9]{4}|[A-Z]{2}[0-9]{5,7}|[0-9]{2}BH[0-9]{4}[A-Z]{1,2})$'",
                     c, 300, ("@bid", branchId));
                 await MgrExec("SET foreign_key_checks=1", c); await MgrExec("SET unique_checks=1", c);
             }),

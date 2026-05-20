@@ -149,10 +149,11 @@ public partial class RecordValidatorAndUploaderWindow : Window
     //  Validation (RC number format check)
     // ──────────────────────────────────────────────────────────────
 
-    // Validate against the original raw VehicleNo (stripped of separators) so
-    // we don't have to reason about the hyphen-prefixing / suffix-swapping
-    // applied to FormatedVehicleNo. Accepted formats:
-    //   * Standard:    MH12AB1234 / DL1ZC4342 / RJ144C8139 — 2 state + 1-3 digits + 1-3 series letters + 4 unique
+    // Validate against FormatedVehicleNo (stripped of separators) so that
+    // short trailing-digit inputs like MH16CA716 are zero-padded to MH16CA0716
+    // by GetFormatedVehicleNo before validation, and then pass the regex.
+    // Accepted formats (after stripping hyphens):
+    //   * Standard:    MH12AB1234 / DL1ZC4342 / RJ144C8139 / MH16CA0716 — 2 state + 1-3 digits + 1-3 series letters + 4 unique
     //   * Legacy long: HR736546               — 2 state + 5-7 digits (govt / older)
     //   * Bharat (BH): 22BH2271E              — 2 year + BH + 4 digits + 1-2 letters
     private static readonly Regex RcRegex =
@@ -164,7 +165,9 @@ public partial class RecordValidatorAndUploaderWindow : Window
 
     private static bool IsValidRc(UploadRecord r)
     {
-        var plain = AlphaNumOnly.Replace(r.VehicleNo ?? string.Empty, "").ToUpperInvariant();
+        // Validate the formatted (zero-padded) value, not the raw input.
+        // MH16CA716 → GetFormatedVehicleNo → MH-16-CA-0716 → strip → MH16CA0716 → valid.
+        var plain = AlphaNumOnly.Replace(r.FormatedVehicleNo ?? string.Empty, "").ToUpperInvariant();
         return RcRegex.IsMatch(plain);
     }
 
