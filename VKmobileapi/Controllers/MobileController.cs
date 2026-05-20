@@ -59,18 +59,49 @@ public class MobileController : ControllerBase
             if (enteredAgencyMobile.Length == 0 || enteredAgencyMobile != Digits(agency.Mobile1))
                 return BadRequest(new ApiError(false, "The agency's mobile number does not match. Please confirm it with your agency."));
 
+            // ── Cross-agency uniqueness gate ─────────────────────────────
+            // crm_master.app_user_registry keeps a (mobile, device) → slug
+            // record for every approved agency user. A given mobile or device
+            // may only belong to ONE agency.
+            var clean = new {
+                Mobile = req.Mobile.Trim(),
+                Device = req.DeviceId.Trim(),
+                Slug   = req.Slug.Trim(),
+            };
+            var existingSlug = await _repo.FindExistingAgencyForMobileOrDevice(
+                clean.Mobile, clean.Device, clean.Slug);
+            if (existingSlug != null)
+                return Conflict(new ApiError(false,
+                    "This mobile number or device is already registered with another agency. " +
+                    "A user can only belong to one agency. Please contact your current agency to be removed first."));
+
             // All checks passed → register into that agency's own database.
-            TenantContext.UseAgency(req.Slug.Trim());
+            TenantContext.UseAgency(clean.Slug);
 
             var (success, reason, userId) = await _repo.RegisterAsync(
-                req.Mobile.Trim(), req.Name.Trim(),
+                clean.Mobile, req.Name.Trim(),
                 req.Address?.Trim(), req.Pincode?.Trim(),
-                req.PfpBase64, req.DeviceId.Trim(),
+                req.PfpBase64, clean.Device,
                 req.AadhaarFront, req.AadhaarBack, req.PanFront,
                 req.AccountNumber?.Trim(), req.IfscCode?.Trim());
 
             if (!success && reason == "mobile_exists")
-                return Conflict(new ApiError(false, "This mobile number is already registered."));
+                return Conflict(new ApiError(false, "This mobile number is already registered with this agency."));
+
+            // Record in the cross-agency registry. If a concurrent registration
+            // sneaks in first, this throws on the UNIQUE(mobile) and we report
+            // the conflict — the tenant row is harmless (login will fail until
+            // an admin approves, and the registry row prevents this device from
+            // registering elsewhere too).
+            try
+            {
+                await _repo.RegisterInMasterAsync(clean.Mobile, clean.Device, clean.Slug);
+            }
+            catch (MySqlConnector.MySqlException)
+            {
+                return Conflict(new ApiError(false,
+                    "This mobile number or device was just registered with another agency. Please try again."));
+            }
 
             return Ok(new { success = true, message = "Registered! Waiting for admin approval.", userId });
         }

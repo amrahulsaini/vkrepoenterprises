@@ -305,7 +305,7 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
                         pfpB64,
                         aadhaarFrontB64, aadhaarBackB64, panFrontB64,
                         accountNumber.ifBlank { null }, ifscCode.ifBlank { null },
-                        agency.slug, agency.name, agencyMobile
+                        agency.slug, agency.name, agencyMobile, agency.logoPath
                     )
                 },
                 enabled  = state !is AuthUiState.Loading,

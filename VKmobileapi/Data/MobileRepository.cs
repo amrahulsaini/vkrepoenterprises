@@ -55,11 +55,11 @@ public class MobileRepository
         await using var conn = DbFactory.CreateMaster();
         await conn.OpenAsync();
         await using var cmd = new MySqlCommand(
-            "SELECT id, name, slug FROM agencies WHERE status='approved' ORDER BY name ASC", conn);
+            "SELECT id, name, slug, COALESCE(logo_path,'') FROM agencies WHERE status='approved' ORDER BY name ASC", conn);
         var list = new List<AgencyListItem>();
         await using var rdr = await cmd.ExecuteReaderAsync();
         while (await rdr.ReadAsync())
-            list.Add(new AgencyListItem(rdr.GetInt64(0), rdr.GetString(1), rdr.GetString(2)));
+            list.Add(new AgencyListItem(rdr.GetInt64(0), rdr.GetString(1), rdr.GetString(2), rdr.GetString(3)));
         return list;
     }
 
@@ -76,6 +76,42 @@ public class MobileRepository
                 rdr.GetString(0),
                 rdr.IsDBNull(1) ? "" : rdr.GetString(1),
                 rdr.GetString(2));
+    }
+
+    // ── Cross-agency registration uniqueness ──────────────────────────────
+    // crm_master.app_user_registry holds (mobile, device_id) → agency_slug for
+    // every approved agency user. A given mobile / device may only belong to
+    // ONE agency: this is the check enforced before any tenant INSERT.
+
+    /// <summary>If the mobile OR device is already registered to a DIFFERENT
+    /// agency, returns that agency's slug; else null.</summary>
+    public async Task<string?> FindExistingAgencyForMobileOrDevice(string mobile, string deviceId, string currentSlug)
+    {
+        await using var conn = DbFactory.CreateMaster();
+        await conn.OpenAsync();
+        await using var cmd = new MySqlCommand(@"
+            SELECT agency_slug FROM app_user_registry
+             WHERE (mobile = @m OR device_id = @d) AND agency_slug != @s
+             LIMIT 1", conn);
+        cmd.Parameters.AddWithValue("@m", mobile);
+        cmd.Parameters.AddWithValue("@d", deviceId);
+        cmd.Parameters.AddWithValue("@s", currentSlug);
+        var r = await cmd.ExecuteScalarAsync();
+        return r as string;
+    }
+
+    /// <summary>Records that (mobile, device) belongs to slug. UNIQUE on
+    /// mobile guarantees one mobile = one agency atomically.</summary>
+    public async Task RegisterInMasterAsync(string mobile, string deviceId, string slug)
+    {
+        await using var conn = DbFactory.CreateMaster();
+        await conn.OpenAsync();
+        await using var cmd = new MySqlCommand(
+            "INSERT INTO app_user_registry (mobile, device_id, agency_slug) VALUES (@m, @d, @s)", conn);
+        cmd.Parameters.AddWithValue("@m", mobile);
+        cmd.Parameters.AddWithValue("@d", deviceId);
+        cmd.Parameters.AddWithValue("@s", slug);
+        await cmd.ExecuteNonQueryAsync();
     }
 
 

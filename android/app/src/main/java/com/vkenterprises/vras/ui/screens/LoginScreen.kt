@@ -175,7 +175,7 @@ fun LoginScreen(vm: AuthViewModel, nav: NavController) {
                     val agency = selectedAgency
                     if (agency == null) { error = "Please select your agency."; return@Button }
                     if (mobile.isBlank()) { error = "Enter your mobile number."; return@Button }
-                    vm.login(mobile, agency.slug, agency.name)
+                    vm.login(mobile, agency.slug, agency.name, agency.logoPath)
                 },
                 enabled = state !is AuthUiState.Loading,
                 modifier = Modifier.fillMaxWidth().height(52.dp),

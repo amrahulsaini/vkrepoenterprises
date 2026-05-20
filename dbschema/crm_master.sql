@@ -55,3 +55,17 @@ CREATE TABLE IF NOT EXISTS manage_sessions (
     expires_at DATETIME     NOT NULL,
     INDEX idx_expires (expires_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- ───── app_user_registry — cross-agency uniqueness for mobile-app users ─
+-- Every approved mobile-app user adds a row here. The UNIQUE key on mobile
+-- guarantees one mobile number belongs to ONE agency only; the registration
+-- endpoint also rejects if the (device_id) is already in another agency.
+CREATE TABLE IF NOT EXISTS app_user_registry (
+    mobile        VARCHAR(20)  NOT NULL,
+    device_id     VARCHAR(128) NOT NULL,
+    agency_slug   VARCHAR(60)  NOT NULL,
+    registered_at DATETIME     DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_mobile (mobile),
+    INDEX idx_device (device_id),
+    INDEX idx_agency (agency_slug)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;

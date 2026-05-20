@@ -24,7 +24,9 @@ public record LoginRequest(
     string? Slug = null);
 
 // One entry of the agency picker shown on the register / login screens.
-public record AgencyListItem(long Id, string Name, string Slug);
+// LogoPath is the server-relative path (e.g. /agency-uploads/<slug>.jpg); the
+// mobile app prepends its base URL to render the image.
+public record AgencyListItem(long Id, string Name, string Slug, string LogoPath);
 
 public record HeartbeatRequest(long UserId, double? Lat, double? Lng);
 
