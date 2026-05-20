@@ -6,8 +6,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.work.WorkManager
 import com.vkenterprises.vras.data.api.ApiClient
 import com.vkenterprises.vras.data.api.SessionTokens
-import com.vkenterprises.vras.data.local.BranchSyncStateDao
-import com.vkenterprises.vras.data.local.VehicleCacheDao
+import com.vkenterprises.vras.data.local.TenantDb
 import com.vkenterprises.vras.data.models.AgencyListItem
 import com.vkenterprises.vras.data.models.LoginRequest
 import com.vkenterprises.vras.data.models.RegisterRequest
@@ -45,17 +44,17 @@ sealed class AuthUiState {
 class AuthViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val prefs: PreferencesManager,
-    private val vehicleCacheDao: VehicleCacheDao,
-    private val branchSyncStateDao: BranchSyncStateDao
+    private val db: TenantDb
 ) : ViewModel() {
 
-    // Wipes every locally-cached record. Called when the session is dropped
-    // and whenever the user signs in to a different agency — so one agency's
-    // synced offline records can never be searched while signed in to another.
+    // Wipes every locally-cached record from the CURRENT agency's DB file.
+    // TenantDb gives us per-agency isolation (each agency has its own
+    // vk_cache_<slug>.db); this additionally deletes the rows on agency
+    // switch / logout, so nothing of the previous agency lingers on disk.
     private suspend fun clearOfflineCache() {
         runCatching {
-            vehicleCacheDao.deleteAll()
-            branchSyncStateDao.clearAll()
+            db.vehicleCacheDao().deleteAll()
+            db.branchSyncStateDao().clearAll()
         }
     }
 
@@ -117,10 +116,12 @@ class AuthViewModel @Inject constructor(
     }
 
     init {
-        // Restore the tenant token into memory so authed requests route
-        // correctly even before the first login of this app session.
+        // Restore the tenant token AND the active agency slug into memory so
+        // authed requests route correctly, and so TenantDb opens the right
+        // per-agency database, even before the first interaction this session.
         viewModelScope.launch {
             SessionTokens.tenantToken = prefs.tenantToken.first()
+            SessionTokens.agencySlug  = prefs.agencySlug.first()
         }
         viewModelScope.launch {
             prefs.subscriptionEnd.collect { subEnd ->
@@ -167,12 +168,19 @@ class AuthViewModel @Inject constructor(
 
     fun login(mobile: String, slug: String, agencyName: String) = viewModelScope.launch {
         _state.value = AuthUiState.Loading
-        // If the user is signing in to a different agency than last time,
-        // wipe the offline cache first so the old agency's records never
-        // remain searchable under the new one.
+        val newSlug  = slug.trim()
         val prevSlug = prefs.agencySlug.first()
-        if (prevSlug != null && prevSlug != slug.trim())
+        // If the user is switching to a different agency, wipe the PREVIOUS
+        // agency's offline DB rows BEFORE TenantDb swaps to the new file. Even
+        // though the per-agency files are already isolated by name, this
+        // guarantees nothing of the previous agency stays on disk either.
+        if (prevSlug != null && prevSlug != newSlug)
             clearOfflineCache()
+
+        // Point TenantDb at the new agency's file. Every later DAO call —
+        // including the very first one HomeScreen makes after navigation —
+        // opens vk_cache_<newSlug>.db, which is fresh / empty.
+        SessionTokens.agencySlug = newSlug
 
         val deviceId = DeviceIdUtil.get(context)
         val result = repo.login(LoginRequest(mobile.trim(), deviceId, slug.trim()))
@@ -226,12 +234,14 @@ class AuthViewModel @Inject constructor(
         pollingJob?.cancel()
         pollingJob = null
         _kickReason.value = null
-        // Stop the tenant-routing header from going out, cancel any scheduled
-        // sync workers, and wipe the offline cache so nothing of this agency's
-        // data survives the logout.
+        // Cancel any scheduled sync workers FIRST so they can't repopulate the
+        // cache as we're wiping it. Then wipe the current agency's offline
+        // rows. Finally drop the slug — any later DAO call resolves to the
+        // empty "none" DB, not to a previously-signed-in agency's file.
         SessionTokens.tenantToken = null
         runCatching { WorkManager.getInstance(context).cancelAllWork() }
         clearOfflineCache()
+        SessionTokens.agencySlug = null
         prefs.clearSession()
         _state.value = AuthUiState.Idle
     }

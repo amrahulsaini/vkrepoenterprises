@@ -4,7 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vkenterprises.vras.data.api.ApiService
 import com.vkenterprises.vras.data.local.BranchSyncState
-import com.vkenterprises.vras.data.local.VehicleCacheDao
+import com.vkenterprises.vras.data.local.TenantDb
 import com.vkenterprises.vras.data.repository.SyncRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -15,10 +15,13 @@ import javax.inject.Inject
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
-    private val vehicleDao: VehicleCacheDao,
+    private val db: TenantDb,
     private val syncRepo: SyncRepository,
     private val api: ApiService
 ) : ViewModel() {
+
+    // Always points at the signed-in agency's vk_cache_<slug>.db.
+    private val vehicleDao get() = db.vehicleCacheDao()
 
     data class UiState(
         val roomCount: Long            = 0L,

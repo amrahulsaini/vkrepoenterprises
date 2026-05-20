@@ -7,11 +7,15 @@ import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
 
-// Holds the signed tenant token in memory so the OkHttp interceptor (which
-// must run synchronously) can attach it without touching DataStore. Populated
-// at app start from PreferencesManager and refreshed on every login.
+// Holds the signed tenant token and the current agency slug in memory so the
+// OkHttp interceptor and the per-tenant Room database (both synchronous) can
+// read them without touching DataStore. Populated at app start from
+// PreferencesManager and refreshed on every login / logout.
 object SessionTokens {
     @Volatile var tenantToken: String? = null
+    // Drives which  vk_cache_<slug>.db  file the local Room database opens —
+    // see TenantDb. Switching this swaps the offline-records database.
+    @Volatile var agencySlug:  String? = null
 }
 
 object ApiClient {
