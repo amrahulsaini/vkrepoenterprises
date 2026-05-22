@@ -1,3 +1,4 @@
+using System.IO.Compression;
 using Microsoft.Extensions.FileProviders;
 using MySqlConnector;
 using VKmobileapi;
@@ -10,6 +11,16 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
+
+builder.Services.AddResponseCompression(opts =>
+{
+    opts.EnableForHttps = true;
+    opts.Providers.Add<Microsoft.AspNetCore.ResponseCompression.GzipCompressionProvider>();
+    opts.MimeTypes = Microsoft.AspNetCore.ResponseCompression.ResponseCompressionDefaults.MimeTypes.Concat(
+        new[] { "application/json", "text/plain" });
+});
+builder.Services.Configure<Microsoft.AspNetCore.ResponseCompression.GzipCompressionProviderOptions>(
+    opts => opts.Level = CompressionLevel.Fastest);
 
 // Allow any origin — lock down in production
 builder.Services.AddCors(o => o.AddDefaultPolicy(p =>
@@ -27,6 +38,7 @@ app.UseStaticFiles(new StaticFileOptions
     RequestPath  = "/uploads"
 });
 
+app.UseResponseCompression();
 app.UseCors();
 
 // ── Multi-tenant routing ─────────────────────────────────────────────────────
