@@ -26,7 +26,7 @@ builder.Services.AddResponseCompression(opts =>
     opts.EnableForHttps = true; // Cloudflare terminates TLS; origin is HTTP anyway, but safe to enable
     opts.Providers.Add<Microsoft.AspNetCore.ResponseCompression.GzipCompressionProvider>();
     opts.MimeTypes = Microsoft.AspNetCore.ResponseCompression.ResponseCompressionDefaults.MimeTypes.Concat(
-        ["application/json", "application/ndjson", "text/plain"]);
+        new[] { "application/json", "application/ndjson", "text/plain" });
 });
 builder.Services.Configure<Microsoft.AspNetCore.ResponseCompression.GzipCompressionProviderOptions>(opts =>
     opts.Level = CompressionLevel.Fastest); // Fastest = still 8-10x smaller, zero CPU bottleneck
