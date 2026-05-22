@@ -21,6 +21,16 @@ builder.Services.AddCors(options =>
 builder.Services.AddMemoryCache();
 builder.WebHost.ConfigureKestrel(opts => opts.Limits.MaxRequestBodySize = 200 * 1024 * 1024); // 200 MB for bulk uploads
 
+builder.Services.AddResponseCompression(opts =>
+{
+    opts.EnableForHttps = true; // Cloudflare terminates TLS; origin is HTTP anyway, but safe to enable
+    opts.Providers.Add<Microsoft.AspNetCore.ResponseCompression.GzipCompressionProvider>();
+    opts.MimeTypes = Microsoft.AspNetCore.ResponseCompression.ResponseCompressionDefaults.MimeTypes.Concat(
+        ["application/json", "application/ndjson", "text/plain"]);
+});
+builder.Services.Configure<Microsoft.AspNetCore.ResponseCompression.GzipCompressionProviderOptions>(opts =>
+    opts.Level = CompressionLevel.Fastest); // Fastest = still 8-10x smaller, zero CPU bottleneck
+
 // Legacy single-tenant database (vkre_db1). Agency requests are routed to
 // their own tenant DB per-request by the middleware below; see TenantContext.
 TenantContext.DefaultConn = new MySqlConnectionStringBuilder
@@ -47,6 +57,7 @@ var mysqlHost = Environment.GetEnvironmentVariable("MYSQL_HOST") ?? "127.0.0.1";
 var mysqlPort = int.TryParse(Environment.GetEnvironmentVariable("MYSQL_PORT"), out var mysqlPortParsed) ? mysqlPortParsed : 3306;
 
 var app = builder.Build();
+app.UseResponseCompression(); // must be first — compresses everything below it
 app.UseCors();
 
 // ── Multi-tenant request routing ─────────────────────────────────────────────
