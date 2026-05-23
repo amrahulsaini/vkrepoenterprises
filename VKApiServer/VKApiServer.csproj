@@ -8,6 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="BCrypt.Net-Next" Version="4.2.0" />
     <PackageReference Include="MySqlConnector" Version="2.3.7" />
   </ItemGroup>
 
@@ -15,12 +16,8 @@
        binary so the agency-approve endpoint can apply them to each new
        tenant database (no runtime dependency on vkre_db1). -->
   <ItemGroup>
-    <None Include="..\dbschema\tenant_template.sql"
-          Link="dbschema\tenant_template.sql"
-          CopyToOutputDirectory="PreserveNewest" />
-    <None Include="..\dbschema\tenant_seed.sql"
-          Link="dbschema\tenant_seed.sql"
-          CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\dbschema\tenant_template.sql" Link="dbschema\tenant_template.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\dbschema\tenant_seed.sql" Link="dbschema\tenant_seed.sql" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>
