@@ -2337,18 +2337,28 @@ app.MapPost("/api/webhooks/provider/HDB", async (HttpContext ctx) =>
     var tenantConn = TenantContext.BuildTenantConn(mysqlHost, mysqlPort, slug);
 
     // ── 3. Verify credentials against webhook_users ───────────────────────
-    var hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
-        System.Text.Encoding.UTF8.GetBytes(password))).ToLowerInvariant();
+    // Supports both bcrypt hashes (imported from legacy Node.js system, start with $2a$/$2b$)
+    // and SHA-256 hex (new credentials created via the desktop app).
     try
     {
         await using var authConn = new MySqlConnection(tenantConn);
         await authConn.OpenAsync();
         await using var authCmd = new MySqlCommand(
-            "SELECT COUNT(1) FROM webhook_users WHERE username=@u AND password_hash=@h LIMIT 1", authConn);
+            "SELECT password_hash FROM webhook_users WHERE username=@u LIMIT 1", authConn);
         authCmd.Parameters.AddWithValue("@u", username);
-        authCmd.Parameters.AddWithValue("@h", hash);
-        if (Convert.ToInt32(await authCmd.ExecuteScalarAsync()) == 0)
-            return Results.Unauthorized();
+        var storedHash = await authCmd.ExecuteScalarAsync() as string;
+        if (storedHash == null) return Results.Unauthorized();
+
+        bool valid;
+        if (storedHash.StartsWith("$2a$") || storedHash.StartsWith("$2b$"))
+            valid = BCrypt.Net.BCrypt.Verify(password, storedHash);
+        else
+        {
+            var sha = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
+                System.Text.Encoding.UTF8.GetBytes(password))).ToLowerInvariant();
+            valid = sha == storedHash;
+        }
+        if (!valid) return Results.Unauthorized();
     }
     catch { return Results.Problem("DB error during auth"); }
 
