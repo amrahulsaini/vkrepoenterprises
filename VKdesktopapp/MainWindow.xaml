@@ -115,6 +115,7 @@
                 <RowDefinition Height="56" />
                 <RowDefinition Height="56" />
                 <RowDefinition Height="56" />
+                <RowDefinition Height="56" />
                 <RowDefinition Height="*" />
                 <RowDefinition Height="56" />
             </Grid.RowDefinitions>
@@ -155,8 +156,14 @@
                     Content="&#x1F4CA;" FontFamily="Segoe UI" FontSize="20"
                     Foreground="{StaticResource Gray400}" Cursor="Hand"
                     Tag="Reports" />
+            <Button Name="btnDirectData" Click="btnNav_Click"
+                    Grid.Row="7" Width="64" Height="56"
+                    Background="Transparent" BorderThickness="0"
+                    Content="&#x1F4E5;" FontFamily="Segoe UI" FontSize="20"
+                    Foreground="{StaticResource Gray400}" Cursor="Hand"
+                    Tag="DirectData" />
             <Button Name="btnSettings" Click="btnSettings_Click"
-                    Grid.Row="8" Width="64" Height="56"
+                    Grid.Row="9" Width="64" Height="56"
                     Background="Transparent" BorderThickness="0"
                     Content="&#x2699;" FontFamily="Segoe UI" FontSize="22"
                     Foreground="{StaticResource Gray400}" Cursor="Hand" />
@@ -313,6 +320,18 @@
                                 <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
                                     <TextBlock Text="Blacklist" FontWeight="SemiBold" Foreground="{StaticResource Gray900}" FontSize="14" />
                                     <TextBlock Text="Restricted users" FontSize="11" Foreground="{StaticResource Gray600}" />
+                                </StackPanel>
+                            </Grid>
+                        </Button>
+                        <Button Tag="DirectData" Click="TileButton_Click" MinHeight="80" Margin="8" HorizontalAlignment="Stretch" Style="{StaticResource DashboardTileButton}">
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="56" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                <Border Width="44" Height="44" CornerRadius="22" Background="{StaticResource Gray100}" VerticalAlignment="Center" HorizontalAlignment="Left">
+                                    <TextBlock Text="📥" FontSize="16" VerticalAlignment="Center" HorizontalAlignment="Center" />
+                                </Border>
+                                <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
+                                    <TextBlock Text="Direct Data" FontWeight="SemiBold" Foreground="{StaticResource Gray900}" FontSize="14" />
+                                    <TextBlock Text="Webhook files" FontSize="11" Foreground="{StaticResource Gray600}" />
                                 </StackPanel>
                             </Grid>
                         </Button>

@@ -2302,6 +2302,248 @@ if (Directory.Exists(agencyUploads))
     });
 }
 
+// ── Webhook endpoints (/api/webhooks/*) ──────────────────────────────────────
+// Banks POST vehicle data to /api/webhooks/provider/HDB with:
+//   Authorization: Basic base64(username:password)
+//   X-Agency-Slug: <agency-slug>
+//   Body: { fileInfo: { fileName, vehicleType, uploadedBy, uploadDate, bankName, fileGUID? },
+//           data: [ { col1: val1, ... }, ... ] }
+// Desktop reads files via /api/webhooks/files (MgrAuth).
+
+var webhookFilesRoot = Path.Combine(app.Environment.ContentRootPath, "webhook-files");
+Directory.CreateDirectory(webhookFilesRoot);
+
+app.MapPost("/api/webhooks/provider/HDB", async (HttpContext ctx) =>
+{
+    // ── 1. Decode Basic auth ──────────────────────────────────────────────
+    var authHeader = ctx.Request.Headers.Authorization.FirstOrDefault() ?? "";
+    if (!authHeader.StartsWith("Basic ", StringComparison.OrdinalIgnoreCase))
+        return Results.Unauthorized();
+    string username, password;
+    try
+    {
+        var decoded = System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(authHeader[6..].Trim()));
+        var colon = decoded.IndexOf(':');
+        if (colon < 0) return Results.Unauthorized();
+        username = decoded[..colon];
+        password = decoded[(colon + 1)..];
+    }
+    catch { return Results.Unauthorized(); }
+
+    // ── 2. Resolve agency DB ──────────────────────────────────────────────
+    var slug = ctx.Request.Headers["X-Agency-Slug"].FirstOrDefault()?.Trim().ToLowerInvariant();
+    if (string.IsNullOrEmpty(slug))
+        return Results.BadRequest(new { message = "X-Agency-Slug header required" });
+    var tenantConn = TenantContext.BuildTenantConn(mysqlHost, mysqlPort, slug);
+
+    // ── 3. Verify credentials against webhook_users ───────────────────────
+    var hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
+        System.Text.Encoding.UTF8.GetBytes(password))).ToLowerInvariant();
+    try
+    {
+        await using var authConn = new MySqlConnection(tenantConn);
+        await authConn.OpenAsync();
+        await using var authCmd = new MySqlCommand(
+            "SELECT COUNT(1) FROM webhook_users WHERE username=@u AND password_hash=@h LIMIT 1", authConn);
+        authCmd.Parameters.AddWithValue("@u", username);
+        authCmd.Parameters.AddWithValue("@h", hash);
+        if (Convert.ToInt32(await authCmd.ExecuteScalarAsync()) == 0)
+            return Results.Unauthorized();
+    }
+    catch { return Results.Problem("DB error during auth"); }
+
+    // ── 4. Parse body ─────────────────────────────────────────────────────
+    WebhookProviderRequest? body;
+    try { body = await ctx.Request.ReadFromJsonAsync<WebhookProviderRequest>(); }
+    catch { return Results.BadRequest(new { message = "Invalid JSON body" }); }
+    if (body == null || body.FileInfo == null || body.Data == null || body.Data.Count == 0)
+        return Results.BadRequest(new { message = "fileInfo and data[] required" });
+    var fi = body.FileInfo;
+
+    // ── 5. Write CSV ──────────────────────────────────────────────────────
+    var safeSlug    = System.Text.RegularExpressions.Regex.Replace(slug, "[^a-z0-9_-]", "");
+    var slotDir     = Path.Combine(webhookFilesRoot, safeSlug);
+    Directory.CreateDirectory(slotDir);
+    var csvName     = $"{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}-{(fi.FileName ?? "data").Replace(" ", "_")}.csv";
+    var csvPath     = Path.Combine(slotDir, csvName);
+    var relPath     = Path.Combine("webhook-files", safeSlug, csvName);
+    var fields      = body.Data[0].Keys.ToList();
+    var totalRows   = body.Data.Count;
+    try
+    {
+        await using var sw = new StreamWriter(csvPath, false, System.Text.Encoding.UTF8);
+        await sw.WriteLineAsync(string.Join(",", fields.Select(f => $"\"{f.Replace("\"", "\"\"")}\"")));
+        foreach (var row in body.Data)
+        {
+            var cells = fields.Select(f =>
+            {
+                var v = row.TryGetValue(f, out var val) ? val?.ToString() ?? "" : "";
+                return $"\"{v.Replace("\"", "\"\"")}\"";
+            });
+            await sw.WriteLineAsync(string.Join(",", cells));
+        }
+    }
+    catch (Exception ex) { return Results.Problem($"CSV write failed: {ex.Message}"); }
+
+    // ── 6. Upsert bank + insert file record ───────────────────────────────
+    try
+    {
+        await using var conn = new MySqlConnection(tenantConn);
+        await conn.OpenAsync();
+
+        var bankName = (fi.BankName ?? "UNKNOWN").Trim().ToUpperInvariant();
+        await using var bankCmd = new MySqlCommand(@"
+            INSERT INTO webhook_banks (bank_name) VALUES (@n)
+            ON DUPLICATE KEY UPDATE bank_name=bank_name;
+            SELECT id FROM webhook_banks WHERE bank_name=@n LIMIT 1;", conn);
+        bankCmd.Parameters.AddWithValue("@n", bankName);
+        var bankId = Convert.ToInt32(await bankCmd.ExecuteScalarAsync());
+
+        await using var fileCmd = new MySqlCommand(@"
+            INSERT INTO webhook_files
+                (bank_id, file_name, file_path, vehicle_type, uploaded_by, uploaded_date, file_guid, total_records)
+            VALUES (@bid, @fn, @fp, @vt, @ub, @ud, @fg, @tr)", conn);
+        fileCmd.Parameters.AddWithValue("@bid", bankId);
+        fileCmd.Parameters.AddWithValue("@fn",  fi.FileName    ?? "");
+        fileCmd.Parameters.AddWithValue("@fp",  relPath);
+        fileCmd.Parameters.AddWithValue("@vt",  fi.VehicleType ?? "");
+        fileCmd.Parameters.AddWithValue("@ub",  fi.UploadedBy  ?? "");
+        fileCmd.Parameters.AddWithValue("@ud",  fi.UploadDate  ?? "");
+        fileCmd.Parameters.AddWithValue("@fg",  fi.FileGUID    ?? (object)DBNull.Value);
+        fileCmd.Parameters.AddWithValue("@tr",  totalRows);
+        await fileCmd.ExecuteNonQueryAsync();
+    }
+    catch (Exception ex) { return Results.Problem($"DB insert failed: {ex.Message}"); }
+
+    return Results.Ok(new { message = "Data successfully uploaded", records = totalRows });
+});
+
+// List webhook files — for the Desktop "Direct Data" page
+app.MapGet("/api/webhooks/files", async (HttpContext ctx) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        await using var conn = new MySqlConnection(TenantContext.Conn);
+        await conn.OpenAsync();
+        const string sql = @"
+            SELECT wf.id, wb.bank_name, wf.file_name, wf.vehicle_type,
+                   wf.uploaded_by, wf.uploaded_date, wf.total_records,
+                   DATE_FORMAT(wf.created_at,'%d %b %Y %h:%i %p') AS received_at,
+                   wf.file_guid
+            FROM webhook_files wf
+            INNER JOIN webhook_banks wb ON wb.id = wf.bank_id
+            ORDER BY wf.id DESC LIMIT 500";
+        var list = new List<object>();
+        await using var cmd = new MySqlCommand(sql, conn) { CommandTimeout = 10 };
+        await using var rdr = await cmd.ExecuteReaderAsync();
+        while (await rdr.ReadAsync())
+            list.Add(new
+            {
+                id           = rdr.GetInt32(0),
+                bankName     = rdr.GetString(1),
+                fileName     = rdr.GetString(2),
+                vehicleType  = rdr.IsDBNull(3) ? "" : rdr.GetString(3),
+                uploadedBy   = rdr.IsDBNull(4) ? "" : rdr.GetString(4),
+                uploadedDate = rdr.IsDBNull(5) ? "" : rdr.GetString(5),
+                totalRecords = rdr.GetInt32(6),
+                receivedAt   = rdr.GetString(7),
+                fileGuid     = rdr.IsDBNull(8) ? "" : rdr.GetString(8),
+            });
+        return Results.Ok(list);
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+// Download a webhook CSV file
+app.MapGet("/api/webhooks/files/{id:int}/download", async (HttpContext ctx, int id) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        await using var conn = new MySqlConnection(TenantContext.Conn);
+        await conn.OpenAsync();
+        await using var cmd = new MySqlCommand(
+            "SELECT file_path, file_name FROM webhook_files WHERE id=@id LIMIT 1", conn);
+        cmd.Parameters.AddWithValue("@id", id);
+        await using var rdr = await cmd.ExecuteReaderAsync();
+        if (!await rdr.ReadAsync()) return Results.NotFound(new { message = "File not found" });
+        var relPath  = rdr.GetString(0);
+        var fileName = rdr.GetString(1);
+        await rdr.CloseAsync();
+
+        var fullPath = Path.Combine(app.Environment.ContentRootPath, relPath.TrimStart('/', '\\'));
+        if (!File.Exists(fullPath))
+            return Results.NotFound(new { message = "CSV file missing on disk" });
+
+        var bytes = await File.ReadAllBytesAsync(fullPath);
+        var safeName = Path.GetFileName(relPath);
+        ctx.Response.Headers["Content-Disposition"] = $"attachment; filename=\"{safeName}\"";
+        return Results.File(bytes, "text/csv");
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+// List webhook users (for the "Credentials" tab in Direct Data)
+app.MapGet("/api/webhooks/users", async (HttpContext ctx) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        await using var conn = new MySqlConnection(TenantContext.Conn);
+        await conn.OpenAsync();
+        const string sql = @"SELECT id, username, DATE_FORMAT(created_at,'%d %b %Y') AS created_at
+                              FROM webhook_users ORDER BY id DESC";
+        var list = new List<object>();
+        await using var cmd = new MySqlCommand(sql, conn) { CommandTimeout = 10 };
+        await using var rdr = await cmd.ExecuteReaderAsync();
+        while (await rdr.ReadAsync())
+            list.Add(new { id = rdr.GetInt32(0), username = rdr.GetString(1), createdAt = rdr.GetString(2) });
+        return Results.Ok(list);
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+// Create webhook user — password stored as SHA-256 hex
+app.MapPost("/api/webhooks/users", async (HttpContext ctx, WebhookCreateUserDto dto) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    if (string.IsNullOrWhiteSpace(dto.Username) || string.IsNullOrWhiteSpace(dto.Password))
+        return Results.BadRequest(new { message = "Username and password required" });
+    var hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
+        System.Text.Encoding.UTF8.GetBytes(dto.Password))).ToLowerInvariant();
+    try
+    {
+        await using var conn = new MySqlConnection(TenantContext.Conn);
+        await conn.OpenAsync();
+        await using var cmd = new MySqlCommand(
+            "INSERT INTO webhook_users (username, password_hash) VALUES (@u, @h)", conn);
+        cmd.Parameters.AddWithValue("@u", dto.Username.Trim());
+        cmd.Parameters.AddWithValue("@h", hash);
+        await cmd.ExecuteNonQueryAsync();
+        return Results.Ok(new { message = "User created" });
+    }
+    catch (MySqlException ex) when (ex.Number == 1062)
+    { return Results.BadRequest(new { message = "Username already exists" }); }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+// Delete webhook user
+app.MapDelete("/api/webhooks/users/{id:int}", async (HttpContext ctx, int id) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        await using var conn = new MySqlConnection(TenantContext.Conn);
+        await conn.OpenAsync();
+        await using var cmd = new MySqlCommand("DELETE FROM webhook_users WHERE id=@id", conn);
+        cmd.Parameters.AddWithValue("@id", id);
+        await cmd.ExecuteNonQueryAsync();
+        return Results.Ok();
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
 // ── CRMS Agency Portal endpoints (/api/agency/*) ────────────────────────────
 AgencyPortal.Map(app, mysqlHost, mysqlPort);
 
@@ -2341,3 +2583,10 @@ record MgrSetBlacklistedDto(bool Blacklisted);
 record MgrSetFinanceRestrictionsDto(List<int> FinanceIds);
 record MgrSetSubsPasswordDto(string Password);
 record MgrSetAdminPassDto(string Password);
+record WebhookCreateUserDto(string Username, string Password);
+record WebhookFileInfoDto(
+    string? FileName, string? VehicleType, string? UploadedBy,
+    string? UploadDate, string? BankName, string? FileGUID);
+record WebhookProviderRequest(
+    WebhookFileInfoDto? FileInfo,
+    List<Dictionary<string, object?>>? Data);
