@@ -9,6 +9,7 @@ using VRASDesktopApp.AppUsers;
 using VRASDesktopApp.Blacklist;
 using VRASDesktopApp.Confirmations;
 using VRASDesktopApp.Finances;
+using VRASDesktopApp.DirectData;
 using VRASDesktopApp.Records;
 using VRASDesktopApp.Reports;
 
@@ -25,6 +26,7 @@ public partial class MainWindow : Window
     private readonly Page _confirmationsPage;
     private readonly Page _reportsPage;
     private readonly Page _blacklistPage;
+    private readonly Page _directDataPage;
     private RecordsEditorWindow? _recordsEditorWindow;
 
     private static readonly SolidColorBrush ActiveBrush =
@@ -45,6 +47,7 @@ public partial class MainWindow : Window
         _confirmationsPage = new ConfirmationsManagerPage();
         _reportsPage = new ReportsPage();
         _blacklistPage = new BlacklistPage();
+        _directDataPage = new DirectDataPage();
 
         RefreshFirmLabels();
     }
@@ -79,6 +82,7 @@ public partial class MainWindow : Window
             case "Users": LoadPage(_appUsersManagerPage); break;
             case "Confirmations": LoadPage(_confirmationsPage); break;
             case "Reports": LoadPage(_reportsPage); break;
+            case "DirectData": LoadPage(_directDataPage); break;
         }
     }
 
@@ -90,6 +94,7 @@ public partial class MainWindow : Window
         btnUsers.Foreground = brush;
         btnConfirmations.Foreground = brush;
         btnReports.Foreground = brush;
+        btnDirectData.Foreground = brush;
     }
 
     private void btnSettings_Click(object sender, RoutedEventArgs e)
@@ -125,6 +130,7 @@ public partial class MainWindow : Window
             case "Confirmations": LoadPage(_confirmationsPage); break;
             case "Reports": LoadPage(_reportsPage); break;
             case "Blacklist": LoadPage(_blacklistPage); break;
+            case "DirectData": LoadPage(_directDataPage); break;
         }
     }
 
