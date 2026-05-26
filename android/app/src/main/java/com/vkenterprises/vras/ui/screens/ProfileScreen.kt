@@ -1,9 +1,8 @@
 package com.vkenterprises.vras.ui.screens
 
-import android.net.Uri
-import android.util.Base64
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import com.vkenterprises.vras.utils.compressImageToBase64
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
@@ -40,11 +39,10 @@ fun ProfileScreen(
     LaunchedEffect(userId) { if (userId > 0) vm.load(userId) }
 
     val pfpPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        uri?.let {
-            val bytes = context.contentResolver.openInputStream(it)?.readBytes()
-            val b64   = bytes?.let { b -> Base64.encodeToString(b, Base64.NO_WRAP) }
-            vm.updatePfp(userId, b64)
-        }
+        // Same compression pipeline as RegisterScreen — a 4MB phone selfie
+        // becomes ~100KB after downscale-to-1280 + JPEG@80. Without this the
+        // pfp PUT call could time out on slow networks.
+        uri?.let { vm.updatePfp(userId, compressImageToBase64(context, it)) }
     }
 
     Scaffold(
@@ -253,28 +251,27 @@ private fun InfoRow(icon: androidx.compose.ui.graphics.vector.ImageVector, label
     }
 }
 
+// `url` is a full https URL into /uploads/kyc/... the server returns from
+// GET /api/mobile/profile/{id}. Previously this composable expected a
+// base64 string and silently fell through to "Not provided" because the
+// server actually returns paths/URLs — broken thumbnails on every device.
 @Composable
-private fun KycDocThumb(label: String, base64: String?, modifier: Modifier = Modifier) {
+private fun KycDocThumb(label: String, url: String?, modifier: Modifier = Modifier) {
     OutlinedCard(modifier = modifier.height(80.dp)) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            if (!base64.isNullOrBlank()) {
-                val bytes = remember(base64) {
-                    runCatching { Base64.decode(base64, Base64.DEFAULT) }.getOrNull()
-                }
-                if (bytes != null) {
-                    AsyncImage(
-                        model = bytes, contentDescription = label,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                    Box(
-                        Modifier.fillMaxWidth().align(Alignment.BottomCenter)
-                            .background(Color.Black.copy(alpha = 0.5f))
-                            .padding(2.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(label, style = MaterialTheme.typography.labelSmall, color = Color.White)
-                    }
+            if (!url.isNullOrBlank()) {
+                AsyncImage(
+                    model = url, contentDescription = label,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+                Box(
+                    Modifier.fillMaxWidth().align(Alignment.BottomCenter)
+                        .background(Color.Black.copy(alpha = 0.5f))
+                        .padding(2.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(label, style = MaterialTheme.typography.labelSmall, color = Color.White)
                 }
             } else {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
