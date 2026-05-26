@@ -78,6 +78,39 @@ public class MobileRepository
                 rdr.GetString(2));
     }
 
+    /// <summary>Full agency profile (name, address, all contact numbers)
+    /// for the in-app "Agency" detail panel. Returns mobile1, mobile2, and
+    /// every line in mobiles_extra de-duped into one flat list.</summary>
+    public async Task<AgencyInfo?> GetAgencyInfoAsync(string slug)
+    {
+        await using var conn = DbFactory.CreateMaster();
+        await conn.OpenAsync();
+        await using var cmd = new MySqlCommand(@"
+            SELECT name, COALESCE(address,''), mobile1,
+                   COALESCE(mobile2,''), COALESCE(mobiles_extra,''),
+                   COALESCE(logo_path,'')
+              FROM agencies WHERE slug=@s LIMIT 1", conn);
+        cmd.Parameters.AddWithValue("@s", slug);
+        await using var rdr = await cmd.ExecuteReaderAsync();
+        if (!await rdr.ReadAsync()) return null;
+
+        var mobiles = new List<string>();
+        void Add(string s) {
+            s = s.Trim();
+            if (!string.IsNullOrWhiteSpace(s) && !mobiles.Contains(s))
+                mobiles.Add(s);
+        }
+        Add(rdr.GetString(2));            // mobile1 (primary)
+        Add(rdr.GetString(3));            // mobile2 (secondary)
+        foreach (var line in rdr.GetString(4).Split(new[] { '\n','\r' }, StringSplitOptions.RemoveEmptyEntries))
+            Add(line);                    // extras
+        return new AgencyInfo(
+            Name:     rdr.GetString(0),
+            Address:  rdr.GetString(1),
+            Mobiles:  mobiles,
+            LogoPath: rdr.GetString(5));
+    }
+
     // ── Cross-agency registration uniqueness ──────────────────────────────
     // crm_master.app_user_registry holds (mobile, device_id) → agency_slug for
     // every approved agency user. A given mobile / device may only belong to

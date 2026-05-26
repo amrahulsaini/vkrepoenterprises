@@ -38,7 +38,11 @@
 [Setup]
 ; AgencyGuid -> AppId. Side-by-side installs across tenants because each
 ; tenant's slug hashes to its own GUID.
-AppId={{#AgencyGuid}
+;
+; Inno parses `{{` as a literal `{`, and `}` is literal when not closing a
+; constant. The preprocessor expression `{#AgencyGuid}` consumes a `{` and a
+; `}`, so we need 3 `{` and 2 `}` to emit the final `{GUID}` AppId value.
+AppId={{{#AgencyGuid}}
 AppName={#AppName}
 AppVersion={#AppVersion}
 AppPublisher=CRMS

@@ -38,6 +38,7 @@ isn't left with the last tenant's branding leaked in.
 from __future__ import annotations
 
 import hashlib
+import io
 import json
 import os
 import shutil
@@ -46,6 +47,12 @@ import sys
 import tempfile
 import uuid
 from pathlib import Path
+
+# PowerShell on Windows captures stdout as cp1252 by default — force UTF-8
+# so any non-ASCII char in our prints (or in agency names) doesn't crash.
+if sys.platform == "win32" and hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 try:
     from PIL import Image
@@ -233,10 +240,10 @@ def main() -> None:
     print(f"[build_wpf_all] {len(agencies)} approved agencies\n")
 
     for a in agencies:
-        print(f"━━━ {a['name']}  (slug={a['slug']}) ━━━")
+        print(f"=== {a['name']}  (slug={a['slug']}) ===")
         logo = pull_logo(a["slug"], a.get("logoExt", ""))
         if logo is None:
-            print(f"  ⚠️  no uploaded logo — falling back to generic CRMRS brand")
+            print(f"  [warn] no uploaded logo - falling back to generic CRMRS brand")
             logo = GENERIC_LOGO_SRC
         render_icon_and_logo(logo)
         write_branding(a)
@@ -244,9 +251,9 @@ def main() -> None:
         publish_dir = publish_for(a)
         setup_exe   = compile_installer(a, publish_dir)
         if not setup_exe.exists():
-            print(f"  ✗ installer missing: {setup_exe}")
+            print(f"  [fail] installer missing: {setup_exe}")
             continue
-        print(f"  ✓ installer: {setup_exe.name}  ({setup_exe.stat().st_size/1024/1024:.1f} MB)")
+        print(f"  [ok]  installer: {setup_exe.name}  ({setup_exe.stat().st_size/1024/1024:.1f} MB)")
         upload_setup(a, setup_exe)
 
     restore_generic_assets()

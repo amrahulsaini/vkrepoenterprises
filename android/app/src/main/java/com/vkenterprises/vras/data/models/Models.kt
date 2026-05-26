@@ -51,6 +51,16 @@ data class AgencyListItem(
     val logoPath: String = ""
 )
 
+// Full agency profile from GET /api/mobile/agency — used by the in-app
+// Agency panel on the vehicle detail screen so every admin-set mobile
+// number is shown (and tap-to-dial works on each).
+data class AgencyInfo(
+    val name: String = "",
+    val address: String = "",
+    val mobiles: List<String> = emptyList(),
+    val logoPath: String = ""
+)
+
 data class SearchResult(
     val id: Long,
     val vehicleNo: String,

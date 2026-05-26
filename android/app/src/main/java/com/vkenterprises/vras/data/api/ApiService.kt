@@ -9,6 +9,12 @@ interface ApiService {
     @GET("api/mobile/agencies")
     suspend fun getAgencies(): Response<List<AgencyListItem>>
 
+    // Full profile for the signed-in agency (name, address, every contact
+    // number including extras). Slug is resolved server-side from the
+    // X-Tenant-Token header added by the OkHttp interceptor.
+    @GET("api/mobile/agency")
+    suspend fun getAgencyInfo(): Response<AgencyInfo>
+
     @POST("api/mobile/register")
     suspend fun register(@Body request: RegisterRequest): Response<Map<String, Any>>
 
