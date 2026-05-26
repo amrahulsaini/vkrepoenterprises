@@ -36,17 +36,15 @@
 <body>
 <div id="map"></div>
 <script>
-  // Attribution moved to top-right so it doesn't get clipped on the
-  // bottom edge of the WebView2 viewport (Leaflet's default placement).
+  // Attribution removed at user request — the strip was getting clipped
+  // by the WebView2 viewport. Re-enable by removing attributionControl:false
+  // and dropping the empty attribution if OSM TOS becomes a concern.
   var map = L.map('map', {
     zoomControl: true,
     attributionControl: false
   }).setView([20.5937, 78.9629], 5);
 
-  L.control.attribution({ position: 'topright', prefix: false }).addTo(map);
-
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; OpenStreetMap',
     maxZoom: 19
   }).addTo(map);
 
