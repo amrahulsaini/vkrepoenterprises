@@ -72,12 +72,16 @@
                        HorizontalAlignment="Center" VerticalAlignment="Center" />
             </Border>
 
-            <!-- Product Name -->
-            <TextBlock Text="CRMS"
+            <!-- Product / agency name. Defaults to CRMS; the code-behind
+                 replaces it with the signed-in agency's name on every launch
+                 after the first successful sign-in. -->
+            <TextBlock Name="lblAppName"
+                       Text="CRMS"
                        TextAlignment="Center"
                        FontSize="26" FontWeight="Bold"
                        Foreground="{StaticResource Gray900}"
-                       Margin="16,4,16,0" />
+                       Margin="16,4,16,0"
+                       TextWrapping="Wrap" />
             <TextBlock Text="Recovery management software for agencies"
                        TextAlignment="Center"
                        FontSize="11"
