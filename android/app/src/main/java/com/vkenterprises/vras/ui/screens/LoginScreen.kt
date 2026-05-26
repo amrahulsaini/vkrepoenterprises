@@ -105,8 +105,8 @@ fun LoginScreen(vm: AuthViewModel, nav: NavController) {
                 modifier = Modifier.size(112.dp)
             ) {
                 Image(
-                    painter = painterResource(id = R.drawable.crmrs_logo),
-                    contentDescription = "CRMS",
+                    painter = painterResource(id = R.drawable.agency_logo),
+                    contentDescription = agencyName,
                     contentScale = ContentScale.Fit,
                     modifier = Modifier.fillMaxSize().padding(10.dp)
                 )
