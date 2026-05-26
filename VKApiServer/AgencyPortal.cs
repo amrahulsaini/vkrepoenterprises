@@ -457,6 +457,7 @@ internal static class AgencyPortal
                 string pkg    = $"com.crmrecoverysoftware.{flavor}";
                 string apk    = Path.Combine(AGENCY_APPS_ROOT, flavor, "app.apk");
                 string aab    = Path.Combine(AGENCY_APPS_ROOT, flavor, "app.aab");
+                string setup  = Path.Combine(AGENCY_APPS_ROOT, flavor, "setup.exe");
                 // Resolve logo URL — logo_path is something like
                 // "/agency-uploads/rk_enterprises.jpg" stored at registration.
                 string logoUrl = "";
@@ -478,6 +479,9 @@ internal static class AgencyPortal
                     aabExists    = File.Exists(aab),
                     aabSize      = File.Exists(aab) ? new FileInfo(aab).Length : 0L,
                     aabBuiltAt   = File.Exists(aab) ? File.GetLastWriteTimeUtc(aab).ToString("yyyy-MM-dd HH:mm 'UTC'") : "",
+                    setupExists  = File.Exists(setup),
+                    setupSize    = File.Exists(setup) ? new FileInfo(setup).Length : 0L,
+                    setupBuiltAt = File.Exists(setup) ? File.GetLastWriteTimeUtc(setup).ToString("yyyy-MM-dd HH:mm 'UTC'") : "",
                 });
             }
             return Results.Ok(new { apps = rows });
@@ -502,16 +506,24 @@ internal static class AgencyPortal
                 if (await qc.ExecuteScalarAsync() == null) return Results.Unauthorized();
             }
 
-            // Hard sanitize — flavor must be lowercase alphanumeric only, type must be apk|aab.
-            // Anything else is a path-traversal attempt; refuse outright.
+            // Hard sanitize — flavor must be lowercase alphanumeric only.
+            // type ∈ { apk, aab, setup } maps to a fixed file under the
+            // flavor dir; anything else is a path-traversal attempt.
             if (!Regex.IsMatch(flavor, @"^[a-z0-9]+$")) return Results.BadRequest(new { message = "Invalid flavor" });
-            if (type != "apk" && type != "aab")        return Results.BadRequest(new { message = "Invalid type" });
 
-            string path = Path.Combine(AGENCY_APPS_ROOT, flavor, $"app.{type}");
+            (string fileName, string mime, string downloadName) = type switch
+            {
+                "apk"   => ("app.apk",   "application/vnd.android.package-archive", $"crms-{flavor}.apk"),
+                "aab"   => ("app.aab",   "application/octet-stream",                $"crms-{flavor}.aab"),
+                "setup" => ("setup.exe", "application/octet-stream",                $"crms-{flavor}-setup.exe"),
+                _       => ("",          "", ""),
+            };
+            if (string.IsNullOrEmpty(fileName))
+                return Results.BadRequest(new { message = "Invalid type" });
+
+            string path = Path.Combine(AGENCY_APPS_ROOT, flavor, fileName);
             if (!File.Exists(path)) return Results.NotFound(new { message = $"No {type} built for this agency yet." });
 
-            string mime         = type == "apk" ? "application/vnd.android.package-archive" : "application/octet-stream";
-            string downloadName = $"crms-{flavor}.{type}";
             // PhysicalFile streams without loading into memory.
             return Results.File(path, mime, downloadName);
         });

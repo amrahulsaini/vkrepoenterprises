@@ -21,6 +21,12 @@ public partial class LoginWindow : Window
     public LoginWindow()
     {
         InitializeComponent();
+        // Tenant builds carry the agency name baked into Branding (read from
+        // Resources/branding.json). Generic CRMS builds fall back to the
+        // post-login disk cache. Either way the login screen never says
+        // "CRMS" once an agency is established on the machine.
+        if (Branding.IsTenantBuild)
+            lblAppName.Text = Branding.Name;
         Loaded += (_, __) => LoadCachedAgencyBranding();
     }
 
