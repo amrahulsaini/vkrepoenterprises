@@ -233,13 +233,19 @@ class AuthViewModel @Inject constructor(
             val resp = ApiClient.api.getProfile(uid)
             if (resp.isSuccessful) {
                 val p = resp.body() ?: return@launch
+                // Refreshing the saved session every screen-resume keeps the
+                // pfp URL in lockstep with the server. Without this, if a
+                // user logged in before the AbsUrl fix shipped, prefs would
+                // hold a stale http://localhost:5001/... URL and the home
+                // top-bar avatar would render broken until a fresh login.
                 prefs.saveSession(
                     userId  = uid,
                     name    = p.name,
                     mobile  = p.mobile,
                     isAdmin = p.isAdmin,
                     subEnd  = p.subscriptions.filter { it.isActive }
-                                  .maxOfOrNull { it.endDate }
+                                  .maxOfOrNull { it.endDate },
+                    pfp     = p.pfpUrl
                 )
             }
         }
