@@ -226,6 +226,24 @@
                                     <Setter Property="Height" Value="8" />
                                     <Setter Property="Background" Value="{StaticResource Gray100}" />
                                 </Style>
+                                <Style x:Key="RowBorder" TargetType="Border">
+                                    <Setter Property="BorderBrush"      Value="{StaticResource Gray200}" />
+                                    <Setter Property="BorderThickness"  Value="0,0,0,1" />
+                                    <Setter Property="Padding"          Value="14,9" />
+                                </Style>
+                                <Style x:Key="RowText" TargetType="TextBox">
+                                    <Setter Property="IsReadOnly"       Value="True" />
+                                    <Setter Property="BorderThickness"  Value="0" />
+                                    <Setter Property="Padding"          Value="0" />
+                                    <Setter Property="Background"       Value="Transparent" />
+                                    <Setter Property="Foreground"       Value="{StaticResource Gray900}" />
+                                    <Setter Property="FontFamily"       Value="Consolas" />
+                                    <Setter Property="FontSize"         Value="13" />
+                                    <Setter Property="FontWeight"       Value="SemiBold" />
+                                    <Setter Property="TextWrapping"     Value="Wrap" />
+                                    <Setter Property="Cursor"           Value="IBeam" />
+                                    <Setter Property="IsReadOnlyCaretVisible" Value="False" />
+                                </Style>
                             </StackPanel.Resources>
 
                             <Grid>
@@ -238,22 +256,14 @@
                                     <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
                                     <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
                                 </Grid.RowDefinitions>
-                                <Border Grid.Row="0" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBox Text="Vehicle No :" Style="{StaticResource LabelText}" /></Border>
-                                <Border Grid.Row="0" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBox Text="{Binding VehicleNo}" Style="{StaticResource ValueText}" FontFamily="Consolas"/></Border>
-                                <Border Grid.Row="1" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBox Text="Chassis No :" Style="{StaticResource LabelText}" /></Border>
-                                <Border Grid.Row="1" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBox Text="{Binding ChassisNo}" Style="{StaticResource ValueText}" FontFamily="Consolas"/></Border>
-                                <Border Grid.Row="2" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBox Text="Model/Make :" Style="{StaticResource LabelText}" /></Border>
-                                <Border Grid.Row="2" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBox Text="{Binding Model}" Style="{StaticResource ValueText}"/></Border>
-                                <Border Grid.Row="3" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBox Text="Engine No :" Style="{StaticResource LabelText}" /></Border>
-                                <Border Grid.Row="3" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBox Text="{Binding EngineNo}" Style="{StaticResource ValueText}" FontFamily="Consolas"/></Border>
-                                <Border Grid.Row="4" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBox Text="Agreement No :" Style="{StaticResource LabelText}" /></Border>
-                                <Border Grid.Row="4" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBox Text="{Binding AgreementNo}" Style="{StaticResource ValueText}" FontFamily="Consolas"/></Border>
-                                <Border Grid.Row="5" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBox Text="Cust. Name :" Style="{StaticResource LabelText}" /></Border>
-                                <Border Grid.Row="5" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBox Text="{Binding CustomerName}" Style="{StaticResource ValueText}"/></Border>
-                                <Border Grid.Row="6" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBox Text="Cust. Address :" Style="{StaticResource LabelText}" /></Border>
-                                <Border Grid.Row="6" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBox Text="{Binding CustomerAddress}" Style="{StaticResource ValueText}"/></Border>
-                                <Border Grid.Row="7" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBox Text="Cust. Contact :" Style="{StaticResource LabelText}" /></Border>
-                                <Border Grid.Row="7" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBox Text="{Binding CustomerContactNos}" Style="{StaticResource ValueText}" FontFamily="Consolas"/></Border>
+                                <Border Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" Style="{StaticResource RowBorder}"><TextBox Style="{StaticResource RowText}" Text="{Binding VehicleNo, StringFormat=&apos;Vehicle No :      {0}&apos;}"/></Border>
+                                <Border Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Style="{StaticResource RowBorder}"><TextBox Style="{StaticResource RowText}" Text="{Binding ChassisNo, StringFormat=&apos;Chassis No :      {0}&apos;}"/></Border>
+                                <Border Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" Style="{StaticResource RowBorder}"><TextBox Style="{StaticResource RowText}" Text="{Binding Model, StringFormat=&apos;Model/Make :      {0}&apos;}"/></Border>
+                                <Border Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2" Style="{StaticResource RowBorder}"><TextBox Style="{StaticResource RowText}" Text="{Binding EngineNo, StringFormat=&apos;Engine No :       {0}&apos;}"/></Border>
+                                <Border Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="2" Style="{StaticResource RowBorder}"><TextBox Style="{StaticResource RowText}" Text="{Binding AgreementNo, StringFormat=&apos;Agreement No :    {0}&apos;}"/></Border>
+                                <Border Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="2" Style="{StaticResource RowBorder}"><TextBox Style="{StaticResource RowText}" Text="{Binding CustomerName, StringFormat=&apos;Cust. Name :      {0}&apos;}"/></Border>
+                                <Border Grid.Row="6" Grid.Column="0" Grid.ColumnSpan="2" Style="{StaticResource RowBorder}"><TextBox Style="{StaticResource RowText}" Text="{Binding CustomerAddress, StringFormat=&apos;Cust. Address :   {0}&apos;}"/></Border>
+                                <Border Grid.Row="7" Grid.Column="0" Grid.ColumnSpan="2" Style="{StaticResource RowBorder}"><TextBox Style="{StaticResource RowText}" Text="{Binding CustomerContactNos, StringFormat=&apos;Cust. Contact :   {0}&apos;}"/></Border>
                             </Grid>
                             <Border Style="{StaticResource SectionDivider}" />
 
@@ -266,16 +276,11 @@
                                     <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
                                     <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
                                 </Grid.RowDefinitions>
-                                <Border Grid.Row="0" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBox Text="Bucket :" Style="{StaticResource LabelText}" /></Border>
-                                <Border Grid.Row="0" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBox Text="{Binding Bucket}" Style="{StaticResource ValueText}"/></Border>
-                                <Border Grid.Row="1" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBox Text="OD :" Style="{StaticResource LabelText}" /></Border>
-                                <Border Grid.Row="1" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBox Text="{Binding OD}" Style="{StaticResource ValueText}"/></Border>
-                                <Border Grid.Row="2" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBox Text="POS :" Style="{StaticResource LabelText}" /></Border>
-                                <Border Grid.Row="2" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBox Text="{Binding POS}" Style="{StaticResource ValueText}"/></Border>
-                                <Border Grid.Row="3" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBox Text="TOSS :" Style="{StaticResource LabelText}" /></Border>
-                                <Border Grid.Row="3" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBox Text="{Binding TOSS}" Style="{StaticResource ValueText}"/></Border>
-                                <Border Grid.Row="4" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBox Text="TBR Flag :" Style="{StaticResource LabelText}" /></Border>
-                                <Border Grid.Row="4" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBox Text="{Binding TBRFlag}" Style="{StaticResource ValueText}"/></Border>
+                                <Border Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" Style="{StaticResource RowBorder}"><TextBox Style="{StaticResource RowText}" Text="{Binding Bucket, StringFormat=&apos;Bucket :          {0}&apos;}"/></Border>
+                                <Border Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Style="{StaticResource RowBorder}"><TextBox Style="{StaticResource RowText}" Text="{Binding OD, StringFormat=&apos;OD :              {0}&apos;}"/></Border>
+                                <Border Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" Style="{StaticResource RowBorder}"><TextBox Style="{StaticResource RowText}" Text="{Binding POS, StringFormat=&apos;POS :             {0}&apos;}"/></Border>
+                                <Border Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2" Style="{StaticResource RowBorder}"><TextBox Style="{StaticResource RowText}" Text="{Binding TOSS, StringFormat=&apos;TOSS :            {0}&apos;}"/></Border>
+                                <Border Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="2" Style="{StaticResource RowBorder}"><TextBox Style="{StaticResource RowText}" Text="{Binding TBRFlag, StringFormat=&apos;TBR Flag :        {0}&apos;}"/></Border>
                             </Grid>
                             <Border Style="{StaticResource SectionDivider}" />
 
@@ -287,12 +292,9 @@
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
                                 </Grid.RowDefinitions>
-                                <Border Grid.Row="0" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBox Text="Branch (xlsx) :" Style="{StaticResource LabelText}" /></Border>
-                                <Border Grid.Row="0" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBox Text="{Binding BranchFromExcel}" Style="{StaticResource ValueText}"/></Border>
-                                <Border Grid.Row="1" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBox Text="Area :" Style="{StaticResource LabelText}" /></Border>
-                                <Border Grid.Row="1" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBox Text="{Binding Area}" Style="{StaticResource ValueText}"/></Border>
-                                <Border Grid.Row="2" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBox Text="Region :" Style="{StaticResource LabelText}" /></Border>
-                                <Border Grid.Row="2" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBox Text="{Binding Region}" Style="{StaticResource ValueText}"/></Border>
+                                <Border Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" Style="{StaticResource RowBorder}"><TextBox Style="{StaticResource RowText}" Text="{Binding BranchFromExcel, StringFormat=&apos;Branch (xlsx) :   {0}&apos;}"/></Border>
+                                <Border Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Style="{StaticResource RowBorder}"><TextBox Style="{StaticResource RowText}" Text="{Binding Area, StringFormat=&apos;Area :            {0}&apos;}"/></Border>
+                                <Border Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" Style="{StaticResource RowBorder}"><TextBox Style="{StaticResource RowText}" Text="{Binding Region, StringFormat=&apos;Region :          {0}&apos;}"/></Border>
                             </Grid>
                             <Border Style="{StaticResource SectionDivider}" />
 
@@ -306,22 +308,14 @@
                                     <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
                                     <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
                                 </Grid.RowDefinitions>
-                                <Border Grid.Row="0" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBox Text="Level 1 :" Style="{StaticResource LabelText}" /></Border>
-                                <Border Grid.Row="0" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBox Text="{Binding Level1}" Style="{StaticResource ValueText}"/></Border>
-                                <Border Grid.Row="1" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBox Text="Level 1 Contact :" Style="{StaticResource LabelText}" /></Border>
-                                <Border Grid.Row="1" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBox Text="{Binding Level1ContactNos}" Style="{StaticResource ValueText}" FontFamily="Consolas"/></Border>
-                                <Border Grid.Row="2" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBox Text="Level 2 :" Style="{StaticResource LabelText}" /></Border>
-                                <Border Grid.Row="2" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBox Text="{Binding Level2}" Style="{StaticResource ValueText}"/></Border>
-                                <Border Grid.Row="3" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBox Text="Level 2 Contact :" Style="{StaticResource LabelText}" /></Border>
-                                <Border Grid.Row="3" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBox Text="{Binding Level2ContactNos}" Style="{StaticResource ValueText}" FontFamily="Consolas"/></Border>
-                                <Border Grid.Row="4" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBox Text="Level 3 :" Style="{StaticResource LabelText}" /></Border>
-                                <Border Grid.Row="4" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBox Text="{Binding Level3}" Style="{StaticResource ValueText}"/></Border>
-                                <Border Grid.Row="5" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBox Text="Level 3 Contact :" Style="{StaticResource LabelText}" /></Border>
-                                <Border Grid.Row="5" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBox Text="{Binding Level3ContactNos}" Style="{StaticResource ValueText}" FontFamily="Consolas"/></Border>
-                                <Border Grid.Row="6" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBox Text="Level 4 :" Style="{StaticResource LabelText}" /></Border>
-                                <Border Grid.Row="6" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBox Text="{Binding Level4}" Style="{StaticResource ValueText}"/></Border>
-                                <Border Grid.Row="7" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBox Text="Level 4 Contact :" Style="{StaticResource LabelText}" /></Border>
-                                <Border Grid.Row="7" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBox Text="{Binding Level4ContactNos}" Style="{StaticResource ValueText}" FontFamily="Consolas"/></Border>
+                                <Border Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" Style="{StaticResource RowBorder}"><TextBox Style="{StaticResource RowText}" Text="{Binding Level1, StringFormat=&apos;Level 1 :         {0}&apos;}"/></Border>
+                                <Border Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Style="{StaticResource RowBorder}"><TextBox Style="{StaticResource RowText}" Text="{Binding Level1ContactNos, StringFormat=&apos;Level 1 Contact : {0}&apos;}"/></Border>
+                                <Border Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" Style="{StaticResource RowBorder}"><TextBox Style="{StaticResource RowText}" Text="{Binding Level2, StringFormat=&apos;Level 2 :         {0}&apos;}"/></Border>
+                                <Border Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2" Style="{StaticResource RowBorder}"><TextBox Style="{StaticResource RowText}" Text="{Binding Level2ContactNos, StringFormat=&apos;Level 2 Contact : {0}&apos;}"/></Border>
+                                <Border Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="2" Style="{StaticResource RowBorder}"><TextBox Style="{StaticResource RowText}" Text="{Binding Level3, StringFormat=&apos;Level 3 :         {0}&apos;}"/></Border>
+                                <Border Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="2" Style="{StaticResource RowBorder}"><TextBox Style="{StaticResource RowText}" Text="{Binding Level3ContactNos, StringFormat=&apos;Level 3 Contact : {0}&apos;}"/></Border>
+                                <Border Grid.Row="6" Grid.Column="0" Grid.ColumnSpan="2" Style="{StaticResource RowBorder}"><TextBox Style="{StaticResource RowText}" Text="{Binding Level4, StringFormat=&apos;Level 4 :         {0}&apos;}"/></Border>
+                                <Border Grid.Row="7" Grid.Column="0" Grid.ColumnSpan="2" Style="{StaticResource RowBorder}"><TextBox Style="{StaticResource RowText}" Text="{Binding Level4ContactNos, StringFormat=&apos;Level 4 Contact : {0}&apos;}"/></Border>
                             </Grid>
                             <Border Style="{StaticResource SectionDivider}" />
 
@@ -335,24 +329,15 @@
                                     <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
                                     <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
                                 </Grid.RowDefinitions>
-                                <Border Grid.Row="0" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBox Text="Finance :" Style="{StaticResource LabelText}" /></Border>
-                                <Border Grid.Row="0" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBox Text="{Binding BranchName}" Style="{StaticResource ValueText}" Foreground="{StaticResource Orange700}"/></Border>
-                                <Border Grid.Row="1" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBox Text="Head Office :" Style="{StaticResource LabelText}" /></Border>
-                                <Border Grid.Row="1" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBox Text="{Binding Financer}" Style="{StaticResource ValueText}"/></Border>
-                                <Border Grid.Row="2" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBox Text="Contact 1 :" Style="{StaticResource LabelText}" /></Border>
-                                <Border Grid.Row="2" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBox Text="{Binding FirstContactDetails}" Style="{StaticResource ValueText}" FontFamily="Consolas"/></Border>
-                                <Border Grid.Row="3" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBox Text="Contact 2 :" Style="{StaticResource LabelText}" /></Border>
-                                <Border Grid.Row="3" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBox Text="{Binding SecondContactDetails}" Style="{StaticResource ValueText}" FontFamily="Consolas"/></Border>
-                                <Border Grid.Row="4" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBox Text="Contact 3 :" Style="{StaticResource LabelText}" /></Border>
-                                <Border Grid.Row="4" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBox Text="{Binding ThirdContactDetails}" Style="{StaticResource ValueText}" FontFamily="Consolas"/></Border>
-                                <Border Grid.Row="5" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBox Text="Mail Id 1 :" Style="{StaticResource LabelText}" /></Border>
-                                <Border Grid.Row="5" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBox Text="{Binding SenderMailId1}" Style="{StaticResource ValueText}"/></Border>
-                                <Border Grid.Row="6" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBox Text="Mail Id 2 :" Style="{StaticResource LabelText}" /></Border>
-                                <Border Grid.Row="6" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBox Text="{Binding SenderMailId2}" Style="{StaticResource ValueText}"/></Border>
-                                <Border Grid.Row="7" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBox Text="Address :" Style="{StaticResource LabelText}" /></Border>
-                                <Border Grid.Row="7" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBox Text="{Binding Address}" Style="{StaticResource ValueText}"/></Border>
-                                <Border Grid.Row="8" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBox Text="Executive Name :" Style="{StaticResource LabelText}" /></Border>
-                                <Border Grid.Row="8" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBox Text="{Binding ExecutiveName}" Style="{StaticResource ValueText}"/></Border>
+                                <Border Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" Style="{StaticResource RowBorder}"><TextBox Style="{StaticResource RowText}" Text="{Binding BranchName, StringFormat=&apos;Finance :         {0}&apos;}"/></Border>
+                                <Border Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Style="{StaticResource RowBorder}"><TextBox Style="{StaticResource RowText}" Text="{Binding Financer, StringFormat=&apos;Head Office :     {0}&apos;}"/></Border>
+                                <Border Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" Style="{StaticResource RowBorder}"><TextBox Style="{StaticResource RowText}" Text="{Binding FirstContactDetails, StringFormat=&apos;Contact 1 :       {0}&apos;}"/></Border>
+                                <Border Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2" Style="{StaticResource RowBorder}"><TextBox Style="{StaticResource RowText}" Text="{Binding SecondContactDetails, StringFormat=&apos;Contact 2 :       {0}&apos;}"/></Border>
+                                <Border Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="2" Style="{StaticResource RowBorder}"><TextBox Style="{StaticResource RowText}" Text="{Binding ThirdContactDetails, StringFormat=&apos;Contact 3 :       {0}&apos;}"/></Border>
+                                <Border Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="2" Style="{StaticResource RowBorder}"><TextBox Style="{StaticResource RowText}" Text="{Binding SenderMailId1, StringFormat=&apos;Mail Id 1 :       {0}&apos;}"/></Border>
+                                <Border Grid.Row="6" Grid.Column="0" Grid.ColumnSpan="2" Style="{StaticResource RowBorder}"><TextBox Style="{StaticResource RowText}" Text="{Binding SenderMailId2, StringFormat=&apos;Mail Id 2 :       {0}&apos;}"/></Border>
+                                <Border Grid.Row="7" Grid.Column="0" Grid.ColumnSpan="2" Style="{StaticResource RowBorder}"><TextBox Style="{StaticResource RowText}" Text="{Binding Address, StringFormat=&apos;Address :         {0}&apos;}"/></Border>
+                                <Border Grid.Row="8" Grid.Column="0" Grid.ColumnSpan="2" Style="{StaticResource RowBorder}"><TextBox Style="{StaticResource RowText}" Text="{Binding ExecutiveName, StringFormat=&apos;Executive Name :  {0}&apos;}"/></Border>
                             </Grid>
                             <Border Style="{StaticResource SectionDivider}" />
 
@@ -364,8 +349,7 @@
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto"/>
                                 </Grid.RowDefinitions>
-                                <Border Grid.Row="0" Grid.Column="0" Style="{StaticResource LabelBorder}"><TextBox Text="Uploaded On :" Style="{StaticResource LabelText}" /></Border>
-                                <Border Grid.Row="0" Grid.Column="1" Style="{StaticResource ValueBorder}"><TextBox Text="{Binding CreatedOn}" Style="{StaticResource ValueText}"/></Border>
+                                <Border Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" Style="{StaticResource RowBorder}"><TextBox Style="{StaticResource RowText}" Text="{Binding CreatedOn, StringFormat=&apos;Uploaded On :     {0}&apos;}"/></Border>
                             </Grid>
                         </StackPanel>
                     </ScrollViewer>

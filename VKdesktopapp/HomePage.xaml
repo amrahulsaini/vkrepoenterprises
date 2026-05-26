@@ -302,10 +302,13 @@
             </Grid.RowDefinitions>
 
             <!-- Combined header: title on left, time selector + Apply on right,
-                 all in a single top bar so the map gets maximum vertical space. -->
+                 all in a single top bar so the map gets maximum vertical space.
+                 MinHeight guarantees the bar is visible even when parent
+                 layout tries to compress it. -->
             <Border Grid.Row="0"
                     Background="{StaticResource Gray900}"
-                    Padding="20,12">
+                    Padding="20,12"
+                    MinHeight="64">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
