@@ -1,3 +1,5 @@
+import groovy.json.JsonSlurper
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -5,18 +7,73 @@ plugins {
     kotlin("kapt")
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Per-tenant product flavors, loaded from android/tenants.json so we never
+// hand-edit Gradle when a new agency is approved. Each entry produces a
+// distinct, signable APK / AAB with its own applicationId, launcher name,
+// primary color and bundled AGENCY_SLUG.
+// ─────────────────────────────────────────────────────────────────────────────
+data class Tenant(
+    val slug: String, val name: String,
+    val mobile: String, val address: String,
+    val primaryColor: String
+) {
+    /** Source-set dir & flavor name — underscores stripped (Gradle plays nicer). */
+    val flavor: String get() = slug.replace("_", "")
+    /** Last segment of applicationId — must be a valid Java package atom. */
+    val pkg: String    get() = slug.replace("_", "")
+}
+
+val tenants: List<Tenant> = run {
+    val f = rootProject.file("tenants.json")
+    if (!f.exists()) throw GradleException("tenants.json missing at ${f.absolutePath}")
+    @Suppress("UNCHECKED_CAST")
+    val raw = JsonSlurper().parse(f) as List<Map<String, String>>
+    raw.map {
+        Tenant(
+            slug         = it["slug"]!!,
+            name         = it["name"]!!,
+            mobile       = it["mobile"]   ?: "",
+            address      = it["address"]  ?: "",
+            primaryColor = it["primaryColor"] ?: "#FF6B35"
+        )
+    }
+}
+
 android {
     namespace   = "com.vkenterprises.vras"
     compileSdk  = 34
 
     defaultConfig {
-        applicationId = "com.vkenterprises.vras"
+        // Per-flavor applicationId overrides this — kept only as a fallback.
+        applicationId = "com.crmrecoverysoftware.crms"
         minSdk        = 26
         targetSdk     = 34
         versionCode   = 1
         versionName   = "1.0"
 
         buildConfigField("String", "BASE_URL", "\"https://api.crmrecoverysoftware.com/\"")
+    }
+
+    flavorDimensions += "agency"
+    productFlavors {
+        tenants.forEach { t ->
+            create(t.flavor) {
+                dimension      = "agency"
+                applicationId  = "com.crmrecoverysoftware.${t.pkg}"
+                versionCode    = 1
+                versionName    = "1.0"
+                // Bundled into BuildConfig so the app pre-binds to this tenant
+                // — no agency picker on the login screen.
+                buildConfigField("String", "AGENCY_SLUG",    "\"${t.slug}\"")
+                buildConfigField("String", "AGENCY_NAME",    "\"${t.name}\"")
+                buildConfigField("String", "AGENCY_MOBILE",  "\"${t.mobile}\"")
+                buildConfigField("String", "AGENCY_ADDRESS", "\"${t.address}\"")
+                // Picked up by the manifest as android:label="@string/app_name".
+                resValue("string", "app_name",        t.name)
+                resValue("color",  "tenant_primary", t.primaryColor)
+            }
+        }
     }
 
     buildTypes {

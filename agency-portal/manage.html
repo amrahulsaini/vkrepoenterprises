@@ -78,31 +78,62 @@
 
             <!-- Manage panel -->
             <div class="hidden" id="panel">
-                <div class="flex items-center justify-between mb-3">
-                    <div>
-                        <h2 style="margin:0; font-size:22px; font-weight:800; letter-spacing:-.02em;">Agency applications</h2>
-                        <p class="text-muted" style="margin:4px 0 0; font-size:14px;">
-                            Review and approve registered agencies. Approving activates the agency and emails them their sign-in details.
-                        </p>
-                    </div>
-                    <button class="btn btn-outline btn-sm" id="refresh-btn">↻ Refresh</button>
+                <!-- Page-level tabs -->
+                <div class="tabs mb-3" id="page-tabs" style="display:inline-flex; padding:4px; background:var(--bg-mute,#f3f4f6); border-radius:10px;">
+                    <button data-page="agencies" class="active">Agencies</button>
+                    <button data-page="apps">Android Apps</button>
                 </div>
 
-                <div class="card table-card">
-                    <div class="table-toolbar">
-                        <h2>Agencies</h2>
-                        <div class="tabs" id="tabs">
-                            <button data-status="pending" class="active">Pending</button>
-                            <button data-status="approved">Approved</button>
-                            <button data-status="rejected">Rejected</button>
-                            <button data-status="all">All</button>
+                <!-- ── Page: Agencies ────────────────────────────────── -->
+                <div id="page-agencies">
+                    <div class="flex items-center justify-between mb-3">
+                        <div>
+                            <h2 style="margin:0; font-size:22px; font-weight:800; letter-spacing:-.02em;">Agency applications</h2>
+                            <p class="text-muted" style="margin:4px 0 0; font-size:14px;">
+                                Review and approve registered agencies. Approving activates the agency and emails them their sign-in details.
+                            </p>
                         </div>
+                        <button class="btn btn-outline btn-sm" id="refresh-btn">↻ Refresh</button>
                     </div>
 
-                    <div id="table-area">
-                        <div class="empty">
-                            <div class="ico">⏳</div>
-                            <div>Loading…</div>
+                    <div class="card table-card">
+                        <div class="table-toolbar">
+                            <h2>Agencies</h2>
+                            <div class="tabs" id="tabs">
+                                <button data-status="pending" class="active">Pending</button>
+                                <button data-status="approved">Approved</button>
+                                <button data-status="rejected">Rejected</button>
+                                <button data-status="all">All</button>
+                            </div>
+                        </div>
+
+                        <div id="table-area">
+                            <div class="empty">
+                                <div class="ico">⏳</div>
+                                <div>Loading…</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ── Page: Android Apps ────────────────────────────── -->
+                <div id="page-apps" class="hidden">
+                    <div class="flex items-center justify-between mb-3">
+                        <div>
+                            <h2 style="margin:0; font-size:22px; font-weight:800; letter-spacing:-.02em;">Per-agency Android apps</h2>
+                            <p class="text-muted" style="margin:4px 0 0; font-size:14px;">
+                                Each approved agency gets its own white-labeled APK / AAB. Download to install on a device or upload to Google Play Console.
+                            </p>
+                        </div>
+                        <button class="btn btn-outline btn-sm" id="apps-refresh-btn">↻ Refresh</button>
+                    </div>
+
+                    <div class="card table-card">
+                        <div id="apps-area">
+                            <div class="empty">
+                                <div class="ico">⏳</div>
+                                <div>Loading…</div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -138,7 +169,8 @@
 </footer>
 
 <script>document.getElementById('year').textContent = new Date().getFullYear();</script>
-<script src="js/api.js"></script>
-<script src="js/manage.js"></script>
+<script src="js/api.js?v=2"></script>
+<script src="js/manage.js?v=5"></script>
+<script src="js/apps.js?v=2"></script>
 </body>
 </html>

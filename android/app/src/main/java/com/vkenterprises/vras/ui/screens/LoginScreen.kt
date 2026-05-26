@@ -19,8 +19,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.navigation.NavController
+import com.vkenterprises.vras.BuildConfig
 import com.vkenterprises.vras.R
-import com.vkenterprises.vras.data.models.AgencyListItem
 import com.vkenterprises.vras.navigation.Screen
 import com.vkenterprises.vras.viewmodel.AuthUiState
 import com.vkenterprises.vras.viewmodel.AuthViewModel
@@ -31,18 +31,9 @@ fun LoginScreen(vm: AuthViewModel, nav: NavController) {
 
     var mobile by remember { mutableStateOf("") }
     var error  by remember { mutableStateOf("") }
-
-    // Agency selection (multi-tenant) — pre-filled from the last login if any.
-    val agencies by vm.agencies.collectAsState()
-    val rememberedSlug by vm.agencySlug.collectAsState(initial = null)
-    val rememberedName by vm.agencyName.collectAsState(initial = null)
-    var selectedAgency by remember { mutableStateOf<AgencyListItem?>(null) }
-    LaunchedEffect(Unit) { vm.loadAgencies() }
-    LaunchedEffect(rememberedSlug, rememberedName) {
-        val slug = rememberedSlug
-        if (selectedAgency == null && slug != null)
-            selectedAgency = AgencyListItem(0L, rememberedName ?: slug, slug)
-    }
+    // White-label build — agency is baked into BuildConfig at compile time.
+    val agencySlug = BuildConfig.AGENCY_SLUG
+    val agencyName = BuildConfig.AGENCY_NAME
 
     LaunchedEffect(state) {
         when (state) {
@@ -128,19 +119,13 @@ fun LoginScreen(vm: AuthViewModel, nav: NavController) {
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    "Sign in to CRMS",
+                    "Sign in to $agencyName",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 
             Spacer(Modifier.height(8.dp))
-
-            AgencyPickerField(
-                agencies = agencies,
-                selected = selectedAgency,
-                onSelect = { selectedAgency = it }
-            )
 
             OutlinedTextField(
                 value = mobile,
@@ -172,10 +157,8 @@ fun LoginScreen(vm: AuthViewModel, nav: NavController) {
             Button(
                 onClick = {
                     error = ""
-                    val agency = selectedAgency
-                    if (agency == null) { error = "Please select your agency."; return@Button }
                     if (mobile.isBlank()) { error = "Enter your mobile number."; return@Button }
-                    vm.login(mobile, agency.slug, agency.name, agency.logoPath)
+                    vm.login(mobile, agencySlug, agencyName)
                 },
                 enabled = state !is AuthUiState.Loading,
                 modifier = Modifier.fillMaxWidth().height(52.dp),

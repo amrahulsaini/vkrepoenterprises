@@ -424,6 +424,99 @@ internal static class AgencyPortal
         });
 
         // =============================================================
+        //   Per-agency Android builds — list + download
+        //   The portal serves white-labeled APK / AAB files for each
+        //   approved agency. Files live at:
+        //       /opt/vkapi/agency-apps/<flavor>/app.apk
+        //       /opt/vkapi/agency-apps/<flavor>/app.aab
+        //   <flavor> = slug with underscores stripped (matches Gradle).
+        //   Both endpoints are gated by the manage token.
+        // =============================================================
+        const string AGENCY_APPS_ROOT = "/opt/vkapi/agency-apps";
+
+        app.MapGet("/api/agency/manage/apps", async (HttpContext ctx) =>
+        {
+            if (!await IsManageTokenValid(masterConn, ctx)) return Results.Unauthorized();
+
+            // Source of truth for which agencies exist is the master DB.
+            await using var conn = new MySqlConnection(masterConn);
+            await conn.OpenAsync();
+            await using var cmd = new MySqlCommand(
+                "SELECT slug, name, status, COALESCE(logo_path,'') FROM agencies ORDER BY name;", conn);
+
+            var rows = new List<object>();
+            await using var rdr = await cmd.ExecuteReaderAsync();
+            while (await rdr.ReadAsync())
+            {
+                string slug     = rdr.GetString(0);
+                string name     = rdr.GetString(1);
+                string status   = rdr.GetString(2);
+                string logoPath = rdr.GetString(3);
+                // Gradle flavor name strips underscores from the slug.
+                string flavor = slug.Replace("_", "");
+                string pkg    = $"com.crmrecoverysoftware.{flavor}";
+                string apk    = Path.Combine(AGENCY_APPS_ROOT, flavor, "app.apk");
+                string aab    = Path.Combine(AGENCY_APPS_ROOT, flavor, "app.aab");
+                // Resolve logo URL — logo_path is something like
+                // "/agency-uploads/rk_enterprises.jpg" stored at registration.
+                string logoUrl = "";
+                if (!string.IsNullOrEmpty(logoPath))
+                {
+                    string fname = Path.GetFileName(logoPath);
+                    if (!string.IsNullOrEmpty(fname) &&
+                        File.Exists(Path.Combine("/opt/vkapi/agency-uploads", fname)))
+                        logoUrl = "https://api.crmrecoverysoftware.com/agency-uploads/" + fname;
+                }
+                rows.Add(new
+                {
+                    slug, name, status, flavor,
+                    logoUrl,
+                    packageId    = pkg,
+                    apkExists    = File.Exists(apk),
+                    apkSize      = File.Exists(apk) ? new FileInfo(apk).Length : 0L,
+                    apkBuiltAt   = File.Exists(apk) ? File.GetLastWriteTimeUtc(apk).ToString("yyyy-MM-dd HH:mm 'UTC'") : "",
+                    aabExists    = File.Exists(aab),
+                    aabSize      = File.Exists(aab) ? new FileInfo(aab).Length : 0L,
+                    aabBuiltAt   = File.Exists(aab) ? File.GetLastWriteTimeUtc(aab).ToString("yyyy-MM-dd HH:mm 'UTC'") : "",
+                });
+            }
+            return Results.Ok(new { apps = rows });
+        });
+
+        // GET /api/agency/manage/apps/{flavor}/download/{type}   type=apk|aab
+        // Token can be passed as ?token=... so plain <a download> links work
+        // (browsers don't send custom headers on direct downloads).
+        app.MapGet("/api/agency/manage/apps/{flavor}/download/{type}", async (HttpContext ctx, string flavor, string type) =>
+        {
+            // Accept token via header OR query string for direct-link downloads.
+            string? token = ctx.Request.Headers["X-Manage-Token"].FirstOrDefault()
+                            ?? ctx.Request.Query["token"].FirstOrDefault();
+            if (string.IsNullOrEmpty(token) || token.Length != 64)
+                return Results.Unauthorized();
+            await using (var c = new MySqlConnection(masterConn))
+            {
+                await c.OpenAsync();
+                await using var qc = new MySqlCommand(
+                    "SELECT 1 FROM manage_sessions WHERE token=@t AND expires_at > UTC_TIMESTAMP() LIMIT 1;", c);
+                qc.Parameters.AddWithValue("@t", token);
+                if (await qc.ExecuteScalarAsync() == null) return Results.Unauthorized();
+            }
+
+            // Hard sanitize — flavor must be lowercase alphanumeric only, type must be apk|aab.
+            // Anything else is a path-traversal attempt; refuse outright.
+            if (!Regex.IsMatch(flavor, @"^[a-z0-9]+$")) return Results.BadRequest(new { message = "Invalid flavor" });
+            if (type != "apk" && type != "aab")        return Results.BadRequest(new { message = "Invalid type" });
+
+            string path = Path.Combine(AGENCY_APPS_ROOT, flavor, $"app.{type}");
+            if (!File.Exists(path)) return Results.NotFound(new { message = $"No {type} built for this agency yet." });
+
+            string mime         = type == "apk" ? "application/vnd.android.package-archive" : "application/octet-stream";
+            string downloadName = $"crms-{flavor}.{type}";
+            // PhysicalFile streams without loading into memory.
+            return Results.File(path, mime, downloadName);
+        });
+
+        // =============================================================
         //   Desktop app login — email + password → agency session token
         //   The returned token is an HMAC-signed AgencyToken; the desktop
         //   sends it as a Bearer header and the routing middleware uses it

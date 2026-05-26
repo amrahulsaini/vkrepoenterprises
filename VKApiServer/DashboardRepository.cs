@@ -413,7 +413,9 @@ internal static class DashboardRepository
     private static string DateCol(MySqlDataReader r, int i)
     {
         if (r.IsDBNull(i)) return "";
-        try { return r.GetDateTime(i).ToLocalTime().ToString("dd MMM yyyy hh:mm tt"); }
+        // MariaDB session timezone is set to +05:30 (see 50-server.cnf), so
+        // TIMESTAMP columns are returned as IST already — no conversion needed.
+        try { return r.GetDateTime(i).ToString("dd MMM yyyy hh:mm tt"); }
         catch { return r.GetValue(i).ToString() ?? ""; }
     }
 

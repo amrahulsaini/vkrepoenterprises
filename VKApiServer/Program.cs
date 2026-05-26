@@ -495,7 +495,7 @@ app.MapGet("/api/mgr/finances", async (HttpContext ctx) =>
                 WHERE  br.is_active = 1
                 GROUP BY br.finance_id
             ) b ON b.finance_id = f.id
-            ORDER BY f.name LIMIT 100";
+            ORDER BY f.name";
         await using var cmd = new MySqlCommand(sql, conn) { CommandTimeout = 60 };
         var list = new List<object>();
         await using var rdr = await cmd.ExecuteReaderAsync();
@@ -2298,6 +2298,20 @@ if (Directory.Exists(agencyUploads))
     {
         FileProvider = new PhysicalFileProvider(agencyUploads),
         RequestPath  = "/agency-uploads",
+        ServeUnknownFileTypes = true
+    });
+}
+
+// ── Public assets (map_live.html, etc.) — served as /public/ ────────────────
+// Bundled with the deploy in VKApiServer/public/. Used e.g. by the WPF
+// admin "live map" feature which opens /public/map_live.html in a browser.
+var publicPath = Path.Combine(app.Environment.ContentRootPath, "public");
+if (Directory.Exists(publicPath))
+{
+    app.UseStaticFiles(new StaticFileOptions
+    {
+        FileProvider = new PhysicalFileProvider(publicPath),
+        RequestPath  = "/public",
         ServeUnknownFileTypes = true
     });
 }

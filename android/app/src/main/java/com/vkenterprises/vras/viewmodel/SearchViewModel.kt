@@ -17,13 +17,13 @@ enum class SearchMode { RC, CHASSIS }
 
 data class SearchUiState(
     val inputText: String             = "",
+    val lastQuery: String             = "",
     val mode: SearchMode              = SearchMode.RC,
     val results: List<SearchResult>   = emptyList(),
-    // Un-deduplicated full result set — a vehicle in N finances has N rows here.
-    // The detail screen uses this to build the "FOUND IN FINANCES" list.
     val allResults: List<SearchResult> = emptyList(),
     val selectedResult: SearchResult? = null,
     val errorMsg: String?             = null,
+    val isSearching: Boolean          = false,
     val subscriptionExpired: Boolean  = false,
     val appStopped: Boolean           = false,
     val appStoppedMsg: String         = "",
@@ -39,9 +39,6 @@ data class SearchUiState(
     val onlineOnly: Boolean           = true,
     val twoColumnView: Boolean        = true,
     val actionType: String            = "confirm",
-    // Number of vehicle rows currently cached on-device (Room SQLite). Shown
-    // on the home screen "Offline Records" tile so the user can see at a
-    // glance how much data is available without the server.
     val offlineCount: Long            = 0L
 )
 
@@ -193,28 +190,33 @@ class SearchViewModel @Inject constructor(
     }
 
     private suspend fun executeSearch(q: String, mode: SearchMode, userId: Long) {
+        // Keep previous results visible while new query is in-flight — no flash.
+        // We do NOT update lastQuery here: doing so would make the result-count
+        // header show "N records found for <new query>" using the OLD result
+        // count for ~50-100ms until the new data lands. lastQuery is only set
+        // alongside the matching results below.
+        _ui.update { it.copy(isSearching = true, errorMsg = null) }
+
         if (!_ui.value.onlineOnly) {
+            // Offline mode: Room cache only, no server call.
             val local = withContext(Dispatchers.IO) {
                 if (mode == SearchMode.RC) vehicleDao.searchByLast4(q)
                 else vehicleDao.searchByLast5(q)
             }
-            // Full set keeps every finance row; the list shows one per vehicle.
             val all = if (mode == SearchMode.RC)
                 local.filter { it.vehicleNo.isValidRc() }
             else
                 local
-            if (all.isNotEmpty()) {
-                val full   = all.map { it.toSearchResult() }
-                val unique = if (mode == SearchMode.RC)
-                    full.distinctBy { it.vehicleNo }
-                else
-                    full.distinctBy { it.chassisNo }
-                _ui.update { it.copy(results = unique, allResults = full, errorMsg = null) }
-                return
-            }
+            val full   = all.map { it.toSearchResult() }
+            val unique = if (mode == SearchMode.RC)
+                full.distinctBy { it.vehicleNo }
+            else
+                full.distinctBy { it.chassisNo }
+            _ui.update { it.copy(results = unique, allResults = full, lastQuery = q, errorMsg = null, isSearching = false) }
+            return
         }
 
-        // Server search (fallback or online-only)
+        // Online mode: server only — no cache fallback.
         val result = withContext(Dispatchers.IO) {
             if (mode == SearchMode.RC) serverRepo.searchRc(q, userId)
             else serverRepo.searchChassis(q, userId)
@@ -226,20 +228,26 @@ class SearchViewModel @Inject constructor(
                         result.data.filter { it.vehicleNo.isValidRc() }.sortedBy { it.vehicleNo }
                     else
                         result.data.sortedBy { it.chassisNo }
-                    // List = one row per vehicle; allResults = every finance row.
                     val unique = if (mode == SearchMode.RC)
                         full.distinctBy { it.vehicleNo }
                     else
                         full.distinctBy { it.chassisNo }
-                    it.copy(results = unique, allResults = full, errorMsg = null)
+                    it.copy(results = unique, allResults = full, lastQuery = q, errorMsg = null, isSearching = false)
                 }
-                is SearchResult2.SubscriptionExpired -> it.copy(subscriptionExpired = true)
-                is SearchResult2.AppStopped          -> it.copy(appStopped = true, appStoppedMsg = result.msg)
-                is SearchResult2.Blacklisted         -> it.copy(blacklisted = true, blacklistedMsg = result.msg)
-                is SearchResult2.Inactive            -> it.copy(inactive = true, inactiveMsg = result.msg)
-                is SearchResult2.Error               -> it.copy(errorMsg = result.message)
+                is SearchResult2.SubscriptionExpired -> it.copy(subscriptionExpired = true, isSearching = false)
+                is SearchResult2.AppStopped          -> it.copy(appStopped = true, appStoppedMsg = result.msg, isSearching = false)
+                is SearchResult2.Blacklisted         -> it.copy(blacklisted = true, blacklistedMsg = result.msg, isSearching = false)
+                is SearchResult2.Inactive            -> it.copy(inactive = true, inactiveMsg = result.msg, isSearching = false)
+                is SearchResult2.Error               -> it.copy(errorMsg = result.message, isSearching = false)
             }
         }
+    }
+
+    // Clears the displayed results so the home dashboard re-appears.
+    // Used by the back-navigation handler on HomeScreen.
+    fun clearResults() {
+        searchJob?.cancel()
+        _ui.update { it.copy(results = emptyList(), allResults = emptyList(), lastQuery = "", inputText = "", errorMsg = null) }
     }
 }
 

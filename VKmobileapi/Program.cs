@@ -45,6 +45,21 @@ app.UseCors();
 // A request carrying a valid mobile tenant token (issued at login) is routed,
 // for its whole lifetime, to that agency's own database. register / login
 // carry no token yet — they bind the tenant themselves from the request body.
+// Any OTHER /api/mobile/* path without a valid token is rejected with 401, so
+// the client can detect a stale session and force re-login instead of getting
+// a confusing "Table 'crm_master.app_users' doesn't exist" 500.
+static bool IsTenantBoundByBody(PathString path)
+{
+    // These endpoints either don't touch the tenant DB or set the tenant
+    // context themselves from the request body.
+    var s = path.Value ?? "";
+    return s.Equals("/api/mobile/register", StringComparison.OrdinalIgnoreCase)
+        || s.Equals("/api/mobile/login",    StringComparison.OrdinalIgnoreCase)
+        || s.Equals("/api/mobile/agencies", StringComparison.OrdinalIgnoreCase)
+        || s.StartsWith("/api/mobile/cache/", StringComparison.OrdinalIgnoreCase)
+        || s.StartsWith("/uploads/",        StringComparison.OrdinalIgnoreCase)
+        || s == "/";
+}
 app.Use(async (ctx, next) =>
 {
     var token = ctx.Request.Headers["X-Tenant-Token"].FirstOrDefault();
@@ -58,6 +73,12 @@ app.Use(async (ctx, next) =>
             return;
         }
         TenantContext.UseAgency(slug);
+    }
+    else if (ctx.Request.Path.StartsWithSegments("/api/mobile") && !IsTenantBoundByBody(ctx.Request.Path))
+    {
+        ctx.Response.StatusCode = 401;
+        await ctx.Response.WriteAsJsonAsync(new { success = false, message = "Please sign in again." });
+        return;
     }
     await next();
 });

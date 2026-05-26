@@ -1,3 +1,4 @@
 <resources>
-    <string name="app_name">CRMS</string>
+    <!-- app_name is supplied per-flavor via resValue in app/build.gradle.kts.
+         Keeping nothing here avoids the duplicate-resource error. -->
 </resources>

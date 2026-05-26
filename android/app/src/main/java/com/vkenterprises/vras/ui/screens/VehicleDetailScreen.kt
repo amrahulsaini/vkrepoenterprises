@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.*
 import androidx.navigation.NavController
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
+import com.vkenterprises.vras.BuildConfig
 import com.vkenterprises.vras.data.api.ApiClient
 import com.vkenterprises.vras.data.models.SearchLogRequest
 import com.vkenterprises.vras.data.models.SearchResult
@@ -188,6 +189,10 @@ fun VehicleDetailScreen(
     }
 
     if (showWaSheet && item != null) {
+        // Local input state — vehicle location + load details. Kept inside
+        // the sheet so values don't survive once it's dismissed.
+        var vehicleLocation by remember(showWaSheet) { mutableStateOf("") }
+        var loadDetails     by remember(showWaSheet) { mutableStateOf("") }
         ModalBottomSheet(onDismissRequest = { showWaSheet = false }) {
             Column(
                 Modifier.padding(16.dp).padding(bottom = 24.dp),
@@ -197,16 +202,40 @@ fun VehicleDetailScreen(
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(bottom = 4.dp))
+                OutlinedTextField(
+                    value = vehicleLocation,
+                    onValueChange = { vehicleLocation = it },
+                    label = { Text("Vehicle location") },
+                    placeholder = { Text("e.g. Lonavala highway, near toll") },
+                    leadingIcon = { Icon(Icons.Default.Place, null) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp)
+                )
+                OutlinedTextField(
+                    value = loadDetails,
+                    onValueChange = { loadDetails = it },
+                    label = { Text("Load details") },
+                    placeholder = { Text("e.g. Empty / 30 ton cement / Steel rods") },
+                    leadingIcon = { Icon(Icons.Default.Inventory, null) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp)
+                )
+                Spacer(Modifier.height(2.dp))
                 WaOptionButton("Banker for Confirmation", Color(0xFF1565C0)) {
-                    openWhatsApp(context, buildQuickWaMessage(item, "Please confirm this vehicle.", agentName, agentPhone))
+                    openWhatsApp(context, buildQuickWaMessage(item, "Please confirm this vehicle.",
+                        agentName, agentPhone, vehicleLocation, loadDetails))
                     showWaSheet = false
                 }
                 WaOptionButton("OK for Repo", Color(0xFF2E7D32)) {
-                    openWhatsApp(context, buildQuickWaMessage(item, "Ok for repo.", agentName, agentPhone))
+                    openWhatsApp(context, buildQuickWaMessage(item, "Ok for repo.",
+                        agentName, agentPhone, vehicleLocation, loadDetails))
                     showWaSheet = false
                 }
                 WaOptionButton("Not Confirmed", Color(0xFFC62828)) {
-                    openWhatsApp(context, buildQuickWaMessage(item, "Cancel", agentName, agentPhone))
+                    openWhatsApp(context, buildQuickWaMessage(item, "Cancel",
+                        agentName, agentPhone, vehicleLocation, loadDetails))
                     showWaSheet = false
                 }
             }
@@ -726,11 +755,20 @@ private fun BasicDetailView(item: SearchResult, agentName: String, agentPhone: S
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onPrimaryContainer)
             HorizontalDivider(color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.2f))
-            DetailRow("Name",   "V K Enterprises", valueColor = MaterialTheme.colorScheme.onPrimaryContainer)
+            // Agency details are baked into the white-label build at compile
+            // time — no per-request lookup needed.
+            DetailRow("Name",    BuildConfig.AGENCY_NAME,
+                valueColor = MaterialTheme.colorScheme.onPrimaryContainer)
+            if (BuildConfig.AGENCY_MOBILE.isNotBlank())
+                DetailRow("Agency Mobile", BuildConfig.AGENCY_MOBILE,
+                    valueColor = MaterialTheme.colorScheme.onPrimaryContainer)
+            if (BuildConfig.AGENCY_ADDRESS.isNotBlank())
+                DetailRow("Agency Address", BuildConfig.AGENCY_ADDRESS,
+                    valueColor = MaterialTheme.colorScheme.onPrimaryContainer)
             if (agentName.isNotBlank())
                 DetailRow("Agent",  agentName, valueColor = MaterialTheme.colorScheme.onPrimaryContainer)
             if (agentPhone.isNotBlank())
-                DetailRow("Mobile", agentPhone, valueColor = MaterialTheme.colorScheme.onPrimaryContainer)
+                DetailRow("Agent Mobile", agentPhone, valueColor = MaterialTheme.colorScheme.onPrimaryContainer)
         }
     }
 }
@@ -842,22 +880,24 @@ private fun buildLevelStr(name: String?, contact: String?): String {
 
 private fun buildQuickWaMessage(
     item: SearchResult, status: String,
-    agentName: String, agentPhone: String
+    agentName: String, agentPhone: String,
+    vehicleLocation: String = "",
+    loadDetails: String = ""
 ): String = buildString {
     appendLine("*Respected sir,*")
-    appendLine("Loan No: *${item.agreementNo.orEmpty().ifBlank { "-" }}*")
     appendLine("Customer Name: *${item.customerName.orEmpty().ifBlank { "-" }}*")
-    // Branch = raw Excel branch (branch_name_raw), not the finance name.
-    appendLine("Branch: *${item.branchFromExcel.orEmpty().ifBlank { "-" }}*")
     appendLine("Vehicle No: *${item.vehicleNo.orEmpty()}*")
     appendLine("Model/Maker: *${item.model.orEmpty().ifBlank { "-" }}*")
     appendLine("Chassis No: *${item.chassisNo.orEmpty()}*")
     appendLine("Engine No: *${item.engineNo.orEmpty().ifBlank { "-" }}*")
-    appendLine("Status: *$status*")
+    appendLine("Vehicle location: *${vehicleLocation.ifBlank { "-" }}*")
+    appendLine("Load details: *${loadDetails.ifBlank { "-" }}*")
     appendLine()
+    appendLine("Status: *$status*")
     if (agentName.isNotBlank() && agentPhone.isNotBlank())
         appendLine("$agentName - $agentPhone")
-    append("Agency Name: *V K Enterprises*")
+    // Agency name is baked in per-flavor — no more hardcoded "V K Enterprises".
+    append("Agency Name: *${BuildConfig.AGENCY_NAME}*")
 }
 
 private fun openWhatsApp(context: Context, message: String) {
