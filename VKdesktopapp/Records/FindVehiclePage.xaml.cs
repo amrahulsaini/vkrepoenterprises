@@ -6,6 +6,7 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Threading;
 using VRASDesktopApp.Data;
 using VRASDesktopApp.Models;
@@ -26,7 +27,15 @@ public partial class FindVehiclePage : Page
         _debounceTimer.Tick += DebounceTimer_Tick;
     }
 
-    private void Page_Loaded(object sender, RoutedEventArgs e) { }
+    private void Page_Loaded(object sender, RoutedEventArgs e)
+    {
+        // Auto-focus the search box on every navigation to this page so the
+        // user can just start typing — no extra click needed.
+        Dispatcher.BeginInvoke(new Action(() => {
+            txtSearch.Focus();
+            Keyboard.Focus(txtSearch);
+        }), System.Windows.Threading.DispatcherPriority.Loaded);
+    }
 
     private void txtSearch_TextChanged(object sender, TextChangedEventArgs e)
     {

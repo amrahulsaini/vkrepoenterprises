@@ -68,7 +68,11 @@ public partial class App : Application
 
         HttpClient = new HttpClient();
         HttpClient.DefaultRequestHeaders.Add("Connection", "keep-alive");
-        HttpClient.Timeout = TimeSpan.FromMinutes(20.0);
+        // 5-minute ceiling — generous enough for big xlsx uploads (the
+        // streaming /api/mgr/records/upload call hits this client), tight
+        // enough that a broken connection doesn't hang the UI for
+        // 20 minutes like the old default.
+        HttpClient.Timeout = TimeSpan.FromMinutes(5);
 
         // Pre-warm the TLS connection to the API host while the login window
         // renders. The cold first call to a new HTTPS host costs ~300-500ms
