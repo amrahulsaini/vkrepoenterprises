@@ -11,11 +11,23 @@ public class MobileController : ControllerBase
 {
     private readonly MobileRepository _repo = new();
 
-    // Builds a full URL for a relative uploads path stored in the DB (e.g. "pfp/user_1.jpg" → "https://host/uploads/pfp/user_1.jpg")
+    // Builds a full URL for a relative uploads path stored in the DB
+    // (e.g. "pfp/user_1.jpg" → "https://api.crmrecoverysoftware.com/uploads/pfp/user_1.jpg").
+    //
+    // The PUBLIC_BASE_URL env var lets ops switch hosts without a rebuild
+    // (e.g. characterverse.tech for the old install). We do NOT use
+    // Request.Scheme/Request.Host: this controller is invoked by the
+    // VKApiServer reverse-proxy at http://localhost:5001 — those values
+    // would yield "http://localhost:5001/uploads/..." URLs that the
+    // mobile client cannot resolve.
+    private static readonly string _publicBase =
+        (Environment.GetEnvironmentVariable("PUBLIC_BASE_URL")
+         ?? "https://api.crmrecoverysoftware.com").TrimEnd('/');
+
     private string? AbsUrl(string? relativePath) =>
         string.IsNullOrEmpty(relativePath)
             ? null
-            : $"{Request.Scheme}://{Request.Host}/uploads/{relativePath.TrimStart('/')}";
+            : $"{_publicBase}/uploads/{relativePath.TrimStart('/')}";
 
     // Keeps only digits — tolerant compare of mobile numbers regardless of
     // spaces, +91 prefixes or punctuation.
