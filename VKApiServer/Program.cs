@@ -2316,6 +2316,23 @@ if (Directory.Exists(publicPath))
     });
 }
 
+// ── Mobile uploads (PFP + KYC) — served as /uploads/ ────────────────────────
+// VKmobileapi writes app_user PFP photos and KYC scans to
+// /opt/vkmobileapi/uploads/. The mobile API's own MobileController.AbsUrl()
+// builds public URLs like https://api.crmrecoverysoftware.com/uploads/pfp/
+// user_10.jpg. Without this static-file mapping every "My Account" image
+// in the mobile app and every KYC thumbnail in the WPF admin returned 404.
+const string mobileUploadsPath = "/opt/vkmobileapi/uploads";
+if (Directory.Exists(mobileUploadsPath))
+{
+    app.UseStaticFiles(new StaticFileOptions
+    {
+        FileProvider = new PhysicalFileProvider(mobileUploadsPath),
+        RequestPath  = "/uploads",
+        ServeUnknownFileTypes = true
+    });
+}
+
 // ── Webhook endpoints (/api/webhooks/*) ──────────────────────────────────────
 // Banks POST vehicle data to /api/webhooks/provider/HDB with:
 //   Authorization: Basic base64(username:password)
