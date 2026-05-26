@@ -762,17 +762,14 @@ app.MapGet("/api/mgr/users", async (HttpContext ctx) =>
             }
         }
 
-        // Balance now reflects the user's latest plan amount (most recent end_date),
-        // falling back to u.balance if they have no subscriptions yet.
+        // Balance is the total of every subscription ever bought for the user
+        // — sum of subscriptions.amount. The legacy u.balance column is no
+        // longer used so what the admin sees matches the Subscriptions tab.
         const string usersSql = @"
             SELECT u.id, u.name, u.mobile, u.address, u.pincode,
                    u.pfp, u.device_id, u.is_active, u.is_admin,
-                   COALESCE(
-                       (SELECT s.amount FROM subscriptions s
-                          WHERE s.user_id = u.id
-                          ORDER BY s.end_date DESC LIMIT 1),
-                       u.balance
-                   ) AS balance,
+                   COALESCE((SELECT SUM(s.amount) FROM subscriptions s
+                              WHERE s.user_id = u.id), 0) AS balance,
                    u.created_at,
                    (SELECT MAX(s.end_date) FROM subscriptions s WHERE s.user_id = u.id) AS sub_end,
                    COALESCE(u.is_stopped,0), COALESCE(u.is_blacklisted,0)
@@ -1876,10 +1873,13 @@ app.MapGet("/api/mgr/export/users", async (HttpContext ctx) =>
     {
         await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
+        // Balance = sum of all subscription amounts ever bought for the user.
+        // The legacy u.balance column is ignored.
         const string sql = @"
             SELECT u.id, u.name, u.mobile, u.address, u.pincode,
                    u.is_active, u.is_admin, u.is_stopped, u.is_blacklisted,
-                   u.balance,
+                   COALESCE((SELECT SUM(s.amount) FROM subscriptions s
+                              WHERE s.user_id = u.id), 0) AS balance,
                    DATE_FORMAT(u.created_at,'%Y-%m-%d %H:%i:%s') AS created_at,
                    (SELECT DATE_FORMAT(MAX(s.end_date),'%Y-%m-%d')
                     FROM subscriptions s WHERE s.user_id = u.id) AS sub_end

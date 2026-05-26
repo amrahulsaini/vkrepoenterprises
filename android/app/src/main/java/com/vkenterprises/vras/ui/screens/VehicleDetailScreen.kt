@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.rememberScrollState
@@ -746,29 +747,28 @@ private fun BasicDetailView(item: SearchResult, agentName: String, agentPhone: S
     }
     Card(
         shape  = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(2.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
-        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("Agency",
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onPrimaryContainer)
-            HorizontalDivider(color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.2f))
+                color = MaterialTheme.colorScheme.primary)
+            HorizontalDivider(color = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f))
             // Agency details are baked into the white-label build at compile
-            // time — no per-request lookup needed.
-            DetailRow("Name",    BuildConfig.AGENCY_NAME,
-                valueColor = MaterialTheme.colorScheme.onPrimaryContainer)
+            // time — no per-request lookup needed. Mobile numbers are
+            // tap-to-dial via isPhone=true.
+            DetailRow("Name", BuildConfig.AGENCY_NAME)
             if (BuildConfig.AGENCY_MOBILE.isNotBlank())
-                DetailRow("Agency Mobile", BuildConfig.AGENCY_MOBILE,
-                    valueColor = MaterialTheme.colorScheme.onPrimaryContainer)
+                DetailRow("Agency Mobile", BuildConfig.AGENCY_MOBILE, isPhone = true)
             if (BuildConfig.AGENCY_ADDRESS.isNotBlank())
-                DetailRow("Agency Address", BuildConfig.AGENCY_ADDRESS,
-                    valueColor = MaterialTheme.colorScheme.onPrimaryContainer)
+                DetailRow("Agency Address", BuildConfig.AGENCY_ADDRESS)
             if (agentName.isNotBlank())
-                DetailRow("Agent",  agentName, valueColor = MaterialTheme.colorScheme.onPrimaryContainer)
+                DetailRow("Agent", agentName)
             if (agentPhone.isNotBlank())
-                DetailRow("Agent Mobile", agentPhone, valueColor = MaterialTheme.colorScheme.onPrimaryContainer)
+                DetailRow("Agent Mobile", agentPhone, isPhone = true)
         }
     }
 }
@@ -1065,9 +1065,14 @@ private fun WaOptionButton(label: String, color: Color, onClick: () -> Unit) {
 private fun DetailRow(
     label: String, value: String?,
     valueColor: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.onSurface,
-    invalid: Boolean = false
+    invalid: Boolean = false,
+    isPhone: Boolean = false
 ) {
     if (value.isNullOrBlank()) return
+    val context = LocalContext.current
+    val primary = MaterialTheme.colorScheme.primary
+    val baseColor = if (invalid) MaterialTheme.colorScheme.error else valueColor
+
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically) {
         Text(label,
@@ -1075,14 +1080,36 @@ private fun DetailRow(
             fontFamily = FontFamily.SansSerif,
             color      = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier   = Modifier.weight(0.38f))
-        Row(Modifier.weight(0.62f), verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(
+            modifier = Modifier
+                .weight(0.62f)
+                .then(
+                    if (isPhone) Modifier.clickable {
+                        // Tap-to-dial: opens the phone dialer pre-filled with
+                        // the number. No CALL_PHONE permission needed — ACTION_DIAL
+                        // shows the dialer and the user taps the green button.
+                        runCatching {
+                            context.startActivity(
+                                Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + value.replace(" ", "")))
+                            )
+                        }
+                    } else Modifier
+                ),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
             Text(value,
                 style      = MaterialTheme.typography.bodySmall,
                 fontWeight = FontWeight.Bold,
                 fontFamily = if (label in listOf("Vehicle No","Chassis No","Engine No"))
                     FontFamily.Monospace else FontFamily.SansSerif,
-                color      = if (invalid) MaterialTheme.colorScheme.error else valueColor)
+                color      = if (isPhone) primary else baseColor,
+                textDecoration = if (isPhone) TextDecoration.Underline else null)
+            if (isPhone) {
+                Icon(Icons.Default.Call, "Call",
+                    tint = primary,
+                    modifier = Modifier.size(14.dp))
+            }
             if (invalid) {
                 Surface(shape = RoundedCornerShape(4.dp),
                     color = MaterialTheme.colorScheme.errorContainer) {
