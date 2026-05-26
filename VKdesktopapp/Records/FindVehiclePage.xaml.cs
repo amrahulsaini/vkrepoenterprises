@@ -213,6 +213,27 @@ public partial class FindVehiclePage : Page
         }
     }
 
+    // Right-click "Copy" handlers on Branches/Finances list items. They put
+    // the relevant text on the clipboard without affecting list selection
+    // (so click-to-filter still works as before).
+    private void BranchItem_Copy_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is MenuItem mi && mi.Tag is VehicleSearchItem r)
+        {
+            Clipboard.SetText($"{r.Financer}\n{r.BranchName}\n{r.UpdatedOn}".Trim());
+        }
+    }
+    private void BranchItem_CopyFinance_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is MenuItem mi && mi.Tag is string s && !string.IsNullOrWhiteSpace(s))
+            Clipboard.SetText(s);
+    }
+    private void BranchItem_CopyBranch_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is MenuItem mi && mi.Tag is string s && !string.IsNullOrWhiteSpace(s))
+            Clipboard.SetText(s);
+    }
+
     private void btnCopy_Click(object sender, RoutedEventArgs e)
     {
         if (brdDetails.DataContext is not VehicleSearchItem r) return;
