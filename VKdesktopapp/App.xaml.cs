@@ -55,10 +55,15 @@ public partial class App : Application
         // One-time migration: every existing install carries a per-user
         // ApiBaseUrl saved to its user.config. Without this, upgrading the
         // installer would leave them pointed at the retired URL. Auto-bump
-        // anyone still on the legacy host to the new domain.
-        if (Settings.Default.ApiBaseUrl == "https://api.characterverse.tech/")
+        // anyone whose saved URL does NOT point at the current API host —
+        // covers the legacy characterverse domain AND the even older
+        // 103.247.19.45 IP that some long-time installs still carry.
+        const string CurrentApi = "https://api.crmrecoverysoftware.com/";
+        var saved = (Settings.Default.ApiBaseUrl ?? "").TrimEnd('/');
+        var target = CurrentApi.TrimEnd('/');
+        if (!string.Equals(saved, target, StringComparison.OrdinalIgnoreCase))
         {
-            Settings.Default.ApiBaseUrl = "https://api.crmrecoverysoftware.com/";
+            Settings.Default.ApiBaseUrl = CurrentApi;
             Settings.Default.Save();
         }
 
