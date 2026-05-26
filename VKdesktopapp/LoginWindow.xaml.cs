@@ -3,15 +3,65 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Media.Imaging;
 using VRASDesktopApp.Models;
 
 namespace VRASDesktopApp;
 
 public partial class LoginWindow : Window
 {
+    // Local cache of the agency's logo. Populated after a successful login;
+    // shown on every subsequent launch's sign-in screen in place of the
+    // default CRMRS logo.
+    private static readonly string AgencyLogoCachePath = System.IO.Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "CRMS", "agency-logo.png");
+
     public LoginWindow()
     {
         InitializeComponent();
+        Loaded += (_, __) => LoadCachedAgencyLogo();
+    }
+
+    private void LoadCachedAgencyLogo()
+    {
+        try
+        {
+            if (!System.IO.File.Exists(AgencyLogoCachePath)) return;
+            // BitmapImage with CacheOption=OnLoad reads the bytes immediately
+            // so the file isn't locked — important because we overwrite it on
+            // every fresh login.
+            var bytes = System.IO.File.ReadAllBytes(AgencyLogoCachePath);
+            using var ms = new System.IO.MemoryStream(bytes);
+            var bmp = new BitmapImage();
+            bmp.BeginInit();
+            bmp.CacheOption = BitmapCacheOption.OnLoad;
+            bmp.StreamSource = ms;
+            bmp.EndInit();
+            bmp.Freeze();
+            imgLogo.Source = bmp;
+        }
+        catch { /* fall back to the CRMRS default in XAML */ }
+    }
+
+    /// <summary>Downloads and caches the signed-in agency's logo so the next
+    /// sign-in screen shows it instead of the CRMRS default.</summary>
+    private static async System.Threading.Tasks.Task CacheAgencyLogoAsync(string logoPath)
+    {
+        if (string.IsNullOrWhiteSpace(logoPath)) return;
+        try
+        {
+            // logoPath is the server-relative path stored on the agency record,
+            // e.g. "/agency-uploads/rk_enterprises.jpg". Prepend the API host.
+            var url = logoPath.StartsWith("http", StringComparison.OrdinalIgnoreCase)
+                ? logoPath
+                : App.ApiBaseUrl.TrimEnd('/') + "/" + logoPath.TrimStart('/');
+            using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
+            var bytes = await http.GetByteArrayAsync(url);
+            System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(AgencyLogoCachePath)!);
+            await System.IO.File.WriteAllBytesAsync(AgencyLogoCachePath, bytes);
+        }
+        catch { /* leave the cached logo unchanged on failure */ }
     }
 
     /// <summary>Allow dragging the window by the title bar.</summary>
@@ -123,6 +173,10 @@ public partial class LoginWindow : Window
 
         App.SignedAppUser = signed;
         App.SetAuthToken(signed.Token);
+
+        // Fire-and-forget — the cached logo is used on the NEXT launch,
+        // so we don't block the sign-in flow waiting for it.
+        _ = CacheAgencyLogoAsync(signed.LogoPath);
 
         // Construct the main window first to catch any initialization/XAML errors
         MainWindow window;

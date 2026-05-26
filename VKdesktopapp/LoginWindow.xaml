@@ -58,12 +58,16 @@
 
         <!-- Login Form -->
         <StackPanel Grid.Row="1">
-            <!-- CRMS logo (white background per brand) -->
-            <Border Width="120" Height="120" CornerRadius="22"
-                    Background="White" Margin="0,28,0,8"
+            <!-- Login logo. Defaults to the CRMRS brand logo (rendered on a
+                 white card per brand). The code-behind swaps Source for the
+                 returning agency's own logo on every subsequent launch. -->
+            <Border Width="140" Height="140" CornerRadius="24"
+                    Background="White" Margin="0,24,0,8"
                     BorderBrush="{StaticResource Gray200}" BorderThickness="1">
-                <Image Source="/public/crmrs-logo.png"
-                       Width="100" Height="100"
+                <Image Name="imgLogo"
+                       Source="/public/crmrs-fulllogo.png"
+                       Width="124" Height="124"
+                       Stretch="Uniform"
                        RenderOptions.BitmapScalingMode="HighQuality"
                        HorizontalAlignment="Center" VerticalAlignment="Center" />
             </Border>
