@@ -52,16 +52,15 @@ public partial class App : Application
             Settings.Default.Save();
         }
 
-        // One-time migration: every existing install carries a per-user
-        // ApiBaseUrl saved to its user.config. Without this, upgrading the
-        // installer would leave them pointed at the retired URL. Auto-bump
-        // anyone whose saved URL does NOT point at the current API host —
-        // covers the legacy characterverse domain AND the even older
-        // 103.247.19.45 IP that some long-time installs still carry.
+        // Per-user ApiBaseUrl normalization. Old user.config files variously
+        // store the current API host with OR without a trailing slash, point
+        // at retired domains (characterverse, 103.247.19.45), or are empty.
+        // The login code does string concatenation (`ApiBaseUrl + "api/..."`),
+        // so a missing trailing slash breaks every request with a
+        // SocketException ("Cannot reach the server"). Force a clean, fresh
+        // value whenever the saved one doesn't byte-for-byte match.
         const string CurrentApi = "https://api.crmrecoverysoftware.com/";
-        var saved = (Settings.Default.ApiBaseUrl ?? "").TrimEnd('/');
-        var target = CurrentApi.TrimEnd('/');
-        if (!string.Equals(saved, target, StringComparison.OrdinalIgnoreCase))
+        if (!string.Equals(Settings.Default.ApiBaseUrl, CurrentApi, StringComparison.Ordinal))
         {
             Settings.Default.ApiBaseUrl = CurrentApi;
             Settings.Default.Save();
