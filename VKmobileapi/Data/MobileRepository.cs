@@ -337,9 +337,14 @@ public class MobileRepository
         await using var conn = DbFactory.Create();
         await conn.OpenAsync();
 
+        // Balance is the running total of every subscription ever bought
+        // for this user — sum of subscriptions.amount. The legacy u.balance
+        // column is ignored so the displayed balance always matches what the
+        // user can see on the Subscriptions tab.
         const string sql = @"
             SELECT u.id, u.name, u.mobile, u.address, u.pincode, u.pfp,
-                   u.is_active, u.is_admin, u.balance,
+                   u.is_active, u.is_admin,
+                   COALESCE((SELECT SUM(amount) FROM subscriptions WHERE user_id = u.id), 0) AS balance,
                    DATE_FORMAT(u.created_at,'%d %b %Y') AS created_at,
                    u.account_number, u.ifsc_code,
                    k.aadhaar_front, k.aadhaar_back, k.pan_front

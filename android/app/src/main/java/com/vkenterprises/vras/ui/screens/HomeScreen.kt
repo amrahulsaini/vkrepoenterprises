@@ -295,11 +295,8 @@ fun HomeScreen(
                 },
                 actions = {
                     val pfpUrl by authVm.pfpUrl.collectAsState(initial = null)
-                    if (isAdmin) {
-                        IconButton(onClick = { nav.navigate(Screen.ManageSubscriptions.route) }) {
-                            Icon(Icons.Default.CardMembership, contentDescription = "Manage Subscriptions")
-                        }
-                    }
+                    // The standalone "Manage Subscriptions" icon was removed —
+                    // admins reach the same screen via Control Panel below.
 
                     // Online / Offline toggle — green cloud when online (default),
                     // red cloud-off when offline. Tap shows a confirmation dialog
