@@ -88,8 +88,13 @@ public class MobileController : ControllerBase
             var agency = await _repo.GetAgencyBySlugAsync(req.Slug.Trim());
             if (!agency.Found || agency.Status != "approved")
                 return BadRequest(new ApiError(false, "That agency is not available. Please pick another."));
+            // Agency-mobile verification removed per UX request — the
+            // white-label per-flavor build already pins the slug at compile
+            // time, so the user can't pick the wrong agency. If a value is
+            // sent and it's non-blank, we still match it as a soft check.
             var enteredAgencyMobile = NormalizeMobile(req.AgencyMobile);
-            if (enteredAgencyMobile.Length == 0 || enteredAgencyMobile != NormalizeMobile(agency.Mobile1))
+            if (enteredAgencyMobile.Length > 0
+                && enteredAgencyMobile != NormalizeMobile(agency.Mobile1))
                 return BadRequest(new ApiError(false, "The agency's mobile number does not match. Please confirm it with your agency."));
 
             // ── Cross-agency uniqueness gate ─────────────────────────────

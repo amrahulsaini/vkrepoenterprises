@@ -26,8 +26,11 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.*
 import androidx.navigation.NavController
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
 import coil.compose.AsyncImage
 import com.vkenterprises.vras.BuildConfig
+import com.vkenterprises.vras.R
 import com.vkenterprises.vras.navigation.Screen
 import com.vkenterprises.vras.viewmodel.AuthUiState
 import com.vkenterprises.vras.viewmodel.AuthViewModel
@@ -62,12 +65,11 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
 
     var error by remember { mutableStateOf("") }
 
-    // White-label build — agency is fixed at compile time. We still ask the
-    // user for the agency's primary mobile number as a "do you actually belong
-    // here?" check (the server compares it to crm_master.agencies.mobile1).
+    // White-label build — agency is fixed at compile time. The agency
+    // primary-mobile verification field was removed per UX request — the
+    // server now accepts an empty agencyMobile and skips that check.
     val agencySlug = BuildConfig.AGENCY_SLUG
     val agencyName = BuildConfig.AGENCY_NAME
-    var agencyMobile by remember { mutableStateOf("") }
 
     fun uriToBase64(uri: Uri): String? = runCatching {
         val bytes = context.contentResolver.openInputStream(uri)?.readBytes()
@@ -157,50 +159,33 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            // ── Agency ─────────────────────────────────────────────────
-            SectionHeader("Your Agency")
-            Text(
-                "Select the agency you work for, then confirm its primary mobile number.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            // Fixed agency label — what the picker used to be.
+            // ── Agency identity card — big agency logo + name. No
+            // verification mobile field; agency identity is fixed by the
+            // per-flavor build (BuildConfig.AGENCY_SLUG), so there's nothing
+            // for the user to "confirm" any more.
             Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant,
-                modifier = Modifier.fillMaxWidth()
+                shape = RoundedCornerShape(14.dp),
+                color = Color.White,
+                shadowElevation = 1.dp,
+                modifier = Modifier.fillMaxWidth().align(Alignment.CenterHorizontally)
             ) {
-                Row(
-                    Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                Column(
+                    Modifier.padding(vertical = 16.dp, horizontal = 12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Icon(Icons.Default.Business, null,
-                        tint = MaterialTheme.colorScheme.primary)
-                    Spacer(Modifier.width(10.dp))
-                    Column {
-                        Text("Agency",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text(agencyName,
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.SemiBold)
-                    }
+                    Image(
+                        painter = painterResource(id = R.drawable.agency_logo),
+                        contentDescription = agencyName,
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier.size(72.dp).clip(RoundedCornerShape(12.dp))
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text(agencyName,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface)
                 }
             }
-            FocusedField(scrollState) {
-                OutlinedTextField(
-                    value = agencyMobile, onValueChange = { agencyMobile = it },
-                    label = { Text("Agency's Primary Mobile Number *") },
-                    leadingIcon = { Icon(Icons.Default.Phone, null) },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone, imeAction = ImeAction.Next),
-                    singleLine = true, modifier = Modifier.fillMaxWidth().then(it)
-                )
-            }
-            Text(
-                "This must match the mobile number your agency registered with — it verifies your request.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
 
             // ── Basic info ─────────────────────────────────────────────
             SectionHeader("Basic Information")
@@ -311,10 +296,6 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
                         error = "Mobile and name are required."
                         return@Button
                     }
-                    if (agencyMobile.isBlank()) {
-                        error = "Enter your agency's primary mobile number."
-                        return@Button
-                    }
                     error = ""
                     vm.register(
                         mobile, name,
@@ -322,7 +303,7 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
                         pfpB64,
                         aadhaarFrontB64, aadhaarBackB64, panFrontB64,
                         accountNumber.ifBlank { null }, ifscCode.ifBlank { null },
-                        agencySlug, agencyName, agencyMobile
+                        agencySlug, agencyName, ""  // agencyMobile no longer collected
                     )
                 },
                 enabled  = state !is AuthUiState.Loading,
