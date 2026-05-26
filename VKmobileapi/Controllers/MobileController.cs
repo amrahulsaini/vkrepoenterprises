@@ -47,6 +47,28 @@ public class MobileController : ControllerBase
         }
     }
 
+    // GET /api/mobile/agency — full agency profile (name, address, all
+    // mobile numbers). Slug comes from the X-Tenant-Token, so the response
+    // is always for the agency this app is signed into. Used by the in-app
+    // "Agency" panel on the vehicle detail screen.
+    [HttpGet("agency")]
+    public async Task<IActionResult> GetAgencyInfo()
+    {
+        var slug = TenantContext.Key;
+        if (string.IsNullOrEmpty(slug) || slug == "default")
+            return Unauthorized(new ApiError(false, "No tenant context"));
+        try
+        {
+            var info = await _repo.GetAgencyInfoAsync(slug);
+            if (info == null) return NotFound(new ApiError(false, "Agency not found"));
+            return Ok(info);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new ApiError(false, $"Failed to load agency: {ex.Message}"));
+        }
+    }
+
     // POST /api/mobile/register
     [HttpPost("register")]
     public async Task<IActionResult> Register([FromBody] RegisterRequest req)

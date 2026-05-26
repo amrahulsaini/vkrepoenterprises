@@ -159,6 +159,48 @@
     </div>
 </div>
 
+<!-- Manage agency modal -->
+<div class="modal-backdrop" id="manage-modal" role="dialog">
+    <div class="modal" style="max-width:560px;">
+        <h3>Manage Agency</h3>
+        <p class="text-muted" style="margin:0 0 10px; font-size:13px;">
+            Edit agency name, address, and contact numbers. Up to 20 extra mobile
+            numbers can be added; all show on the mobile app's Agency panel.
+        </p>
+
+        <label style="display:block; font-size:11px; font-weight:600; margin-top:8px;">AGENCY NAME</label>
+        <input class="input" type="text" id="manage-name" maxlength="120" />
+
+        <label style="display:block; font-size:11px; font-weight:600; margin-top:8px;">ADDRESS</label>
+        <input class="input" type="text" id="manage-address" maxlength="300" />
+
+        <div style="display:flex; gap:8px;">
+            <div style="flex:1;">
+                <label style="display:block; font-size:11px; font-weight:600; margin-top:8px;">PRIMARY MOBILE</label>
+                <input class="input" type="tel" id="manage-mobile1" maxlength="15" />
+            </div>
+            <div style="flex:1;">
+                <label style="display:block; font-size:11px; font-weight:600; margin-top:8px;">SECONDARY MOBILE</label>
+                <input class="input" type="tel" id="manage-mobile2" maxlength="15" />
+            </div>
+        </div>
+
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-top:14px;">
+            <label style="font-size:11px; font-weight:600;">EXTRA CONTACT NUMBERS</label>
+            <button type="button" class="btn btn-outline btn-sm" id="manage-add-extra">+ Add number</button>
+        </div>
+        <div id="manage-extras" style="margin-top:6px; max-height:240px; overflow-y:auto;"></div>
+
+        <div class="otp-actions mt-2" style="margin-top:16px;">
+            <span></span>
+            <div style="display:flex; gap:8px;">
+                <button class="btn btn-outline btn-sm" id="manage-cancel">Cancel</button>
+                <button class="btn btn-primary btn-sm" id="manage-save">Save changes</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="toast-container" id="toasts"></div>
 
 <footer class="site-footer">
@@ -170,7 +212,7 @@
 
 <script>document.getElementById('year').textContent = new Date().getFullYear();</script>
 <script src="js/api.js?v=2"></script>
-<script src="js/manage.js?v=5"></script>
+<script src="js/manage.js?v=6"></script>
 <script src="js/apps.js?v=3"></script>
 </body>
 </html>

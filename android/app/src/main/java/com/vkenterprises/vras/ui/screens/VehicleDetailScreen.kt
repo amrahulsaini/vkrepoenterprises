@@ -37,6 +37,7 @@ import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.vkenterprises.vras.BuildConfig
 import com.vkenterprises.vras.data.api.ApiClient
+import com.vkenterprises.vras.data.models.AgencyInfo
 import com.vkenterprises.vras.data.models.SearchLogRequest
 import com.vkenterprises.vras.data.models.SearchResult
 import com.vkenterprises.vras.navigation.Screen
@@ -745,6 +746,17 @@ private fun BasicDetailView(item: SearchResult, agentName: String, agentPhone: S
             DetailRow("Customer",     item.customerName)
         }
     }
+    // Live agency profile — fetched once per screen. The build-time
+    // BuildConfig values are the fallback when offline / the call fails so
+    // the user always sees at least the primary number.
+    var agencyInfo by remember { mutableStateOf<AgencyInfo?>(null) }
+    LaunchedEffect(Unit) {
+        runCatching {
+            val resp = ApiClient.api.getAgencyInfo()
+            if (resp.isSuccessful) agencyInfo = resp.body()
+        }
+    }
+
     Card(
         shape  = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -757,14 +769,20 @@ private fun BasicDetailView(item: SearchResult, agentName: String, agentPhone: S
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary)
             HorizontalDivider(color = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f))
-            // Agency details are baked into the white-label build at compile
-            // time — no per-request lookup needed. Mobile numbers are
-            // tap-to-dial via isPhone=true.
-            DetailRow("Name", BuildConfig.AGENCY_NAME)
-            if (BuildConfig.AGENCY_MOBILE.isNotBlank())
-                DetailRow("Agency Mobile", BuildConfig.AGENCY_MOBILE, isPhone = true)
-            if (BuildConfig.AGENCY_ADDRESS.isNotBlank())
-                DetailRow("Agency Address", BuildConfig.AGENCY_ADDRESS)
+
+            val name    = agencyInfo?.name?.ifBlank { BuildConfig.AGENCY_NAME }   ?: BuildConfig.AGENCY_NAME
+            val address = agencyInfo?.address?.ifBlank { BuildConfig.AGENCY_ADDRESS } ?: BuildConfig.AGENCY_ADDRESS
+            // Live list, falling back to the baked-in single number if the
+            // fetch hasn't returned yet.
+            val mobiles = agencyInfo?.mobiles?.takeIf { it.isNotEmpty() }
+                          ?: listOfNotNull(BuildConfig.AGENCY_MOBILE.ifBlank { null })
+
+            DetailRow("Name", name)
+            mobiles.forEachIndexed { i, m ->
+                DetailRow(if (i == 0) "Agency Mobile" else "Agency Mobile ${i + 1}", m, isPhone = true)
+            }
+            if (address.isNotBlank())
+                DetailRow("Agency Address", address)
             if (agentName.isNotBlank())
                 DetailRow("Agent", agentName)
             if (agentPhone.isNotBlank())

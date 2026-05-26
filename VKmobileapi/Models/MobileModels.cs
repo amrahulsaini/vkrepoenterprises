@@ -28,6 +28,11 @@ public record LoginRequest(
 // mobile app prepends its base URL to render the image.
 public record AgencyListItem(long Id, string Name, string Slug, string LogoPath);
 
+// Full agency profile shown in the in-app "Agency" detail panel — primary
+// mobile, secondary mobile, and any number of extras the admin added via
+// the manage portal, all flattened into one Mobiles list.
+public record AgencyInfo(string Name, string Address, List<string> Mobiles, string LogoPath);
+
 public record HeartbeatRequest(long UserId, double? Lat, double? Lng);
 
 public record SearchLogRequest(

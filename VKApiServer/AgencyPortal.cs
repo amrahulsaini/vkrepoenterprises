@@ -424,6 +424,104 @@ internal static class AgencyPortal
         });
 
         // =============================================================
+        //   Manage Agency — read + update agency profile (multi-contact)
+        //   Admin opens "Manage" on an agency row in manage.html and edits
+        //   its primary mobile, secondary mobile, and up to ~20 extra
+        //   contacts (mobiles_extra TEXT, newline-separated).
+        // =============================================================
+        app.MapGet("/api/agency/manage/agency/{id:int}", async (HttpContext ctx, int id) =>
+        {
+            if (!await IsManageTokenValid(masterConn, ctx))
+                return Results.Json(new { message = "Unauthorized" }, statusCode: 401);
+
+            await using var conn = new MySqlConnection(masterConn);
+            await conn.OpenAsync();
+            await using var cmd = new MySqlCommand(@"
+                SELECT id, name, slug, email1, COALESCE(email2,''),
+                       mobile1, COALESCE(mobile2,''),
+                       COALESCE(address,''), COALESCE(mobiles_extra,''),
+                       COALESCE(logo_path,''), status
+                  FROM agencies WHERE id = @id LIMIT 1;", conn);
+            cmd.Parameters.AddWithValue("@id", id);
+            await using var rdr = await cmd.ExecuteReaderAsync();
+            if (!await rdr.ReadAsync()) return Results.NotFound(new { message = "Agency not found" });
+
+            // Split the newline-separated extras into a clean array — empty
+            // lines and duplicates of mobile1/2 stripped so the admin UI
+            // doesn't double-show them.
+            var raw = rdr.GetString(8);
+            var extras = raw.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries)
+                            .Select(s => s.Trim())
+                            .Where(s => !string.IsNullOrWhiteSpace(s))
+                            .ToList();
+            return Results.Ok(new
+            {
+                id       = rdr.GetInt32(0),
+                name     = rdr.GetString(1),
+                slug     = rdr.GetString(2),
+                email1   = rdr.GetString(3),
+                email2   = rdr.GetString(4),
+                mobile1  = rdr.GetString(5),
+                mobile2  = rdr.GetString(6),
+                address  = rdr.GetString(7),
+                extras,
+                logoPath = rdr.GetString(9),
+                status   = rdr.GetString(10),
+            });
+        });
+
+        // PATCH semantics — body fields that are present overwrite; missing
+        // fields are left alone. The extras list is a full replacement
+        // (sending an empty array clears all extras).
+        app.MapPost("/api/agency/manage/agency/{id:int}", async (HttpContext ctx, int id, HttpRequest req) =>
+        {
+            if (!await IsManageTokenValid(masterConn, ctx))
+                return Results.Json(new { message = "Unauthorized" }, statusCode: 401);
+
+            // Read raw JSON since the body is a flexible field set.
+            using var doc = await System.Text.Json.JsonDocument.ParseAsync(req.Body);
+            var root = doc.RootElement;
+            string? S(string k) => root.TryGetProperty(k, out var v) && v.ValueKind == System.Text.Json.JsonValueKind.String ? v.GetString() : null;
+
+            var sets   = new List<string>();
+            var args   = new List<(string, object?)> { ("@id", id) };
+            void Maybe(string col, string? val)
+            {
+                if (val == null) return;          // field absent → leave alone
+                sets.Add($"{col}=@{col}");
+                args.Add(($"@{col}", string.IsNullOrWhiteSpace(val) ? (object?)DBNull.Value : val.Trim()));
+            }
+            Maybe("name",    S("name"));
+            Maybe("address", S("address"));
+            Maybe("mobile1", S("mobile1"));
+            Maybe("mobile2", S("mobile2"));
+
+            // Extras come as an array of strings — collapse to newline-separated.
+            if (root.TryGetProperty("extras", out var extrasEl) && extrasEl.ValueKind == System.Text.Json.JsonValueKind.Array)
+            {
+                var lines = extrasEl.EnumerateArray()
+                    .Where(e => e.ValueKind == System.Text.Json.JsonValueKind.String)
+                    .Select(e => (e.GetString() ?? "").Trim())
+                    .Where(s => !string.IsNullOrWhiteSpace(s))
+                    .Distinct()
+                    .Take(20)
+                    .ToList();
+                sets.Add("mobiles_extra=@mobiles_extra");
+                args.Add(("@mobiles_extra", lines.Count == 0 ? (object?)DBNull.Value : string.Join("\n", lines)));
+            }
+
+            if (sets.Count == 0) return Results.BadRequest(new { message = "No fields to update" });
+
+            await using var conn = new MySqlConnection(masterConn);
+            await conn.OpenAsync();
+            await using var cmd = new MySqlCommand($"UPDATE agencies SET {string.Join(", ", sets)} WHERE id=@id", conn);
+            foreach (var (k, v) in args) cmd.Parameters.AddWithValue(k, v ?? DBNull.Value);
+            int n = await cmd.ExecuteNonQueryAsync();
+            if (n == 0) return Results.NotFound(new { message = "Agency not found" });
+            return Results.Ok(new { ok = true });
+        });
+
+        // =============================================================
         //   Per-agency Android builds — list + download
         //   The portal serves white-labeled APK / AAB files for each
         //   approved agency. Files live at:

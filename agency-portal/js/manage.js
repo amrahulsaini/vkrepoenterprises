@@ -234,12 +234,14 @@ function rowHtml(a) {
     const logo = a.logoPath
         ? `<img src="${escapeHtml(logoSrc)}" alt="" onerror="this.src='assets/crmrs-logo.webp'; this.style.opacity='.4';">`
         : `<img src="assets/crmrs-logo.webp" alt="" style="opacity:.4">`;
+    const manageBtn = `<button class="btn btn-outline btn-sm" data-act="manage" data-id="${a.id}">Manage</button>`;
     const actions = a.status === 'pending'
         ? `<button class="btn btn-success btn-sm" data-act="approve" data-id="${a.id}">Approve</button>
-           <button class="btn btn-outline btn-sm" data-act="reject"  data-id="${a.id}">Reject</button>`
+           <button class="btn btn-outline btn-sm" data-act="reject"  data-id="${a.id}">Reject</button>
+           ${manageBtn}`
         : a.status === 'approved'
-            ? `<span class="text-muted">✓ Active</span>`
-            : `<span class="text-muted" title="${escapeHtml(a.rejectedReason || '')}">Reason: ${escapeHtml(a.rejectedReason || '—')}</span>`;
+            ? `<span class="text-muted">✓ Active</span> ${manageBtn}`
+            : `<span class="text-muted" title="${escapeHtml(a.rejectedReason || '')}">Reason: ${escapeHtml(a.rejectedReason || '—')}</span> ${manageBtn}`;
     return `
         <tr>
             <td>
@@ -302,5 +304,84 @@ async function handleAction(act, id) {
         } catch (e) {
             toast(e.message || 'Approval failed', 'error', 6000);
         }
+        return;
+    }
+    if (act === 'manage') {
+        openManageModal(id);
+        return;
+    }
+}
+
+// ── Manage agency modal ────────────────────────────────────────────────
+const manageModal      = document.getElementById('manage-modal');
+const manageName       = document.getElementById('manage-name');
+const manageAddress    = document.getElementById('manage-address');
+const manageMobile1    = document.getElementById('manage-mobile1');
+const manageMobile2    = document.getElementById('manage-mobile2');
+const manageExtras     = document.getElementById('manage-extras');
+const manageAddExtra   = document.getElementById('manage-add-extra');
+const manageCancel     = document.getElementById('manage-cancel');
+const manageSave       = document.getElementById('manage-save');
+let managingAgencyId   = null;
+
+function addExtraRow(value = '') {
+    const row = document.createElement('div');
+    row.className = 'manage-extra-row';
+    row.style.cssText = 'display:flex; gap:6px; margin-bottom:6px;';
+    row.innerHTML = `<input class="input" type="tel" placeholder="Extra mobile number" value="${escapeHtml(value)}" maxlength="15" style="flex:1;">
+                     <button type="button" class="btn btn-outline btn-sm" data-remove>✕</button>`;
+    row.querySelector('[data-remove]').addEventListener('click', () => row.remove());
+    manageExtras.appendChild(row);
+}
+
+manageAddExtra?.addEventListener('click', () => {
+    if (manageExtras.querySelectorAll('.manage-extra-row').length >= 20) {
+        toast('Maximum 20 extra contacts', 'info');
+        return;
+    }
+    addExtraRow();
+});
+
+manageCancel?.addEventListener('click', () => manageModal.classList.remove('is-open'));
+
+manageSave?.addEventListener('click', async () => {
+    if (managingAgencyId == null) return;
+    const extras = Array.from(manageExtras.querySelectorAll('input'))
+        .map(i => i.value.trim()).filter(v => v.length > 0);
+    manageSave.disabled = true; manageSave.innerHTML = '<span class="spinner"></span>';
+    try {
+        await api(`/manage/agency/${managingAgencyId}`, { method: 'POST', body: {
+            name:    manageName.value.trim(),
+            address: manageAddress.value.trim(),
+            mobile1: manageMobile1.value.trim(),
+            mobile2: manageMobile2.value.trim(),
+            extras,
+        }});
+        toast('Agency updated', 'success');
+        manageModal.classList.remove('is-open');
+        loadList();
+    } catch (e) {
+        toast(e.message || 'Save failed', 'error', 5000);
+    } finally {
+        manageSave.disabled = false; manageSave.innerHTML = 'Save changes';
+    }
+});
+
+async function openManageModal(id) {
+    managingAgencyId = id;
+    manageName.value = ''; manageAddress.value = '';
+    manageMobile1.value = ''; manageMobile2.value = '';
+    manageExtras.innerHTML = '';
+    manageModal.classList.add('is-open');
+    try {
+        const a = await api(`/manage/agency/${id}`);
+        manageName.value    = a.name || '';
+        manageAddress.value = a.address || '';
+        manageMobile1.value = a.mobile1 || '';
+        manageMobile2.value = a.mobile2 || '';
+        (a.extras || []).forEach(e => addExtraRow(e));
+    } catch (e) {
+        toast(e.message || 'Failed to load agency', 'error');
+        manageModal.classList.remove('is-open');
     }
 }
