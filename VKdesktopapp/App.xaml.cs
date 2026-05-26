@@ -69,6 +69,21 @@ public partial class App : Application
         HttpClient = new HttpClient();
         HttpClient.DefaultRequestHeaders.Add("Connection", "keep-alive");
         HttpClient.Timeout = TimeSpan.FromMinutes(20.0);
+
+        // Pre-warm the TLS connection to the API host while the login window
+        // renders. The cold first call to a new HTTPS host costs ~300-500ms
+        // for DNS + handshake; doing it in the background means the user's
+        // first Sign-In click already has a hot socket and doesn't get a
+        // spurious "Cannot reach the server" error.
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                using var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(10));
+                using var _ = await HttpClient.GetAsync(Settings.Default.ApiBaseUrl, cts.Token);
+            }
+            catch { /* warmup is best-effort, real call will surface any error */ }
+        });
         // Syncfusion license
         SyncfusionLicenseProvider.RegisterLicense("Ngo9BigBOggjHTQxAR8/V1NMaF5cXmBCf1FpRmJGdld5fUVHYVZUTXxaS00DNHVRdkdlWXpedXRTRWheV0VxV0RWYUE=");
     }
