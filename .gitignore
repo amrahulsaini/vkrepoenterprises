@@ -45,3 +45,8 @@ android/**/*.aab
 VKdesktopapp/publish-output/
 VKdesktopapp/publish-fresh/
 
+installer-output/
+VKdesktopapp/publish/
+VKdesktopapp/publish-fresh/
+VKApiServer/bin/publish/
+VKmobileapi/bin/publish/

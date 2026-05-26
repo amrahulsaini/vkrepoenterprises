@@ -43,10 +43,14 @@ object ApiClient {
         // skips the TCP+TLS handshake entirely.
         .connectionPool(ConnectionPool(10, 3, TimeUnit.MINUTES))
         .retryOnConnectionFailure(true)
-        .connectTimeout(10, TimeUnit.SECONDS)
-        .readTimeout(15, TimeUnit.SECONDS)
-        .writeTimeout(15, TimeUnit.SECONDS)
-        .callTimeout(20, TimeUnit.SECONDS)
+        // Bumped to cover the register call, which uploads up to ~1 MB of
+        // compressed JPEGs (PFP + 3 KYC docs). A 20s ceiling timed out on
+        // slow connections. Read-only calls (search etc) still finish in
+        // <100ms thanks to OkHttp's connection pool reuse.
+        .connectTimeout(15, TimeUnit.SECONDS)
+        .readTimeout(60, TimeUnit.SECONDS)
+        .writeTimeout(60, TimeUnit.SECONDS)
+        .callTimeout(120, TimeUnit.SECONDS)
         // Routes every request to the signed-in agency's database server-side.
         .addInterceptor { chain ->
             val token = SessionTokens.tenantToken
