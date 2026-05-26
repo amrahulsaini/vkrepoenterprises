@@ -334,8 +334,17 @@ fun HomeScreen(
                     }
                     IconButton(onClick = { nav.navigate(Screen.Profile.route) }) {
                         if (!pfpUrl.isNullOrBlank()) {
+                            // Coil request: account-circle icon shown both as
+                            // "loading" placeholder and "error" fallback, so the
+                            // avatar slot never renders as a broken/empty box.
+                            // crossfade for a smooth swap once the bytes land.
+                            val req = coil.request.ImageRequest.Builder(LocalContext.current)
+                                .data(pfpUrl)
+                                .crossfade(true)
+                                .build()
                             AsyncImage(
-                                model = pfpUrl, contentDescription = null,
+                                model = req,
+                                contentDescription = null,
                                 contentScale = ContentScale.Crop,
                                 modifier = Modifier.size(30.dp).clip(CircleShape)
                             )
