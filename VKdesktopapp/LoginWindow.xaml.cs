@@ -10,21 +10,34 @@ namespace VRASDesktopApp;
 
 public partial class LoginWindow : Window
 {
-    // Local cache of the agency's logo. Populated after a successful login;
-    // shown on every subsequent launch's sign-in screen in place of the
-    // default CRMRS logo.
-    private static readonly string AgencyLogoCachePath = System.IO.Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "CRMS", "agency-logo.png");
+    // Local cache of the agency's branding. Populated after a successful login;
+    // the logo replaces the CRMRS default on the sign-in screen and the name
+    // replaces the "CRMS" title on every subsequent launch.
+    private static readonly string AgencyCacheDir = System.IO.Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "CRMS");
+    private static readonly string AgencyLogoCachePath = System.IO.Path.Combine(AgencyCacheDir, "agency-logo.png");
+    private static readonly string AgencyNameCachePath = System.IO.Path.Combine(AgencyCacheDir, "agency-name.txt");
 
     public LoginWindow()
     {
         InitializeComponent();
-        Loaded += (_, __) => LoadCachedAgencyLogo();
+        Loaded += (_, __) => LoadCachedAgencyBranding();
     }
 
-    private void LoadCachedAgencyLogo()
+    private void LoadCachedAgencyBranding()
     {
+        // Name first (cheap), then logo. Each one is independent — a missing
+        // file just means we keep the XAML default.
+        try
+        {
+            if (System.IO.File.Exists(AgencyNameCachePath))
+            {
+                var name = System.IO.File.ReadAllText(AgencyNameCachePath).Trim();
+                if (!string.IsNullOrWhiteSpace(name)) lblAppName.Text = name;
+            }
+        }
+        catch { }
+
         try
         {
             if (!System.IO.File.Exists(AgencyLogoCachePath)) return;
@@ -44,21 +57,26 @@ public partial class LoginWindow : Window
         catch { /* fall back to the CRMRS default in XAML */ }
     }
 
-    /// <summary>Downloads and caches the signed-in agency's logo so the next
-    /// sign-in screen shows it instead of the CRMRS default.</summary>
-    private static async System.Threading.Tasks.Task CacheAgencyLogoAsync(string logoPath)
+    /// <summary>Downloads and caches the signed-in agency's logo + name so the
+    /// next sign-in screen shows them instead of the CRMRS defaults.</summary>
+    private static async System.Threading.Tasks.Task CacheAgencyBrandingAsync(string agencyName, string logoPath)
     {
+        try
+        {
+            System.IO.Directory.CreateDirectory(AgencyCacheDir);
+            if (!string.IsNullOrWhiteSpace(agencyName))
+                await System.IO.File.WriteAllTextAsync(AgencyNameCachePath, agencyName.Trim());
+        }
+        catch { }
+
         if (string.IsNullOrWhiteSpace(logoPath)) return;
         try
         {
-            // logoPath is the server-relative path stored on the agency record,
-            // e.g. "/agency-uploads/rk_enterprises.jpg". Prepend the API host.
             var url = logoPath.StartsWith("http", StringComparison.OrdinalIgnoreCase)
                 ? logoPath
                 : App.ApiBaseUrl.TrimEnd('/') + "/" + logoPath.TrimStart('/');
             using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
             var bytes = await http.GetByteArrayAsync(url);
-            System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(AgencyLogoCachePath)!);
             await System.IO.File.WriteAllBytesAsync(AgencyLogoCachePath, bytes);
         }
         catch { /* leave the cached logo unchanged on failure */ }
@@ -194,9 +212,9 @@ public partial class LoginWindow : Window
         App.SignedAppUser = signed;
         App.SetAuthToken(signed.Token);
 
-        // Fire-and-forget — the cached logo is used on the NEXT launch,
-        // so we don't block the sign-in flow waiting for it.
-        _ = CacheAgencyLogoAsync(signed.LogoPath);
+        // Fire-and-forget — the cached logo + name are used on the NEXT
+        // launch, so we don't block the sign-in flow waiting for them.
+        _ = CacheAgencyBrandingAsync(signed.AgencyName, signed.LogoPath);
 
         // Construct the main window first to catch any initialization/XAML errors
         MainWindow window;
