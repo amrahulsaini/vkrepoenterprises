@@ -29,6 +29,7 @@
   <ItemGroup>
     <Resource Include="public\favicon.ico" />
     <Resource Include="public\crmrs-logo.png" />
+    <Resource Include="public\crmrs-fulllogo.png" />
   </ItemGroup>
 
 </Project>

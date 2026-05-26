@@ -125,26 +125,46 @@ public partial class LoginWindow : Window
         // so the tenant-routing middleware never rejects the login request itself.
         App.HttpClient.DefaultRequestHeaders.Authorization = null;
 
-        using var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(20));
-        HttpResponseMessage response;
-        try
+        // The very first HTTPS call to a host after process start often takes
+        // a few hundred ms longer (DNS + cold TLS handshake) and occasionally
+        // bubbles up a SocketException on flaky networks. Retry once with a
+        // fresh content/token so the user doesn't have to click Sign In twice.
+        HttpResponseMessage response = null!;
+        for (int attempt = 1; attempt <= 2; attempt++)
         {
-            response = await App.HttpClient.PostAsync(
-                App.ApiBaseUrl + "api/agency/desktop/login",
-                JsonContent.Create(formData),
-                cts.Token);
-        }
-        catch (OperationCanceledException)
-        {
-            lblStatus.Text = "";
-            MessageBox.Show("Cannot connect to the server. Please check that the server is running and the API URL is correct.", "Connection Timeout", MessageBoxButton.OK, MessageBoxImage.Warning);
-            return;
-        }
-        catch (HttpRequestException rex) when (rex.InnerException is System.Net.Sockets.SocketException)
-        {
-            lblStatus.Text = "";
-            MessageBox.Show("Cannot reach the server. Please check the API URL in settings.", "Connection Error", MessageBoxButton.OK, MessageBoxImage.Warning);
-            return;
+            using var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(20));
+            try
+            {
+                response = await App.HttpClient.PostAsync(
+                    App.ApiBaseUrl + "api/agency/desktop/login",
+                    JsonContent.Create(formData),
+                    cts.Token);
+                break;
+            }
+            catch (OperationCanceledException) when (attempt < 2)
+            {
+                // first attempt timed out — retry once
+                continue;
+            }
+            catch (HttpRequestException rex) when (rex.InnerException is System.Net.Sockets.SocketException && attempt < 2)
+            {
+                // first attempt couldn't open a socket — retry once
+                continue;
+            }
+            catch (OperationCanceledException)
+            {
+                lblStatus.Text = "";
+                MessageBox.Show("The server didn't respond in time. Check your internet connection and try again.",
+                    "Connection Timeout", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+            catch (HttpRequestException rex) when (rex.InnerException is System.Net.Sockets.SocketException)
+            {
+                lblStatus.Text = "";
+                MessageBox.Show("Cannot reach the server. Please check your internet connection and that the API URL in settings is correct.",
+                    "Connection Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
         }
 
         if (!response.IsSuccessStatusCode)
