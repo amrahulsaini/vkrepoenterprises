@@ -27,7 +27,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.*
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
-import com.vkenterprises.vras.data.models.AgencyListItem
+import com.vkenterprises.vras.BuildConfig
 import com.vkenterprises.vras.navigation.Screen
 import com.vkenterprises.vras.viewmodel.AuthUiState
 import com.vkenterprises.vras.viewmodel.AuthViewModel
@@ -62,11 +62,12 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
 
     var error by remember { mutableStateOf("") }
 
-    // Agency selection (multi-tenant)
-    val agencies by vm.agencies.collectAsState()
-    var selectedAgency by remember { mutableStateOf<AgencyListItem?>(null) }
-    var agencyMobile   by remember { mutableStateOf("") }
-    LaunchedEffect(Unit) { vm.loadAgencies() }
+    // White-label build — agency is fixed at compile time. We still ask the
+    // user for the agency's primary mobile number as a "do you actually belong
+    // here?" check (the server compares it to crm_master.agencies.mobile1).
+    val agencySlug = BuildConfig.AGENCY_SLUG
+    val agencyName = BuildConfig.AGENCY_NAME
+    var agencyMobile by remember { mutableStateOf("") }
 
     fun uriToBase64(uri: Uri): String? = runCatching {
         val bytes = context.contentResolver.openInputStream(uri)?.readBytes()
@@ -163,11 +164,29 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            AgencyPickerField(
-                agencies = agencies,
-                selected = selectedAgency,
-                onSelect = { selectedAgency = it }
-            )
+            // Fixed agency label — what the picker used to be.
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Default.Business, null,
+                        tint = MaterialTheme.colorScheme.primary)
+                    Spacer(Modifier.width(10.dp))
+                    Column {
+                        Text("Agency",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(agencyName,
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold)
+                    }
+                }
+            }
             FocusedField(scrollState) {
                 OutlinedTextField(
                     value = agencyMobile, onValueChange = { agencyMobile = it },
@@ -288,8 +307,6 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
             Button(
                 onClick = {
                     focusManager.clearFocus()
-                    val agency = selectedAgency
-                    if (agency == null) { error = "Please select your agency."; return@Button }
                     if (mobile.isBlank() || name.isBlank()) {
                         error = "Mobile and name are required."
                         return@Button
@@ -305,7 +322,7 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
                         pfpB64,
                         aadhaarFrontB64, aadhaarBackB64, panFrontB64,
                         accountNumber.ifBlank { null }, ifscCode.ifBlank { null },
-                        agency.slug, agency.name, agencyMobile, agency.logoPath
+                        agencySlug, agencyName, agencyMobile
                     )
                 },
                 enabled  = state !is AuthUiState.Loading,

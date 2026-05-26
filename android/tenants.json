@@ -1,0 +1,16 @@
+[
+    {
+        "slug": "rk_enterprises",
+        "name": "RK Enterprises",
+        "mobile": "6377362603",
+        "address": "Jaipur",
+        "primaryColor": "#FF6B35"
+    },
+    {
+        "slug": "v_k_enterprises",
+        "name": "V K Enterprises",
+        "mobile": "9850637363",
+        "address": "SATARA",
+        "primaryColor": "#1565C0"
+    }
+]

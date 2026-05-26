@@ -17,6 +17,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.*
 import androidx.navigation.NavController
+import com.vkenterprises.vras.BuildConfig
 import com.vkenterprises.vras.viewmodel.AuthViewModel
 import com.vkenterprises.vras.viewmodel.SearchViewModel
 
@@ -52,68 +53,65 @@ fun ConfirmScreen(
         else     -> "Send Confirmation"
     }
 
+    // Status line at the bottom changes per action — but the body is the same
+    // fixed set of fields the user asked for (Customer / Vehicle / Model /
+    // Chassis / Engine / Vehicle location / Load details). Admins additionally
+    // see Loan / Branch / BKT / OD / levels so they have enough context to act.
     fun buildMessage(): String = buildString {
-        when (actionType) {
-            "cancel" -> {
-                appendLine("*Respected sir,*")
-                appendLine("We regret to inform you that the above traced vehicle has been *CANCELLED*.")
-                appendLine()
-            }
-            "okrepo" -> {
-                appendLine("*Respected sir,*")
-                appendLine("The above traced vehicle has been confirmed for *OK for Repo*. Please proceed accordingly.")
-                appendLine()
-            }
-            else -> {
-                appendLine("*Respected sir,*")
-                appendLine("A Vehicle has been traced out by our ground team. The details of the vehicle and customer are as below.")
-                appendLine()
-            }
-        }
+        appendLine("*Respected sir,*")
+        appendLine()
 
-        // On the admin side, empty fields are written as "null" so the admin
-        // can see exactly which data is missing. Non-admins skip empty fields.
+        // Non-admin fields skip blank values; admin sees "null" for empties so
+        // missing data is visible at a glance.
         fun line(label: String, value: String?) {
             val v = value?.trim().orEmpty()
             if (v.isNotBlank()) appendLine("$label: *$v*")
             else if (isAdmin)   appendLine("$label: *null*")
         }
 
-        line("Loan No",       item?.agreementNo)
+        // Admin-only header fields (Loan, Branch, BKT, OD). Hidden for users
+        // so their message matches the format requested.
+        if (isAdmin) {
+            line("Loan No", item?.agreementNo)
+            line("Branch",  item?.branchFromExcel)
+        }
         line("Customer Name", item?.customerName)
-        // Branch = the raw branch from the uploaded Excel (branch_name_raw),
-        // NOT the finance/branch-master name.
-        line("Branch",        item?.branchFromExcel)
         line("Vehicle No",    item?.vehicleNo)
-        line("Vehicle Model", item?.model)
+        line("Model/Maker",   item?.model)
         line("Chassis No",    item?.chassisNo)
         line("Engine No",     item?.engineNo)
-        line("BKT",           item?.bucket)
-        line("OD",            item?.od)
-
-        fun levelLine(label: String, name: String?, contact: String?) {
-            val n = name?.trim().orEmpty(); val c = contact?.trim().orEmpty()
-            if (n.isNotBlank() || c.isNotBlank()) appendLine("$label: *$n - $c*")
-            else if (isAdmin)                     appendLine("$label: *null*")
+        if (isAdmin) {
+            line("BKT", item?.bucket)
+            line("OD",  item?.od)
         }
-        levelLine("Level1", item?.level1, item?.level1Contact)
-        levelLine("Level2", item?.level2, item?.level2Contact)
-        levelLine("Level3", item?.level3, item?.level3Contact)
-        if (vehicleAddress.isNotBlank())
-            appendLine("Vehicle location: *${vehicleAddress.trim()}*")
-        if (carriesGoods.isNotBlank())
-            appendLine("Load details: *${carriesGoods.trim()}*")
+        // Vehicle location + load details always printed — "-" if blank so the
+        // recipient knows the fields were considered but left empty.
+        appendLine("Vehicle location: *${vehicleAddress.trim().ifBlank { "-" }}*")
+        appendLine("Load details: *${carriesGoods.trim().ifBlank { "-" }}*")
+
+        // Admin keeps the Level1/2/3 context lines — only adds them if there's
+        // useful data (or if isAdmin and they want to see the "null" markers).
+        if (isAdmin) {
+            fun levelLine(label: String, name: String?, contact: String?) {
+                val n = name?.trim().orEmpty(); val c = contact?.trim().orEmpty()
+                if (n.isNotBlank() || c.isNotBlank()) appendLine("$label: *$n - $c*")
+                else                                  appendLine("$label: *null*")
+            }
+            levelLine("Level1", item?.level1, item?.level1Contact)
+            levelLine("Level2", item?.level2, item?.level2Contact)
+            levelLine("Level3", item?.level3, item?.level3Contact)
+        }
 
         appendLine()
-        if (actionType == "confirm") {
-            appendLine("We urgently need you to confirm the status of this vehicle, whether it is to be Repo released.")
+        val status = when (actionType) {
+            "cancel" -> "Cancel"
+            "okrepo" -> "Ok for repo."
+            else     -> "Please confirm this vehicle."
         }
-        append("*V K Enterprises*")
-        if (agentName.isNotBlank()) {
-            append(" contact person")
-            append(" — $agentName")
-        }
-        if (agentPhone.isNotBlank()) append(" | $agentPhone")
+        appendLine("Status: *$status*")
+        if (agentName.isNotBlank() && agentPhone.isNotBlank())
+            appendLine("$agentName - $agentPhone")
+        append("Agency Name: *${BuildConfig.AGENCY_NAME}*")
     }
 
     fun checkedNumbers(): List<String> = buildList {

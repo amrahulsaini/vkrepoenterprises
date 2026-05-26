@@ -215,21 +215,50 @@ public partial class FindVehiclePage : Page
 
     private void btnCopy_Click(object sender, RoutedEventArgs e)
     {
-        if (brdDetails.DataContext is VehicleSearchItem record)
+        if (brdDetails.DataContext is not VehicleSearchItem r) return;
+
+        // Dump every field shown in the details panel as "Label : Value" lines.
+        // Blank fields are skipped so the paste isn't cluttered with empty rows.
+        var sb = new System.Text.StringBuilder();
+        void L(string label, string value)
         {
-            var text =
-$@"Finance : {record.Financer}
-Branch : {record.BranchName}
-Vehicle No : {record.VehicleNo}
-Model : {record.Model}
-Chasis No : {record.ChassisNo}
-Engine No : {record.EngineNo}
-Agency Name : V K Enterprises
-Agency Contact : 0";
-            Clipboard.SetText(text);
-            MessageBox.Show("Details copied to clipboard.", "Copied", MessageBoxButton.OK, MessageBoxImage.Information);
+            if (!string.IsNullOrWhiteSpace(value))
+                sb.AppendLine($"{label} : {value}");
         }
+        L("Vehicle No",    r.VehicleNo);
+        L("Chassis No",    r.ChassisNo);
+        L("Model/Make",    r.Model);
+        L("Engine No",     r.EngineNo);
+        L("Agreement No",  r.AgreementNo);
+        L("Cust. Name",    r.CustomerName);
+        L("Cust. Address", r.CustomerAddress);
+        L("Cust. Contact", r.CustomerContactNos);
+        L("Bucket",        r.Bucket);
+        L("OD",            r.OD);
+        L("Branch (xlsx)", r.BranchFromExcel);
+        L("Area",          r.Area);
+        L("Region",        r.Region);
+        L("Level 1",       r.Level1);
+        L("Level 1 Contact", r.Level1ContactNos);
+        L("Level 2",       r.Level2);
+        L("Level 2 Contact", r.Level2ContactNos);
+        L("Level 3",       r.Level3);
+        L("Level 3 Contact", r.Level3ContactNos);
+        L("Level 4",       r.Level4);
+        L("Level 4 Contact", r.Level4ContactNos);
+        L("Branch",        r.BranchName);
+        L("Finance",       r.Financer);
+        L("Contact 1",     r.FirstContactDetails);
+        L("Contact 2",     r.SecondContactDetails);
+        L("Contact 3",     r.ThirdContactDetails);
+        L("Address",       r.Address);
+        L("Executive",     r.ExecutiveName);
+
+        Clipboard.SetText(sb.ToString().TrimEnd());
+        MessageBox.Show("All vehicle details copied to clipboard.\nPaste with Ctrl+V.",
+            "Copied", MessageBoxButton.OK, MessageBoxImage.Information);
     }
+
 
     private void btnConfirmNow_Click(object sender, RoutedEventArgs e)
     {

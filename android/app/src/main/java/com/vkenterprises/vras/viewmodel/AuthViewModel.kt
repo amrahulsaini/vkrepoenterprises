@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.work.WorkManager
+import com.vkenterprises.vras.BuildConfig
 import com.vkenterprises.vras.data.api.ApiClient
 import com.vkenterprises.vras.data.api.SessionTokens
 import com.vkenterprises.vras.data.local.TenantDb
@@ -117,12 +118,24 @@ class AuthViewModel @Inject constructor(
     }
 
     init {
-        // Restore the tenant token AND the active agency slug into memory so
-        // authed requests route correctly, and so TenantDb opens the right
-        // per-agency database, even before the first interaction this session.
+        // White-label build: the agency slug is baked in at build time. Every
+        // request — including TenantDb's per-agency Room file — uses this one
+        // slug; there is no in-app agency picker any more.
+        SessionTokens.agencySlug = BuildConfig.AGENCY_SLUG
         viewModelScope.launch {
-            SessionTokens.tenantToken = prefs.tenantToken.first()
-            SessionTokens.agencySlug  = prefs.agencySlug.first()
+            // Persist the baked-in slug + name so the rest of the codebase
+            // (which reads from prefs) keeps working without changes.
+            prefs.saveAgency(BuildConfig.AGENCY_SLUG, BuildConfig.AGENCY_NAME, "")
+            val savedToken  = prefs.tenantToken.first()
+            val savedUserId = prefs.userId.first()
+            // Stale session (logged in before tenant tokens existed): clear it so
+            // the user is forced to re-login and the server issues a fresh token.
+            if (savedUserId > 0L && savedToken.isNullOrBlank()) {
+                prefs.clearSession()
+                SessionTokens.tenantToken = null
+            } else {
+                SessionTokens.tenantToken = savedToken
+            }
         }
         viewModelScope.launch {
             prefs.subscriptionEnd.collect { subEnd ->

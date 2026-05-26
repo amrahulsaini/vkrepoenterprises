@@ -171,6 +171,17 @@ public partial class RecordValidatorAndUploaderWindow : Window
         return RcRegex.IsMatch(plain);
     }
 
+    // A chassis is "valid enough to upload" when, after stripping separators,
+    // it has at least 5 alphanumeric chars AND contains at least one digit.
+    // Mobile search looks up by the last 5 chars, so anything shorter is
+    // useless; pure-letter strings like "NA"/"NIL"/"NONE" are placeholders
+    // and would only pollute results.
+    private static bool IsValidChassis(UploadRecord r)
+    {
+        var plain = AlphaNumOnly.Replace(r.ChasisNo ?? string.Empty, "").ToUpperInvariant();
+        return plain.Length >= 5 && plain.Any(char.IsDigit);
+    }
+
     private List<UploadRecord> FilterRecords(RecordFilters filter) => filter switch
     {
         RecordFilters.Invalid => _records.Where(r => !IsValidRc(r)).ToList(),
@@ -322,17 +333,17 @@ public partial class RecordValidatorAndUploaderWindow : Window
             return;
         }
 
-        // Upload records that have a valid RC -OR- a non-empty chassis number.
-        // Records with an invalid/placeholder RC (e.g. "AF") but a real chassis
-        // are still useful: they appear in chassis searches and are shown as
-        // invalid in the UI. The server rc_info SQL already filters them out so
-        // they never pollute RC-number searches.
+        // Upload records that have a valid RC -OR- a valid chassis number.
+        // Records with an invalid/placeholder RC but a real chassis are still
+        // useful (they appear in chassis searches), but rows with garbage in
+        // BOTH fields would only pollute the database — drop them.
         var uploadableRecords = _records
-            .Where(r => IsValidRc(r) || !string.IsNullOrWhiteSpace(r.ChasisNo))
+            .Where(r => IsValidRc(r) || IsValidChassis(r))
             .ToList();
+        int rejected = _records.Count - uploadableRecords.Count;
         if (uploadableRecords.Count == 0)
         {
-            MessageBox.Show("No records to upload (no valid RC numbers and no chassis numbers found).",
+            MessageBox.Show("No records to upload — every row has both an invalid RC and an invalid chassis number.",
                 "Nothing to Upload", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
@@ -384,9 +395,12 @@ public partial class RecordValidatorAndUploaderWindow : Window
             var dupLine = trueDuplicates > 0
                 ? $"\n({trueDuplicates:N0} exact duplicates skipped out of {uploadableRecords.Count:N0} records)"
                 : "";
+            var rejectedLine = rejected > 0
+                ? $"\n({rejected:N0} rows skipped: invalid RC and invalid chassis)"
+                : "";
             MessageBox.Show(
                 $"{inserted:N0} records saved to \"{SelectedBranch.BranchName}\".\n" +
-                $"Upload completed in {totalSec:F1} seconds.{dupLine}\n\n" +
+                $"Upload completed in {totalSec:F1} seconds.{dupLine}{rejectedLine}\n\n" +
                 $"Previous records for this branch were replaced.",
                 "Upload Success", MessageBoxButton.OK, MessageBoxImage.Information);
         }

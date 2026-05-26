@@ -22,6 +22,17 @@ public class MobileController : ControllerBase
     private static string Digits(string? s) =>
         string.IsNullOrEmpty(s) ? "" : new string(s.Where(char.IsDigit).ToArray());
 
+    // Strips digit-only mobile of a leading "0" (Indian STD prefix) or "91"
+    // country code so "09850637363", "+919850637363" and "9850637363" all
+    // compare equal. Indian mobiles are 10 digits — anything else is left alone.
+    private static string NormalizeMobile(string? s)
+    {
+        var d = Digits(s);
+        if (d.Length == 12 && d.StartsWith("91")) d = d.Substring(2);
+        else if (d.Length == 11 && d.StartsWith("0")) d = d.Substring(1);
+        return d;
+    }
+
     // GET /api/mobile/agencies — approved agencies for the register / login picker
     [HttpGet("agencies")]
     public async Task<IActionResult> GetAgencies()
@@ -55,19 +66,23 @@ public class MobileController : ControllerBase
             var agency = await _repo.GetAgencyBySlugAsync(req.Slug.Trim());
             if (!agency.Found || agency.Status != "approved")
                 return BadRequest(new ApiError(false, "That agency is not available. Please pick another."));
-            var enteredAgencyMobile = Digits(req.AgencyMobile);
-            if (enteredAgencyMobile.Length == 0 || enteredAgencyMobile != Digits(agency.Mobile1))
+            var enteredAgencyMobile = NormalizeMobile(req.AgencyMobile);
+            if (enteredAgencyMobile.Length == 0 || enteredAgencyMobile != NormalizeMobile(agency.Mobile1))
                 return BadRequest(new ApiError(false, "The agency's mobile number does not match. Please confirm it with your agency."));
 
             // ── Cross-agency uniqueness gate ─────────────────────────────
             // crm_master.app_user_registry keeps a (mobile, device) → slug
             // record for every approved agency user. A given mobile or device
-            // may only belong to ONE agency.
+            // may only belong to ONE agency. We normalize the user's mobile
+            // (strip leading 0 / +91) so the same person can't slip past the
+            // UNIQUE(mobile) check by varying the format.
             var clean = new {
-                Mobile = req.Mobile.Trim(),
+                Mobile = NormalizeMobile(req.Mobile),
                 Device = req.DeviceId.Trim(),
                 Slug   = req.Slug.Trim(),
             };
+            if (clean.Mobile.Length < 10)
+                return BadRequest(new ApiError(false, "Please enter a valid 10-digit mobile number."));
             var existingSlug = await _repo.FindExistingAgencyForMobileOrDevice(
                 clean.Mobile, clean.Device, clean.Slug);
             if (existingSlug != null)
@@ -128,7 +143,7 @@ public class MobileController : ControllerBase
                 return BadRequest(new ApiError(false, "That agency is not available."));
             TenantContext.UseAgency(req.Slug.Trim());
 
-            var result = await _repo.LoginAsync(req.Mobile.Trim(), req.DeviceId.Trim());
+            var result = await _repo.LoginAsync(NormalizeMobile(req.Mobile), req.DeviceId.Trim());
             if (result.Reason == "ok")
                 result = result with
                 {

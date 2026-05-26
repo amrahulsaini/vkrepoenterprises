@@ -32,25 +32,28 @@ window.addEventListener('DOMContentLoaded', () => {
     else gatePass.focus();
 });
 
-// ── Step 1 — password → request OTP ────────────────────────────────────
+// ── Sign in — password → token (one step).
+// The OTP step is bypassed while SMTP is unconfigured; once SMTP credentials
+// are in /opt/vkapi/db/.env.local we can switch back to /manage/otp/request +
+// /manage/otp/verify (the two-step flow's UI is still present below).
 gateForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     gateErr.classList.add('hidden');
     const pwd = gatePass.value;
     if (!pwd) return;
     gateContinue.disabled = true;
-    gateContinue.innerHTML = '<span class="spinner"></span> Sending…';
+    gateContinue.innerHTML = '<span class="spinner"></span> Signing in…';
     try {
-        await api('/manage/otp/request', { method: 'POST', body: { password: pwd } });
-        pendingPassword = pwd;
-        showStep2();
+        const r = await api('/manage/login', { method: 'POST', body: { password: pwd } });
+        sessionStorage.setItem('manage_token', r.token);
+        showPanel();
     } catch (err) {
         gateErr.textContent = err.message || 'Incorrect password.';
         gateErr.classList.remove('hidden');
         gatePass.select();
     } finally {
         gateContinue.disabled = false;
-        gateContinue.textContent = 'Send verification code';
+        gateContinue.textContent = 'Sign in';
     }
 });
 
@@ -219,8 +222,17 @@ function rowHtml(a) {
         a.status === 'approved' ? 'badge-approved' :
         a.status === 'rejected' ? 'badge-rejected' :
         'badge-pending';
+    // logoPath comes from the DB as e.g. "/agency-uploads/rk_enterprises.jpg".
+    // Static files live on the API host, not this static portal host, so we
+    // prepend api.crmrecoverysoftware.com explicitly. Absolute URLs pass through
+    // unchanged so old data still works.
+    const logoSrc = a.logoPath
+        ? (/^https?:\/\//i.test(a.logoPath)
+            ? a.logoPath
+            : 'https://api.crmrecoverysoftware.com' + (a.logoPath.startsWith('/') ? '' : '/') + a.logoPath)
+        : 'assets/crmrs-logo.webp';
     const logo = a.logoPath
-        ? `<img src="${escapeHtml(a.logoPath)}" alt="">`
+        ? `<img src="${escapeHtml(logoSrc)}" alt="" onerror="this.src='assets/crmrs-logo.webp'; this.style.opacity='.4';">`
         : `<img src="assets/crmrs-logo.webp" alt="" style="opacity:.4">`;
     const actions = a.status === 'pending'
         ? `<button class="btn btn-success btn-sm" data-act="approve" data-id="${a.id}">Approve</button>

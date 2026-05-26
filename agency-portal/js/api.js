@@ -1,6 +1,9 @@
-// Shared portal helpers — same-origin (`/api/agency/...`).
-
-const API_BASE = '/api/agency';
+// Shared portal helpers. The agency portal is served as static HTML from
+// agency.crmrecoverysoftware.com (OLS); the .NET API lives on
+// api.crmrecoverysoftware.com. OLS on the agency host does not proxy
+// /api/agency/* to the API, so we call the API host directly. The API has
+// CORS open to any origin.
+const API_BASE = 'https://api.crmrecoverysoftware.com/api/agency';
 
 async function api(path, opts = {}) {
     const init = {

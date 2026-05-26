@@ -624,7 +624,7 @@ internal static class DesktopApiClient
 
     // ── HTTP helper ─────────────────────────────────────────────────────────
 
-    private static Task<HttpResponseMessage> Send(
+    private static async Task<HttpResponseMessage> Send(
         HttpMethod method, string relativeUrl, object? body = null)
     {
         var base_ = App.ApiBaseUrl.TrimEnd('/');
@@ -632,6 +632,21 @@ internal static class DesktopApiClient
         req.Headers.Add("X-Api-Key", App.ApiKey);
         if (body != null)
             req.Content = JsonContent.Create(body);
-        return App.HttpClient.SendAsync(req);
+        var resp = await App.HttpClient.SendAsync(req);
+        // EnsureSuccessStatusCode throws without the response body, so the WPF
+        // catch sees only "500 Internal Server Error" with zero context. Read
+        // the body up-front and bake it into the exception message so the user
+        // sees what actually went wrong (duplicate name, FK violation, etc.).
+        if (!resp.IsSuccessStatusCode)
+        {
+            string body_ = "";
+            try { body_ = await resp.Content.ReadAsStringAsync(); } catch { }
+            // Trim trailing newlines / massive HTML pages so the MessageBox is readable.
+            if (body_.Length > 1500) body_ = body_.Substring(0, 1500) + "…";
+            throw new HttpRequestException(
+                $"{(int)resp.StatusCode} {resp.ReasonPhrase} — {method} {relativeUrl}\n\n{body_}",
+                null, resp.StatusCode);
+        }
+        return resp;
     }
 }
