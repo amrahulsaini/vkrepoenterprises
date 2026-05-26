@@ -423,7 +423,20 @@ public class MobileController : ControllerBase
         {
             var profile = await _repo.GetProfileAsync(userId);
             if (profile == null) return NotFound(new ApiError(false, "User not found."));
-            return Ok(profile with { PfpUrl = AbsUrl(profile.PfpUrl) });
+            // Convert every stored path (relative — e.g. "pfp/user_10.jpg")
+            // into a full https URL the mobile app can hand straight to
+            // AsyncImage. Previously only PfpUrl was AbsUrl()'d, so the KYC
+            // image fields shipped as raw paths and the Android client
+            // silently tried to Base64.decode them as if they were image
+            // bytes → broken thumbnails on the "My Account" screen.
+            return Ok(profile with {
+                PfpUrl = AbsUrl(profile.PfpUrl),
+                Kyc    = profile.Kyc with {
+                    AadhaarFront = AbsUrl(profile.Kyc.AadhaarFront),
+                    AadhaarBack  = AbsUrl(profile.Kyc.AadhaarBack),
+                    PanFront     = AbsUrl(profile.Kyc.PanFront),
+                }
+            });
         }
         catch (Exception ex)
         {
