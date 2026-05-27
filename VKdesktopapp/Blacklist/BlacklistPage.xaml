@@ -14,7 +14,18 @@
 
         <!-- Header -->
         <StackPanel Grid.Row="0" Margin="0,0,0,18">
-            <TextBlock Text="Blacklist" Style="{StaticResource Heading4}" />
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <TextBlock Text="Blacklist" Style="{StaticResource Heading4}" />
+                <TextBlock Text=" • "
+                           Foreground="{StaticResource Gray400}"
+                           FontSize="14" VerticalAlignment="Center"
+                           Margin="10,0" />
+                <TextBlock x:Name="lblCount"
+                           Text="0 users"
+                           FontSize="14" FontWeight="Bold"
+                           Foreground="{StaticResource Orange700}"
+                           VerticalAlignment="Center" />
+            </StackPanel>
             <TextBlock Text="Permanently block users from logging in or registering. Blacklisted users see 'You have been blocked by agency'."
                        Style="{StaticResource Caption}" Margin="0,2,0,0" TextWrapping="Wrap" />
         </StackPanel>

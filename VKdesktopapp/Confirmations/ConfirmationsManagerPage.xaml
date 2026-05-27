@@ -27,8 +27,17 @@
 
                 <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,16,0">
                     <TextBlock Text="CONFIRMED VEHICLES" Style="{StaticResource Heading4}" />
-                    <TextBlock Text="Browse and filter all confirmed vehicle records."
-                               Margin="0,4,0,0" Style="{StaticResource Caption}" />
+                    <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                        <TextBlock Text="Browse and filter all confirmed vehicle records."
+                                   Style="{StaticResource Caption}" />
+                        <TextBlock Text=" • "
+                                   Foreground="{StaticResource Gray400}"
+                                   FontSize="13" Margin="6,0" />
+                        <TextBlock x:Name="lblCount"
+                                   Text="0 records"
+                                   FontSize="13" FontWeight="Bold"
+                                   Foreground="{StaticResource Orange700}" />
+                    </StackPanel>
                 </StackPanel>
 
                 <DatePicker x:Name="dpFrom" Grid.Column="1" Width="130" Height="36"

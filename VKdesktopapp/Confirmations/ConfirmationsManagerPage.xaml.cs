@@ -51,15 +51,23 @@ public partial class ConfirmationsManagerPage : Page
     private void FilterGrid()
     {
         var searchText = txtSearch.Text.Trim().ToLowerInvariant();
+        IList<ConfirmationResponseItem> view;
         if (string.IsNullOrEmpty(searchText))
         {
-            dgConfirmations.ItemsSource = _allConfirmations;
-            return;
+            view = _allConfirmations;
         }
-
-        dgConfirmations.ItemsSource = _allConfirmations.Where(c => 
-            (c.VehicleNo ?? string.Empty).ToLowerInvariant().Contains(searchText) ||
-            (c.ChassisNo ?? string.Empty).ToLowerInvariant().Contains(searchText)).ToList();
+        else
+        {
+            view = _allConfirmations.Where(c =>
+                (c.VehicleNo ?? string.Empty).ToLowerInvariant().Contains(searchText) ||
+                (c.ChassisNo ?? string.Empty).ToLowerInvariant().Contains(searchText)).ToList();
+        }
+        dgConfirmations.ItemsSource = view;
+        // Live count display so admins know whether a filter actually
+        // narrowed the result or returned the whole set unchanged.
+        lblCount.Text = view.Count == _allConfirmations.Count
+            ? $"{view.Count:N0} records"
+            : $"{view.Count:N0} of {_allConfirmations.Count:N0} records";
     }
 
     private void btnExport_Click(object sender, RoutedEventArgs e)

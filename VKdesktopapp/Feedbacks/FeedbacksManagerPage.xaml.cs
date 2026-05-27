@@ -20,6 +20,7 @@ public partial class FeedbacksManagerPage : Page
             var feedbacks = await App.HttpClient.GetFromJsonAsync<List<Feedback>>(
                 $"{App.ApiBaseUrl}api/Feedbacks");
             dgFeedbacks.ItemsSource = feedbacks;
+            lblCount.Text = $"{(feedbacks?.Count ?? 0):N0} feedbacks";
         }
         catch (Exception ex)
         {
