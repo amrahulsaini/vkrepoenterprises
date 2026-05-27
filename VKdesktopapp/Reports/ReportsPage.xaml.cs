@@ -54,6 +54,16 @@ public partial class ReportsPage : Page
 
         bool isExcel = format == "Excel";
 
+        // Vehicle / RC / Chassis Excel exports can each be 20L+ rows. Route
+        // those through the new chunked dialog so the admin can split the
+        // output into Excel-friendly slices (1L–10L per file). PDFs stay on
+        // the old in-page flow because they're capped at 50k rows anyway.
+        if (isExcel && IsVehicleExportReport(report))
+        {
+            await LaunchChunkedExportAsync(report);
+            return;
+        }
+
         // SaveFileDialog
         var dlg = new SaveFileDialog
         {
@@ -86,6 +96,70 @@ public partial class ReportsPage : Page
             MessageBox.Show($"Export failed:\n{ex.Message}", "Export Error",
                 MessageBoxButton.OK, MessageBoxImage.Error);
         }
+    }
+
+    // ── Chunked Excel export for vehicle-style reports ──────────────────────
+
+    private static bool IsVehicleExportReport(string report) =>
+        report is "VehicleRecords" or "RcRecords" or "ChassisRecords";
+
+    private async Task LaunchChunkedExportAsync(string report)
+    {
+        // Map report → (pretty name, page fetcher).
+        Func<int, int, Task<DesktopApiClient.ExportPage<DesktopApiClient.ExportVehicleRow>>> fetcher;
+        string sheet;
+        string baseName;
+        switch (report)
+        {
+            case "VehicleRecords":
+                fetcher  = DesktopApiClient.ExportVehicleRecordsPageAsync;
+                sheet    = "VehicleRecords";
+                baseName = "Vehicle_Records";
+                break;
+            case "RcRecords":
+                fetcher  = DesktopApiClient.ExportRcRecordsPageAsync;
+                sheet    = "RC Records";
+                baseName = "RC_Records";
+                break;
+            case "ChassisRecords":
+                fetcher  = DesktopApiClient.ExportChassisRecordsPageAsync;
+                sheet    = "Chassis Records";
+                baseName = "Chassis_Records";
+                break;
+            default:
+                return;
+        }
+
+        long total;
+        try
+        {
+            var probe = await fetcher(0, 1);
+            total = probe.Total;
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Failed to count records: {ex.Message}",
+                "Export", MessageBoxButton.OK, MessageBoxImage.Error);
+            return;
+        }
+
+        if (total <= 0)
+        {
+            MessageBox.Show("No records to export.",
+                "Nothing to export", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        var win = new VRASDesktopApp.Exports.ChunkedExportDialog
+        { Owner = Window.GetWindow(this) };
+        win.Configure(
+            title:      $"Download {sheet}",
+            subtitle:   $"{total:N0} rows in total — pick the records-per-file size, then download.",
+            baseName:   baseName,
+            sheetName:  sheet,
+            totalHint:  total,
+            pageFetcher: fetcher);
+        win.ShowDialog();
     }
 
     // ── UI state helpers ────────────────────────────────────────────────────
