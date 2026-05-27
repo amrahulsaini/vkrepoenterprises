@@ -233,6 +233,12 @@ internal static class DesktopApiClient
         resp.EnsureSuccessStatusCode();
     }
 
+    internal static async Task DeleteUserAsync(long userId)
+    {
+        var resp = await Send(HttpMethod.Delete, $"api/mgr/users/{userId}");
+        resp.EnsureSuccessStatusCode();
+    }
+
     internal static async Task<List<int>> GetUserFinanceRestrictionsAsync(long userId)
     {
         var resp = await Send(HttpMethod.Get, $"api/mgr/users/{userId}/finance-restrictions");

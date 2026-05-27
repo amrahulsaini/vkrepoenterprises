@@ -70,6 +70,9 @@ public class AppUserRepository
     public async Task SetBlacklistedAsync(long userId, bool blacklisted)
         => await DesktopApiClient.SetUserBlacklistedAsync(userId, blacklisted);
 
+    public async Task DeleteUserAsync(long userId)
+        => await DesktopApiClient.DeleteUserAsync(userId);
+
     public async Task<List<int>> GetFinanceRestrictionsAsync(long userId)
         => await DesktopApiClient.GetUserFinanceRestrictionsAsync(userId);
 

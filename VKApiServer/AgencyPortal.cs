@@ -37,6 +37,14 @@ internal static class AgencyPortal
         Environment.GetEnvironmentVariable("TENANT_DB_SECRET")
         ?? "crmrs-tenant-secret-rotate-me-2026";
 
+    /// <summary>
+    /// Connection string to crm_master, available to any endpoint after Map()
+    /// has run (i.e. after app startup). Used by code outside this file that
+    /// needs to read/write the cross-agency app_user_registry without
+    /// re-deriving the connection string from env.
+    /// </summary>
+    public static string MasterConn { get; private set; } = "";
+
     public static void Map(WebApplication app, string mysqlHost, int mysqlPort)
     {
         // ── Connection strings to crm_master ─────────────────────────
@@ -50,6 +58,7 @@ internal static class AgencyPortal
             $"uid={Env("MASTER_DB_USER",     "crm_master_app")};" +
             $"pwd={Env("MASTER_DB_PASSWORD", "SET_VIA_ENV")};" +
              "Pooling=true;DefaultCommandTimeout=30;";
+        MasterConn = masterConn;
         string provConn =
             $"server={mysqlHost};port={mysqlPort};database=mysql;" +
             $"uid={Env("PROVISIONER_DB_USER",     "crm_provisioner")};" +

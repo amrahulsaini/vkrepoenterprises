@@ -844,6 +844,23 @@
                                 </DataGrid.Columns>
                             </DataGrid>
 
+                            <!-- Danger zone — fully remove the user (releases mobile + device in master) -->
+                            <Border Margin="0,24,0,0" Padding="14"
+                                    BorderBrush="{StaticResource Red500}" BorderThickness="1"
+                                    CornerRadius="6" Background="#FFF5F5">
+                                <StackPanel>
+                                    <TextBlock Text="Danger Zone" FontSize="13" FontWeight="SemiBold"
+                                               Foreground="{StaticResource Red500}" Margin="0,0,0,4" />
+                                    <TextBlock Text="Permanently delete this user. Their subscriptions, KYC documents and device record are removed too. The mobile number and device are released so they can register with any agency again."
+                                               FontSize="11" Foreground="{StaticResource Gray700}"
+                                               TextWrapping="Wrap" Margin="0,0,0,10" />
+                                    <Button Name="btnDeleteUser" Content="Delete User"
+                                            HorizontalAlignment="Left"
+                                            Style="{StaticResource DangerGhostButton}"
+                                            Click="btnDeleteUser_Click" />
+                                </StackPanel>
+                            </Border>
+
                         </StackPanel>
                     </ScrollViewer>
                 </DockPanel>
