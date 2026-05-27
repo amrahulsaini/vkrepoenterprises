@@ -42,17 +42,34 @@ val tenants: List<Tenant> = run {
 
 android {
     namespace   = "com.vkenterprises.vras"
-    compileSdk  = 34
+    compileSdk  = 35
 
     defaultConfig {
         // Per-flavor applicationId overrides this — kept only as a fallback.
         applicationId = "com.crmrecoverysoftware.crms"
         minSdk        = 26
-        targetSdk     = 34
-        versionCode   = 1
-        versionName   = "1.0"
+        targetSdk     = 35
+        versionCode   = 2
+        versionName   = "1.0.1"
 
         buildConfigField("String", "BASE_URL", "\"https://api.crmrecoverysoftware.com/\"")
+    }
+
+    // ── Release signing ─────────────────────────────────────────────────────
+    // Single keystore signs every per-agency variant. The keystore lives at
+    // android/keystore/release.keystore — gitignored, never committed. If
+    // CRMS_KEYSTORE_PASSWORD / CRMS_KEY_PASSWORD env vars are set they take
+    // precedence over the in-tree default (for CI / shared dev machines).
+    val releaseKeystore = rootProject.file("keystore/release.keystore")
+    if (releaseKeystore.exists()) {
+        signingConfigs {
+            create("release") {
+                storeFile     = releaseKeystore
+                storePassword = System.getenv("CRMS_KEYSTORE_PASSWORD") ?: "crms@kc.12"
+                keyAlias      = "crms"
+                keyPassword   = System.getenv("CRMS_KEY_PASSWORD")     ?: "crms@kc.12"
+            }
+        }
     }
 
     flavorDimensions += "agency"
@@ -61,8 +78,8 @@ android {
             create(t.flavor) {
                 dimension      = "agency"
                 applicationId  = "com.crmrecoverysoftware.${t.pkg}"
-                versionCode    = 1
-                versionName    = "1.0"
+                versionCode    = 2
+                versionName    = "1.0.1"
                 // Bundled into BuildConfig so the app pre-binds to this tenant
                 // — no agency picker on the login screen.
                 buildConfigField("String", "AGENCY_SLUG",    "\"${t.slug}\"")
@@ -78,8 +95,16 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = true
+            // Keep minify off for now — Compose + Hilt + Retrofit + Room +
+            // WorkManager already need a bunch of keep rules to survive R8
+            // and turning it on without thorough testing tends to break
+            // reflection-heavy bits. Re-enable after the first Play Store
+            // round-trip is stable.
+            isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            if (releaseKeystore.exists()) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
 
