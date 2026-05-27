@@ -942,6 +942,61 @@ app.MapMethods("/api/mgr/users/{id:long}/blacklisted", new[] { "PATCH" }, async 
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
 
+// DELETE /api/mgr/users/{id} — fully remove a user from the current agency.
+// Atomically drops the tenant row (cascades to subscriptions, KYC, finance
+// restrictions, etc. via existing FK CASCADE) AND releases the cross-agency
+// claim on this mobile/device in crm_master.app_user_registry. Without the
+// master cleanup, the same mobile / device cannot register at any other
+// agency — they would forever appear "already registered".
+app.MapDelete("/api/mgr/users/{id:long}", async (HttpContext ctx, long id) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        await using var conn = new MySqlConnection(TenantContext.Conn);
+        await conn.OpenAsync();
+
+        // Read mobile + device BEFORE deleting so we can release them in master.
+        string? mobile = null, deviceId = null;
+        await using (var sel = new MySqlCommand(
+            "SELECT mobile, COALESCE(device_id,'') FROM app_users WHERE id=@id", conn))
+        {
+            sel.Parameters.AddWithValue("@id", id);
+            await using var rdr = await sel.ExecuteReaderAsync();
+            if (await rdr.ReadAsync())
+            {
+                mobile   = rdr.GetString(0);
+                deviceId = rdr.GetString(1);
+            }
+        }
+        if (mobile == null) return Results.NotFound(new { message = "User not found" });
+
+        // Drop the tenant row — FK CASCADE wipes subscriptions, kyc, finance
+        // restrictions, device-change requests, etc. in one shot.
+        await MgrExec("DELETE FROM app_users WHERE id=@id", conn, 15, ("@id", id));
+
+        // Release the cross-agency claim. We scope by (mobile, agency_slug) so
+        // a different agency's claim on the same mobile (which shouldn't exist
+        // by the registry's UNIQUE(mobile), but we're defensive) is untouched.
+        if (!string.IsNullOrEmpty(AgencyPortal.MasterConn))
+        {
+            await using var mconn = new MySqlConnection(AgencyPortal.MasterConn);
+            await mconn.OpenAsync();
+            await using var mcmd = new MySqlCommand(@"
+                DELETE FROM app_user_registry
+                 WHERE agency_slug = @s
+                   AND (mobile = @m OR (@d <> '' AND device_id = @d))", mconn);
+            mcmd.Parameters.AddWithValue("@s", TenantContext.Key);
+            mcmd.Parameters.AddWithValue("@m", mobile);
+            mcmd.Parameters.AddWithValue("@d", deviceId ?? "");
+            await mcmd.ExecuteNonQueryAsync();
+        }
+
+        return Results.Ok(new { success = true });
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
 app.MapGet("/api/mgr/users/{id:long}/finance-restrictions", async (HttpContext ctx, long id) =>
 {
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();

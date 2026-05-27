@@ -147,6 +147,49 @@ public class MobileRepository
         await cmd.ExecuteNonQueryAsync();
     }
 
+    /// <summary>True if a user with this mobile OR device actually exists in
+    /// the given agency's tenant database. Used to detect orphaned registry
+    /// rows left behind by manual DB cleanup so registration can auto-heal.</summary>
+    public async Task<bool> IsMobileOrDeviceLiveInAgencyAsync(string mobile, string deviceId, string slug)
+    {
+        // Open the OTHER agency's DB with its dedicated tu_<slug> user — same
+        // route used at login. If the slug or DB is gone, treat the registry
+        // row as orphaned (return false) so the gate doesn't strand new users.
+        try
+        {
+            var connStr = TenantContext.BuildTenantConn(slug);
+            await using var conn = new MySqlConnection(connStr);
+            await conn.OpenAsync();
+            await using var cmd = new MySqlCommand(
+                "SELECT 1 FROM app_users WHERE mobile=@m OR (@d <> '' AND device_id=@d) LIMIT 1", conn);
+            cmd.Parameters.AddWithValue("@m", mobile);
+            cmd.Parameters.AddWithValue("@d", deviceId ?? "");
+            var r = await cmd.ExecuteScalarAsync();
+            return r != null;
+        }
+        catch (MySqlException)
+        {
+            // Tenant DB unreachable / dropped → treat the registry row as orphaned.
+            return false;
+        }
+    }
+
+    /// <summary>Removes (mobile, device) rows for the given slug from the
+    /// cross-agency registry. Safe to call when no rows exist.</summary>
+    public async Task PurgeRegistryForMobileOrDeviceAsync(string mobile, string deviceId, string slug)
+    {
+        await using var conn = DbFactory.CreateMaster();
+        await conn.OpenAsync();
+        await using var cmd = new MySqlCommand(@"
+            DELETE FROM app_user_registry
+             WHERE agency_slug = @s
+               AND (mobile = @m OR (@d <> '' AND device_id = @d))", conn);
+        cmd.Parameters.AddWithValue("@s", slug);
+        cmd.Parameters.AddWithValue("@m", mobile);
+        cmd.Parameters.AddWithValue("@d", deviceId ?? "");
+        await cmd.ExecuteNonQueryAsync();
+    }
+
 
     // ── Register ──────────────────────────────────────────────────────────
     public async Task<(bool Success, string Reason, long UserId)> RegisterAsync(

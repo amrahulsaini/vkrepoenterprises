@@ -125,9 +125,23 @@ public class MobileController : ControllerBase
             var existingSlug = await _repo.FindExistingAgencyForMobileOrDevice(
                 clean.Mobile, clean.Device, clean.Slug);
             if (existingSlug != null)
-                return Conflict(new ApiError(false,
-                    "This mobile number or device is already registered with another agency. " +
-                    "A user can only belong to one agency. Please contact your current agency to be removed first."));
+            {
+                // Auto-heal stale registry rows. If an admin removed the user
+                // directly from the previous agency's app_users (without going
+                // through the desktop DELETE endpoint), the registry row is
+                // orphaned and would block every future re-registration. Open
+                // the previous agency's DB; if no app_users row matches, drop
+                // the orphan and let registration proceed.
+                var stillLive = await _repo.IsMobileOrDeviceLiveInAgencyAsync(
+                    clean.Mobile, clean.Device, existingSlug);
+                if (stillLive)
+                    return Conflict(new ApiError(false,
+                        "This mobile number or device is already registered with another agency. " +
+                        "A user can only belong to one agency. Please contact your current agency to be removed first."));
+
+                await _repo.PurgeRegistryForMobileOrDeviceAsync(
+                    clean.Mobile, clean.Device, existingSlug);
+            }
 
             // All checks passed → register into that agency's own database.
             TenantContext.UseAgency(clean.Slug);

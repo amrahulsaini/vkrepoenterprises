@@ -503,6 +503,35 @@ public partial class AppUsersManagerPage : Page
         }
     }
 
+    // ── Delete user ───────────────────────────────────────────────────
+    // Calls the server-side delete that cascades the tenant row AND releases
+    // the cross-agency claim in crm_master.app_user_registry. Without this,
+    // an admin who removed the row directly from app_users in MySQL would
+    // permanently block this mobile / device from registering anywhere else.
+    private async void btnDeleteUser_Click(object sender, RoutedEventArgs e)
+    {
+        if (_selectedUser == null) return;
+        var confirm = MessageBox.Show(
+            $"Permanently delete {_selectedUser.Name} ({_selectedUser.Mobile})?\n\n" +
+            "This wipes their profile, subscriptions, KYC documents and device record. " +
+            "Their mobile and device will be released so they can register with any " +
+            "agency afterwards.\n\n" +
+            "This cannot be undone.",
+            "Delete User", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+        if (confirm != MessageBoxResult.Yes) return;
+        try
+        {
+            await _repo.DeleteUserAsync(_selectedUser.Id);
+            _selectedUser = null;
+            await LoadUsersAsync();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Failed to delete user: {ex.Message}", "Delete User",
+                MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
     // ── App Active toggle (ON = running, OFF = stopped) ────────────────────
     private async void StopToggle_Checked(object sender, RoutedEventArgs e)
     {
