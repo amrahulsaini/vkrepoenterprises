@@ -417,6 +417,9 @@ app.MapPost("/api/Confirmations", async (ConfirmationRequest req) =>
     }
 });
 
+// Legacy "fetch every row" endpoint — kept for back-compat with any external
+// caller, but the desktop now uses /api/Confirmations/paged below. Capped at
+// 5000 rows so an over-grown table doesn't blow up the legacy caller either.
 app.MapGet("/api/Confirmations", async () =>
 {
     try
@@ -424,7 +427,7 @@ app.MapGet("/api/Confirmations", async () =>
         await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
         await using var cmd = new MySqlCommand(
-            "SELECT id,vehicle_no,chassis_no,model,seizer_name,status,created_at FROM repoconformations ORDER BY created_at DESC",
+            "SELECT id,vehicle_no,chassis_no,model,seizer_name,status,created_at FROM repoconformations ORDER BY created_at DESC LIMIT 5000",
             conn);
         var results = new List<ConfirmationResponseItem>();
         await using var reader = await cmd.ExecuteReaderAsync();
@@ -444,6 +447,97 @@ app.MapGet("/api/Confirmations", async () =>
         return Results.Ok(results);
     }
     catch { return Results.Ok(new List<ConfirmationResponseItem>()); }
+});
+
+// Paginated + filterable confirmations endpoint. Replaces the desktop's
+// previous "load every row on page open" behaviour — older agencies' tables
+// grew large enough that the unpaginated fetch was timing out and freezing
+// the WPF grid for 10+ seconds on Confirmations tab open.
+//
+// Query params (all optional):
+//   page = 0-based page index   (default 0)
+//   size = rows per page        (default 200, max 1000)
+//   q    = search text          (matches vehicle_no / chassis_no)
+//   from = YYYY-MM-DD inclusive (filter on created_at)
+//   to   = YYYY-MM-DD inclusive
+app.MapGet("/api/Confirmations/paged", async (HttpContext ctx) =>
+{
+    int page = int.TryParse(ctx.Request.Query["page"], out var p) ? Math.Max(0, p) : 0;
+    int size = int.TryParse(ctx.Request.Query["size"], out var s) ? Math.Clamp(s, 1, 1000) : 200;
+    string q    = (ctx.Request.Query["q"].FirstOrDefault() ?? "").Trim();
+    string from = (ctx.Request.Query["from"].FirstOrDefault() ?? "").Trim();
+    string to   = (ctx.Request.Query["to"].FirstOrDefault() ?? "").Trim();
+
+    var where  = new List<string>();
+    var ps     = new List<MySqlParameter>();
+    if (!string.IsNullOrEmpty(q))
+    {
+        where.Add("(vehicle_no LIKE @q OR chassis_no LIKE @q)");
+        ps.Add(new MySqlParameter("@q", $"%{q}%"));
+    }
+    if (DateTime.TryParse(from, out var fd))
+    {
+        where.Add("created_at >= @from");
+        ps.Add(new MySqlParameter("@from", fd.Date));
+    }
+    if (DateTime.TryParse(to, out var td))
+    {
+        where.Add("created_at < @to");
+        ps.Add(new MySqlParameter("@to", td.Date.AddDays(1)));
+    }
+    string whereSql = where.Count > 0 ? "WHERE " + string.Join(" AND ", where) : "";
+
+    try
+    {
+        await using var conn = new MySqlConnection(TenantContext.Conn);
+        await conn.OpenAsync();
+
+        long total;
+        await using (var cnt = new MySqlCommand($"SELECT COUNT(*) FROM repoconformations {whereSql}", conn) { CommandTimeout = 30 })
+        {
+            foreach (var par in ps) cnt.Parameters.Add(par);
+            total = Convert.ToInt64(await cnt.ExecuteScalarAsync());
+        }
+
+        var rows = new List<ConfirmationResponseItem>();
+        var sql = $@"SELECT id,vehicle_no,chassis_no,model,seizer_name,status,created_at
+                     FROM repoconformations {whereSql}
+                     ORDER BY created_at DESC
+                     LIMIT {size} OFFSET {page * size}";
+        await using (var cmd = new MySqlCommand(sql, conn) { CommandTimeout = 30 })
+        {
+            // Rebuild param list — same names but a parameter object can only
+            // belong to one MySqlCommand.
+            foreach (var par in ps) cmd.Parameters.Add(new MySqlParameter(par.ParameterName, par.Value));
+            await using var rdr = await cmd.ExecuteReaderAsync();
+            while (await rdr.ReadAsync())
+            {
+                rows.Add(new ConfirmationResponseItem
+                {
+                    Id          = rdr.GetInt32(0).ToString(),
+                    VehicleNo   = rdr.IsDBNull(1) ? "" : rdr.GetString(1),
+                    ChassisNo   = rdr.IsDBNull(2) ? "" : rdr.GetString(2),
+                    Model       = rdr.IsDBNull(3) ? "" : rdr.GetString(3),
+                    SeizerName  = rdr.IsDBNull(4) ? "" : rdr.GetString(4),
+                    Status      = rdr.IsDBNull(5) ? "" : rdr.GetString(5),
+                    ConfirmedOn = rdr.IsDBNull(6) ? "" : rdr.GetDateTime(6).ToLocalTime().ToString("dd-MM-yyyy")
+                });
+            }
+        }
+
+        return Results.Ok(new
+        {
+            total,
+            page,
+            size,
+            hasMore = (long)(page + 1) * size < total,
+            rows
+        });
+    }
+    catch (Exception ex)
+    {
+        return Results.Problem(ex.Message);
+    }
 });
 
 app.MapGet("/api/Modules/{moduleKey}", async (string moduleKey, IMemoryCache cache) =>

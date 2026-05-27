@@ -42,10 +42,12 @@
 
                 <DatePicker x:Name="dpFrom" Grid.Column="1" Width="130" Height="36"
                             Margin="0,0,8,0" VerticalAlignment="Center"
-                            BorderBrush="{StaticResource Gray300}" />
+                            BorderBrush="{StaticResource Gray300}"
+                            SelectedDateChanged="Date_Changed" />
                 <DatePicker x:Name="dpTo" Grid.Column="2" Width="130" Height="36"
                             Margin="0,0,8,0" VerticalAlignment="Center"
-                            BorderBrush="{StaticResource Gray300}" />
+                            BorderBrush="{StaticResource Gray300}"
+                            SelectedDateChanged="Date_Changed" />
 
                 <Button Grid.Column="3" x:Name="btnRefresh" Width="36" Height="36"
                         Margin="0,0,8,0" VerticalAlignment="Center"
