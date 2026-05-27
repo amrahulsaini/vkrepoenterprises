@@ -114,25 +114,34 @@ else
     info "Skipping agency portal ($AGENCY_DOCROOT not present — create the child domain first)"
 fi
 
-# ── Privacy policy — copy to main domain root (Play Store requirement) ──────
-# Play Console requires a publicly-accessible privacy policy URL for every
-# app submission. We host it on the main site so the URL is clean:
-#   https://crmrecoverysoftware.com/privacy-policy.html
-# CyberPanel-OLS uses /home/<domain>/public_html for the main domain docRoot.
+# ── Main site (landing page) + privacy policy on crmrecoverysoftware.com ────
+# The main domain serves the marketing landing page (main-site/) and the
+# privacy policy (required by Play Console). CyberPanel-OLS uses
+# /home/<domain>/public_html for the main domain docRoot.
 MAIN_DOCROOT="/home/crmrecoverysoftware.com/public_html"
 if [ ! -d "$MAIN_DOCROOT" ]; then
-    # Fallback path some CyberPanel installs use
     MAIN_DOCROOT="/home/crmrecoverysoftware.com/crmrecoverysoftware.com"
 fi
 if [ -d "$MAIN_DOCROOT" ]; then
     chmod o+x /home/crmrecoverysoftware.com "$MAIN_DOCROOT" 2>/dev/null || true
     MAIN_OWNER=$(stat -c '%U:%G' "$MAIN_DOCROOT" 2>/dev/null)
+
+    # Landing page index.html + assets/
+    cp "$REPO_DIR/main-site/index.html" "$MAIN_DOCROOT/index.html"
+    rm -rf "$MAIN_DOCROOT/assets"
+    cp -r "$REPO_DIR/main-site/assets" "$MAIN_DOCROOT/assets"
+    # Privacy policy
     cp "$VKAPI_SRC/public/privacy-policy.html" "$MAIN_DOCROOT/privacy-policy.html"
-    chmod 644 "$MAIN_DOCROOT/privacy-policy.html"
-    [ -n "$MAIN_OWNER" ] && chown "$MAIN_OWNER" "$MAIN_DOCROOT/privacy-policy.html" || true
-    info "Privacy policy deployed → $MAIN_DOCROOT/privacy-policy.html"
+
+    find "$MAIN_DOCROOT" -type d -exec chmod 755 {} \;
+    find "$MAIN_DOCROOT" -type f -exec chmod 644 {} \;
+    [ -n "$MAIN_OWNER" ] && chown -R "$MAIN_OWNER" \
+        "$MAIN_DOCROOT/index.html" \
+        "$MAIN_DOCROOT/assets" \
+        "$MAIN_DOCROOT/privacy-policy.html" 2>/dev/null || true
+    info "Main site + privacy policy deployed → $MAIN_DOCROOT"
 else
-    info "Main domain docRoot not found — privacy policy not deployed. Check /home/crmrecoverysoftware.com/"
+    info "Main domain docRoot not found — main site not deployed. Check /home/crmrecoverysoftware.com/"
 fi
 
 section "Restarting vkapi service"
