@@ -562,9 +562,10 @@ internal static class AgencyPortal
                 // Gradle flavor name strips underscores from the slug.
                 string flavor = slug.Replace("_", "");
                 string pkg    = $"com.crmrecoverysoftware.{flavor}";
-                string apk    = Path.Combine(AGENCY_APPS_ROOT, flavor, "app.apk");
-                string aab    = Path.Combine(AGENCY_APPS_ROOT, flavor, "app.aab");
-                string setup  = Path.Combine(AGENCY_APPS_ROOT, flavor, "setup.exe");
+                string apk      = Path.Combine(AGENCY_APPS_ROOT, flavor, "app.apk");
+                string aab      = Path.Combine(AGENCY_APPS_ROOT, flavor, "app.aab");
+                string setup    = Path.Combine(AGENCY_APPS_ROOT, flavor, "setup.exe");
+                string portable = Path.Combine(AGENCY_APPS_ROOT, flavor, "portable.zip");
                 // Resolve logo URL — logo_path is something like
                 // "/agency-uploads/rk_enterprises.jpg" stored at registration.
                 string logoUrl = "";
@@ -589,6 +590,9 @@ internal static class AgencyPortal
                     setupExists  = File.Exists(setup),
                     setupSize    = File.Exists(setup) ? new FileInfo(setup).Length : 0L,
                     setupBuiltAt = File.Exists(setup) ? File.GetLastWriteTimeUtc(setup).ToString("yyyy-MM-dd HH:mm 'UTC'") : "",
+                    portableExists  = File.Exists(portable),
+                    portableSize    = File.Exists(portable) ? new FileInfo(portable).Length : 0L,
+                    portableBuiltAt = File.Exists(portable) ? File.GetLastWriteTimeUtc(portable).ToString("yyyy-MM-dd HH:mm 'UTC'") : "",
                 });
             }
             return Results.Ok(new { apps = rows });
@@ -620,10 +624,11 @@ internal static class AgencyPortal
 
             (string fileName, string mime, string downloadName) = type switch
             {
-                "apk"   => ("app.apk",   "application/vnd.android.package-archive", $"crms-{flavor}.apk"),
-                "aab"   => ("app.aab",   "application/octet-stream",                $"crms-{flavor}.aab"),
-                "setup" => ("setup.exe", "application/octet-stream",                $"crms-{flavor}-setup.exe"),
-                _       => ("",          "", ""),
+                "apk"      => ("app.apk",      "application/vnd.android.package-archive", $"crms-{flavor}.apk"),
+                "aab"      => ("app.aab",      "application/octet-stream",                $"crms-{flavor}.aab"),
+                "setup"    => ("setup.exe",    "application/octet-stream",                $"crms-{flavor}-setup.exe"),
+                "portable" => ("portable.zip", "application/zip",                         $"crms-{flavor}-portable.zip"),
+                _          => ("",             "", ""),
             };
             if (string.IsNullOrEmpty(fileName))
                 return Results.BadRequest(new { message = "Invalid type" });

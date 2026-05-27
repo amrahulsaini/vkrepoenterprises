@@ -75,6 +75,11 @@
                    <div class="text-muted" style="font-size:11px;margin-top:4px;">built ${escapeHtml(a.setupBuiltAt)}</div>`
                 : '<span class="text-muted" style="font-size:13px;">not built yet</span>';
 
+            const portableCell = a.portableExists
+                ? `<a class="btn btn-outline btn-sm" href="${downloadUrl(a.flavor, 'portable')}" download>↓ Portable.zip <span style="opacity:.7;font-weight:400;">${fmtSize(a.portableSize)}</span></a>
+                   <div class="text-muted" style="font-size:11px;margin-top:4px;">built ${escapeHtml(a.portableBuiltAt)}</div>`
+                : '<span class="text-muted" style="font-size:13px;">not built yet</span>';
+
             const logoCell = a.logoUrl
                 ? `<img src="${escapeHtml(a.logoUrl)}" alt=""
                        style="width:44px;height:44px;border-radius:8px;object-fit:cover;background:#fff;border:1px solid #e5e7eb;"
@@ -91,6 +96,7 @@
                 <td>${apkCell}</td>
                 <td>${aabCell}</td>
                 <td>${setupCell}</td>
+                <td>${portableCell}</td>
             </tr>`;
         }).join('');
 
@@ -104,6 +110,7 @@
                         <th>Android Debug APK <span class="text-muted" style="font-weight:400;font-size:11px;">(side-load)</span></th>
                         <th>Android Release AAB <span class="text-muted" style="font-weight:400;font-size:11px;">(Play Console)</span></th>
                         <th>Windows Installer <span class="text-muted" style="font-weight:400;font-size:11px;">(side-by-side)</span></th>
+                        <th>Portable ZIP <span class="text-muted" style="font-weight:400;font-size:11px;">(no install, AppLocker-safe)</span></th>
                     </tr>
                 </thead>
                 <tbody>${rows}</tbody>
