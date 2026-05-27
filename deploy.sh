@@ -94,21 +94,31 @@ for DOCROOT in "${DOMAIN_DOCROOTS[@]}"; do
 done
 
 # ── CRMS Agency Portal — static site at agency.crmrecoverysoftware.com ───────
-AGENCY_DOCROOT="/home/crmrecoverysoftware.com/agency.crmrecoverysoftware.com"
+# CyberPanel-OLS docRoot for the agency subdomain is `public_html/` under the
+# subdomain folder. Earlier versions of this script were copying into the
+# subdomain folder itself which OLS ignored entirely (it kept serving stale
+# files from public_html/, leading to "I just deployed but apps.js is still
+# old" symptoms). Always sync into the actual docRoot.
+AGENCY_PARENT="/home/crmrecoverysoftware.com/agency.crmrecoverysoftware.com"
+AGENCY_DOCROOT="$AGENCY_PARENT/public_html"
+if [ ! -d "$AGENCY_DOCROOT" ]; then
+    # Some older provisioning used the subdomain folder directly. Fall back so
+    # this script still works on hosts without a public_html/.
+    AGENCY_DOCROOT="$AGENCY_PARENT"
+fi
 if [ -d "$AGENCY_DOCROOT" ]; then
-    chmod o+x /home/crmrecoverysoftware.com "$AGENCY_DOCROOT" 2>/dev/null || true
+    chmod o+x /home/crmrecoverysoftware.com "$AGENCY_PARENT" "$AGENCY_DOCROOT" 2>/dev/null || true
     AGENCY_OWNER=$(stat -c '%U:%G' "$AGENCY_DOCROOT" 2>/dev/null)
     # Re-sync the portal files (html / css / js / assets), keep any logs folder.
     for item in index.html register.html manage.html css js assets; do
         rm -rf "$AGENCY_DOCROOT/$item"
-        cp -r "$REPO_DIR/agency-portal/$item" "$AGENCY_DOCROOT/$item"
+        if [ -e "$REPO_DIR/agency-portal/$item" ]; then
+            cp -r "$REPO_DIR/agency-portal/$item" "$AGENCY_DOCROOT/$item"
+        fi
     done
     find "$AGENCY_DOCROOT" -type d -exec chmod 755 {} \;
     find "$AGENCY_DOCROOT" -type f -exec chmod 644 {} \;
-    [ -n "$AGENCY_OWNER" ] && chown -R "$AGENCY_OWNER" \
-        "$AGENCY_DOCROOT/index.html" "$AGENCY_DOCROOT/register.html" \
-        "$AGENCY_DOCROOT/manage.html" "$AGENCY_DOCROOT/css" \
-        "$AGENCY_DOCROOT/js" "$AGENCY_DOCROOT/assets" 2>/dev/null || true
+    [ -n "$AGENCY_OWNER" ] && chown -R "$AGENCY_OWNER" "$AGENCY_DOCROOT" 2>/dev/null || true
     info "Agency portal ready → $AGENCY_DOCROOT"
 else
     info "Skipping agency portal ($AGENCY_DOCROOT not present — create the child domain first)"
