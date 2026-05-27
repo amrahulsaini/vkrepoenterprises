@@ -113,15 +113,71 @@ def publish_for(agency: dict) -> Path:
     out = PUBLISH_ROOT / agency["slug"]
     if out.exists():
         shutil.rmtree(out)
+    # Per-agency file properties:
+    #   - AssemblyTitle  → Windows "File description" (e.g. "V K ENTERPRISES")
+    #   - Description    → Windows "File description" tooltip in some shells
+    #   - Product        → "Product name" property — kept short, generic
+    #   - Company stays "CRMRS" (set in csproj)
     run([
         "dotnet", "publish", "-c", "Release",
         "-r", "win-x64", "--self-contained", "true",
         "-p:PublishSingleFile=false",
         f'-p:AssemblyTitle={agency["name"]}',
-        f'-p:Product={agency["name"]} - CRMS',
+        f'-p:Description={agency["name"]} — Recovery agent app (CRMRS)',
+        f'-p:Product={agency["name"]} Recovery',
         "-o", str(out),
     ], cwd=WPF_DIR)
     return out
+
+
+def write_setup_shortcut_bat(publish_dir: Path, agency_name: str) -> None:
+    """Drop a Setup-Shortcut.bat inside the publish folder. End users double-
+    click it once after extracting the portable ZIP — it makes a Desktop
+    shortcut AND a Start Menu shortcut pointing at CRMRS.exe, with the
+    agency name as the display label. No admin rights required.
+
+    Without this users either have to right-click → Send To → Desktop, OR
+    (the failure mode that prompted this) they try to copy CRMRS.exe to
+    the Desktop on its own and it can't start because all the runtime DLLs
+    are still in the extracted folder."""
+    bat = publish_dir / "Setup-Shortcut.bat"
+    # Use a here-doc-ish content. PowerShell handles the .lnk creation —
+    # it's available on every Win10/11 machine, no extra tooling needed.
+    bat.write_text(
+        "@echo off\r\n"
+        "REM Creates Desktop + Start Menu shortcuts for " + agency_name + " (CRMRS).\r\n"
+        "REM Safe to run multiple times — it overwrites existing shortcuts.\r\n"
+        "setlocal\r\n"
+        'set "TARGET=%~dp0CRMRS.exe"\r\n'
+        'set "WORKDIR=%~dp0"\r\n'
+        'set "ICON=%~dp0public\\favicon.ico"\r\n'
+        'set "NAME=' + agency_name + '"\r\n'
+        "\r\n"
+        "powershell -NoProfile -ExecutionPolicy Bypass -Command ^\r\n"
+        '  "$ws = New-Object -ComObject WScript.Shell;'
+        ' $desk = $ws.SpecialFolders(\'Desktop\');'
+        ' $sm   = $ws.SpecialFolders(\'StartMenu\');'
+        ' foreach ($folder in @($desk, (Join-Path $sm \'Programs\'))) {'
+        '   $lnkPath = Join-Path $folder \'%NAME%.lnk\';'
+        '   $lnk = $ws.CreateShortcut($lnkPath);'
+        '   $lnk.TargetPath = \'%TARGET%\';'
+        '   $lnk.WorkingDirectory = \'%WORKDIR%\';'
+        '   if (Test-Path \'%ICON%\') { $lnk.IconLocation = \'%ICON%,0\' }'
+        '   $lnk.Description = \'%NAME% — CRMRS Recovery\';'
+        '   $lnk.Save();'
+        ' }"\r\n'
+        "\r\n"
+        "if %ERRORLEVEL% NEQ 0 (\r\n"
+        '  echo Failed to create shortcuts. Try right-clicking CRMRS.exe and choosing "Send to ^> Desktop".\r\n'
+        "  pause\r\n"
+        "  exit /b 1\r\n"
+        ")\r\n"
+        "\r\n"
+        'echo Desktop and Start Menu shortcuts for "%NAME%" created.\r\n'
+        "echo You can now close this window and launch the app from your Desktop.\r\n"
+        "timeout /t 3 >nul\r\n"
+        "endlocal\r\n",
+        encoding="utf-8")
 
 
 def compile_installer(agency: dict, publish_dir: Path) -> Path:
@@ -195,6 +251,9 @@ def main() -> None:
             continue
         size_mb = setup_exe.stat().st_size / 1024 / 1024
         print(f"  [ok]  installer: {setup_exe.name}  ({size_mb:.1f} MB)")
+        # Drop a Setup-Shortcut.bat alongside CRMRS.exe BEFORE zipping so the
+        # portable bundle is one-click installable too.
+        write_setup_shortcut_bat(publish_dir, a["name"])
         # Portable zip — same publish folder, no installer needed at the
         # end-user end. Distribute this when the user's PC blocks unsigned
         # installers (AppLocker / WDAC / SmartScreen).
