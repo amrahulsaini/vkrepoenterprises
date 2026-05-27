@@ -26,7 +26,11 @@ public partial class ChunkedExportDialog : Window
 {
     // Allowed chunk sizes, in lakhs. 1L = 100,000.
     private static readonly int[] ChunkSizesLakh = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
-    private const int FetchPageSize = 5000;
+    // No more FetchPageSize — each chunk file is fetched as a single page
+    // (size = chunk size, page = chunk index). 20L records at chunk size 5L
+    // now takes 4 round-trips instead of the old 400 of 5000 rows each, and
+    // we write each file as soon as its rows land instead of buffering the
+    // whole dataset in memory first.
 
     private string _baseName = "export";
     private string _sheetName = "Records";
@@ -196,54 +200,53 @@ public partial class ChunkedExportDialog : Window
     {
         if (_pageFetcher == null) return;
 
-        // Phase plan:
-        //   0 – 70%  : fetch all required pages (covering the range of the
-        //              selected chunks). We always fetch from page 0 to the
-        //              max needed page, then slice client-side per chunk so a
-        //              user re-running with a different chunk size doesn't
-        //              hammer the server twice.
-        //   70 – 100%: write Excel files (one per chunk).
+        // One HTTP request per chunk file. We ask the server for exactly
+        // this chunk's slice via (page=chunk_index, size=chunk_size). As soon
+        // as the rows come back we hand them to the Excel writer, free the
+        // memory, then move to the next chunk. No big in-memory buffer, no
+        // 5000-row paginated round-trips.
+        int chunkSize = (cmbChunkSize.SelectedItem is ComboBoxItem ci) ? (int)ci.Tag : 100_000;
+        int totalSteps = rowsToDo.Count * 2; // fetch + write per chunk
+        int stepsDone  = 0;
 
-        long maxRowNeeded = rowsToDo.Max(r => r.StartRowInclusive + r.Count);
-        int  totalPages   = (int)Math.Ceiling((double)maxRowNeeded / FetchPageSize);
-
-        var allRows = new List<DesktopApiClient.ExportVehicleRow>((int)Math.Min(maxRowNeeded, int.MaxValue));
-        for (int pg = 0; pg < totalPages; pg++)
-        {
-            txtStatus.Text = $"Fetching page {pg + 1} of {totalPages}…";
-            double pct = (double)pg / totalPages * 70.0;
-            pb.Value = pct;
-            txtPct.Text = $"{(int)pct}%";
-
-            var page = await _pageFetcher(pg, FetchPageSize);
-            allRows.AddRange(page.Rows);
-            if (!page.HasMore || page.Rows.Count == 0) break;
-        }
-
-        pb.Value = 70;
-        txtPct.Text = "70%";
-
-        double writeSliceWidth = 30.0 / rowsToDo.Count;
         int idx = 0;
         foreach (var row in rowsToDo)
         {
             idx++;
             row.SetStatus(ChunkStatus.Writing);
-            txtStatus.Text = $"Writing {row.FileName} ({idx} of {rowsToDo.Count})…";
 
-            int from = (int)row.StartRowInclusive;
-            int upto = Math.Min(allRows.Count, from + (int)row.Count);
-            if (from >= allRows.Count)
+            // ── Fetch this chunk's records ────────────────────────────────
+            // The server's existing paginated endpoint takes (page, size)
+            // and computes OFFSET = page * size. Map chunk index → page so
+            // each chunk is exactly one query / one network response.
+            txtStatus.Text = $"Fetching {row.FileName} ({idx} of {rowsToDo.Count}) — {row.Count:N0} rows…";
+            List<DesktopApiClient.ExportVehicleRow> rows;
+            try
+            {
+                var resp = await _pageFetcher(row.Index, chunkSize);
+                rows = resp.Rows;
+            }
+            catch (Exception ex)
+            {
+                row.SetStatus(ChunkStatus.Failed);
+                txtStatus.Text = $"Failed to fetch {row.FileName}: {ex.Message}";
+                continue;
+            }
+            stepsDone++;
+            double pct = (double)stepsDone / totalSteps * 100.0;
+            pb.Value = pct; txtPct.Text = $"{(int)pct}%";
+
+            if (rows.Count == 0)
             {
                 row.SetStatus(ChunkStatus.Failed);
                 continue;
             }
-            var slice = allRows.GetRange(from, upto - from);
 
+            // ── Write this chunk's Excel file ─────────────────────────────
+            txtStatus.Text = $"Writing {row.FileName} ({idx} of {rowsToDo.Count})…";
             try
             {
-                // Write on a background thread — Excel write of ~5L rows can take seconds.
-                await Task.Run(() => VehicleExcelWriter.Write(slice, _sheetName, row.FullPath));
+                await Task.Run(() => VehicleExcelWriter.Write(rows, _sheetName, row.FullPath));
                 row.SetStatus(ChunkStatus.Done);
             }
             catch (Exception ex)
@@ -251,10 +254,9 @@ public partial class ChunkedExportDialog : Window
                 row.SetStatus(ChunkStatus.Failed);
                 txtStatus.Text = $"Failed to write {row.FileName}: {ex.Message}";
             }
-
-            double pct = 70 + idx * writeSliceWidth;
-            pb.Value = pct;
-            txtPct.Text = $"{(int)pct}%";
+            stepsDone++;
+            pct = (double)stepsDone / totalSteps * 100.0;
+            pb.Value = pct; txtPct.Text = $"{(int)pct}%";
         }
     }
 
