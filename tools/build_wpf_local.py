@@ -136,27 +136,44 @@ def write_setup_shortcut_bat(publish_dir: Path, agency_name: str) -> None:
     shortcut AND a Start Menu shortcut pointing at CRMRS.exe, with the
     agency name as the display label. No admin rights required.
 
-    Without this users either have to right-click → Send To → Desktop, OR
-    (the failure mode that prompted this) they try to copy CRMRS.exe to
-    the Desktop on its own and it can't start because all the runtime DLLs
-    are still in the extracted folder."""
+    Two things the script must do for the shortcut to work on locked-down
+    corporate machines:
+      1. Strip Mark-of-the-Web (Unblock-File) from every file in the
+         extracted folder. When a user downloads a ZIP, Windows tags every
+         file inside with a "Zone.Identifier" alternate data stream marking
+         it as "from the web". AppLocker / WDAC then blocks ANY shortcut
+         that points at a flagged file — even one the user pinned to the
+         taskbar themselves. Once we Unblock-File the CRMRS.exe and DLLs,
+         AppLocker treats them as local files.
+      2. Save the shortcut atomically, then Unblock-File the .lnk itself
+         too — when the user later "pin to taskbar"s the shortcut, Windows
+         copies it under User Pinned\\TaskBar\\ and the copy inherits the
+         web tag. Pre-stripping the source shortcut prevents that."""
     bat = publish_dir / "Setup-Shortcut.bat"
-    # Use a here-doc-ish content. PowerShell handles the .lnk creation —
-    # it's available on every Win10/11 machine, no extra tooling needed.
     bat.write_text(
         "@echo off\r\n"
         "REM Creates Desktop + Start Menu shortcuts for " + agency_name + " (CRMRS).\r\n"
         "REM Safe to run multiple times — it overwrites existing shortcuts.\r\n"
+        "REM Also strips Mark-of-the-Web from extracted files so AppLocker\r\n"
+        "REM / WDAC corporate policies don't block the EXE or the shortcut.\r\n"
         "setlocal\r\n"
         'set "TARGET=%~dp0CRMRS.exe"\r\n'
         'set "WORKDIR=%~dp0"\r\n'
         'set "ICON=%~dp0public\\favicon.ico"\r\n'
         'set "NAME=' + agency_name + '"\r\n'
         "\r\n"
+        "echo Preparing %NAME% (this only takes a few seconds)...\r\n"
+        "\r\n"
+        "REM ── Phase 1: strip Mark-of-the-Web from every extracted file ──────\r\n"
+        "powershell -NoProfile -ExecutionPolicy Bypass -Command ^\r\n"
+        '  "Get-ChildItem -LiteralPath \'%WORKDIR%\' -Recurse -Force -File -ErrorAction SilentlyContinue | Unblock-File -ErrorAction SilentlyContinue"\r\n'
+        "\r\n"
+        "REM ── Phase 2: create the shortcuts ───────────────────────────────\r\n"
         "powershell -NoProfile -ExecutionPolicy Bypass -Command ^\r\n"
         '  "$ws = New-Object -ComObject WScript.Shell;'
         ' $desk = $ws.SpecialFolders(\'Desktop\');'
         ' $sm   = $ws.SpecialFolders(\'StartMenu\');'
+        ' $made = @();'
         ' foreach ($folder in @($desk, (Join-Path $sm \'Programs\'))) {'
         '   $lnkPath = Join-Path $folder \'%NAME%.lnk\';'
         '   $lnk = $ws.CreateShortcut($lnkPath);'
@@ -165,7 +182,10 @@ def write_setup_shortcut_bat(publish_dir: Path, agency_name: str) -> None:
         '   if (Test-Path \'%ICON%\') { $lnk.IconLocation = \'%ICON%,0\' }'
         '   $lnk.Description = \'%NAME% — CRMRS Recovery\';'
         '   $lnk.Save();'
-        ' }"\r\n'
+        '   $made += $lnkPath;'
+        ' };'
+        ' Start-Sleep -Milliseconds 200;'
+        ' $made | ForEach-Object { Unblock-File -LiteralPath $_ -ErrorAction SilentlyContinue }"\r\n'
         "\r\n"
         "if %ERRORLEVEL% NEQ 0 (\r\n"
         '  echo Failed to create shortcuts. Try right-clicking CRMRS.exe and choosing "Send to ^> Desktop".\r\n'
@@ -173,9 +193,14 @@ def write_setup_shortcut_bat(publish_dir: Path, agency_name: str) -> None:
         "  exit /b 1\r\n"
         ")\r\n"
         "\r\n"
-        'echo Desktop and Start Menu shortcuts for "%NAME%" created.\r\n'
+        'echo.\r\n'
+        'echo Setup complete for "%NAME%".\r\n'
+        "echo  - Desktop shortcut created\r\n"
+        "echo  - Start Menu shortcut created\r\n"
+        'echo  - Web-tag stripped so corporate AppLocker won\'t block the app\r\n'
+        'echo.\r\n'
         "echo You can now close this window and launch the app from your Desktop.\r\n"
-        "timeout /t 3 >nul\r\n"
+        "timeout /t 4 >nul\r\n"
         "endlocal\r\n",
         encoding="utf-8")
 
