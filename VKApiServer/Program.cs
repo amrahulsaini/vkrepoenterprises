@@ -2293,12 +2293,16 @@ app.MapGet("/api/mgr/export/branch-records", async (HttpContext ctx) =>
             vr.sender_mail1, vr.sender_mail2, vr.executive_name,
             vr.pos, vr.toss, vr.remark, vr.region, vr.area,
             COALESCE(DATE_FORMAT(vr.created_at,'%d %b %Y'),'') AS created_on";
+        // ORDER BY vr.id (primary key) instead of vr.vehicle_no — vehicle_no
+        // isn't always indexed and the sort was forcing a full filesort of
+        // millions of rows on every page fetch. PK ordering is stable, fast,
+        // and OFFSET pagination on it is O(log N + size) instead of O(N).
         var sql = $@"SELECT {fields}
             FROM vehicle_records vr
             INNER JOIN branches b ON b.id = vr.branch_id
             LEFT  JOIN finances f ON f.id = b.finance_id
             WHERE vr.branch_id = @bid
-            ORDER BY vr.vehicle_no
+            ORDER BY vr.id
             LIMIT {size} OFFSET {page * size}";
         await using var cmd = new MySqlCommand(sql, conn) { CommandTimeout = 120 };
         cmd.Parameters.AddWithValue("@bid", branchId);
@@ -2358,12 +2362,16 @@ app.MapGet("/api/mgr/export/finance-records", async (HttpContext ctx) =>
             vr.sender_mail1, vr.sender_mail2, vr.executive_name,
             vr.pos, vr.toss, vr.remark, vr.region, vr.area,
             COALESCE(DATE_FORMAT(vr.created_at,'%d %b %Y'),'') AS created_on";
+        // Same perf rationale as /export/branch-records: ORDER BY vr.id (PK)
+        // makes large-OFFSET pagination near-instant. The legacy
+        // ORDER BY b.name, vr.vehicle_no was forcing a full filesort across
+        // every branch under the finance on every page fetch.
         var sql = $@"SELECT {fields}
             FROM vehicle_records vr
             INNER JOIN branches b ON b.id = vr.branch_id
             LEFT  JOIN finances f ON f.id = b.finance_id
             WHERE b.finance_id = @fid
-            ORDER BY b.name, vr.vehicle_no
+            ORDER BY vr.id
             LIMIT {size} OFFSET {page * size}";
         await using var cmd = new MySqlCommand(sql, conn) { CommandTimeout = 120 };
         cmd.Parameters.AddWithValue("@fid", financeId);
