@@ -81,6 +81,9 @@ public partial class BlacklistPage : Page
                     u.Name.Contains(q, StringComparison.OrdinalIgnoreCase) ||
                     u.Mobile.Contains(q, StringComparison.OrdinalIgnoreCase)));
         icUsers.ItemsSource = filtered;
+        lblCount.Text = filtered.Count == _allUsers.Count
+            ? $"{filtered.Count:N0} users"
+            : $"{filtered.Count:N0} of {_allUsers.Count:N0} users";
     }
 
     private void txtSearch_TextChanged(object sender, TextChangedEventArgs e) => ApplyFilter();

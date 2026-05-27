@@ -12,9 +12,19 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <TextBlock Text="FEEDBACKS MANAGER"
-                   Style="{StaticResource Heading4}"
-                   Margin="16,8,8,8" />
+        <StackPanel Orientation="Horizontal" Margin="16,8,8,8" VerticalAlignment="Center">
+            <TextBlock Text="FEEDBACKS MANAGER"
+                       Style="{StaticResource Heading4}" />
+            <TextBlock Text=" • "
+                       Foreground="{StaticResource Gray400}"
+                       FontSize="14" VerticalAlignment="Center"
+                       Margin="10,0" />
+            <TextBlock x:Name="lblCount"
+                       Text="0 feedbacks"
+                       FontSize="14" FontWeight="Bold"
+                       Foreground="{StaticResource Orange700}"
+                       VerticalAlignment="Center" />
+        </StackPanel>
 
         <DataGrid Name="dgFeedbacks" Grid.Row="1"
                   AutoGenerateColumns="False"

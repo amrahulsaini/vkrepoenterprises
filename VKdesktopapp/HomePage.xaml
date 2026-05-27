@@ -50,31 +50,37 @@
                                Margin="2,0,0,8" />
                     <Border Style="{StaticResource DashboardCard}" Padding="6,16" Margin="0,0,0,16">
                         <UniformGrid Columns="3">
-                            <StackPanel HorizontalAlignment="Center">
-                                <TextBlock Name="lblRecords" Text="—"
-                                           FontSize="25" FontWeight="Bold"
-                                           Foreground="{StaticResource Gray900}"
-                                           HorizontalAlignment="Center" />
+                            <!-- Number TextBlocks wrapped in Viewbox(DownOnly) so 7-8 digit
+                                 record counts auto-shrink to fit the column instead of
+                                 having the last digit clipped on narrow dashboards. -->
+                            <StackPanel Margin="6,0">
+                                <Viewbox MaxHeight="32" StretchDirection="DownOnly" HorizontalAlignment="Center">
+                                    <TextBlock Name="lblRecords" Text="—"
+                                               FontSize="22" FontWeight="Bold"
+                                               Foreground="{StaticResource Gray900}" />
+                                </Viewbox>
                                 <TextBlock Text="Records"
                                            FontSize="11"
                                            Foreground="{StaticResource TextMuted}"
                                            HorizontalAlignment="Center" Margin="0,3,0,0" />
                             </StackPanel>
-                            <StackPanel HorizontalAlignment="Center">
-                                <TextBlock Name="lblFinances" Text="—"
-                                           FontSize="25" FontWeight="Bold"
-                                           Foreground="{StaticResource Gray900}"
-                                           HorizontalAlignment="Center" />
+                            <StackPanel Margin="6,0">
+                                <Viewbox MaxHeight="32" StretchDirection="DownOnly" HorizontalAlignment="Center">
+                                    <TextBlock Name="lblFinances" Text="—"
+                                               FontSize="22" FontWeight="Bold"
+                                               Foreground="{StaticResource Gray900}" />
+                                </Viewbox>
                                 <TextBlock Text="Head Offices"
                                            FontSize="11"
                                            Foreground="{StaticResource TextMuted}"
                                            HorizontalAlignment="Center" Margin="0,3,0,0" />
                             </StackPanel>
-                            <StackPanel HorizontalAlignment="Center">
-                                <TextBlock Name="lblBranches" Text="—"
-                                           FontSize="25" FontWeight="Bold"
-                                           Foreground="{StaticResource Gray900}"
-                                           HorizontalAlignment="Center" />
+                            <StackPanel Margin="6,0">
+                                <Viewbox MaxHeight="32" StretchDirection="DownOnly" HorizontalAlignment="Center">
+                                    <TextBlock Name="lblBranches" Text="—"
+                                               FontSize="22" FontWeight="Bold"
+                                               Foreground="{StaticResource Gray900}" />
+                                </Viewbox>
                                 <TextBlock Text="Finances"
                                            FontSize="11"
                                            Foreground="{StaticResource TextMuted}"
@@ -89,31 +95,34 @@
                                Margin="2,0,0,8" />
                     <Border Style="{StaticResource DashboardCard}" Padding="6,16">
                         <UniformGrid Columns="3">
-                            <StackPanel HorizontalAlignment="Center">
-                                <TextBlock Name="lblSeizers" Text="—"
-                                           FontSize="25" FontWeight="Bold"
-                                           Foreground="{StaticResource Orange600}"
-                                           HorizontalAlignment="Center" />
+                            <StackPanel Margin="6,0">
+                                <Viewbox MaxHeight="32" StretchDirection="DownOnly" HorizontalAlignment="Center">
+                                    <TextBlock Name="lblSeizers" Text="—"
+                                               FontSize="22" FontWeight="Bold"
+                                               Foreground="{StaticResource Orange600}" />
+                                </Viewbox>
                                 <TextBlock Text="Seizers"
                                            FontSize="11"
                                            Foreground="{StaticResource TextMuted}"
                                            HorizontalAlignment="Center" Margin="0,3,0,0" />
                             </StackPanel>
-                            <StackPanel HorizontalAlignment="Center">
-                                <TextBlock Name="lblActiveUsers" Text="—"
-                                           FontSize="25" FontWeight="Bold"
-                                           Foreground="{StaticResource Green500}"
-                                           HorizontalAlignment="Center" />
+                            <StackPanel Margin="6,0">
+                                <Viewbox MaxHeight="32" StretchDirection="DownOnly" HorizontalAlignment="Center">
+                                    <TextBlock Name="lblActiveUsers" Text="—"
+                                               FontSize="22" FontWeight="Bold"
+                                               Foreground="{StaticResource Green500}" />
+                                </Viewbox>
                                 <TextBlock Text="Active"
                                            FontSize="11"
                                            Foreground="{StaticResource TextMuted}"
                                            HorizontalAlignment="Center" Margin="0,3,0,0" />
                             </StackPanel>
-                            <StackPanel HorizontalAlignment="Center">
-                                <TextBlock Name="lblAdmins" Text="—"
-                                           FontSize="25" FontWeight="Bold"
-                                           Foreground="{StaticResource Gray700}"
-                                           HorizontalAlignment="Center" />
+                            <StackPanel Margin="6,0">
+                                <Viewbox MaxHeight="32" StretchDirection="DownOnly" HorizontalAlignment="Center">
+                                    <TextBlock Name="lblAdmins" Text="—"
+                                               FontSize="22" FontWeight="Bold"
+                                               Foreground="{StaticResource Gray700}" />
+                                </Viewbox>
                                 <TextBlock Text="Admins"
                                            FontSize="11"
                                            Foreground="{StaticResource TextMuted}"
