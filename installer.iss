@@ -22,7 +22,7 @@
   #define AppVersion "1.0"
 #endif
 #ifndef AppExe
-  #define AppExe     "VRASDesktopApp.exe"
+  #define AppExe     "CRMRS.exe"
 #endif
 #ifndef PublishDir
   #define PublishDir "VKdesktopapp\publish-fresh"
