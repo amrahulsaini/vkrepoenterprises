@@ -72,36 +72,40 @@
     </Style>
 
     <Style x:Key="Heading5" TargetType="TextBlock">
-        <Setter Property="FontSize" Value="16" />
+        <Setter Property="FontSize" Value="18" />
         <Setter Property="FontWeight" Value="SemiBold" />
         <Setter Property="Foreground" Value="{StaticResource Gray900}" />
     </Style>
 
     <Style x:Key="Heading6" TargetType="TextBlock">
-        <Setter Property="FontSize" Value="14" />
+        <Setter Property="FontSize" Value="15" />
+        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="Foreground" Value="{StaticResource Gray800}" />
+    </Style>
+
+    <!-- Body / Caption sizes bumped one step so admin pages stay readable
+         even on dense list rows and small laptop screens. -->
+    <Style x:Key="Body1" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="15" />
         <Setter Property="FontWeight" Value="SemiBold" />
         <Setter Property="Foreground" Value="{StaticResource Gray800}" />
     </Style>
 
-    <Style x:Key="Body1" TargetType="TextBlock">
-        <Setter Property="FontSize" Value="14" />
-        <Setter Property="Foreground" Value="{StaticResource Gray800}" />
-    </Style>
-
     <Style x:Key="Body2" TargetType="TextBlock">
-        <Setter Property="FontSize" Value="13" />
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="FontWeight" Value="SemiBold" />
         <Setter Property="Foreground" Value="{StaticResource Gray700}" />
     </Style>
 
     <Style x:Key="Caption" TargetType="TextBlock">
-        <Setter Property="FontSize" Value="12" />
+        <Setter Property="FontSize" Value="13" />
         <Setter Property="Foreground" Value="{StaticResource Gray600}" />
     </Style>
 
     <!-- Uppercase tracking label used above stat values / form groups -->
     <Style x:Key="FormHeading" TargetType="TextBlock">
-        <Setter Property="FontSize" Value="11" />
-        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="FontWeight" Value="Bold" />
         <Setter Property="Foreground" Value="{StaticResource Gray500}" />
         <Setter Property="TextWrapping" Value="Wrap" />
     </Style>
@@ -167,8 +171,11 @@
          Inputs — TextBox with focus highlight
          ───────────────────────────────────────────────────────────────── -->
     <Style x:Key="MaterialTextBox" TargetType="TextBox">
-        <Setter Property="FontSize" Value="14" />
-        <Setter Property="Padding" Value="12,10" />
+        <!-- Bumped one step (14 → 16) so the typed text and placeholder
+             read easily on dense admin forms. Padding also widened so the
+             input feels roomy rather than cramped. -->
+        <Setter Property="FontSize" Value="16" />
+        <Setter Property="Padding" Value="14,12" />
         <Setter Property="BorderBrush" Value="{StaticResource BorderStrong}" />
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="Background" Value="{StaticResource Surface}" />
@@ -207,11 +214,13 @@
          Data grid — clean rows, sticky-looking header, orange selection
          ───────────────────────────────────────────────────────────────── -->
     <Style x:Key="MaterialColumnHeader" TargetType="DataGridColumnHeader">
-        <Setter Property="Height" Value="46" />
+        <Setter Property="Height" Value="48" />
         <Setter Property="Background" Value="{StaticResource SurfaceAlt}" />
         <Setter Property="Foreground" Value="{StaticResource TextSecondary}" />
-        <Setter Property="FontSize" Value="12" />
-        <Setter Property="FontWeight" Value="SemiBold" />
+        <!-- Bumped header to 13pt Bold so column names read clearly on
+             dense data grids (Records, Reports, Confirmations, etc.). -->
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="FontWeight" Value="Bold" />
         <Setter Property="Padding" Value="14,0" />
         <Setter Property="VerticalContentAlignment" Value="Center" />
         <Setter Property="Template">
@@ -262,8 +271,8 @@
         <Setter Property="Background" Value="{StaticResource Surface}" />
         <Setter Property="BorderBrush" Value="{StaticResource BorderHairline}" />
         <Setter Property="BorderThickness" Value="1" />
-        <Setter Property="RowHeight" Value="44" />
-        <Setter Property="ColumnHeaderHeight" Value="46" />
+        <Setter Property="RowHeight" Value="46" />
+        <Setter Property="ColumnHeaderHeight" Value="48" />
         <Setter Property="GridLinesVisibility" Value="Horizontal" />
         <Setter Property="HorizontalGridLinesBrush" Value="{StaticResource BorderHairline}" />
         <Setter Property="VerticalGridLinesBrush" Value="Transparent" />
@@ -278,6 +287,18 @@
         <Setter Property="ColumnHeaderStyle" Value="{StaticResource MaterialColumnHeader}" />
         <Setter Property="RowStyle" Value="{StaticResource MaterialRow}" />
         <Setter Property="CellStyle" Value="{StaticResource MaterialCell}" />
+        <!-- Virtualization defaults: only the visible rows are realised as
+             WPF visuals. Without these the grid spawns one visual tree per
+             row regardless of viewport — pages with 50k+ records (vehicle
+             search, confirmations, audit log) freeze the UI on first load
+             and chew through hundreds of MB of RAM. Recycling reuses row
+             visuals as the user scrolls. -->
+        <Setter Property="EnableRowVirtualization" Value="True" />
+        <Setter Property="EnableColumnVirtualization" Value="True" />
+        <Setter Property="VirtualizingPanel.IsVirtualizing" Value="True" />
+        <Setter Property="VirtualizingPanel.VirtualizationMode" Value="Recycling" />
+        <Setter Property="VirtualizingPanel.ScrollUnit" Value="Pixel" />
+        <Setter Property="ScrollViewer.CanContentScroll" Value="True" />
     </Style>
 
     <!-- ─────────────────────────────────────────────────────────────────
@@ -289,10 +310,12 @@
         <Setter Property="Foreground" Value="White" />
         <Setter Property="Background" Value="{StaticResource Orange500}" />
         <Setter Property="BorderThickness" Value="0" />
-        <Setter Property="Height" Value="40" />
-        <Setter Property="Padding" Value="20,0" />
-        <Setter Property="FontSize" Value="13" />
-        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Height" Value="42" />
+        <Setter Property="Padding" Value="22,0" />
+        <!-- Buttons across the app bumped one step (13 → 14, weight Bold)
+             so primary actions read like primary actions on dense pages. -->
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="FontWeight" Value="Bold" />
         <Setter Property="Cursor" Value="Hand" />
         <Setter Property="Template">
             <Setter.Value>
@@ -325,10 +348,10 @@
         <Setter Property="Foreground" Value="{StaticResource Gray800}" />
         <Setter Property="Background" Value="{StaticResource Gray100}" />
         <Setter Property="BorderThickness" Value="0" />
-        <Setter Property="Height" Value="40" />
-        <Setter Property="Padding" Value="20,0" />
-        <Setter Property="FontSize" Value="13" />
-        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Height" Value="42" />
+        <Setter Property="Padding" Value="22,0" />
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="FontWeight" Value="Bold" />
         <Setter Property="Cursor" Value="Hand" />
         <Setter Property="Template">
             <Setter.Value>
@@ -360,10 +383,10 @@
         <Setter Property="Background" Value="{StaticResource Surface}" />
         <Setter Property="BorderThickness" Value="1.4" />
         <Setter Property="BorderBrush" Value="{StaticResource Orange500}" />
-        <Setter Property="Height" Value="40" />
-        <Setter Property="Padding" Value="18,0" />
-        <Setter Property="FontSize" Value="13" />
-        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Height" Value="42" />
+        <Setter Property="Padding" Value="20,0" />
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="FontWeight" Value="Bold" />
         <Setter Property="Cursor" Value="Hand" />
         <Setter Property="Template">
             <Setter.Value>
@@ -396,10 +419,10 @@
         <Setter Property="Foreground" Value="{StaticResource Gray700}" />
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="BorderThickness" Value="0" />
-        <Setter Property="Height" Value="38" />
+        <Setter Property="Height" Value="40" />
         <Setter Property="Padding" Value="14,0" />
-        <Setter Property="FontSize" Value="13" />
-        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="FontWeight" Value="Bold" />
         <Setter Property="Cursor" Value="Hand" />
         <Setter Property="Template">
             <Setter.Value>
