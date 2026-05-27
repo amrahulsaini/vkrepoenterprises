@@ -16,7 +16,9 @@ import json
 import shutil
 import subprocess
 import sys
+import tempfile
 import uuid
+import zipfile
 from pathlib import Path
 
 if sys.platform == "win32" and hasattr(sys.stdout, "reconfigure"):
@@ -38,7 +40,10 @@ BRANDING_PATH    = RESOURCES_DIR / "branding.json"
 PUBLISH_ROOT     = WPF_DIR / "publish"
 INSTALLER_OUTPUT = ROOT / "installer-output"
 GENERIC_LOGO_SRC = ROOT / "main-gallery" / "crmrs-fulllogo.webp"
-LOGO_STAGING     = Path("/tmp/crms-build-logos")  # pre-populated via pscp
+# pre-populated via pscp - uses the OS-correct temp dir (Windows: %TEMP%,
+# Linux/Mac: /tmp) so a hardcoded /tmp doesn't silently fall back to the
+# generic logo on Windows where /tmp resolves to C:\tmp.
+LOGO_STAGING     = Path(tempfile.gettempdir()) / "crms-build-logos"
 
 ISCC = r"C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
 ICON_SIZES = [(16,16),(20,20),(24,24),(32,32),(40,40),
@@ -133,6 +138,36 @@ def compile_installer(agency: dict, publish_dir: Path) -> Path:
     return INSTALLER_OUTPUT / f"{output_base}.exe"
 
 
+def package_portable_zip(agency: dict, publish_dir: Path) -> Path:
+    """Zip the self-contained publish folder for portable distribution.
+
+    Corporate Windows machines with AppLocker / WDAC block unsigned setup.exe
+    extraction to %TEMP% (error 4551). The publish folder bundles the whole
+    .NET runtime, so end users can just extract the zip anywhere and
+    double-click CRMRS.exe — no installer, no admin rights, no
+    SmartScreen warning."""
+    sname    = safe_name(agency["name"])
+    zip_name = f"{sname}_Portable.zip"
+    zip_path = INSTALLER_OUTPUT / zip_name
+    zip_path.unlink(missing_ok=True)
+    INSTALLER_OUTPUT.mkdir(parents=True, exist_ok=True)
+    print(f"  $ zipping {publish_dir.name} -> {zip_name}")
+    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as zf:
+        for root, _dirs, files in publish_dir.walk() if hasattr(publish_dir, "walk") else _walk_legacy(publish_dir):
+            for f in files:
+                full = Path(root) / f
+                rel  = full.relative_to(publish_dir.parent)
+                zf.write(full, rel)
+    return zip_path
+
+
+def _walk_legacy(p: Path):
+    """os.walk fallback for Python < 3.12 (Path.walk was added in 3.12)."""
+    import os
+    for r, d, f in os.walk(p):
+        yield Path(r), d, f
+
+
 def restore_generic_assets() -> None:
     if not GENERIC_LOGO_SRC.exists():
         return
@@ -159,7 +194,13 @@ def main() -> None:
             print(f"  [fail] installer missing: {setup_exe}")
             continue
         size_mb = setup_exe.stat().st_size / 1024 / 1024
-        print(f"  [ok]  installer: {setup_exe.name}  ({size_mb:.1f} MB)\n")
+        print(f"  [ok]  installer: {setup_exe.name}  ({size_mb:.1f} MB)")
+        # Portable zip — same publish folder, no installer needed at the
+        # end-user end. Distribute this when the user's PC blocks unsigned
+        # installers (AppLocker / WDAC / SmartScreen).
+        portable_zip = package_portable_zip(a, publish_dir)
+        zip_mb = portable_zip.stat().st_size / 1024 / 1024
+        print(f"  [ok]  portable: {portable_zip.name}  ({zip_mb:.1f} MB)\n")
         built.append((a, setup_exe))
 
     restore_generic_assets()

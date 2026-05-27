@@ -5,7 +5,11 @@
     <TargetFramework>net6.0-windows</TargetFramework>
     <UseWPF>true</UseWPF>
     <RootNamespace>VRASDesktopApp</RootNamespace>
-    <AssemblyName>VRASDesktopApp</AssemblyName>
+    <!-- Assembly / output file name. Renamed to CRMRS so the published EXE,
+         the Task Manager process name, and the manifest identity all read
+         "CRMRS". Internal CLR namespaces stay VRASDesktopApp (legacy) — those
+         are invisible to end users and renaming them would touch ~110 files. -->
+    <AssemblyName>CRMRS</AssemblyName>
     <PlatformTarget>x64</PlatformTarget>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>public\favicon.ico</ApplicationIcon>
