@@ -13,9 +13,13 @@ private val LightColors = lightColorScheme(
     onSecondary      = Color.White,
     secondaryContainer = Orange90,
     onSecondaryContainer = Orange10,
-    background       = OrangeGray99,
-    surface          = OrangeGray99,
-    surfaceVariant   = OrangeGray90,
+    // Pure white app background — detail / user / admin screens are content-heavy
+    // and the previous warm "OrangeGray99" tint made them look orange/peach.
+    background       = Color.White,
+    surface          = Color.White,
+    // Neutral very-light gray for chips, search bars, dividers — replaces the
+    // peachy OrangeGray90 that was bleeding into every detail card.
+    surfaceVariant   = Color(0xFFF2F2F2),
     onSurface        = OrangeGray10,
     onSurfaceVariant = OrangeGray20,
     error            = Red40,

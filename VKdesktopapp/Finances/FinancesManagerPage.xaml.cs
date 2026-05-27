@@ -574,36 +574,48 @@ public partial class FinancesManagerPage : Page
     }
 
     // ─────────────────────────────────────────────────────
-    //  Finance — Download All Records
+    //  Finance — Download All Records  (chunked export dialog)
     // ─────────────────────────────────────────────────────
 
     private async void FinanceDownloadAll_Click(object sender, RoutedEventArgs e)
     {
         if (dgFinances.SelectedItem is not FinanceListItem fi) return;
 
-        var dlg = new SaveFileDialog
-        {
-            Title      = $"Save records for {fi.Name}",
-            Filter     = "Excel Workbook (*.xlsx)|*.xlsx",
-            FileName   = $"{fi.Name}_AllRecords_{DateTime.Now:yyyyMMdd}.xlsx",
-            DefaultExt = "xlsx"
-        };
-        if (dlg.ShowDialog() != true) return;
-
         SetFinanceLoading(true);
+        long total;
         try
         {
-            var rows = await DesktopApiClient.ExportFinanceRecordsAsync(fi.Id);
-            ExportToExcel(rows, fi.Name, dlg.FileName);
-            MessageBox.Show($"Exported {rows.Count:N0} records to:\n{dlg.FileName}",
-                "Export Complete", MessageBoxButton.OK, MessageBoxImage.Information);
+            // One probe call to learn how many records this finance has, so the
+            // dialog can preview the file list before the user picks a chunk size.
+            var probe = await DesktopApiClient.ExportFinanceRecordsPageAsync(fi.Id, 0, 1);
+            total = probe.Total;
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Export failed: {ex.Message}", "Export Error",
-                MessageBoxButton.OK, MessageBoxImage.Error);
+            SetFinanceLoading(false);
+            MessageBox.Show($"Failed to count records: {ex.Message}",
+                "Export", MessageBoxButton.OK, MessageBoxImage.Error);
+            return;
         }
-        finally { SetFinanceLoading(false); }
+        SetFinanceLoading(false);
+
+        if (total <= 0)
+        {
+            MessageBox.Show("This finance has no records to export.",
+                "Nothing to export", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        var win = new VRASDesktopApp.Exports.ChunkedExportDialog
+        { Owner = Window.GetWindow(this) };
+        win.Configure(
+            title:      $"Download Records — {fi.Name}",
+            subtitle:   $"All vehicle records assigned to this finance ({total:N0} rows).",
+            baseName:   $"{fi.Name}_AllRecords",
+            sheetName:  fi.Name,
+            totalHint:  total,
+            pageFetcher: (page, size) => DesktopApiClient.ExportFinanceRecordsPageAsync(fi.Id, page, size));
+        win.ShowDialog();
     }
 
     // ─────────────────────────────────────────────────────
@@ -615,29 +627,39 @@ public partial class FinancesManagerPage : Page
         if (dgBranches.SelectedItem is not BranchSummaryItem bi) return;
         if (!int.TryParse(bi.BranchId, out int branchId)) return;
 
-        var dlg = new SaveFileDialog
-        {
-            Title      = $"Save records for {bi.BranchName}",
-            Filter     = "Excel Workbook (*.xlsx)|*.xlsx",
-            FileName   = $"{bi.BranchName}_Records_{DateTime.Now:yyyyMMdd}.xlsx",
-            DefaultExt = "xlsx"
-        };
-        if (dlg.ShowDialog() != true) return;
-
         SetBranchLoading(true);
+        long total;
         try
         {
-            var rows = await DesktopApiClient.ExportBranchRecordsAsync(branchId);
-            ExportToExcel(rows, bi.BranchName, dlg.FileName);
-            MessageBox.Show($"Exported {rows.Count:N0} records to:\n{dlg.FileName}",
-                "Export Complete", MessageBoxButton.OK, MessageBoxImage.Information);
+            var probe = await DesktopApiClient.ExportBranchRecordsPageAsync(branchId, 0, 1);
+            total = probe.Total;
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Export failed: {ex.Message}", "Export Error",
-                MessageBoxButton.OK, MessageBoxImage.Error);
+            SetBranchLoading(false);
+            MessageBox.Show($"Failed to count records: {ex.Message}",
+                "Export", MessageBoxButton.OK, MessageBoxImage.Error);
+            return;
         }
-        finally { SetBranchLoading(false); }
+        SetBranchLoading(false);
+
+        if (total <= 0)
+        {
+            MessageBox.Show("This branch has no records to export.",
+                "Nothing to export", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        var win = new VRASDesktopApp.Exports.ChunkedExportDialog
+        { Owner = Window.GetWindow(this) };
+        win.Configure(
+            title:      $"Download Records — {bi.BranchName}",
+            subtitle:   $"All vehicle records for this branch ({total:N0} rows).",
+            baseName:   $"{bi.BranchName}_Records",
+            sheetName:  bi.BranchName,
+            totalHint:  total,
+            pageFetcher: (page, size) => DesktopApiClient.ExportBranchRecordsPageAsync(branchId, page, size));
+        win.ShowDialog();
     }
 
     private async void BranchClearRecords_Click(object sender, RoutedEventArgs e)
