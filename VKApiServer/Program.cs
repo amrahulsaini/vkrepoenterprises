@@ -1315,6 +1315,40 @@ app.MapPut("/api/mgr/settings/subs-password", async (HttpContext ctx, MgrSetSubs
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
 
+// ── Common Control Panel password (one per agency, replaces per-user) ───────
+// Stored in app_settings under 'control_panel_password'. The mobile app's
+// Control Panel verify endpoint now checks this single value instead of each
+// user's old app_users.admin_pass column.
+app.MapGet("/api/mgr/settings/control-password", async (HttpContext ctx) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        await using var conn = new MySqlConnection(TenantContext.Conn);
+        await conn.OpenAsync();
+        await using var cmd = new MySqlCommand(
+            "SELECT `value` FROM app_settings WHERE `key`='control_panel_password' LIMIT 1", conn);
+        var val = await cmd.ExecuteScalarAsync();
+        return Results.Ok(new { password = val?.ToString() ?? "" });
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+app.MapPut("/api/mgr/settings/control-password", async (HttpContext ctx, MgrSetSubsPasswordDto dto) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        await using var conn = new MySqlConnection(TenantContext.Conn);
+        await conn.OpenAsync();
+        await MgrExec(
+            "INSERT INTO app_settings (`key`, `value`) VALUES ('control_panel_password', @v) ON DUPLICATE KEY UPDATE `value`=@v",
+            conn, 10, ("@v", dto.Password));
+        return Results.Ok();
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
 app.MapGet("/api/mgr/users/{id:long}/subscriptions", async (HttpContext ctx, long id) =>
 {
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();

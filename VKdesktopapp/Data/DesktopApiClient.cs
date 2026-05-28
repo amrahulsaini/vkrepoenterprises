@@ -313,6 +313,21 @@ internal static class DesktopApiClient
         resp.EnsureSuccessStatusCode();
     }
 
+    // Common agency-wide Control Panel password (replaces per-user admin_pass).
+    internal static async Task<string> GetControlPasswordAsync()
+    {
+        var resp = await Send(HttpMethod.Get, "api/mgr/settings/control-password");
+        resp.EnsureSuccessStatusCode();
+        var r = await resp.Content.ReadFromJsonAsync<SubsPasswordDto>(_json);
+        return r?.Password ?? "";
+    }
+
+    internal static async Task SetControlPasswordAsync(string password)
+    {
+        var resp = await Send(HttpMethod.Put, "api/mgr/settings/control-password", new { Password = password });
+        resp.EnsureSuccessStatusCode();
+    }
+
     // ── Agency self-profile (Server Settings → agency contact details) ──────
     // Reads/writes the signed-in agency's crm_master.agencies row. The mobile
     // app's Agency panel reads the same row, so edits sync to mobile too.

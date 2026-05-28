@@ -105,50 +105,114 @@ public partial class AppUsersManagerPage : Page
 
         pnlEmpty.Visibility   = Visibility.Collapsed;
         pnlProfile.Visibility = Visibility.Visible;
+        btnUserActions.Visibility = Visibility.Visible;
+        RefreshActionLabels(user);
 
         // Kick off all four secondary loads in parallel — previously these ran
         // sequentially which meant the user waited 4× the longest call before
         // KYC images even started loading.
+        // Control Panel password is now agency-wide (Agency Settings), no
+        // longer per-user — so it's not loaded here any more.
         await Task.WhenAll(
             LoadSubscriptionsAsync(user.Id),
             LoadFinanceRestrictionsAsync(user.Id),
-            LoadKycAsync(user.Id),
-            LoadAdminPassStatusAsync(user.Id));
+            LoadKycAsync(user.Id));
     }
 
-    // ── Control Panel password ──────────────────────────────────────────
-    private async Task LoadAdminPassStatusAsync(long userId)
+    // ── All-in-one Actions menu ─────────────────────────────────────────────
+    // Labels flip to reflect the user's current state so one menu both sets
+    // and clears each flag.
+    private void RefreshActionLabels(AppUserListItem u)
     {
-        txtAdminPass.Text = "";
-        txtAdminPassStatus.Text = "";
-        try
-        {
-            var isSet = await _repo.IsAdminPassSetAsync(userId);
-            txtAdminPassStatus.Text = isSet
-                ? "A password is currently set."
-                : "No password set — Control Panel locked for this admin.";
-        }
-        catch { /* silent */ }
+        miStopApp.Header   = u.IsStopped     ? "Start App"        : "Stop App";
+        miBlacklist.Header = u.IsBlacklisted ? "Remove Blacklist" : "Blacklist User";
+        miAdmin.Header     = u.IsAdmin        ? "Remove Admin"     : "Make Admin";
+        miActive.Header    = u.IsActive       ? "Deactivate User"  : "Activate User";
     }
 
-    private async void btnSaveAdminPass_Click(object sender, RoutedEventArgs e)
+    private void btnUserActions_Click(object sender, RoutedEventArgs e)
+    {
+        if (btnUserActions.ContextMenu is { } cm)
+        {
+            cm.PlacementTarget = btnUserActions;
+            cm.IsOpen = true;
+        }
+    }
+
+    private async void ActReset_Click(object sender, RoutedEventArgs e)
     {
         if (_selectedUser == null) return;
+        var c = MessageBox.Show($"Reset device for {_selectedUser.Name}?\nThey can log in from a new device.",
+            "Reset Device", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+        if (c != MessageBoxResult.Yes) return;
+        try { await _repo.ResetDeviceAsync(_selectedUser.Id); _selectedUser.DeviceId = null; txtDeviceId.Text = "(no device registered)"; }
+        catch (Exception ex) { MessageBox.Show(ex.Message, "Reset Device", MessageBoxButton.OK, MessageBoxImage.Error); }
+    }
+
+    private async void ActStop_Click(object sender, RoutedEventArgs e)
+    {
+        if (_selectedUser == null) return;
+        var stop = !_selectedUser.IsStopped;
         try
         {
-            await _repo.SetAdminPassAsync(_selectedUser.Id, txtAdminPass.Text.Trim());
-            await LoadAdminPassStatusAsync(_selectedUser.Id);
-            MessageBox.Show(
-                string.IsNullOrWhiteSpace(txtAdminPass.Text)
-                    ? "Control Panel password cleared."
-                    : "Control Panel password saved.",
-                "Control Panel Password",
-                MessageBoxButton.OK, MessageBoxImage.Information);
+            await _repo.SetStoppedAsync(_selectedUser.Id, stop);
+            _selectedUser.IsStopped = stop;
+            _suppressStopToggle = true; tglStopApp.IsChecked = !stop; lblStopStatus.Text = stop ? "Stopped" : "Running"; _suppressStopToggle = false;
+            RefreshActionLabels(_selectedUser);
         }
-        catch (Exception ex)
+        catch (Exception ex) { MessageBox.Show(ex.Message, "Stop App", MessageBoxButton.OK, MessageBoxImage.Error); }
+    }
+
+    private async void ActBlacklist_Click(object sender, RoutedEventArgs e)
+    {
+        if (_selectedUser == null) return;
+        var bl = !_selectedUser.IsBlacklisted;
+        try
         {
-            MessageBox.Show($"Failed to save password: {ex.Message}", "Control Panel Password",
-                MessageBoxButton.OK, MessageBoxImage.Error);
+            await _repo.SetBlacklistedAsync(_selectedUser.Id, bl);
+            _selectedUser.IsBlacklisted = bl;
+            if (bl) _selectedUser.IsStopped = true;   // blacklisting also stops
+            RefreshActionLabels(_selectedUser);
+        }
+        catch (Exception ex) { MessageBox.Show(ex.Message, "Blacklist", MessageBoxButton.OK, MessageBoxImage.Error); }
+    }
+
+    private async void ActAdmin_Click(object sender, RoutedEventArgs e)
+    {
+        if (_selectedUser == null) return;
+        var admin = !_selectedUser.IsAdmin;
+        try { await _repo.SetAdminAsync(_selectedUser.Id, admin); _selectedUser.IsAdmin = admin; RefreshActionLabels(_selectedUser); }
+        catch (Exception ex) { MessageBox.Show(ex.Message, "Admin", MessageBoxButton.OK, MessageBoxImage.Error); }
+    }
+
+    private async void ActActive_Click(object sender, RoutedEventArgs e)
+    {
+        if (_selectedUser == null) return;
+        var active = !_selectedUser.IsActive;
+        try { await _repo.SetActiveAsync(_selectedUser.Id, active); _selectedUser.IsActive = active; RefreshActionLabels(_selectedUser); }
+        catch (Exception ex) { MessageBox.Show(ex.Message, "Active", MessageBoxButton.OK, MessageBoxImage.Error); }
+    }
+
+    private async void ActDelete_Click(object sender, RoutedEventArgs e)
+    {
+        if (_selectedUser == null) return;
+        var c = MessageBox.Show(
+            $"Permanently delete {_selectedUser.Name} ({_selectedUser.Mobile})?\n\n" +
+            "This wipes their profile, subscriptions, KYC and device record, and frees the mobile/device to register elsewhere.\n\nThis cannot be undone.",
+            "Delete User", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+        if (c != MessageBoxResult.Yes) return;
+        try { await _repo.DeleteUserAsync(_selectedUser.Id); _selectedUser = null; pnlProfile.Visibility = Visibility.Collapsed; btnUserActions.Visibility = Visibility.Collapsed; pnlEmpty.Visibility = Visibility.Visible; txtRightTitle.Text = "Select a user"; await LoadUsersAsync(); }
+        catch (Exception ex) { MessageBox.Show(ex.Message, "Delete User", MessageBoxButton.OK, MessageBoxImage.Error); }
+    }
+
+    // Faster, smoother wheel scrolling on the profile panel — the default WPF
+    // step felt sluggish on the long detail panel.
+    private void pnlProfile_PreviewMouseWheel(object sender, System.Windows.Input.MouseWheelEventArgs e)
+    {
+        if (sender is ScrollViewer sv)
+        {
+            sv.ScrollToVerticalOffset(sv.VerticalOffset - e.Delta);   // 1:1 wheel delta
+            e.Handled = true;
         }
     }
 
