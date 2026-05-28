@@ -63,6 +63,10 @@ public partial class ServerSettingsWindow : Window
                 }
             }
 
+            // Common Control Panel password (agency-wide).
+            try { pwdControlPass.Password = await DesktopApiClient.GetControlPasswordAsync(); }
+            catch { /* silent */ }
+
             // Subscription-management password.
             try { pwdSubsPass.Password = await DesktopApiClient.GetSubsPasswordAsync(); }
             catch { /* silent — server may not have the table yet */ }
@@ -144,6 +148,14 @@ public partial class ServerSettingsWindow : Window
                 App.SignedAppUser.AgencyName = name;
                 App.SignedAppUser.Address    = txtAddress.Text.Trim();
                 App.SignedAppUser.Mobile1    = mobile1;
+            }
+
+            // Common Control Panel password (agency-wide, stored server-side).
+            var ctrlPass = pwdControlPass.Password.Trim();
+            if (!string.IsNullOrEmpty(ctrlPass))
+            {
+                try { await DesktopApiClient.SetControlPasswordAsync(ctrlPass); }
+                catch { /* non-fatal */ }
             }
 
             // Subscription-management password (stored server-side, per-tenant).

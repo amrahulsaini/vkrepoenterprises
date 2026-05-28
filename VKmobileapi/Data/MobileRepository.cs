@@ -620,15 +620,19 @@ public class MobileRepository
         return list;
     }
 
-    // ── Admin: verify the calling admin's Control Panel password ───────────
+    // ── Admin: verify the agency's common Control Panel password ───────────
+    // Now a single agency-wide password stored in app_settings under
+    // 'control_panel_password' (set from the desktop's Agency Settings),
+    // instead of the old per-user app_users.admin_pass. userId is kept in the
+    // signature for call-site compatibility but is no longer used.
     public async Task<bool> VerifyAdminPasswordAsync(long userId, string password)
     {
         if (string.IsNullOrWhiteSpace(password)) return false;
         await using var conn = DbFactory.Create();
         await conn.OpenAsync();
         await using var cmd = new MySqlCommand(
-            "SELECT admin_pass FROM app_users WHERE id=@id LIMIT 1", conn) { CommandTimeout = 5 };
-        cmd.Parameters.AddWithValue("@id", userId);
+            "SELECT `value` FROM app_settings WHERE `key`='control_panel_password' LIMIT 1",
+            conn) { CommandTimeout = 5 };
         var stored = await cmd.ExecuteScalarAsync() as string;
         return !string.IsNullOrWhiteSpace(stored) && stored == password;
     }

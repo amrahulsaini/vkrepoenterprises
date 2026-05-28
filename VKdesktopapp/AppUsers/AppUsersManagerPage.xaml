@@ -455,13 +455,39 @@
             <Border Grid.Column="2" Style="{StaticResource DashboardCard}" Padding="0">
                 <DockPanel LastChildFill="True" Name="rightPanel">
 
-                    <!-- Panel header -->
+                    <!-- Panel header with all-in-one Actions menu -->
                     <Border DockPanel.Dock="Top"
                             Background="White" BorderBrush="{StaticResource Gray100}"
-                            BorderThickness="0,0,0,1" CornerRadius="8,8,0,0" Padding="16,14">
-                        <TextBlock Name="txtRightTitle"
-                                   Text="Select a user" Style="{StaticResource Heading6}"
-                                   VerticalAlignment="Center" />
+                            BorderThickness="0,0,0,1" CornerRadius="8,8,0,0" Padding="16,12">
+                        <DockPanel LastChildFill="False">
+                            <TextBlock Name="txtRightTitle" DockPanel.Dock="Left"
+                                       Text="Select a user" Style="{StaticResource Heading6}"
+                                       VerticalAlignment="Center" />
+                            <!-- Actions button — every per-user function in one
+                                 menu so the admin doesn't have to scroll the panel. -->
+                            <Button Name="btnUserActions" DockPanel.Dock="Right"
+                                    Style="{StaticResource PrimaryButton}"
+                                    Height="32" Padding="14,0" FontSize="13"
+                                    Click="btnUserActions_Click"
+                                    Visibility="Collapsed">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="Actions" VerticalAlignment="Center" />
+                                    <TextBlock Text=" ▾" VerticalAlignment="Center" />
+                                </StackPanel>
+                                <Button.ContextMenu>
+                                    <ContextMenu Name="userActionsMenu">
+                                        <MenuItem Header="Reset Device"        Click="ActReset_Click" />
+                                        <MenuItem Name="miStopApp"   Header="Stop App"        Click="ActStop_Click" />
+                                        <MenuItem Name="miBlacklist" Header="Blacklist User"  Click="ActBlacklist_Click" />
+                                        <MenuItem Name="miAdmin"     Header="Make Admin"      Click="ActAdmin_Click" />
+                                        <MenuItem Name="miActive"    Header="Deactivate User" Click="ActActive_Click" />
+                                        <Separator />
+                                        <MenuItem Header="Delete User" Click="ActDelete_Click"
+                                                  Foreground="{StaticResource Red500}" />
+                                    </ContextMenu>
+                                </Button.ContextMenu>
+                            </Button>
+                        </DockPanel>
                     </Border>
 
                     <!-- Empty state -->
@@ -481,7 +507,8 @@
                     <ScrollViewer Name="pnlProfile"
                                   Visibility="Collapsed"
                                   VerticalScrollBarVisibility="Auto"
-                                  HorizontalScrollBarVisibility="Disabled">
+                                  HorizontalScrollBarVisibility="Disabled"
+                                  PreviewMouseWheel="pnlProfile_PreviewMouseWheel">
                         <StackPanel Margin="20,16,20,20" Name="profileStack">
 
                             <!-- Avatar + name -->
@@ -576,27 +603,17 @@
                                            FontFamily="Consolas" />
                             </StackPanel>
 
-                            <!-- Control Panel password (per-admin) -->
-                            <StackPanel Margin="0,0,0,16">
-                                <DockPanel Margin="0,0,0,6">
-                                    <Button DockPanel.Dock="Right" Content="Save Password"
-                                            Name="btnSaveAdminPass"
-                                            Style="{StaticResource PrimaryButton}"
-                                            Click="btnSaveAdminPass_Click" />
-                                    <TextBlock Text="Control Panel Password" FontSize="13" FontWeight="SemiBold"
-                                               Foreground="{StaticResource Gray700}"
-                                               VerticalAlignment="Center" />
-                                </DockPanel>
-                                <TextBlock Text="Password this admin types to open the mobile app Control Panel. Leave blank to clear."
-                                           FontSize="11" Foreground="{StaticResource Gray500}"
-                                           TextWrapping="Wrap" Margin="0,0,0,6" />
-                                <Border BorderBrush="{StaticResource Gray200}" BorderThickness="1" CornerRadius="6">
-                                    <TextBox Name="txtAdminPass" Padding="10,8" BorderThickness="0"
-                                             FontSize="13" Background="Transparent" />
-                                </Border>
-                                <TextBlock Name="txtAdminPassStatus" FontSize="11" Margin="0,4,0,0"
-                                           Foreground="{StaticResource Gray500}" />
-                            </StackPanel>
+                            <!-- Per-user Control Panel password removed — the
+                                 Control Panel password is now a single
+                                 agency-wide value, set in Agency Settings. -->
+                            <Border Margin="0,0,0,16" Padding="12"
+                                    Background="{StaticResource Gray50}"
+                                    BorderBrush="{StaticResource Gray200}" BorderThickness="1"
+                                    CornerRadius="6">
+                                <TextBlock TextWrapping="Wrap" FontSize="12"
+                                           Foreground="{StaticResource Gray600}"
+                                           Text="The Control Panel password is now one shared password for the whole agency. Set it in Agency Settings (gear icon)." />
+                            </Border>
 
                             <!-- KYC documents section -->
                             <StackPanel Margin="0,0,0,16">

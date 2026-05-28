@@ -26,15 +26,35 @@
                                Margin="0,6,0,0"
                                Style="{StaticResource Caption}" />
                 </StackPanel>
-                <!-- Search box is now larger with FontSize 20 and padded for easy tapping -->
-                <TextBox Name="txtSearch"
-                         Grid.Column="1"
-                         Style="{StaticResource MaterialTextBox}"
-                         VerticalAlignment="Center"
-                         FontSize="20"
-                         Padding="8,4"
-                         Height="42"
-                         TextChanged="txtSearch_TextChanged" />
+                <!-- Search box — large, bold, monospace, with a big placeholder -->
+                <Grid Grid.Column="1" VerticalAlignment="Center">
+                    <TextBox Name="txtSearch"
+                             Style="{StaticResource MaterialTextBox}"
+                             FontSize="22" FontWeight="Bold"
+                             FontFamily="Consolas"
+                             Padding="10,4"
+                             Height="48"
+                             VerticalContentAlignment="Center"
+                             TextChanged="txtSearch_TextChanged" />
+                    <TextBlock Name="lblSearchWatermark"
+                               Text="Enter RC / Chassis…"
+                               FontSize="18" FontWeight="SemiBold"
+                               Foreground="{StaticResource Gray400}"
+                               VerticalAlignment="Center"
+                               Margin="14,0,0,0"
+                               IsHitTestVisible="False">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Text, ElementName=txtSearch}" Value="">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </Grid>
                 <ComboBox Name="cmbMode"
                           Grid.Column="2"
                           Margin="12,0,0,0"
@@ -102,10 +122,28 @@
                               ClipboardCopyMode="IncludeHeader"
                               IsReadOnly="True"
                               Style="{StaticResource MaterialDataGrid}">
+                        <DataGrid.Resources>
+                            <!-- Big, bold, monospace cells for RC / Chassis so the
+                                 numbers are easy to read at a glance. -->
+                            <Style x:Key="BigBoldCell" TargetType="TextBlock">
+                                <Setter Property="FontSize" Value="16" />
+                                <Setter Property="FontWeight" Value="Bold" />
+                                <Setter Property="FontFamily" Value="Consolas" />
+                                <Setter Property="VerticalAlignment" Value="Center" />
+                            </Style>
+                            <Style x:Key="BoldCell" TargetType="TextBlock">
+                                <Setter Property="FontSize" Value="15" />
+                                <Setter Property="FontWeight" Value="Bold" />
+                                <Setter Property="VerticalAlignment" Value="Center" />
+                            </Style>
+                        </DataGrid.Resources>
                         <DataGrid.Columns>
-                            <DataGridTextColumn x:Name="colRc" Header="Vehicle no" Binding="{Binding VehicleNo}" Width="160" />
-                            <DataGridTextColumn x:Name="colChassis" Header="Chassis no" Binding="{Binding ChassisNo}" Width="160" Visibility="Collapsed" />
-                            <DataGridTextColumn x:Name="colModel" Header="Model" Binding="{Binding Model}" Width="*" />
+                            <DataGridTextColumn x:Name="colRc" Header="Vehicle no" Binding="{Binding VehicleNo}" Width="170"
+                                                ElementStyle="{StaticResource BigBoldCell}" />
+                            <DataGridTextColumn x:Name="colChassis" Header="Chassis no" Binding="{Binding ChassisNo}" Width="170" Visibility="Collapsed"
+                                                ElementStyle="{StaticResource BigBoldCell}" />
+                            <DataGridTextColumn x:Name="colModel" Header="Model" Binding="{Binding Model}" Width="*"
+                                                ElementStyle="{StaticResource BoldCell}" />
                         </DataGrid.Columns>
                     </DataGrid>
                     
@@ -195,10 +233,10 @@
                                 </Style>
                                 <!-- TextBox styled as a TextBlock so labels are drag-selectable too. -->
                                 <Style x:Key="LabelText" TargetType="TextBox">
-                                    <Setter Property="Foreground"      Value="{StaticResource Gray600}" />
+                                    <Setter Property="Foreground"      Value="{StaticResource Gray700}" />
                                     <Setter Property="VerticalAlignment" Value="Center" />
-                                    <Setter Property="FontSize"        Value="12" />
-                                    <Setter Property="FontWeight"      Value="SemiBold" />
+                                    <Setter Property="FontSize"        Value="13" />
+                                    <Setter Property="FontWeight"      Value="Bold" />
                                     <Setter Property="IsReadOnly"      Value="True" />
                                     <Setter Property="BorderThickness" Value="0" />
                                     <Setter Property="Padding"         Value="0" />
@@ -212,7 +250,7 @@
                                     <Setter Property="Foreground"      Value="{StaticResource Gray900}" />
                                     <Setter Property="VerticalAlignment" Value="Center" />
                                     <Setter Property="TextWrapping"    Value="Wrap" />
-                                    <Setter Property="FontSize"        Value="13" />
+                                    <Setter Property="FontSize"        Value="15" />
                                     <Setter Property="FontWeight"      Value="Bold" />
                                     <Setter Property="IsReadOnly"      Value="True" />
                                     <Setter Property="BorderThickness" Value="0" />
