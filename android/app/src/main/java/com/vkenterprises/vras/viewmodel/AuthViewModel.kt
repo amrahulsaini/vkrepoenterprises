@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import javax.inject.Inject
+import kotlin.coroutines.resume
 
 sealed class AuthUiState {
     object Idle : AuthUiState()
@@ -93,15 +94,31 @@ class AuthViewModel @Inject constructor(
 
     private var pollingJob: Job? = null
 
+    // Cached last-known device location, refreshed every ~10s by the polling
+    // loop and attached to every foreground heartbeat. Previously the
+    // foreground heartbeat sent null lat/lng, so an online agent's location
+    // only ever updated via the 15-min background LocationWorker — which Doze
+    // / battery optimisation frequently deferred, leaving agents who were
+    // clearly online with no pin on the admin's live map. Sending the cached
+    // fix here keeps every open-app agent's location fresh within seconds.
+    @Volatile private var lastLat: Double? = null
+    @Volatile private var lastLng: Double? = null
+
     fun clearBlockedReason() = viewModelScope.launch { prefs.clearBlockedReason() }
 
     fun startStatusPolling(userId: Long) {
         if (pollingJob?.isActive == true) return
         pollingJob = viewModelScope.launch(Dispatchers.IO) {
+            var tick = 0
             while (true) {
                 delay(2_000)
+                // Refresh the cached fix every 5th tick (~10s). lastLocation is
+                // the OS-cached position — cheap, no GPS spin-up — so this is
+                // negligible cost while keeping the pin current.
+                if (tick % 5 == 0) refreshCachedLocation()
+                tick++
                 runCatching {
-                    val resp = ApiClient.api.heartbeat(HeartbeatRequest(userId, null, null))
+                    val resp = ApiClient.api.heartbeat(HeartbeatRequest(userId, lastLat, lastLng))
                     if (resp.isSuccessful) {
                         val body = resp.body() ?: return@runCatching
                         when {
@@ -114,6 +131,30 @@ class AuthViewModel @Inject constructor(
                     }
                 }
             }
+        }
+    }
+
+    // Pulls the OS-cached location (any app's last fix) into lastLat/lastLng.
+    // No-ops silently if neither fine nor coarse permission is granted.
+    @android.annotation.SuppressLint("MissingPermission")
+    private suspend fun refreshCachedLocation() {
+        val fine = androidx.core.content.ContextCompat.checkSelfPermission(
+            context, android.Manifest.permission.ACCESS_FINE_LOCATION
+        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        val coarse = androidx.core.content.ContextCompat.checkSelfPermission(
+            context, android.Manifest.permission.ACCESS_COARSE_LOCATION
+        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        if (!fine && !coarse) return
+        runCatching {
+            val client = com.google.android.gms.location.LocationServices
+                .getFusedLocationProviderClient(context)
+            val loc = kotlinx.coroutines.suspendCancellableCoroutine<android.location.Location?> { cont ->
+                client.lastLocation
+                    .addOnSuccessListener { cont.resume(it) }
+                    .addOnFailureListener { cont.resume(null) }
+                    .addOnCanceledListener { cont.resume(null) }
+            }
+            if (loc != null) { lastLat = loc.latitude; lastLng = loc.longitude }
         }
     }
 
