@@ -45,17 +45,16 @@ public partial class HomePage : Page
         cmbAmPm.Items.Add("AM");
         cmbAmPm.Items.Add("PM");
 
-        // Default: 1 hour ago in IST (not midnight) — so the dashboard opens on
-        // the most recent hour of activity. Works even if the PC is on a
-        // different time zone.
+        // Default: the CURRENT time in IST, floored to the picker's 5-minute
+        // slot. With frequent heartbeats (every ~2s while the app is open),
+        // "seen since now" surfaces exactly the agents who are online right
+        // now. Works even if the PC clock is on a different time zone.
         var istZone = TimeZoneInfo.FindSystemTimeZoneById(
             OperatingSystem.IsWindows() ? "India Standard Time" : "Asia/Kolkata");
-        var istNow     = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, istZone);
-        var oneHourAgo = istNow.AddHours(-1);
-        // Floor to a 5-minute slot since that's the picker's granularity.
-        var minute5 = (oneHourAgo.Minute / 5) * 5;
-        var hour12  = oneHourAgo.Hour % 12; if (hour12 == 0) hour12 = 12;
-        var ampm    = oneHourAgo.Hour >= 12 ? "PM" : "AM";
+        var istNow  = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, istZone);
+        var minute5 = (istNow.Minute / 5) * 5;
+        var hour12  = istNow.Hour % 12; if (hour12 == 0) hour12 = 12;
+        var ampm    = istNow.Hour >= 12 ? "PM" : "AM";
         cmbHour.SelectedItem   = hour12.ToString("D2");
         cmbMinute.SelectedItem = minute5.ToString("D2");
         cmbAmPm.SelectedItem   = ampm;
