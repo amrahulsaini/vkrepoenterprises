@@ -275,8 +275,15 @@ public partial class AppUsersManagerPage : Page
 
     private async void btnKycDownload_Click(object sender, RoutedEventArgs e)
     {
+        if (sender is Button btn && btn.Tag is string docType)
+            await DownloadKycAsync(docType);
+    }
+
+    // Shared download — used by the per-tile Download button AND the preview
+    // window's Download button.
+    private async Task DownloadKycAsync(string docType)
+    {
         if (_selectedUser == null) return;
-        if (sender is not Button btn || btn.Tag is not string docType) return;
         var url = GetKycUrl(docType);
         if (string.IsNullOrWhiteSpace(url))
         {
@@ -308,23 +315,113 @@ public partial class AppUsersManagerPage : Page
 
     private async void btnKycDelete_Click(object sender, RoutedEventArgs e)
     {
-        if (_selectedUser == null) return;
-        if (sender is not Button btn || btn.Tag is not string docType) return;
+        if (sender is Button btn && btn.Tag is string docType)
+            await DeleteKycAsync(docType);
+    }
+
+    // Returns true if the doc was deleted (so the preview window can close).
+    private async Task<bool> DeleteKycAsync(string docType)
+    {
+        if (_selectedUser == null) return false;
         var confirm = MessageBox.Show(
             $"Delete {docType.Replace('_', ' ')} for {_selectedUser.Name}?\nThis cannot be undone.",
             "Delete KYC Document",
             MessageBoxButton.YesNo, MessageBoxImage.Warning);
-        if (confirm != MessageBoxResult.Yes) return;
+        if (confirm != MessageBoxResult.Yes) return false;
         try
         {
             await _repo.DeleteKycAsync(_selectedUser.Id, docType);
             await LoadKycAsync(_selectedUser.Id);
+            return true;
         }
         catch (Exception ex)
         {
             MessageBox.Show($"Failed to delete: {ex.Message}", "Delete KYC",
                 MessageBoxButton.OK, MessageBoxImage.Error);
+            return false;
         }
+    }
+
+    // Refresh the user list on demand.
+    private async void btnRefreshUsers_Click(object sender, RoutedEventArgs e)
+    {
+        btnRefreshUsers.IsEnabled = false;
+        try { await LoadUsersAsync(); }
+        finally { btnRefreshUsers.IsEnabled = true; }
+    }
+
+    // Click a KYC thumbnail → open a large preview with Download / Delete.
+    private void KycImage_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        if (sender is not Image img || img.Source == null) return;
+        if (img.Tag is not string docType) return;
+
+        var win = new Window
+        {
+            Title  = docType.Replace('_', ' ').ToUpperInvariant() +
+                     (_selectedUser != null ? $"  —  {_selectedUser.Name}" : ""),
+            Width  = 860,
+            Height = 680,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Owner  = Window.GetWindow(this),
+            Background = System.Windows.Media.Brushes.White
+        };
+
+        var grid = new Grid();
+        grid.RowDefinitions.Add(new RowDefinition());                                  // image fills
+        grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });       // button bar
+
+        // Zoomable-ish: Uniform stretch in a scroll viewer so big scans are readable.
+        var preview = new Image
+        {
+            Source  = img.Source,
+            Stretch = System.Windows.Media.Stretch.Uniform,
+            Margin  = new Thickness(16)
+        };
+        var sv = new ScrollViewer
+        {
+            Content = preview,
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
+            VerticalScrollBarVisibility   = ScrollBarVisibility.Auto
+        };
+        Grid.SetRow(sv, 0);
+        grid.Children.Add(sv);
+
+        var bar = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Margin = new Thickness(16, 8, 16, 16)
+        };
+        var dl = new Button
+        {
+            Content = "↓  Download", Height = 36, MinWidth = 120,
+            Margin = new Thickness(0, 0, 10, 0), Cursor = System.Windows.Input.Cursors.Hand,
+            Background = System.Windows.Media.Brushes.White,
+            BorderBrush = (System.Windows.Media.Brush)FindResource("Gray300"),
+            BorderThickness = new Thickness(1), FontSize = 14, Padding = new Thickness(14, 0, 14, 0)
+        };
+        dl.Click += async (_, __) => await DownloadKycAsync(docType);
+        var del = new Button
+        {
+            Content = "✕  Delete", Height = 36, MinWidth = 120,
+            Cursor = System.Windows.Input.Cursors.Hand,
+            Background = System.Windows.Media.Brushes.White,
+            BorderBrush = (System.Windows.Media.Brush)FindResource("Red500"),
+            Foreground  = (System.Windows.Media.Brush)FindResource("Red500"),
+            BorderThickness = new Thickness(1), FontSize = 14, Padding = new Thickness(14, 0, 14, 0)
+        };
+        del.Click += async (_, __) =>
+        {
+            if (await DeleteKycAsync(docType)) win.Close();
+        };
+        bar.Children.Add(dl);
+        bar.Children.Add(del);
+        Grid.SetRow(bar, 1);
+        grid.Children.Add(bar);
+
+        win.Content = grid;
+        win.ShowDialog();
     }
 
     private async Task LoadFinanceRestrictionsAsync(long userId)

@@ -275,16 +275,13 @@ def main() -> None:
             print(f"  [fail] installer missing: {setup_exe}")
             continue
         size_mb = setup_exe.stat().st_size / 1024 / 1024
-        print(f"  [ok]  installer: {setup_exe.name}  ({size_mb:.1f} MB)")
-        # Drop a Setup-Shortcut.bat alongside CRMRS.exe BEFORE zipping so the
-        # portable bundle is one-click installable too.
-        write_setup_shortcut_bat(publish_dir, a["name"])
-        # Portable zip — same publish folder, no installer needed at the
-        # end-user end. Distribute this when the user's PC blocks unsigned
-        # installers (AppLocker / WDAC / SmartScreen).
-        portable_zip = package_portable_zip(a, publish_dir)
-        zip_mb = portable_zip.stat().st_size / 1024 / 1024
-        print(f"  [ok]  portable: {portable_zip.name}  ({zip_mb:.1f} MB)\n")
+        print(f"  [ok]  installer: {setup_exe.name}  ({size_mb:.1f} MB)\n")
+        # Portable-zip generation intentionally disabled — we distribute the
+        # Setup.exe installer ONLY now. The installer puts the app in Program
+        # Files (which corporate AppLocker trusts), creates a Desktop + Start
+        # Menu shortcut, and best-effort pins to the taskbar. The portable zip
+        # caused Mark-of-the-Web / AppLocker blocks because it ran from
+        # Downloads. To re-enable, restore the package_portable_zip() call.
         built.append((a, setup_exe))
 
     restore_generic_assets()

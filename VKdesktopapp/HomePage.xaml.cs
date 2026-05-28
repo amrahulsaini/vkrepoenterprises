@@ -226,11 +226,24 @@ public partial class HomePage : Page
 
         // Live users
         _lastLiveUsers = live;
-        var pinned = live.Count(u => u.Lat.HasValue && u.Lng.HasValue);
+        // A user is "pinnable" only if they have a REAL location. The previous
+        // count used Lat.HasValue/Lng.HasValue, which is true even for a stored
+        // 0.0/0.0 (a user who's online but never sent GPS). The map's JS drops
+        // 0,0 (it's in the ocean off Africa), so the header said "4 pinned"
+        // while only 2 markers appeared. Count exactly what the map can plot.
+        var pinned = live.Count(HasRealLocation);
+        var noLoc  = live.Count - pinned;
         var period = since == "00:00" || string.IsNullOrWhiteSpace(since) ? "today" : $"since {since}";
-        lblLiveCount.Text = $"{live.Count} users seen {period}  •  {pinned} pinned";
+        lblLiveCount.Text = noLoc > 0
+            ? $"{live.Count} users seen {period}  •  {pinned} pinned  •  {noLoc} no location yet"
+            : $"{live.Count} users seen {period}  •  {pinned} pinned";
         PushMarkersToMap(live);
     }
+
+    // True only when the user has a usable GPS fix — non-null AND non-zero.
+    // 0,0 means "no location reported", not a real position.
+    private static bool HasRealLocation(DesktopApiClient.LiveUserDto u) =>
+        u.Lat.HasValue && u.Lng.HasValue && u.Lat.Value != 0 && u.Lng.Value != 0;
 
     private string GetSince24h()
     {
@@ -250,7 +263,7 @@ public partial class HomePage : Page
     {
         if (!_mapReady || mapView.CoreWebView2 == null) return;
         var payload = users
-            .Where(u => u.Lat.HasValue && u.Lng.HasValue)
+            .Where(HasRealLocation)
             .Select(u => new { name = u.Name, mobile = u.Mobile, lastSeen = u.LastSeen, lat = u.Lat!.Value, lng = u.Lng!.Value });
         var json = JsonSerializer.Serialize(payload);
         _ = mapView.CoreWebView2.ExecuteScriptAsync($"updateMarkers({json})");
