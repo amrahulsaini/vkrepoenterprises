@@ -138,7 +138,23 @@ public partial class MainWindow : Window
     {
         if (_recordsEditorWindow == null)
         {
-            _recordsEditorWindow = new RecordsEditorWindow();
+            // RecordsEditorWindow is the most Syncfusion-heavy screen in the
+            // app (SfSpreadsheet + ribbon + Windows11Light theme). On machines
+            // with Smart App Control / AppLocker / WDAC, those unsigned
+            // Syncfusion DLLs get blocked and constructing the window throws a
+            // FileLoadException (0x800711C7). Catch it here so the agency sees
+            // a clear "blocked by your IT policy" message instead of a raw
+            // crash dialog — and so the rest of the app stays usable.
+            try
+            {
+                _recordsEditorWindow = new RecordsEditorWindow();
+            }
+            catch (Exception ex) when (App.IsBlockedByPolicy(ex))
+            {
+                _recordsEditorWindow = null;
+                App.ShowPolicyBlockMessage(ex);
+                return;
+            }
             _recordsEditorWindow.Closed += (_, __) =>
             {
                 _recordsEditorWindow = null;

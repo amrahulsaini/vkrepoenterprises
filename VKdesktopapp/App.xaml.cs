@@ -107,10 +107,66 @@ public partial class App : Application
         try
         {
             LogException(e.Exception);
-            MessageBox.Show($"Unhandled UI exception:\n\n{e.Exception}", "Unhandled Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            // If this is a corporate security policy (AppLocker / WDAC / Smart
+            // App Control) blocking one of our unsigned DLLs, show a clear,
+            // non-scary explanation instead of a raw .NET stack trace that
+            // makes the app look crashed/broken to the agency's staff.
+            if (IsBlockedByPolicy(e.Exception))
+                ShowPolicyBlockMessage(e.Exception);
+            else
+                MessageBox.Show($"Unhandled UI exception:\n\n{e.Exception}", "Unhandled Error", MessageBoxButton.OK, MessageBoxImage.Error);
             e.Handled = true;
         }
         catch { }
+    }
+
+    // True when the exception (or any inner exception) is Windows refusing to
+    // load one of our binaries because of an Application Control policy.
+    //   HRESULT 0x800711C7 = ERROR_FILE_BLOCKED_BY_POLICY
+    // Surfaces as a FileLoadException whose message contains
+    // "Application Control policy has blocked this file".
+    public static bool IsBlockedByPolicy(Exception? ex)
+    {
+        const int ERROR_FILE_BLOCKED_BY_POLICY = unchecked((int)0x800711C7);
+        for (var cur = ex; cur != null; cur = cur.InnerException)
+        {
+            if (cur.HResult == ERROR_FILE_BLOCKED_BY_POLICY) return true;
+            var m = cur.Message ?? "";
+            if (m.Contains("Application Control policy", StringComparison.OrdinalIgnoreCase) ||
+                m.Contains("blocked this file", StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+        return false;
+    }
+
+    // Friendly, actionable message for a policy block. Names the blocked file
+    // so support can tell the agency's IT exactly what to whitelist.
+    public static void ShowPolicyBlockMessage(Exception? ex)
+    {
+        string blockedFile = "";
+        if (ex is System.IO.FileLoadException fle && !string.IsNullOrEmpty(fle.FileName))
+            blockedFile = fle.FileName;
+        else
+            for (var cur = ex; cur != null; cur = cur.InnerException)
+                if (cur is System.IO.FileLoadException f && !string.IsNullOrEmpty(f.FileName))
+                { blockedFile = f.FileName; break; }
+
+        var detail = string.IsNullOrEmpty(blockedFile) ? "" : $"\n\nBlocked component:\n{blockedFile.Split(',')[0]}";
+        MessageBox.Show(
+            "This computer's security policy (Smart App Control / AppLocker / " +
+            "WDAC) is blocking part of CRMRS from loading, so this screen can't open here." +
+            detail +
+            "\n\nHow to fix (any one):\n" +
+            "  1.  Install CRMRS using the Setup.exe installer (installs into " +
+            "Program Files, which corporate policy usually trusts) instead of " +
+            "running the portable folder from Downloads/Desktop.\n" +
+            "  2.  Ask your IT team to allow the CRMRS application / its folder.\n" +
+            "  3.  On Windows 11 Home: Settings → Privacy & security → " +
+            "Windows Security → App & browser control → Smart App Control → " +
+            "turn Off (or set to Evaluation).\n\n" +
+            "Contact support@crmrecoverysoftware.com if you need help.",
+            "Blocked by your system security policy",
+            MessageBoxButton.OK, MessageBoxImage.Warning);
     }
 
     private void CurrentDomain_UnhandledException(object? sender, UnhandledExceptionEventArgs e)
