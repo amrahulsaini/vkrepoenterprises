@@ -64,6 +64,19 @@ internal static class AgencyPortal
         return ist.ToString("yyyy-MM-dd HH:mm 'IST'");
     }
 
+    // Verifies the desktop's agt1 agency Bearer token and returns (id, slug).
+    // Used by the desktop self-profile endpoints, which live under
+    // /api/agency/* and are therefore skipped by the tenant-routing
+    // middleware — so we read and verify the token here ourselves.
+    private static (int id, string slug)? VerifyAgencyBearer(HttpContext ctx)
+    {
+        var auth = ctx.Request.Headers.Authorization.FirstOrDefault();
+        if (string.IsNullOrEmpty(auth) ||
+            !auth.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+            return null;
+        return AgencyToken.Verify(auth.Substring(7).Trim());
+    }
+
     public static void Map(WebApplication app, string mysqlHost, int mysqlPort)
     {
         // ── Connection strings to crm_master ─────────────────────────
@@ -531,6 +544,94 @@ internal static class AgencyPortal
                     .Where(e => e.ValueKind == System.Text.Json.JsonValueKind.String)
                     .Select(e => (e.GetString() ?? "").Trim())
                     .Where(s => !string.IsNullOrWhiteSpace(s))
+                    .Distinct()
+                    .Take(20)
+                    .ToList();
+                sets.Add("mobiles_extra=@mobiles_extra");
+                args.Add(("@mobiles_extra", lines.Count == 0 ? (object?)DBNull.Value : string.Join("\n", lines)));
+            }
+
+            if (sets.Count == 0) return Results.BadRequest(new { message = "No fields to update" });
+
+            await using var conn = new MySqlConnection(masterConn);
+            await conn.OpenAsync();
+            await using var cmd = new MySqlCommand($"UPDATE agencies SET {string.Join(", ", sets)} WHERE id=@id", conn);
+            foreach (var (k, v) in args) cmd.Parameters.AddWithValue(k, v ?? DBNull.Value);
+            int n = await cmd.ExecuteNonQueryAsync();
+            if (n == 0) return Results.NotFound(new { message = "Agency not found" });
+            return Results.Ok(new { ok = true });
+        });
+
+        // =============================================================
+        //   Desktop agency self-profile — read + update own agency
+        //   The WPF desktop signs in via /api/agency/desktop/login and gets
+        //   an agt1 Bearer token. These endpoints let that signed-in agency
+        //   read and edit its OWN crm_master.agencies row (name, address,
+        //   primary/secondary mobile, up to 20 extra contacts). Because the
+        //   mobile app's Agency panel reads the same crm_master.agencies row
+        //   (MobileRepository.GetAgencyInfoAsync), edits here flow through to
+        //   the mobile app automatically. Auth is the agency Bearer token —
+        //   NOT the manage-portal token — so the agency edits only itself.
+        // =============================================================
+        app.MapGet("/api/agency/desktop/profile", async (HttpContext ctx) =>
+        {
+            var who = VerifyAgencyBearer(ctx);
+            if (who is not { } me) return Results.Unauthorized();
+
+            await using var conn = new MySqlConnection(masterConn);
+            await conn.OpenAsync();
+            await using var cmd = new MySqlCommand(@"
+                SELECT name, COALESCE(address,''), mobile1,
+                       COALESCE(mobile2,''), COALESCE(mobiles_extra,''),
+                       COALESCE(logo_path,'')
+                  FROM agencies WHERE id=@id LIMIT 1", conn);
+            cmd.Parameters.AddWithValue("@id", me.id);
+            await using var rdr = await cmd.ExecuteReaderAsync();
+            if (!await rdr.ReadAsync()) return Results.NotFound(new { message = "Agency not found" });
+
+            var extras = rdr.GetString(4)
+                .Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(s => s.Trim()).Where(s => s.Length > 0).ToList();
+            return Results.Ok(new
+            {
+                id       = me.id,
+                name     = rdr.GetString(0),
+                address  = rdr.GetString(1),
+                mobile1  = rdr.GetString(2),
+                mobile2  = rdr.GetString(3),
+                extras,
+                logoPath = rdr.GetString(5),
+            });
+        });
+
+        app.MapPost("/api/agency/desktop/profile", async (HttpContext ctx, HttpRequest req) =>
+        {
+            var who = VerifyAgencyBearer(ctx);
+            if (who is not { } me) return Results.Unauthorized();
+
+            using var doc = await System.Text.Json.JsonDocument.ParseAsync(req.Body);
+            var root = doc.RootElement;
+            string? S(string k) => root.TryGetProperty(k, out var v) && v.ValueKind == System.Text.Json.JsonValueKind.String ? v.GetString() : null;
+
+            var sets = new List<string>();
+            var args = new List<(string, object?)> { ("@id", me.id) };
+            void Maybe(string col, string? val)
+            {
+                if (val == null) return;
+                sets.Add($"{col}=@{col}");
+                args.Add(($"@{col}", string.IsNullOrWhiteSpace(val) ? (object?)DBNull.Value : val.Trim()));
+            }
+            Maybe("name",    S("name"));
+            Maybe("address", S("address"));
+            Maybe("mobile1", S("mobile1"));
+            Maybe("mobile2", S("mobile2"));
+
+            if (root.TryGetProperty("extras", out var extrasEl) && extrasEl.ValueKind == System.Text.Json.JsonValueKind.Array)
+            {
+                var lines = extrasEl.EnumerateArray()
+                    .Where(e => e.ValueKind == System.Text.Json.JsonValueKind.String)
+                    .Select(e => (e.GetString() ?? "").Trim())
+                    .Where(s => s.Length > 0)
                     .Distinct()
                     .Take(20)
                     .ToList();
