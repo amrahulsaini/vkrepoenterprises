@@ -1587,8 +1587,8 @@ app.MapGet("/api/mgr/live-users", async (HttpContext ctx, string? since) =>
             const string sql = @"
                 SELECT u.id, u.name, u.mobile,
                        DATE_FORMAT(u.last_seen,'%H:%i • %d %b') AS seen,
-                       COALESCE(u.last_lat, (SELECT sl.lat FROM search_logs sl WHERE sl.user_id=u.id AND sl.lat IS NOT NULL ORDER BY sl.server_time DESC LIMIT 1)) AS lat,
-                       COALESCE(u.last_lng, (SELECT sl.lng FROM search_logs sl WHERE sl.user_id=u.id AND sl.lng IS NOT NULL ORDER BY sl.server_time DESC LIMIT 1)) AS lng
+                       COALESCE(NULLIF(u.last_lat,0), (SELECT sl.lat FROM search_logs sl WHERE sl.user_id=u.id AND sl.lat IS NOT NULL AND sl.lat<>0 ORDER BY sl.server_time DESC LIMIT 1)) AS lat,
+                       COALESCE(NULLIF(u.last_lng,0), (SELECT sl.lng FROM search_logs sl WHERE sl.user_id=u.id AND sl.lng IS NOT NULL AND sl.lng<>0 ORDER BY sl.server_time DESC LIMIT 1)) AS lng
                 FROM app_users u
                 WHERE u.last_seen >= CONCAT(CURDATE(), ' ', @since, ':00')
                 ORDER BY u.last_seen DESC LIMIT 500";
@@ -1600,8 +1600,8 @@ app.MapGet("/api/mgr/live-users", async (HttpContext ctx, string? since) =>
             const string sql = @"
                 SELECT u.id, u.name, u.mobile,
                        DATE_FORMAT(u.last_seen,'%H:%i • %d %b') AS seen,
-                       COALESCE(u.last_lat, (SELECT sl.lat FROM search_logs sl WHERE sl.user_id=u.id AND sl.lat IS NOT NULL ORDER BY sl.server_time DESC LIMIT 1)) AS lat,
-                       COALESCE(u.last_lng, (SELECT sl.lng FROM search_logs sl WHERE sl.user_id=u.id AND sl.lng IS NOT NULL ORDER BY sl.server_time DESC LIMIT 1)) AS lng
+                       COALESCE(NULLIF(u.last_lat,0), (SELECT sl.lat FROM search_logs sl WHERE sl.user_id=u.id AND sl.lat IS NOT NULL AND sl.lat<>0 ORDER BY sl.server_time DESC LIMIT 1)) AS lat,
+                       COALESCE(NULLIF(u.last_lng,0), (SELECT sl.lng FROM search_logs sl WHERE sl.user_id=u.id AND sl.lng IS NOT NULL AND sl.lng<>0 ORDER BY sl.server_time DESC LIMIT 1)) AS lng
                 FROM app_users u
                 WHERE u.last_seen >= NOW() - INTERVAL 15 MINUTE
                 ORDER BY u.last_seen DESC LIMIT 200";
