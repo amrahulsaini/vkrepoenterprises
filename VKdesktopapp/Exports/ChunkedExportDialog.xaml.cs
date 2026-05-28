@@ -177,9 +177,10 @@ public partial class ChunkedExportDialog : Window
             long start   = (long)i * chunkSize;
             long count   = Math.Min(chunkSize, _total - start);
             string idx   = (i + 1).ToString().PadLeft(pad, '0');
+            string ext   = VehicleExcelWriter.Extension;   // "csv" — opens in Excel, writes instantly
             string name  = fileCount == 1
-                ? $"{_baseName}_{ts}.xlsx"
-                : $"{_baseName}_part_{idx}_of_{fileCount}_{ts}.xlsx";
+                ? $"{_baseName}_{ts}.{ext}"
+                : $"{_baseName}_part_{idx}_of_{fileCount}_{ts}.{ext}";
             Chunks.Add(new ChunkRow
             {
                 Index    = i,
