@@ -313,6 +313,28 @@ internal static class DesktopApiClient
         resp.EnsureSuccessStatusCode();
     }
 
+    // ── Agency self-profile (Server Settings → agency contact details) ──────
+    // Reads/writes the signed-in agency's crm_master.agencies row. The mobile
+    // app's Agency panel reads the same row, so edits sync to mobile too.
+    internal record AgencyProfileDto(
+        int Id, string Name, string Address, string Mobile1, string Mobile2,
+        List<string> Extras, string LogoPath);
+
+    internal static async Task<AgencyProfileDto?> GetAgencyProfileAsync()
+    {
+        var resp = await Send(HttpMethod.Get, "api/agency/desktop/profile");
+        resp.EnsureSuccessStatusCode();
+        return await resp.Content.ReadFromJsonAsync<AgencyProfileDto>(_json);
+    }
+
+    internal static async Task SaveAgencyProfileAsync(
+        string name, string address, string mobile1, string mobile2, List<string> extras)
+    {
+        var resp = await Send(HttpMethod.Post, "api/agency/desktop/profile",
+            new { name, address, mobile1, mobile2, extras });
+        resp.EnsureSuccessStatusCode();
+    }
+
     internal static async Task<List<MgrSubDto>> GetSubscriptionsAsync(long userId)
     {
         var resp = await Send(HttpMethod.Get, $"api/mgr/users/{userId}/subscriptions");

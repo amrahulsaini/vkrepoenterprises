@@ -2,8 +2,8 @@
     x:Class="VRASDesktopApp.ServerSettingsWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    Title="Server Settings"
-    Width="500" Height="560"
+    Title="Agency Settings"
+    Width="560" Height="680"
     WindowStartupLocation="CenterOwner"
     Background="{StaticResource Gray50}"
     FontFamily="Roboto"
@@ -22,7 +22,7 @@
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="40" />
             </Grid.ColumnDefinitions>
-            <TextBlock Text="SERVER SETTINGS"
+            <TextBlock Text="AGENCY SETTINGS"
                        VerticalAlignment="Center" Margin="14,0,0,0"
                        FontSize="12" FontWeight="SemiBold"
                        Foreground="{StaticResource Orange500}"
@@ -52,20 +52,58 @@
         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto"
                       HorizontalScrollBarVisibility="Disabled">
             <StackPanel Margin="24,18,24,8">
-                <TextBlock Text="API Base URL" Style="{StaticResource FormHeading}" />
-                <TextBox Name="txtApiBaseUrl" Style="{StaticResource MaterialTextBox}" Margin="0,4,0,12" />
+                <TextBlock Text="These details show on the mobile app's Agency panel and update everywhere automatically."
+                           Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,0,0,14" />
 
-                <TextBlock Text="API Key" Style="{StaticResource FormHeading}" />
-                <TextBox Name="txtApiKey" Style="{StaticResource MaterialTextBox}" Margin="0,4,0,12" />
-
-                <TextBlock Text="Firm Name" Style="{StaticResource FormHeading}" />
-                <TextBox Name="txtFirmName" Style="{StaticResource MaterialTextBox}" Margin="0,4,0,12" />
-
-                <TextBlock Text="Contact Numbers" Style="{StaticResource FormHeading}" />
-                <TextBox Name="txtContactNos" Style="{StaticResource MaterialTextBox}" Margin="0,4,0,12" />
+                <TextBlock Text="Agency Name" Style="{StaticResource FormHeading}" />
+                <TextBox Name="txtAgencyName" Style="{StaticResource MaterialTextBox}" Margin="0,4,0,12" />
 
                 <TextBlock Text="Address" Style="{StaticResource FormHeading}" />
-                <TextBox Name="txtAddress" Style="{StaticResource MaterialTextBox}" Margin="0,4,0,12" />
+                <TextBox Name="txtAddress" Style="{StaticResource MaterialTextBox}"
+                         Margin="0,4,0,12" TextWrapping="Wrap" AcceptsReturn="True"
+                         MinHeight="60" VerticalContentAlignment="Top" />
+
+                <TextBlock Text="Primary Mobile Number" Style="{StaticResource FormHeading}" />
+                <TextBox Name="txtMobile1" Style="{StaticResource MaterialTextBox}" Margin="0,4,0,12" />
+
+                <TextBlock Text="Secondary Mobile Number" Style="{StaticResource FormHeading}" />
+                <TextBox Name="txtMobile2" Style="{StaticResource MaterialTextBox}" Margin="0,4,0,12" />
+
+                <!-- Extra contacts (up to 20) -->
+                <DockPanel Margin="0,4,0,6">
+                    <TextBlock Text="Additional Contact Numbers" Style="{StaticResource FormHeading}"
+                               VerticalAlignment="Center" DockPanel.Dock="Left" />
+                    <Button Name="btnAddExtra" DockPanel.Dock="Right"
+                            Content="+ Add number" Click="btnAddExtra_Click"
+                            Style="{StaticResource SecondaryButton}"
+                            Height="30" Padding="12,0" FontSize="12"
+                            HorizontalAlignment="Right" />
+                </DockPanel>
+                <TextBlock Name="txtExtraHint"
+                           Text="Up to 20 extra numbers. All appear on the mobile app's Agency panel."
+                           Style="{StaticResource Caption}" Margin="0,0,0,6" />
+                <ItemsControl Name="icExtras">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Grid Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBox Grid.Column="0" Text="{Binding Number, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                         Style="{StaticResource MaterialTextBox}" />
+                                <Button Grid.Column="1" Content="✕" Width="36" Height="40"
+                                        Margin="8,0,0,0" Click="btnRemoveExtra_Click"
+                                        Tag="{Binding}" Cursor="Hand"
+                                        Background="White"
+                                        BorderBrush="{StaticResource Red500}" BorderThickness="1"
+                                        Foreground="{StaticResource Red500}" FontSize="14" />
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <Separator Margin="0,12" />
 
                 <TextBlock Text="Subscription Management Password (SubsPass)" Style="{StaticResource FormHeading}" />
                 <PasswordBox Name="pwdSubsPass" Margin="0,4,0,12"
@@ -78,17 +116,26 @@
         <!-- ── Action buttons (always pinned, never scroll) ── -->
         <Border Grid.Row="2" Background="{StaticResource Gray50}"
                 BorderBrush="{StaticResource Gray200}" BorderThickness="0,1,0,0">
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="24,12,24,16">
-                <Button Name="btnCancel" Click="btnCancel_Click"
-                        Content="CANCEL"
+            <DockPanel Margin="24,12,24,16" LastChildFill="False">
+                <!-- Left: session actions -->
+                <Button Name="btnLogout" DockPanel.Dock="Left" Click="btnLogout_Click"
+                        Content="LOG OUT"
                         Style="{StaticResource SecondaryButton}"
-                        Margin="0,0,8,0"
-                        Width="120" />
-                <Button Name="btnSave" Click="btnSave_Click"
+                        Width="110" Margin="0,0,8,0" />
+                <Button Name="btnExitApp" DockPanel.Dock="Left" Click="btnExitApp_Click"
+                        Content="EXIT APP"
+                        Style="{StaticResource OutlineButton}"
+                        Width="110" />
+                <!-- Right: save / cancel -->
+                <Button Name="btnSave" DockPanel.Dock="Right" Click="btnSave_Click"
                         Content="SAVE"
                         Style="{StaticResource PrimaryButton}"
-                        Width="120" />
-            </StackPanel>
+                        Width="110" />
+                <Button Name="btnCancel" DockPanel.Dock="Right" Click="btnCancel_Click"
+                        Content="CANCEL"
+                        Style="{StaticResource SecondaryButton}"
+                        Width="110" Margin="0,0,8,0" />
+            </DockPanel>
         </Border>
     </Grid>
 </Window>
