@@ -45,6 +45,25 @@ internal static class AgencyPortal
     /// </summary>
     public static string MasterConn { get; private set; } = "";
 
+    // India Standard Time zone — resolved once. The server runs on UTC, so we
+    // convert build timestamps to IST for the manage portal's "built ..."
+    // labels (admins are in India and found the UTC times confusing).
+    private static readonly TimeZoneInfo IstZone = ResolveIst();
+    private static TimeZoneInfo ResolveIst()
+    {
+        foreach (var id in new[] { "Asia/Kolkata", "India Standard Time" })
+            try { return TimeZoneInfo.FindSystemTimeZoneById(id); } catch { }
+        return TimeZoneInfo.CreateCustomTimeZone("IST", TimeSpan.FromMinutes(330), "IST", "IST");
+    }
+
+    // "yyyy-MM-dd HH:mm IST" for a file's last-write time, or "" if missing.
+    private static string BuiltAtIst(string path)
+    {
+        if (!File.Exists(path)) return "";
+        var ist = TimeZoneInfo.ConvertTimeFromUtc(File.GetLastWriteTimeUtc(path), IstZone);
+        return ist.ToString("yyyy-MM-dd HH:mm 'IST'");
+    }
+
     public static void Map(WebApplication app, string mysqlHost, int mysqlPort)
     {
         // ── Connection strings to crm_master ─────────────────────────
@@ -583,16 +602,16 @@ internal static class AgencyPortal
                     packageId    = pkg,
                     apkExists    = File.Exists(apk),
                     apkSize      = File.Exists(apk) ? new FileInfo(apk).Length : 0L,
-                    apkBuiltAt   = File.Exists(apk) ? File.GetLastWriteTimeUtc(apk).ToString("yyyy-MM-dd HH:mm 'UTC'") : "",
+                    apkBuiltAt   = BuiltAtIst(apk),
                     aabExists    = File.Exists(aab),
                     aabSize      = File.Exists(aab) ? new FileInfo(aab).Length : 0L,
-                    aabBuiltAt   = File.Exists(aab) ? File.GetLastWriteTimeUtc(aab).ToString("yyyy-MM-dd HH:mm 'UTC'") : "",
+                    aabBuiltAt   = BuiltAtIst(aab),
                     setupExists  = File.Exists(setup),
                     setupSize    = File.Exists(setup) ? new FileInfo(setup).Length : 0L,
-                    setupBuiltAt = File.Exists(setup) ? File.GetLastWriteTimeUtc(setup).ToString("yyyy-MM-dd HH:mm 'UTC'") : "",
+                    setupBuiltAt = BuiltAtIst(setup),
                     portableExists  = File.Exists(portable),
                     portableSize    = File.Exists(portable) ? new FileInfo(portable).Length : 0L,
-                    portableBuiltAt = File.Exists(portable) ? File.GetLastWriteTimeUtc(portable).ToString("yyyy-MM-dd HH:mm 'UTC'") : "",
+                    portableBuiltAt = BuiltAtIst(portable),
                 });
             }
             return Results.Ok(new { apps = rows });
