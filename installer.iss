@@ -79,4 +79,35 @@ Name: "{commondesktop}\{#AppName}"; Filename: "{app}\{#AppExe}"
 Filename: "{app}\{#AppExe}"; Description: "Launch {#AppName} now"; Flags: nowait postinstall skipifsilent
 
 [Messages]
-FinishedLabel={#AppName} has been installed successfully.%n%nTo pin it to your taskbar: right-click the Desktop shortcut and choose "Pin to taskbar".
+FinishedLabel={#AppName} has been installed successfully.%n%nA Desktop shortcut was created and we tried to pin it to your taskbar. If you don't see it on the taskbar, right-click the Desktop shortcut and choose "Pin to taskbar".
+
+[Code]
+// Best-effort taskbar pin after install. Microsoft removed the public
+// "pin to taskbar" API on Windows 10 1903+ / Windows 11, so there is no
+// guaranteed programmatic way to pin. This tries the Shell verb (works on
+// some builds / when policy allows) and silently no-ops otherwise — the
+// Desktop + Start Menu shortcuts created in [Icons] are the reliable path.
+procedure CurStepChanged(CurStep: TSetupStep);
+var
+  ResultCode: Integer;
+  Exe, Ps: String;
+begin
+  if CurStep = ssPostInstall then
+  begin
+    Exe := ExpandConstant('{app}\{#AppExe}');
+    // PowerShell: locate the .exe via Shell.Application, find any verb whose
+    // (ampersand-stripped) name contains "taskbar", and invoke it.
+    Ps :=
+      '$ErrorActionPreference=''SilentlyContinue'';' +
+      '$exe=''' + Exe + ''';' +
+      '$sh=New-Object -ComObject Shell.Application;' +
+      '$dir=Split-Path $exe;' +
+      '$leaf=Split-Path $exe -Leaf;' +
+      '$item=$sh.Namespace($dir).ParseName($leaf);' +
+      '$v=$item.Verbs()|Where-Object {($_.Name -replace ''&'','''') -match ''taskbar''}|Select-Object -First 1;' +
+      'if($v){$v.DoIt()}';
+    Exec('powershell.exe',
+      '-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -Command "' + Ps + '"',
+      '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  end;
+end;

@@ -265,7 +265,21 @@
                     <Border DockPanel.Dock="Top"
                             Background="White" BorderBrush="{StaticResource Gray100}"
                             BorderThickness="0,0,0,1" CornerRadius="8,8,0,0" Padding="16,14">
-                        <TextBlock Text="Users" Style="{StaticResource Heading6}" VerticalAlignment="Center" />
+                        <DockPanel LastChildFill="False">
+                            <TextBlock Text="Users" Style="{StaticResource Heading6}"
+                                       VerticalAlignment="Center" DockPanel.Dock="Left" />
+                            <Button Name="btnRefreshUsers" DockPanel.Dock="Right"
+                                    Style="{StaticResource SecondaryButton}"
+                                    Height="32" Padding="14,0" FontSize="13"
+                                    Click="btnRefreshUsers_Click"
+                                    ToolTip="Reload the user list from the server">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#xE72C;" FontFamily="Segoe MDL2 Assets"
+                                               FontSize="13" VerticalAlignment="Center" Margin="0,0,7,0" />
+                                    <TextBlock Text="Refresh" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
+                        </DockPanel>
                     </Border>
 
                     <!-- Search -->
@@ -604,7 +618,10 @@
                                                            Stretch="UniformToFill"
                                                            HorizontalAlignment="Center"
                                                            VerticalAlignment="Center"
-                                                           Visibility="Collapsed" />
+                                                           Visibility="Collapsed"
+                                                           Cursor="Hand" Tag="aadhaar_front"
+                                                           ToolTip="Click to preview"
+                                                           MouseLeftButtonUp="KycImage_Click" />
                                                     <TextBlock Name="txtKycAadhaarFrontEmpty"
                                                                Text="Not uploaded" FontSize="10"
                                                                Foreground="{StaticResource Gray400}"
@@ -648,7 +665,10 @@
                                                            Stretch="UniformToFill"
                                                            HorizontalAlignment="Center"
                                                            VerticalAlignment="Center"
-                                                           Visibility="Collapsed" />
+                                                           Visibility="Collapsed"
+                                                           Cursor="Hand" Tag="aadhaar_back"
+                                                           ToolTip="Click to preview"
+                                                           MouseLeftButtonUp="KycImage_Click" />
                                                     <TextBlock Name="txtKycAadhaarBackEmpty"
                                                                Text="Not uploaded" FontSize="10"
                                                                Foreground="{StaticResource Gray400}"
@@ -692,7 +712,10 @@
                                                            Stretch="UniformToFill"
                                                            HorizontalAlignment="Center"
                                                            VerticalAlignment="Center"
-                                                           Visibility="Collapsed" />
+                                                           Visibility="Collapsed"
+                                                           Cursor="Hand" Tag="pan_front"
+                                                           ToolTip="Click to preview"
+                                                           MouseLeftButtonUp="KycImage_Click" />
                                                     <TextBlock Name="txtKycPanFrontEmpty"
                                                                Text="Not uploaded" FontSize="10"
                                                                Foreground="{StaticResource Gray400}"
