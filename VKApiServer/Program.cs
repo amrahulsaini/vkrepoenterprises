@@ -2535,6 +2535,76 @@ app.MapGet("/api/mgr/export/branch-records.xlsx", async (HttpContext ctx) =>
     { ctx.Response.StatusCode = 500; await ctx.Response.WriteAsync(ex.Message); }
 });
 
+// ── Generic streamed-xlsx exports (Reports records + Search Logs) ───────────
+// Same instant server-stream approach as Finances: build the .xlsx from a
+// DataReader and stream it. Reports' vehicle/RC/chassis exports get
+// offset/limit (so the parts dialog works); Search Logs streams the whole
+// filtered set.
+async Task StreamSelectXlsx(HttpContext ctx, string sql, string sheetName,
+                            string downloadName, string[] headers, params (string, object)[] ps)
+{
+    var bc = ctx.Features.Get<Microsoft.AspNetCore.Http.Features.IHttpBodyControlFeature>();
+    if (bc != null) bc.AllowSynchronousIO = true;
+    await using var conn = new MySqlConnection(TenantContext.Conn);
+    await conn.OpenAsync();
+    await using var cmd = new MySqlCommand(sql, conn) { CommandTimeout = 600 };
+    foreach (var (n, v) in ps) cmd.Parameters.AddWithValue(n, v);
+    ctx.Response.ContentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+    ctx.Response.Headers["Content-Disposition"] = $"attachment; filename=\"{downloadName}\"";
+    await using var rdr = await cmd.ExecuteReaderAsync(ctx.RequestAborted);
+    await XlsxStream.WriteAsync(ctx.Response.Body, sheetName, headers, rdr, headers.Length, ctx.RequestAborted);
+}
+
+// Vehicle / RC / Chassis global record exports (offset/limit = one part).
+foreach (var spec in new[]
+{
+    ("vehicle-records", "Vehicle Records", $"SELECT {XLSX_FIELDS} FROM vehicle_records vr INNER JOIN branches b ON b.id=vr.branch_id LEFT JOIN finances f ON f.id=b.finance_id ORDER BY vr.id"),
+    ("rc-records",      "RC Records",      $"SELECT ri.rc_number AS vehicle_no, vr.chassis_no, vr.engine_no, ri.model, vr.agreement_no, vr.customer_name, vr.customer_contact, vr.customer_address, COALESCE(f.name,'') AS financer, COALESCE(b.name,'') AS branch_name, vr.bucket, vr.gv, vr.od, vr.seasoning, vr.tbr_flag, vr.sec9_available, vr.sec17_available, vr.level1, vr.level1_contact, vr.level2, vr.level2_contact, vr.level3, vr.level3_contact, vr.level4, vr.level4_contact, vr.sender_mail1, vr.sender_mail2, vr.executive_name, vr.pos, vr.toss, vr.remark, vr.region, vr.area, COALESCE(DATE_FORMAT(vr.created_at,'%d %b %Y'),'') AS created_on FROM rc_info ri INNER JOIN vehicle_records vr ON vr.id=ri.vehicle_record_id INNER JOIN branches b ON b.id=vr.branch_id LEFT JOIN finances f ON f.id=b.finance_id ORDER BY ri.id"),
+    ("chassis-records", "Chassis Records", $"SELECT vr.vehicle_no, ci.chassis_number AS chassis_no, vr.engine_no, ci.model, vr.agreement_no, vr.customer_name, vr.customer_contact, vr.customer_address, COALESCE(f.name,'') AS financer, COALESCE(b.name,'') AS branch_name, vr.bucket, vr.gv, vr.od, vr.seasoning, vr.tbr_flag, vr.sec9_available, vr.sec17_available, vr.level1, vr.level1_contact, vr.level2, vr.level2_contact, vr.level3, vr.level3_contact, vr.level4, vr.level4_contact, vr.sender_mail1, vr.sender_mail2, vr.executive_name, vr.pos, vr.toss, vr.remark, vr.region, vr.area, COALESCE(DATE_FORMAT(vr.created_at,'%d %b %Y'),'') AS created_on FROM chassis_info ci INNER JOIN vehicle_records vr ON vr.id=ci.vehicle_record_id INNER JOIN branches b ON b.id=vr.branch_id LEFT JOIN finances f ON f.id=b.finance_id ORDER BY ci.id"),
+})
+{
+    var (route, sheet, baseSql) = spec;
+    app.MapGet($"/api/mgr/export/{route}.xlsx", async (HttpContext ctx) =>
+    {
+        if (!MgrAuthFlexible(ctx, desktopLoginPassword)) { ctx.Response.StatusCode = 401; return; }
+        long offset = long.TryParse(ctx.Request.Query["offset"], out var o) ? o : 0;
+        int  limit  = int.TryParse(ctx.Request.Query["limit"], out var l) ? l : 0;
+        var name = (ctx.Request.Query["name"].FirstOrDefault() ?? sheet.Replace(' ', '_'));
+        var sql  = baseSql + (limit > 0 ? $" LIMIT {limit} OFFSET {offset}" : "");
+        try { await StreamSelectXlsx(ctx, sql, sheet, $"{name}.xlsx", XLSX_HEADERS); }
+        catch (Exception ex) when (!ctx.Response.HasStarted)
+        { ctx.Response.StatusCode = 500; await ctx.Response.WriteAsync(ex.Message); }
+    });
+}
+
+// Search Logs — streamed xlsx with the same filters as /api/mgr/search-logs.
+string[] SEARCHLOG_HEADERS = { "User", "Mobile", "Vehicle No", "Chassis No", "Model", "Search Location", "User Address", "Device Time", "Server Time" };
+app.MapGet("/api/mgr/search-logs.xlsx", async (HttpContext ctx) =>
+{
+    if (!MgrAuthFlexible(ctx, desktopLoginPassword)) { ctx.Response.StatusCode = 401; return; }
+    var fromDate = ctx.Request.Query["fromDate"].FirstOrDefault();
+    var toDate   = ctx.Request.Query["toDate"].FirstOrDefault();
+    var userIdQ  = ctx.Request.Query["userId"].FirstOrDefault();
+    var q        = ctx.Request.Query["q"].FirstOrDefault();
+
+    var where = new System.Text.StringBuilder(" WHERE 1=1");
+    var ps    = new List<(string, object)>();
+    if (!string.IsNullOrWhiteSpace(fromDate)) { where.Append(" AND DATE(sl.server_time) >= @fd"); ps.Add(("@fd", fromDate)); }
+    if (!string.IsNullOrWhiteSpace(toDate))   { where.Append(" AND DATE(sl.server_time) <= @td"); ps.Add(("@td", toDate)); }
+    if (long.TryParse(userIdQ, out var uid))  { where.Append(" AND sl.user_id = @uid"); ps.Add(("@uid", uid)); }
+    if (!string.IsNullOrWhiteSpace(q))        { where.Append(" AND (sl.vehicle_no LIKE @q OR sl.chassis_no LIKE @q)"); ps.Add(("@q", $"%{q.Trim()}%")); }
+
+    var sql = @"SELECT u.name, u.mobile, sl.vehicle_no, sl.chassis_no, sl.model,
+                       COALESCE(sl.address,''), COALESCE(u.address,''),
+                       DATE_FORMAT(sl.device_time,'%Y-%m-%d %H:%i:%s'),
+                       DATE_FORMAT(sl.server_time,'%Y-%m-%d %H:%i:%s')
+                FROM search_logs sl JOIN app_users u ON u.id = sl.user_id"
+              + where + " ORDER BY sl.server_time DESC";
+    try { await StreamSelectXlsx(ctx, sql, "Search Logs", $"SearchLogs_{DateTime.Now:yyyyMMdd}.xlsx", SEARCHLOG_HEADERS, ps.ToArray()); }
+    catch (Exception ex) when (!ctx.Response.HasStarted)
+    { ctx.Response.StatusCode = 500; await ctx.Response.WriteAsync(ex.Message); }
+});
+
 // ── Forward /api/mobile/* → VKmobileapi on port 5001 ─────────────────────────
 app.Map("/api/mobile/{**rest}", async (HttpContext ctx) =>
 {

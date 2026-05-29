@@ -105,44 +105,37 @@ public partial class ReportsPage : Page
 
     private async Task LaunchChunkedExportAsync(string report)
     {
-        // Map report → (pretty name, page fetcher).
-        Func<int, int, Task<DesktopApiClient.ExportPage<DesktopApiClient.ExportVehicleRow>>> fetcher;
-        string sheet;
-        string baseName;
+        // Map report → (record-type route, pretty name). The count is probed
+        // via the existing paginated endpoint; the actual download uses the
+        // INSTANT server-streamed .xlsx (one part per file), same as Finances.
+        Func<int, int, Task<DesktopApiClient.ExportPage<DesktopApiClient.ExportVehicleRow>>> probe;
+        string recordType, sheet, baseName;
         switch (report)
         {
             case "VehicleRecords":
-                fetcher  = DesktopApiClient.ExportVehicleRecordsPageAsync;
-                sheet    = "VehicleRecords";
-                baseName = "Vehicle_Records";
+                probe = DesktopApiClient.ExportVehicleRecordsPageAsync;
+                recordType = "vehicle-records"; sheet = "Vehicle Records"; baseName = "Vehicle_Records";
                 break;
             case "RcRecords":
-                fetcher  = DesktopApiClient.ExportRcRecordsPageAsync;
-                sheet    = "RC Records";
-                baseName = "RC_Records";
+                probe = DesktopApiClient.ExportRcRecordsPageAsync;
+                recordType = "rc-records"; sheet = "RC Records"; baseName = "RC_Records";
                 break;
             case "ChassisRecords":
-                fetcher  = DesktopApiClient.ExportChassisRecordsPageAsync;
-                sheet    = "Chassis Records";
-                baseName = "Chassis_Records";
+                probe = DesktopApiClient.ExportChassisRecordsPageAsync;
+                recordType = "chassis-records"; sheet = "Chassis Records"; baseName = "Chassis_Records";
                 break;
             default:
                 return;
         }
 
         long total;
-        try
-        {
-            var probe = await fetcher(0, 1);
-            total = probe.Total;
-        }
+        try { total = (await probe(0, 1)).Total; }
         catch (Exception ex)
         {
             MessageBox.Show($"Failed to count records: {ex.Message}",
                 "Export", MessageBoxButton.OK, MessageBoxImage.Error);
             return;
         }
-
         if (total <= 0)
         {
             MessageBox.Show("No records to export.",
@@ -154,11 +147,12 @@ public partial class ReportsPage : Page
         { Owner = Window.GetWindow(this) };
         win.Configure(
             title:      $"Download {sheet}",
-            subtitle:   $"{total:N0} rows in total — pick the records-per-file size, then download.",
+            subtitle:   $"{total:N0} rows — pick records-per-file, then download each part.",
             baseName:   baseName,
             sheetName:  sheet,
             totalHint:  total,
-            pageFetcher: fetcher);
+            chunkDownloader: (offset, count, path, prog) =>
+                DesktopApiClient.DownloadRecordsXlsxChunkAsync(recordType, baseName, offset, count, path, prog));
         win.ShowDialog();
     }
 

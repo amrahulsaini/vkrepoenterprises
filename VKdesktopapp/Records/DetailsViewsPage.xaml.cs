@@ -206,65 +206,28 @@ public partial class DetailsViewsPage : Page
         };
         if (dlg.ShowDialog() != true) return;
 
-        List<DesktopApiClient.SearchLogRow> rows;
-        try   { rows = await FetchExportRowsAsync() ?? new(); }
-        catch (Exception ex)
-        {
-            SetExportBusy(false);
-            MessageBox.Show($"Failed to fetch export data:\n{ex.Message}", "Export Error",
-                MessageBoxButton.OK, MessageBoxImage.Error);
-            return;
-        }
+        // Instant: the SERVER builds the .xlsx from the filtered query and
+        // streams it straight to the file — no fetch-all-JSON-then-write.
+        var from = dpFrom.SelectedDate?.ToString("yyyy-MM-dd");
+        var to   = dpTo.SelectedDate?.ToString("yyyy-MM-dd");
+        var q    = txtSearch.Text.Trim();
 
-        if (rows.Count == 0)
-        {
-            SetExportBusy(false);
-            MessageBox.Show("No records match the current filters.", "Export",
-                MessageBoxButton.OK, MessageBoxImage.Information);
-            return;
-        }
-
-        SetExportBusy(true, $"Writing {rows.Count:N0} records to Excel…");
+        SetExportBusy(true, "Downloading Excel…");
         try
         {
-            var filePath = dlg.FileName;
-            await Task.Run(() =>
-            {
-                using var engine = new ExcelEngine();
-                var app = engine.Excel;
-                app.DefaultVersion = ExcelVersion.Xlsx;
-                var wb = app.Workbooks.Create(1);
-                var ws = wb.Worksheets[0];
-                ws.Name = "Search Logs";
-
-                for (int c = 0; c < ExportHeaders.Length; c++)
-                {
-                    ws[1, c + 1].Text                     = ExportHeaders[c];
-                    ws[1, c + 1].CellStyle.Font.Bold      = true;
-                    ws[1, c + 1].CellStyle.Color          = System.Drawing.Color.FromArgb(0x1A, 0x1A, 0x1A);
-                    ws[1, c + 1].CellStyle.Font.RGBColor  = System.Drawing.Color.White;
-                }
-
-                int rowIdx = 2;
-                foreach (var r in rows)
-                {
-                    FillRow(r, (col, val) => ws[rowIdx, col + 1].Text = val);
-                    rowIdx++;
-                }
-
-                ws.UsedRange.AutofitColumns();
-                wb.SaveAs(filePath);
-            });
-
-            MessageBox.Show($"Exported {rows.Count:N0} records successfully.", "Export Complete",
-                MessageBoxButton.OK, MessageBoxImage.Information);
+            await DesktopApiClient.DownloadSearchLogsXlsxAsync(from, to, _pickedUserId, q, dlg.FileName);
+            SetExportBusy(false);
+            var open = MessageBox.Show($"Saved to:\n{dlg.FileName}\n\nOpen it now?",
+                "Export complete", MessageBoxButton.YesNo, MessageBoxImage.Information);
+            if (open == MessageBoxResult.Yes)
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(dlg.FileName) { UseShellExecute = true });
         }
         catch (Exception ex)
         {
+            SetExportBusy(false);
             MessageBox.Show($"Excel export failed:\n{ex.Message}", "Export Error",
                 MessageBoxButton.OK, MessageBoxImage.Error);
         }
-        finally { SetExportBusy(false); }
     }
 
     // ── Export PDF ───────────────────────────────────────────────────────────
