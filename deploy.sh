@@ -38,7 +38,14 @@ cd "$VKAPI_SRC"
 dotnet publish -c Release -o "$VKAPI_OUT" --nologo -v quiet
 # Copy env file
 cp /home/vkapp/db/.env.local "$VKAPI_OUT/db/.env.local" 2>/dev/null || true
-info "VKApiServer built → $VKAPI_OUT"
+# `dotnet publish` does NOT copy the public/ folder (its files aren't marked
+# as build content), so VKApiServer's /public/ static route (served from
+# $VKAPI_OUT/public) goes stale — e.g. map_live.html wouldn't update. Force
+# a fresh sync every deploy so server-hosted assets (live map, leaflet) match
+# the repo.
+mkdir -p "$VKAPI_OUT/public"
+cp -r "$VKAPI_SRC/public/." "$VKAPI_OUT/public/"
+info "VKApiServer built → $VKAPI_OUT (public/ synced)"
 
 # Agency logo uploads — vkapi writes compressed agency logos here and serves
 # them as static files at /agency-uploads/... . The directory MUST exist and be
