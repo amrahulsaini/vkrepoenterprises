@@ -39,9 +39,13 @@
             </Grid.ColumnDefinitions>
             <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="14,0,0,0"
                         IsHitTestVisible="False">
-                <Image Source="public/favicon.ico" Width="20" Height="20" Margin="0,0,8,0"
+                <!-- Top brand = CRMRS (fixed). crmrs-logo.png is NEVER overwritten
+                     by the per-agency build (only favicon.ico / crmrs-fulllogo.png
+                     are), so this always shows the CRMRS mark regardless of agency.
+                     The agency's own logo appears below, in the menu panel. -->
+                <Image Source="public/crmrs-logo.png" Width="20" Height="20" Margin="0,0,8,0"
                        VerticalAlignment="Center" RenderOptions.BitmapScalingMode="HighQuality" />
-                <TextBlock Text="CRMS" FontSize="14" FontWeight="Bold"
+                <TextBlock Text="CRMRS" FontSize="14" FontWeight="Bold"
                            Foreground="{StaticResource Orange500}" Margin="0,0,6,0"
                            VerticalAlignment="Center" />
                 <TextBlock Text="RECOVERY SOFTWARE" FontSize="11" FontWeight="SemiBold"
