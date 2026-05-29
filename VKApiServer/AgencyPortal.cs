@@ -130,6 +130,34 @@ internal static class AgencyPortal
         await cmd.ExecuteNonQueryAsync();
     }
 
+    // Lazily ensures the central client-error log table (crm_master). The desktop
+    // app POSTs every failure here so all "unsuccessful things" are captured
+    // centrally; the manage portal reads them. CREATE IF NOT EXISTS keeps it
+    // migration-free.
+    private static async Task EnsureClientErrorTable(MySqlConnection conn)
+    {
+        await using var cmd = new MySqlCommand(@"
+            CREATE TABLE IF NOT EXISTS client_error_log (
+                id           BIGINT AUTO_INCREMENT PRIMARY KEY,
+                agency_id    INT NULL,
+                agency_slug  VARCHAR(64)   NOT NULL,
+                agency_name  VARCHAR(255)  NULL,
+                operation    VARCHAR(120)  NOT NULL,
+                summary      VARCHAR(500)  NULL,
+                detail       MEDIUMTEXT    NULL,
+                context      VARCHAR(1000) NULL,
+                app_version  VARCHAR(40)   NULL,
+                machine_name VARCHAR(120)  NULL,
+                os           VARCHAR(160)  NULL,
+                source_ip    VARCHAR(64)   NULL,
+                client_time  VARCHAR(40)   NULL,
+                created_at   DATETIME      NOT NULL DEFAULT UTC_TIMESTAMP(),
+                INDEX idx_slug_id (agency_slug, id),
+                INDEX idx_created (created_at)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4", conn);
+        await cmd.ExecuteNonQueryAsync();
+    }
+
     // Reads { body } (or { message }) from a JSON request body → trimmed string.
     private static async Task<string> ReadBody(HttpRequest req)
     {
@@ -831,6 +859,97 @@ internal static class AgencyPortal
             }
             await AddMessage(conn, id, "agency", body);
             return Results.Ok(new { ok = true });
+        });
+
+        // ── Client error log ────────────────────────────────────────────────
+        // Desktop app reports ANY failure here (upload errors, crashes, etc.) so
+        // every unsuccessful operation is captured centrally and visible in the
+        // manage portal — no more guessing at vague "error sending request".
+        app.MapPost("/api/agency/desktop/client-error", async (HttpContext ctx, HttpRequest req) =>
+        {
+            var who = VerifyAgencyBearer(ctx);
+            if (who is not { } me) return Results.Unauthorized();
+
+            static string Cap(string s, int n) => s.Length > n ? s[..n] : s;
+            string op, summary, detail, context, appVer, machine, os, clientTime;
+            try
+            {
+                using var doc = await System.Text.Json.JsonDocument.ParseAsync(req.Body);
+                var r = doc.RootElement;
+                string S(string k) => r.TryGetProperty(k, out var v) && v.ValueKind == System.Text.Json.JsonValueKind.String ? (v.GetString() ?? "").Trim() : "";
+                op         = Cap(S("operation"),   120);
+                summary    = Cap(S("summary"),     500);
+                detail     = Cap(S("detail"),    60000);
+                context    = Cap(S("context"),    1000);
+                appVer     = Cap(S("appVersion"),   40);
+                machine    = Cap(S("machineName"), 120);
+                os         = Cap(S("os"),          160);
+                clientTime = Cap(S("occurredAt"),   40);
+            }
+            catch { return Results.BadRequest(new { message = "Bad report" }); }
+            if (op.Length == 0) op = "unknown";
+
+            await using var conn = new MySqlConnection(masterConn);
+            await conn.OpenAsync();
+            await EnsureClientErrorTable(conn);
+
+            string agencyName = me.slug;
+            await using (var nc = new MySqlCommand("SELECT name FROM agencies WHERE id=@id LIMIT 1", conn))
+            {
+                nc.Parameters.AddWithValue("@id", me.id);
+                if (await nc.ExecuteScalarAsync() is string n) agencyName = n;
+            }
+            string ip = ctx.Connection.RemoteIpAddress?.ToString() ?? "";
+
+            await using var ins = new MySqlCommand(@"
+                INSERT INTO client_error_log
+                  (agency_id, agency_slug, agency_name, operation, summary, detail, context,
+                   app_version, machine_name, os, source_ip, client_time)
+                VALUES (@aid,@slug,@aname,@op,@sum,@det,@ctx,@ver,@mac,@os,@ip,@ct)", conn);
+            ins.Parameters.AddWithValue("@aid",  me.id);
+            ins.Parameters.AddWithValue("@slug", me.slug);
+            ins.Parameters.AddWithValue("@aname", agencyName);
+            ins.Parameters.AddWithValue("@op",  op);
+            ins.Parameters.AddWithValue("@sum", summary.Length    == 0 ? (object)DBNull.Value : summary);
+            ins.Parameters.AddWithValue("@det", detail.Length     == 0 ? (object)DBNull.Value : detail);
+            ins.Parameters.AddWithValue("@ctx", context.Length    == 0 ? (object)DBNull.Value : context);
+            ins.Parameters.AddWithValue("@ver", appVer.Length     == 0 ? (object)DBNull.Value : appVer);
+            ins.Parameters.AddWithValue("@mac", machine.Length    == 0 ? (object)DBNull.Value : machine);
+            ins.Parameters.AddWithValue("@os",  os.Length         == 0 ? (object)DBNull.Value : os);
+            ins.Parameters.AddWithValue("@ip",  ip.Length         == 0 ? (object)DBNull.Value : ip);
+            ins.Parameters.AddWithValue("@ct",  clientTime.Length == 0 ? (object)DBNull.Value : clientTime);
+            await ins.ExecuteNonQueryAsync();
+            return Results.Ok(new { ok = true, id = ins.LastInsertedId });
+        });
+
+        // Manage: list recent client errors (all agencies, or one via ?agency=slug).
+        app.MapGet("/api/agency/manage/client-errors", async (HttpContext ctx, string? agency, int? limit) =>
+        {
+            if (!await IsManageTokenValid(masterConn, ctx))
+                return Results.Json(new { message = "Unauthorized" }, statusCode: 401);
+            await using var conn = new MySqlConnection(masterConn);
+            await conn.OpenAsync();
+            await EnsureClientErrorTable(conn);
+            int lim = Math.Clamp(limit ?? 300, 1, 1000);
+            bool one = !string.IsNullOrWhiteSpace(agency);
+            await using var cmd = new MySqlCommand(
+                "SELECT id, agency_slug, agency_name, operation, summary, detail, context, " +
+                "app_version, machine_name, os, source_ip, " +
+                "DATE_FORMAT(created_at,'%Y-%m-%d %H:%i:%s') AS created_at " +
+                "FROM client_error_log " + (one ? "WHERE agency_slug=@s " : "") +
+                "ORDER BY id DESC LIMIT " + lim, conn);
+            if (one) cmd.Parameters.AddWithValue("@s", agency);
+            var list = new List<object>();
+            await using var rdr = await cmd.ExecuteReaderAsync();
+            string G(int i) => rdr.IsDBNull(i) ? "" : rdr.GetString(i);
+            while (await rdr.ReadAsync())
+                list.Add(new {
+                    id = rdr.GetInt64(0), agencySlug = G(1), agencyName = G(2),
+                    operation = G(3), summary = G(4), detail = G(5), context = G(6),
+                    appVersion = G(7), machineName = G(8), os = G(9), sourceIp = G(10),
+                    createdAt = G(11)
+                });
+            return Results.Ok(list);
         });
 
         // Manage: list ALL agencies' tickets (headers only — modal loads thread).

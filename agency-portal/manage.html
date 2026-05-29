@@ -83,6 +83,7 @@
                     <button data-page="agencies" class="active">Agencies</button>
                     <button data-page="apps">Android Apps</button>
                     <button data-page="tickets">Support Tickets <span id="tickets-badge" class="hidden" style="background:#dc2626;color:#fff;border-radius:9px;padding:1px 7px;font-size:11px;font-weight:700;margin-left:4px;">0</span></button>
+                    <button data-page="errors">Errors <span id="errors-badge" class="hidden" style="background:#dc2626;color:#fff;border-radius:9px;padding:1px 7px;font-size:11px;font-weight:700;margin-left:4px;">0</span></button>
                 </div>
 
                 <!-- ── Page: Agencies ────────────────────────────────── -->
@@ -152,6 +153,24 @@
                     </div>
                     <div class="card table-card">
                         <div id="tickets-area">
+                            <div class="empty"><div class="ico">⏳</div><div>Loading…</div></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ── Page: Errors (client failure log) ─────────────── -->
+                <div id="page-errors" class="hidden">
+                    <div class="flex items-center justify-between mb-3">
+                        <div>
+                            <h2 style="margin:0; font-size:22px; font-weight:800; letter-spacing:-.02em;">Client error log</h2>
+                            <p class="text-muted" style="margin:4px 0 0; font-size:14px;">
+                                Every failure the desktop apps hit (upload errors, crashes, etc.) is reported here automatically — newest first. Click a row for the full detail.
+                            </p>
+                        </div>
+                        <button class="btn btn-outline btn-sm" id="errors-refresh-btn">↻ Refresh</button>
+                    </div>
+                    <div class="card table-card">
+                        <div id="errors-area">
                             <div class="empty"><div class="ico">⏳</div><div>Loading…</div></div>
                         </div>
                     </div>
@@ -263,5 +282,6 @@
 <script src="js/manage.js?v=6"></script>
 <script src="js/apps.js?v=4"></script>
 <script src="js/tickets.js?v=2"></script>
+<script src="js/errors.js?v=1"></script>
 </body>
 </html>
