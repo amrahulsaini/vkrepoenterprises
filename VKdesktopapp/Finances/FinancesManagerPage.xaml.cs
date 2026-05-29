@@ -157,6 +157,13 @@ public partial class FinancesManagerPage : Page
     private void SetBranchItemsSource(List<BranchSummaryItem>? list)
     {
         _allCurrentBranches = list ?? new List<BranchSummaryItem>();
+        // Clear any column-header sort the user applied earlier — otherwise the
+        // DataGrid re-sorts the freshly loaded rows by that stale column and the
+        // server's intended order is lost. For "View All" the server returns
+        // newest-uploaded first; for a single finance it returns most-records
+        // first. We want exactly that order shown.
+        dgBranches.Items.SortDescriptions.Clear();
+        foreach (var c in dgBranches.Columns) c.SortDirection = null;
         ApplyBranchFilter();
     }
 
