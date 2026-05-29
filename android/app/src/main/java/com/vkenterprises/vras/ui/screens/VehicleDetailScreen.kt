@@ -375,8 +375,10 @@ fun VehicleDetailScreen(
                             color = if (showSelection) Color(0xFF4A148C) else Color(0xFF6A1B9A),
                             modifier = Modifier.weight(1f)
                         ) {
-                            val currentItem = item
-                            val currentBr   = branchRecord ?: currentItem
+                            // Copy the SELECTED finance's record (vehicle + branch
+                            // fields), so what you copy matches what's on screen.
+                            val currentBr   = branchRecord ?: item
+                            val currentItem = currentBr
                             if (showSelection) {
                                 val fields = buildAdminFields(currentItem, currentBr)
                                 val text = fields
@@ -461,7 +463,15 @@ fun VehicleDetailScreen(
             ) {
                 if (isAdmin) {
                     AdminDetailView(
-                        item              = item,
+                        // Show the SELECTED finance's full record for BOTH the
+                        // vehicle fields and the branch fields. The same RC can
+                        // exist under several finances with DIFFERENT data (one
+                        // finance's copy may have bucket/region/level filled, the
+                        // next blank), so the vehicle fields must follow the chosen
+                        // finance — not the first-tapped (deduped) copy. This makes
+                        // the Android detail match the desktop, which opens the
+                        // selected row in full.
+                        item              = branchRecord ?: item,
                         branchRecord      = branchRecord ?: item,
                         uniqueBranches    = uniqueBranches,
                         selectedBranchIdx = selectedBranchIdx,
