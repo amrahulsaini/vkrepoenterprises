@@ -575,6 +575,9 @@ app.MapGet("/api/mgr/finances", async (HttpContext ctx) =>
     {
         await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
+        // Ordered by most-recently-uploaded first (the finance whose branches
+        // got the latest upload floats to the top), then name as a tiebreaker.
+        // Finances that have never been uploaded (NULL last_upload) sort last.
         const string sql = @"
             SELECT f.id, f.name,
                    COALESCE(b.branch_cnt, 0) AS branch_count,
@@ -583,13 +586,14 @@ app.MapGet("/api/mgr/finances", async (HttpContext ctx) =>
             LEFT JOIN (
                 SELECT br.finance_id,
                        COUNT(DISTINCT br.id) AS branch_cnt,
-                       COUNT(vr.id)          AS record_cnt
+                       COUNT(vr.id)          AS record_cnt,
+                       MAX(br.uploaded_at)   AS last_upload
                 FROM   branches br
                 LEFT JOIN vehicle_records vr ON vr.branch_id = br.id
                 WHERE  br.is_active = 1
                 GROUP BY br.finance_id
             ) b ON b.finance_id = f.id
-            ORDER BY f.name";
+            ORDER BY b.last_upload IS NULL, b.last_upload DESC, f.name";
         await using var cmd = new MySqlCommand(sql, conn) { CommandTimeout = 60 };
         var list = new List<object>();
         await using var rdr = await cmd.ExecuteReaderAsync();
