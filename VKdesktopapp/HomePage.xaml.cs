@@ -87,8 +87,24 @@ public partial class HomePage : Page
                 .CreateAsync(null, userDataFolder);
             await mapView.EnsureCoreWebView2Async(env);
 
-            // Map HTML is hosted on the server so fixes don't require an installer update.
-            _mapUrl = $"{App.ApiBaseUrl.TrimEnd('/')}/public/map_live.html";
+            // Belt-and-braces: also clear the WebView2 HTTP cache on startup so a
+            // previously-cached map_live.html can never shadow a freshly deployed
+            // one. (The ?v= cache-buster below already forces a fresh fetch, but
+            // clearing the disk cache guarantees no stale leaflet assets linger.)
+            try
+            {
+                await mapView.CoreWebView2.Profile.ClearBrowsingDataAsync(
+                    Microsoft.Web.WebView2.Core.CoreWebView2BrowsingDataKinds.DiskCache);
+            }
+            catch { /* older runtimes may not expose Profile — the ?v= buster still works */ }
+
+            // Map HTML is hosted on the server so fixes don't require an installer
+            // update — BUT WebView2 caches it aggressively. A per-launch cache-buster
+            // query makes every launch fetch the latest deployed map (the file is
+            // ~9 KB, so re-fetching is negligible). Without this, an updated map
+            // (satellite/fullscreen/PFP) would stay invisible behind the cached copy.
+            var bust = DateTime.UtcNow.Ticks;
+            _mapUrl = $"{App.ApiBaseUrl.TrimEnd('/')}/public/map_live.html?v={bust}";
 
             mapView.CoreWebView2.NavigationCompleted += (_, ev) =>
             {
