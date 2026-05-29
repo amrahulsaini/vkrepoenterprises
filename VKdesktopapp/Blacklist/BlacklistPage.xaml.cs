@@ -41,6 +41,13 @@ public partial class BlacklistPage : Page
         await LoadUsersAsync();
     }
 
+    private async void btnRefresh_Click(object sender, RoutedEventArgs e)
+    {
+        btnRefresh.IsEnabled = false;
+        try { await LoadUsersAsync(); }
+        finally { btnRefresh.IsEnabled = true; }
+    }
+
     private async Task LoadUsersAsync()
     {
         loadingBar.Visibility = Visibility.Visible;

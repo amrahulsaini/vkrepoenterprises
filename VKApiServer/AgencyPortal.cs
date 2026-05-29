@@ -64,6 +64,33 @@ internal static class AgencyPortal
         return ist.ToString("yyyy-MM-dd HH:mm 'IST'");
     }
 
+    // Reads support_tickets rows into JSON-friendly objects. The first 8
+    // columns are fixed; when withAgency is true two more (name, slug) follow.
+    private static async Task<List<object>> ReadTickets(MySqlCommand cmd, bool withAgency = false)
+    {
+        var list = new List<object>();
+        await using var rdr = await cmd.ExecuteReaderAsync();
+        const string baseUrl = "https://api.crmrecoverysoftware.com";
+        while (await rdr.ReadAsync())
+        {
+            var shot = rdr.GetString(3);
+            list.Add(new
+            {
+                id            = rdr.GetInt32(0),
+                subject       = rdr.GetString(1),
+                message       = rdr.GetString(2),
+                screenshotUrl = string.IsNullOrEmpty(shot) ? "" : $"{baseUrl}/agency-uploads/{shot}",
+                status        = rdr.GetString(4),
+                adminReply    = rdr.GetString(5),
+                createdAt     = rdr.GetString(6),
+                updatedAt     = rdr.GetString(7),
+                agencyName    = withAgency ? rdr.GetString(8) : "",
+                agencySlug    = withAgency ? rdr.GetString(9) : "",
+            });
+        }
+        return list;
+    }
+
     // Verifies the desktop's agt1 agency Bearer token and returns (id, slug).
     // Used by the desktop self-profile endpoints, which live under
     // /api/agency/* and are therefore skipped by the tenant-routing
@@ -648,6 +675,133 @@ internal static class AgencyPortal
             int n = await cmd.ExecuteNonQueryAsync();
             if (n == 0) return Results.NotFound(new { message = "Agency not found" });
             return Results.Ok(new { ok = true });
+        });
+
+        // =============================================================
+        //   Support tickets
+        //   Agency (desktop, agt1 Bearer) raises a ticket with an optional
+        //   screenshot; the super-admin sees every agency's tickets in
+        //   manage.html (manage token) and replies / sets status. The agency
+        //   then sees the reply + status back in the app. All rows live in
+        //   crm_master.support_tickets. Screenshots are saved under
+        //   /opt/vkapi/agency-uploads/tickets and served via /agency-uploads/.
+        // =============================================================
+        const string TICKETS_DIR = "/opt/vkapi/agency-uploads/tickets";
+        try { Directory.CreateDirectory(TICKETS_DIR); } catch { }
+
+        // Agency raises a ticket. Body: { subject, message, screenshotBase64? }
+        app.MapPost("/api/agency/desktop/tickets", async (HttpContext ctx, HttpRequest req) =>
+        {
+            var who = VerifyAgencyBearer(ctx);
+            if (who is not { } me) return Results.Unauthorized();
+
+            using var doc = await System.Text.Json.JsonDocument.ParseAsync(req.Body);
+            var root = doc.RootElement;
+            string S(string k) => root.TryGetProperty(k, out var v) && v.ValueKind == System.Text.Json.JsonValueKind.String ? (v.GetString() ?? "") : "";
+            var subject = S("subject").Trim();
+            var message = S("message").Trim();
+            var shotB64 = S("screenshotBase64").Trim();
+            if (subject.Length < 2 || message.Length < 2)
+                return Results.BadRequest(new { message = "Please enter a subject and a description." });
+
+            // Look up the agency name for display in manage.
+            string agencyName = me.slug;
+            await using var conn = new MySqlConnection(masterConn);
+            await conn.OpenAsync();
+            await using (var nc = new MySqlCommand("SELECT name FROM agencies WHERE id=@id LIMIT 1", conn))
+            {
+                nc.Parameters.AddWithValue("@id", me.id);
+                if (await nc.ExecuteScalarAsync() is string n) agencyName = n;
+            }
+
+            // Optional screenshot — decode base64 → file under tickets dir.
+            string? shotPath = null;
+            if (!string.IsNullOrEmpty(shotB64))
+            {
+                try
+                {
+                    var raw = shotB64.Contains(',') ? shotB64[(shotB64.IndexOf(',') + 1)..] : shotB64;
+                    var bytes = Convert.FromBase64String(raw);
+                    if (bytes.Length > 0 && bytes.Length <= 8 * 1024 * 1024) // cap 8 MB
+                    {
+                        var fn = $"ticket_{me.slug}_{DateTime.UtcNow:yyyyMMddHHmmssfff}.jpg";
+                        await File.WriteAllBytesAsync(Path.Combine(TICKETS_DIR, fn), bytes);
+                        shotPath = "tickets/" + fn;
+                    }
+                }
+                catch { /* bad image → save the ticket without it */ }
+            }
+
+            await using var ins = new MySqlCommand(@"
+                INSERT INTO support_tickets (agency_id, agency_slug, agency_name, subject, message, screenshot_path, status)
+                VALUES (@aid, @slug, @aname, @subj, @msg, @shot, 'open')", conn);
+            ins.Parameters.AddWithValue("@aid", me.id);
+            ins.Parameters.AddWithValue("@slug", me.slug);
+            ins.Parameters.AddWithValue("@aname", agencyName);
+            ins.Parameters.AddWithValue("@subj", subject);
+            ins.Parameters.AddWithValue("@msg", message);
+            ins.Parameters.AddWithValue("@shot", (object?)shotPath ?? DBNull.Value);
+            await ins.ExecuteNonQueryAsync();
+            return Results.Ok(new { ok = true, id = ins.LastInsertedId });
+        });
+
+        // Agency lists its own tickets (+ admin replies / status).
+        app.MapGet("/api/agency/desktop/tickets", async (HttpContext ctx) =>
+        {
+            var who = VerifyAgencyBearer(ctx);
+            if (who is not { } me) return Results.Unauthorized();
+
+            await using var conn = new MySqlConnection(masterConn);
+            await conn.OpenAsync();
+            await using var cmd = new MySqlCommand(@"
+                SELECT id, subject, message, COALESCE(screenshot_path,''), status,
+                       COALESCE(admin_reply,''),
+                       DATE_FORMAT(created_at,'%d %b %Y %H:%i'),
+                       DATE_FORMAT(updated_at,'%d %b %Y %H:%i')
+                  FROM support_tickets WHERE agency_slug=@s ORDER BY id DESC LIMIT 200", conn);
+            cmd.Parameters.AddWithValue("@s", me.slug);
+            return Results.Ok(await ReadTickets(cmd));
+        });
+
+        // Manage: list ALL agencies' tickets.
+        app.MapGet("/api/agency/manage/tickets", async (HttpContext ctx) =>
+        {
+            if (!await IsManageTokenValid(masterConn, ctx))
+                return Results.Json(new { message = "Unauthorized" }, statusCode: 401);
+            await using var conn = new MySqlConnection(masterConn);
+            await conn.OpenAsync();
+            await using var cmd = new MySqlCommand(@"
+                SELECT id, subject, message, COALESCE(screenshot_path,''), status,
+                       COALESCE(admin_reply,''),
+                       DATE_FORMAT(created_at,'%d %b %Y %H:%i'),
+                       DATE_FORMAT(updated_at,'%d %b %Y %H:%i'),
+                       agency_name, agency_slug
+                  FROM support_tickets ORDER BY (status='resolved'), id DESC LIMIT 500", conn);
+            return Results.Ok(await ReadTickets(cmd, withAgency: true));
+        });
+
+        // Manage: reply / set status on a ticket. Body { status?, adminReply? }
+        app.MapPost("/api/agency/manage/tickets/{id:int}", async (HttpContext ctx, int id, HttpRequest req) =>
+        {
+            if (!await IsManageTokenValid(masterConn, ctx))
+                return Results.Json(new { message = "Unauthorized" }, statusCode: 401);
+            using var doc = await System.Text.Json.JsonDocument.ParseAsync(req.Body);
+            var root = doc.RootElement;
+            string? Str(string k) => root.TryGetProperty(k, out var v) && v.ValueKind == System.Text.Json.JsonValueKind.String ? v.GetString() : null;
+
+            var sets = new List<string>(); var args = new List<(string, object?)> { ("@id", id) };
+            var status = Str("status");
+            if (status is "open" or "in_progress" or "resolved") { sets.Add("status=@st"); args.Add(("@st", status)); }
+            var reply = Str("adminReply");
+            if (reply != null) { sets.Add("admin_reply=@rp"); args.Add(("@rp", string.IsNullOrWhiteSpace(reply) ? (object?)DBNull.Value : reply.Trim())); }
+            if (sets.Count == 0) return Results.BadRequest(new { message = "Nothing to update" });
+
+            await using var conn = new MySqlConnection(masterConn);
+            await conn.OpenAsync();
+            await using var cmd = new MySqlCommand($"UPDATE support_tickets SET {string.Join(", ", sets)} WHERE id=@id", conn);
+            foreach (var (k, v) in args) cmd.Parameters.AddWithValue(k, v ?? DBNull.Value);
+            int n = await cmd.ExecuteNonQueryAsync();
+            return n == 0 ? Results.NotFound(new { message = "Ticket not found" }) : Results.Ok(new { ok = true });
         });
 
         // =============================================================

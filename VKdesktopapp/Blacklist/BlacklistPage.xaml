@@ -13,22 +13,45 @@
         </Grid.RowDefinitions>
 
         <!-- Header -->
-        <StackPanel Grid.Row="0" Margin="0,0,0,18">
-            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                <TextBlock Text="Blacklist" Style="{StaticResource Heading4}" />
-                <TextBlock Text=" • "
-                           Foreground="{StaticResource Gray400}"
-                           FontSize="14" VerticalAlignment="Center"
-                           Margin="10,0" />
-                <TextBlock x:Name="lblCount"
-                           Text="0 users"
-                           FontSize="14" FontWeight="Bold"
-                           Foreground="{StaticResource Orange700}"
-                           VerticalAlignment="Center" />
+        <Grid Grid.Row="0" Margin="0,0,0,18">
+            <StackPanel>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="Blacklist" Style="{StaticResource Heading4}" />
+                    <TextBlock Text=" • "
+                               Foreground="{StaticResource Gray400}"
+                               FontSize="14" VerticalAlignment="Center"
+                               Margin="10,0" />
+                    <TextBlock x:Name="lblCount"
+                               Text="0 users"
+                               FontSize="14" FontWeight="Bold"
+                               Foreground="{StaticResource Orange700}"
+                               VerticalAlignment="Center" />
+                </StackPanel>
+                <TextBlock Text="Permanently block users from logging in or registering. Blacklisted users see 'You have been blocked by agency'."
+                           Style="{StaticResource Caption}" Margin="0,2,0,0" TextWrapping="Wrap" />
             </StackPanel>
-            <TextBlock Text="Permanently block users from logging in or registering. Blacklisted users see 'You have been blocked by agency'."
-                       Style="{StaticResource Caption}" Margin="0,2,0,0" TextWrapping="Wrap" />
-        </StackPanel>
+            <!-- Refresh icon (top-right) -->
+            <Button Name="btnRefresh" HorizontalAlignment="Right" VerticalAlignment="Top"
+                    Width="38" Height="38" Cursor="Hand"
+                    Background="Transparent" BorderThickness="0"
+                    ToolTip="Refresh" Click="btnRefresh_Click">
+                <Button.Template>
+                    <ControlTemplate TargetType="Button">
+                        <Border Name="b" Background="{TemplateBinding Background}" CornerRadius="19">
+                            <TextBlock Text="&#xE72C;" FontFamily="Segoe MDL2 Assets"
+                                       FontSize="18" FontWeight="Bold"
+                                       Foreground="{StaticResource Gray700}"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="b" Property="Background" Value="{StaticResource Gray200}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Button.Template>
+            </Button>
+        </Grid>
 
         <!-- Two-column layout -->
         <Grid Grid.Row="1">
