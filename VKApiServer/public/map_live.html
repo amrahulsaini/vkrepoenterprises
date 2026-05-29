@@ -69,11 +69,11 @@
   // (small, styled) so we honour both providers' terms without it
   // getting clipped at the viewport bottom.
   var street = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19, attribution: '© OpenStreetMap'
+    maxZoom: 19
   });
   var satellite = L.tileLayer(
     'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-    { maxZoom: 19, attribution: 'Esri, Maxar' }
+    { maxZoom: 19 }
   );
   // Labels overlay to put place names on top of satellite imagery.
   var labels = L.tileLayer(
@@ -84,7 +84,7 @@
 
   var map = L.map('map', {
     zoomControl: true,
-    attributionControl: true,
+    attributionControl: false,   // no attribution strip — removed per request
     layers: [street]
   }).setView([20.5937, 78.9629], 5);
 
