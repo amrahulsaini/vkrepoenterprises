@@ -64,31 +64,85 @@ internal static class AgencyPortal
         return ist.ToString("yyyy-MM-dd HH:mm 'IST'");
     }
 
-    // Reads support_tickets rows into JSON-friendly objects. The first 8
-    // columns are fixed; when withAgency is true two more (name, slug) follow.
-    private static async Task<List<object>> ReadTickets(MySqlCommand cmd, bool withAgency = false)
+    // Reads ticket header rows into mutable dictionaries (so callers can attach
+    // a "messages" thread). whereOrder is the WHERE/ORDER tail of the query.
+    private static async Task<List<Dictionary<string, object>>> ReadTicketHeaders(
+        MySqlConnection conn, string whereOrder, bool withAgency, params (string, object)[] ps)
     {
-        var list = new List<object>();
-        await using var rdr = await cmd.ExecuteReaderAsync();
         const string baseUrl = "https://api.crmrecoverysoftware.com";
+        var cols = withAgency
+            ? "id, subject, message, COALESCE(screenshot_path,''), status, DATE_FORMAT(created_at,'%d %b %Y %H:%i'), DATE_FORMAT(updated_at,'%d %b %Y %H:%i'), agency_name, agency_slug"
+            : "id, subject, message, COALESCE(screenshot_path,''), status, DATE_FORMAT(created_at,'%d %b %Y %H:%i'), DATE_FORMAT(updated_at,'%d %b %Y %H:%i')";
+        await using var cmd = new MySqlCommand($"SELECT {cols} FROM support_tickets {whereOrder}", conn);
+        foreach (var (n, v) in ps) cmd.Parameters.AddWithValue(n, v);
+
+        var list = new List<Dictionary<string, object>>();
+        await using var rdr = await cmd.ExecuteReaderAsync();
         while (await rdr.ReadAsync())
         {
             var shot = rdr.GetString(3);
-            list.Add(new
+            var d = new Dictionary<string, object>
             {
-                id            = rdr.GetInt32(0),
-                subject       = rdr.GetString(1),
-                message       = rdr.GetString(2),
-                screenshotUrl = string.IsNullOrEmpty(shot) ? "" : $"{baseUrl}/agency-uploads/{shot}",
-                status        = rdr.GetString(4),
-                adminReply    = rdr.GetString(5),
-                createdAt     = rdr.GetString(6),
-                updatedAt     = rdr.GetString(7),
-                agencyName    = withAgency ? rdr.GetString(8) : "",
-                agencySlug    = withAgency ? rdr.GetString(9) : "",
-            });
+                ["id"]            = rdr.GetInt32(0),
+                ["subject"]       = rdr.GetString(1),
+                ["message"]       = rdr.GetString(2),
+                ["screenshotUrl"] = string.IsNullOrEmpty(shot) ? "" : $"{baseUrl}/agency-uploads/{shot}",
+                ["status"]        = rdr.GetString(4),
+                ["createdAt"]     = rdr.GetString(5),
+                ["updatedAt"]     = rdr.GetString(6),
+                ["agencyName"]    = withAgency ? rdr.GetString(7) : "",
+                ["agencySlug"]    = withAgency ? rdr.GetString(8) : "",
+                ["messages"]      = new List<object>(),
+            };
+            list.Add(d);
         }
         return list;
+    }
+
+    // Loads the message thread for a ticket (sender + body + time + id).
+    private static async Task<List<object>> LoadMessages(MySqlConnection conn, int ticketId)
+    {
+        await using var cmd = new MySqlCommand(@"
+            SELECT id, sender, body, DATE_FORMAT(created_at,'%d %b %Y %H:%i')
+              FROM support_ticket_messages WHERE ticket_id=@t ORDER BY id ASC", conn);
+        cmd.Parameters.AddWithValue("@t", ticketId);
+        var list = new List<object>();
+        await using var rdr = await cmd.ExecuteReaderAsync();
+        while (await rdr.ReadAsync())
+            list.Add(new
+            {
+                id        = rdr.GetInt32(0),
+                sender    = rdr.GetString(1),
+                body      = rdr.GetString(2),
+                createdAt = rdr.GetString(3),
+            });
+        return list;
+    }
+
+    private static async Task AddMessage(MySqlConnection conn, int ticketId, string sender, string body)
+    {
+        await using var cmd = new MySqlCommand(
+            "INSERT INTO support_ticket_messages (ticket_id, sender, body) VALUES (@t,@s,@b); " +
+            "UPDATE support_tickets SET updated_at=UTC_TIMESTAMP() WHERE id=@t;", conn);
+        cmd.Parameters.AddWithValue("@t", ticketId);
+        cmd.Parameters.AddWithValue("@s", sender);
+        cmd.Parameters.AddWithValue("@b", body);
+        await cmd.ExecuteNonQueryAsync();
+    }
+
+    // Reads { body } (or { message }) from a JSON request body → trimmed string.
+    private static async Task<string> ReadBody(HttpRequest req)
+    {
+        try
+        {
+            using var doc = await System.Text.Json.JsonDocument.ParseAsync(req.Body);
+            var r = doc.RootElement;
+            string? s = (r.TryGetProperty("body", out var b) && b.ValueKind == System.Text.Json.JsonValueKind.String) ? b.GetString()
+                      : (r.TryGetProperty("message", out var m) && m.ValueKind == System.Text.Json.JsonValueKind.String) ? m.GetString()
+                      : null;
+            return (s ?? "").Trim();
+        }
+        catch { return ""; }
     }
 
     // Verifies the desktop's agt1 agency Bearer token and returns (id, slug).
@@ -745,7 +799,7 @@ internal static class AgencyPortal
             return Results.Ok(new { ok = true, id = ins.LastInsertedId });
         });
 
-        // Agency lists its own tickets (+ admin replies / status).
+        // Agency lists its own tickets, each WITH its full message thread.
         app.MapGet("/api/agency/desktop/tickets", async (HttpContext ctx) =>
         {
             var who = VerifyAgencyBearer(ctx);
@@ -753,55 +807,89 @@ internal static class AgencyPortal
 
             await using var conn = new MySqlConnection(masterConn);
             await conn.OpenAsync();
-            await using var cmd = new MySqlCommand(@"
-                SELECT id, subject, message, COALESCE(screenshot_path,''), status,
-                       COALESCE(admin_reply,''),
-                       DATE_FORMAT(created_at,'%d %b %Y %H:%i'),
-                       DATE_FORMAT(updated_at,'%d %b %Y %H:%i')
-                  FROM support_tickets WHERE agency_slug=@s ORDER BY id DESC LIMIT 200", conn);
-            cmd.Parameters.AddWithValue("@s", me.slug);
-            return Results.Ok(await ReadTickets(cmd));
+            var tickets = await ReadTicketHeaders(conn,
+                "WHERE agency_slug=@s ORDER BY id DESC LIMIT 200", false, ("@s", me.slug));
+            foreach (var t in tickets) t["messages"] = await LoadMessages(conn, (int)t["id"]);
+            return Results.Ok(tickets);
         });
 
-        // Manage: list ALL agencies' tickets.
+        // Agency posts a follow-up message on its own ticket.
+        app.MapPost("/api/agency/desktop/tickets/{id:int}/messages", async (HttpContext ctx, int id, HttpRequest req) =>
+        {
+            var who = VerifyAgencyBearer(ctx);
+            if (who is not { } me) return Results.Unauthorized();
+            var body = await ReadBody(req);
+            if (body.Length < 1) return Results.BadRequest(new { message = "Empty message" });
+            await using var conn = new MySqlConnection(masterConn);
+            await conn.OpenAsync();
+            // Ownership check — agency can only post on its own ticket.
+            await using (var chk = new MySqlCommand("SELECT agency_slug FROM support_tickets WHERE id=@id", conn))
+            {
+                chk.Parameters.AddWithValue("@id", id);
+                if (await chk.ExecuteScalarAsync() as string != me.slug)
+                    return Results.NotFound(new { message = "Ticket not found" });
+            }
+            await AddMessage(conn, id, "agency", body);
+            return Results.Ok(new { ok = true });
+        });
+
+        // Manage: list ALL agencies' tickets (headers only — modal loads thread).
         app.MapGet("/api/agency/manage/tickets", async (HttpContext ctx) =>
         {
             if (!await IsManageTokenValid(masterConn, ctx))
                 return Results.Json(new { message = "Unauthorized" }, statusCode: 401);
             await using var conn = new MySqlConnection(masterConn);
             await conn.OpenAsync();
-            await using var cmd = new MySqlCommand(@"
-                SELECT id, subject, message, COALESCE(screenshot_path,''), status,
-                       COALESCE(admin_reply,''),
-                       DATE_FORMAT(created_at,'%d %b %Y %H:%i'),
-                       DATE_FORMAT(updated_at,'%d %b %Y %H:%i'),
-                       agency_name, agency_slug
-                  FROM support_tickets ORDER BY (status='resolved'), id DESC LIMIT 500", conn);
-            return Results.Ok(await ReadTickets(cmd, withAgency: true));
+            var tickets = await ReadTicketHeaders(conn,
+                "ORDER BY (status='resolved'), id DESC LIMIT 500", true);
+            return Results.Ok(tickets);
         });
 
-        // Manage: reply / set status on a ticket. Body { status?, adminReply? }
+        // Manage: full message thread for one ticket.
+        app.MapGet("/api/agency/manage/tickets/{id:int}/messages", async (HttpContext ctx, int id) =>
+        {
+            if (!await IsManageTokenValid(masterConn, ctx))
+                return Results.Json(new { message = "Unauthorized" }, statusCode: 401);
+            await using var conn = new MySqlConnection(masterConn);
+            await conn.OpenAsync();
+            return Results.Ok(await LoadMessages(conn, id));
+        });
+
+        // Manage: post an admin message on a ticket (any number, any time).
+        app.MapPost("/api/agency/manage/tickets/{id:int}/messages", async (HttpContext ctx, int id, HttpRequest req) =>
+        {
+            if (!await IsManageTokenValid(masterConn, ctx))
+                return Results.Json(new { message = "Unauthorized" }, statusCode: 401);
+            var body = await ReadBody(req);
+            if (body.Length < 1) return Results.BadRequest(new { message = "Empty message" });
+            await using var conn = new MySqlConnection(masterConn);
+            await conn.OpenAsync();
+            await AddMessage(conn, id, "admin", body);
+            return Results.Ok(new { ok = true });
+        });
+
+        // Manage: set status only. Body { status }
         app.MapPost("/api/agency/manage/tickets/{id:int}", async (HttpContext ctx, int id, HttpRequest req) =>
         {
             if (!await IsManageTokenValid(masterConn, ctx))
                 return Results.Json(new { message = "Unauthorized" }, statusCode: 401);
             using var doc = await System.Text.Json.JsonDocument.ParseAsync(req.Body);
             var root = doc.RootElement;
-            string? Str(string k) => root.TryGetProperty(k, out var v) && v.ValueKind == System.Text.Json.JsonValueKind.String ? v.GetString() : null;
-
-            var sets = new List<string>(); var args = new List<(string, object?)> { ("@id", id) };
-            var status = Str("status");
-            if (status is "open" or "in_progress" or "resolved") { sets.Add("status=@st"); args.Add(("@st", status)); }
-            var reply = Str("adminReply");
-            if (reply != null) { sets.Add("admin_reply=@rp"); args.Add(("@rp", string.IsNullOrWhiteSpace(reply) ? (object?)DBNull.Value : reply.Trim())); }
-            if (sets.Count == 0) return Results.BadRequest(new { message = "Nothing to update" });
+            var status = root.TryGetProperty("status", out var v) && v.ValueKind == System.Text.Json.JsonValueKind.String ? v.GetString() : null;
+            // Back-compat: an "adminReply" in the body is treated as a new message.
+            var reply  = root.TryGetProperty("adminReply", out var rv) && rv.ValueKind == System.Text.Json.JsonValueKind.String ? rv.GetString() : null;
 
             await using var conn = new MySqlConnection(masterConn);
             await conn.OpenAsync();
-            await using var cmd = new MySqlCommand($"UPDATE support_tickets SET {string.Join(", ", sets)} WHERE id=@id", conn);
-            foreach (var (k, v) in args) cmd.Parameters.AddWithValue(k, v ?? DBNull.Value);
-            int n = await cmd.ExecuteNonQueryAsync();
-            return n == 0 ? Results.NotFound(new { message = "Ticket not found" }) : Results.Ok(new { ok = true });
+            if (status is "open" or "in_progress" or "resolved")
+            {
+                await using var cmd = new MySqlCommand("UPDATE support_tickets SET status=@st WHERE id=@id", conn);
+                cmd.Parameters.AddWithValue("@st", status);
+                cmd.Parameters.AddWithValue("@id", id);
+                await cmd.ExecuteNonQueryAsync();
+            }
+            if (!string.IsNullOrWhiteSpace(reply)) await AddMessage(conn, id, "admin", reply.Trim());
+            return Results.Ok(new { ok = true });
         });
 
         // =============================================================

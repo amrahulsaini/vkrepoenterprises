@@ -3,7 +3,7 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     Title="Support"
-    Width="900" Height="640"
+    Width="940" Height="660"
     WindowStartupLocation="CenterOwner"
     Background="{StaticResource Gray50}"
     FontFamily="Segoe UI"
@@ -51,51 +51,44 @@
                 <ColumnDefinition Width="1.3*" />
             </Grid.ColumnDefinitions>
 
-            <!-- LEFT: Report an issue -->
-            <Border Grid.Column="0" Style="{StaticResource DashboardCard}">
-                <DockPanel>
-                    <TextBlock DockPanel.Dock="Top" Text="Report an Issue"
-                               Style="{StaticResource Heading5}" Margin="0,0,0,4" />
-                    <TextBlock DockPanel.Dock="Top"
-                               Text="Describe the problem you're facing. Attach a screenshot if it helps. Our team will reply here."
-                               Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,0,0,14" />
+            <!-- LEFT: Report an issue — whole form scrolls so Submit is always reachable -->
+            <Border Grid.Column="0" Style="{StaticResource DashboardCard}" Padding="0">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="18">
+                    <StackPanel>
+                        <TextBlock Text="Report an Issue" Style="{StaticResource Heading5}" Margin="0,0,0,4" />
+                        <TextBlock Text="Describe the problem you're facing. Attach a screenshot if it helps. Our team will reply in the conversation."
+                                   Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,0,0,14" />
 
-                    <TextBlock DockPanel.Dock="Top" Text="SUBJECT" Style="{StaticResource FormHeading}" />
-                    <TextBox DockPanel.Dock="Top" Name="txtSubject"
-                             Style="{StaticResource MaterialTextBox}" Margin="0,4,0,12" />
+                        <TextBlock Text="SUBJECT" Style="{StaticResource FormHeading}" />
+                        <TextBox Name="txtSubject" Style="{StaticResource MaterialTextBox}" Margin="0,4,0,12" />
 
-                    <TextBlock DockPanel.Dock="Top" Text="DESCRIPTION" Style="{StaticResource FormHeading}" />
-                    <TextBox DockPanel.Dock="Top" Name="txtMessage"
-                             Style="{StaticResource MaterialTextBox}" Margin="0,4,0,12"
-                             Height="130" TextWrapping="Wrap" AcceptsReturn="True"
-                             VerticalScrollBarVisibility="Auto"
-                             VerticalContentAlignment="Top" />
+                        <TextBlock Text="DESCRIPTION" Style="{StaticResource FormHeading}" />
+                        <TextBox Name="txtMessage" Style="{StaticResource MaterialTextBox}" Margin="0,4,0,12"
+                                 Height="130" TextWrapping="Wrap" AcceptsReturn="True"
+                                 VerticalScrollBarVisibility="Auto" VerticalContentAlignment="Top" />
 
-                    <!-- Screenshot attach + preview -->
-                    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,10">
-                        <Button Name="btnAttach" Content="📎  Attach Screenshot"
-                                Style="{StaticResource SecondaryButton}" Height="34"
-                                Padding="14,0" Click="btnAttach_Click" />
-                        <Button Name="btnRemoveShot" Content="Remove"
-                                Style="{StaticResource GhostButton}" Height="34"
-                                Margin="8,0,0,0" Click="btnRemoveShot_Click"
-                                Visibility="Collapsed" />
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                            <Button Name="btnAttach" Content="📎  Attach Screenshot"
+                                    Style="{StaticResource SecondaryButton}" Height="34"
+                                    Padding="14,0" Click="btnAttach_Click" />
+                            <Button Name="btnRemoveShot" Content="Remove"
+                                    Style="{StaticResource GhostButton}" Height="34"
+                                    Margin="8,0,0,0" Click="btnRemoveShot_Click" Visibility="Collapsed" />
+                        </StackPanel>
+                        <Border Name="shotPreviewBox" Height="120" Background="White" Visibility="Collapsed"
+                                BorderBrush="{StaticResource Gray200}" BorderThickness="1"
+                                CornerRadius="6" Margin="0,0,0,12">
+                            <Image Name="imgShot" Stretch="Uniform" Margin="4" />
+                        </Border>
+
+                        <Button Name="btnSubmit" Content="SUBMIT TICKET"
+                                Style="{StaticResource PrimaryButton}" Height="42"
+                                Click="btnSubmit_Click" />
                     </StackPanel>
-                    <Border DockPanel.Dock="Top" Name="shotPreviewBox"
-                            Height="120" Background="White" Visibility="Collapsed"
-                            BorderBrush="{StaticResource Gray200}" BorderThickness="1"
-                            CornerRadius="6" Margin="0,0,0,12">
-                        <Image Name="imgShot" Stretch="Uniform" Margin="4" />
-                    </Border>
-
-                    <Button DockPanel.Dock="Bottom" Name="btnSubmit" Content="SUBMIT TICKET"
-                            Style="{StaticResource PrimaryButton}" Height="42"
-                            Click="btnSubmit_Click" />
-                    <Grid /> <!-- filler -->
-                </DockPanel>
+                </ScrollViewer>
             </Border>
 
-            <!-- RIGHT: My tickets -->
+            <!-- RIGHT: My tickets — click a card to open its conversation -->
             <Border Grid.Column="2" Style="{StaticResource DashboardCard}" Padding="0">
                 <DockPanel>
                     <Border DockPanel.Dock="Top" BorderBrush="{StaticResource Gray100}"
@@ -136,8 +129,8 @@
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
                                     <Border Background="White" BorderBrush="{StaticResource Gray200}"
-                                            BorderThickness="1" CornerRadius="8"
-                                            Padding="12" Margin="0,0,0,10">
+                                            BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,0,10"
+                                            Cursor="Hand" MouseLeftButtonUp="TicketCard_Click" Tag="{Binding}">
                                         <StackPanel>
                                             <DockPanel LastChildFill="False">
                                                 <TextBlock DockPanel.Dock="Left" Text="{Binding Subject}"
@@ -152,24 +145,16 @@
                                             </DockPanel>
                                             <TextBlock Text="{Binding CreatedAt}" FontSize="10"
                                                        Foreground="{StaticResource Gray500}" Margin="0,3,0,6" />
-                                            <TextBlock Text="{Binding Message}" FontSize="12"
+                                            <TextBlock Text="{Binding Preview}" FontSize="12"
                                                        Foreground="{StaticResource Gray700}"
-                                                       TextWrapping="Wrap" />
-                                            <Image Source="{Binding ShotSource}" Stretch="Uniform"
-                                                   MaxHeight="120" HorizontalAlignment="Left" Margin="0,8,0,0"
-                                                   Visibility="{Binding ShotVisibility}" />
-                                            <!-- Admin reply -->
-                                            <Border Background="{StaticResource Primary50}" CornerRadius="6"
-                                                    Padding="10" Margin="0,8,0,0"
-                                                    Visibility="{Binding ReplyVisibility}">
-                                                <StackPanel>
-                                                    <TextBlock Text="CRMRS SUPPORT REPLIED" FontSize="9"
-                                                               FontWeight="Bold" Foreground="{StaticResource Orange700}" />
-                                                    <TextBlock Text="{Binding AdminReply}" FontSize="12"
-                                                               Foreground="{StaticResource Gray800}"
-                                                               TextWrapping="Wrap" Margin="0,3,0,0" />
-                                                </StackPanel>
-                                            </Border>
+                                                       TextWrapping="Wrap" MaxHeight="34" TextTrimming="CharacterEllipsis" />
+                                            <DockPanel LastChildFill="False" Margin="0,6,0,0">
+                                                <TextBlock DockPanel.Dock="Left" Text="{Binding MsgCountText}"
+                                                           FontSize="11" Foreground="{StaticResource Orange700}" />
+                                                <TextBlock DockPanel.Dock="Right" Text="Open conversation ›"
+                                                           FontSize="11" FontWeight="SemiBold"
+                                                           Foreground="{StaticResource Orange600}" />
+                                            </DockPanel>
                                         </StackPanel>
                                     </Border>
                                 </DataTemplate>

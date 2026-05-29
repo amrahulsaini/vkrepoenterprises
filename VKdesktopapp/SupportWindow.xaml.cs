@@ -119,6 +119,17 @@ public partial class SupportWindow : Window
         }
     }
 
+    // Card click → open the full conversation thread for that ticket.
+    private void TicketCard_Click(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is FrameworkElement fe && fe.Tag is TicketVm vm)
+        {
+            var w = new TicketThreadWindow(vm.Dto) { Owner = this };
+            w.ShowDialog();
+            _ = LoadTicketsAsync();   // refresh previews/status after viewing
+        }
+    }
+
     // View-model with display helpers for the ticket list template.
     // internal — wraps the internal TicketDto. WPF binding still works on
     // internal types within the same assembly.
@@ -126,11 +137,34 @@ public partial class SupportWindow : Window
     {
         private readonly DesktopApiClient.TicketDto _t;
         public TicketVm(DesktopApiClient.TicketDto t) { _t = t; }
+        public DesktopApiClient.TicketDto Dto => _t;
 
         public string Subject    => _t.Subject;
-        public string Message    => _t.Message;
         public string CreatedAt  => _t.CreatedAt;
-        public string AdminReply => _t.AdminReply;
+
+        // Preview = the latest message in the thread, else the opening message.
+        public string Preview
+        {
+            get
+            {
+                if (_t.Messages != null && _t.Messages.Count > 0)
+                {
+                    var last = _t.Messages[^1];
+                    var who  = last.Sender == "admin" ? "CRMRS: " : "You: ";
+                    return who + last.Body;
+                }
+                return _t.Message;
+            }
+        }
+
+        public string MsgCountText
+        {
+            get
+            {
+                int n = _t.Messages?.Count ?? 0;
+                return n == 0 ? "No replies yet" : (n == 1 ? "1 reply" : $"{n} replies");
+            }
+        }
 
         public string StatusText => _t.Status switch
         {
@@ -144,9 +178,5 @@ public partial class SupportWindow : Window
             "in_progress" => new SolidColorBrush(Color.FromRgb(0xF5, 0xA6, 0x23)),
             _             => new SolidColorBrush(Color.FromRgb(0x64, 0x74, 0x8B))
         };
-        public Visibility ReplyVisibility => string.IsNullOrWhiteSpace(_t.AdminReply) ? Visibility.Collapsed : Visibility.Visible;
-        public Visibility ShotVisibility  => string.IsNullOrWhiteSpace(_t.ScreenshotUrl) ? Visibility.Collapsed : Visibility.Visible;
-        public ImageSource? ShotSource =>
-            string.IsNullOrWhiteSpace(_t.ScreenshotUrl) ? null : new BitmapImage(new Uri(_t.ScreenshotUrl));
     }
 }
