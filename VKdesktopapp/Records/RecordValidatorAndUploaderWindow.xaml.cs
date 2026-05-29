@@ -410,8 +410,22 @@ public partial class RecordValidatorAndUploaderWindow : Window
             pbr.Value      = 0;
             txtPBRPct.Text = "0%";
             txtPBR.Text    = "Upload failed";
-            MessageBox.Show($"Upload error: {ex.Message}", "Upload Failed",
-                MessageBoxButton.OK, MessageBoxImage.Error);
+
+            // Capture a DETAILED report (full error chain + HTTP/socket status +
+            // context), save it locally, and send it to the server's central
+            // error log — then show the same detail so it's never a vague
+            // "an error occurred" again. Ctrl+C on the dialog copies the text.
+            string context = $"Branch \"{SelectedBranch?.BranchName}\" (id {branchId}); " +
+                             $"{uploadRecords.Count:N0} records; failed after {sw.Elapsed.TotalSeconds:F1}s";
+            string report  = Diagnostics.LogError("Records Upload", ex, context);
+
+            MessageBox.Show(
+                report +
+                "\n\n────────────────────────\n" +
+                "This report was saved on this PC and sent to the server " +
+                "(visible under \"Errors\" in the manage portal).\n" +
+                $"Local copy: {Diagnostics.LogFilePath}",
+                "Upload Failed — full details", MessageBoxButton.OK, MessageBoxImage.Error);
         }
         finally
         {

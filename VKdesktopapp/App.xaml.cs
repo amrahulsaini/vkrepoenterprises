@@ -198,6 +198,9 @@ public partial class App : Application
             System.IO.File.WriteAllText(logFile, ex?.ToString() ?? "(null)");
         }
         catch { }
+        // Also capture into the central diagnostics log and report to the server,
+        // so every failure (not just uploads) shows up in the manage Errors tab.
+        try { if (ex != null) Data.Diagnostics.LogError("Unhandled exception", ex); } catch { }
     }
 
     public static DateTime GetDateTime_IN()
