@@ -706,6 +706,28 @@ internal static class DesktopApiClient
         }
     }
 
+    // ── Support tickets (agency Bearer auth, already on App.HttpClient) ──────
+    internal record TicketDto(
+        int Id, string Subject, string Message, string ScreenshotUrl,
+        string Status, string AdminReply, string CreatedAt, string UpdatedAt,
+        string AgencyName, string AgencySlug);
+
+    internal static async Task<List<TicketDto>> GetMyTicketsAsync()
+    {
+        var url  = $"{App.ApiBaseUrl.TrimEnd('/')}/api/agency/desktop/tickets";
+        var resp = await App.HttpClient.GetAsync(url);
+        resp.EnsureSuccessStatusCode();
+        return (await resp.Content.ReadFromJsonAsync<List<TicketDto>>(_json)) ?? new();
+    }
+
+    internal static async Task CreateTicketAsync(string subject, string message, string? screenshotBase64)
+    {
+        var url  = $"{App.ApiBaseUrl.TrimEnd('/')}/api/agency/desktop/tickets";
+        var resp = await App.HttpClient.PostAsJsonAsync(url, new { subject, message, screenshotBase64 });
+        if (!resp.IsSuccessStatusCode)
+            throw new Exception(await resp.Content.ReadAsStringAsync());
+    }
+
     // ── HTTP helper ─────────────────────────────────────────────────────────
 
     private static async Task<HttpResponseMessage> Send(

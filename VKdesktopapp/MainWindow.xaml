@@ -165,6 +165,14 @@
                     Content="&#x1F4E5;" FontFamily="Segoe UI" FontSize="20"
                     Foreground="{StaticResource Gray400}" Cursor="Hand"
                     Tag="DirectData" />
+            <!-- Support / report an issue — sits just above Settings -->
+            <Button Name="btnSupport" Click="btnSupport_Click"
+                    Grid.Row="8" Width="64" Height="56"
+                    Background="Transparent" BorderThickness="0"
+                    VerticalAlignment="Bottom"
+                    Content="&#x1F3A7;" FontFamily="Segoe UI" FontSize="20"
+                    Foreground="{StaticResource Gray400}" Cursor="Hand"
+                    ToolTip="Support / Report an issue" />
             <Button Name="btnSettings" Click="btnSettings_Click"
                     Grid.Row="9" Width="64" Height="56"
                     Background="Transparent" BorderThickness="0"

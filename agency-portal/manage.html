@@ -82,6 +82,7 @@
                 <div class="tabs mb-3" id="page-tabs" style="display:inline-flex; padding:4px; background:var(--bg-mute,#f3f4f6); border-radius:10px;">
                     <button data-page="agencies" class="active">Agencies</button>
                     <button data-page="apps">Android Apps</button>
+                    <button data-page="tickets">Support Tickets <span id="tickets-badge" class="hidden" style="background:#dc2626;color:#fff;border-radius:9px;padding:1px 7px;font-size:11px;font-weight:700;margin-left:4px;">0</span></button>
                 </div>
 
                 <!-- ── Page: Agencies ────────────────────────────────── -->
@@ -137,11 +138,56 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- ── Page: Support Tickets ─────────────────────────── -->
+                <div id="page-tickets" class="hidden">
+                    <div class="flex items-center justify-between mb-3">
+                        <div>
+                            <h2 style="margin:0; font-size:22px; font-weight:800; letter-spacing:-.02em;">Support tickets</h2>
+                            <p class="text-muted" style="margin:4px 0 0; font-size:14px;">
+                                Issues reported by agencies from their desktop app. Reply and set status — the agency sees your reply in their app.
+                            </p>
+                        </div>
+                        <button class="btn btn-outline btn-sm" id="tickets-refresh-btn">↻ Refresh</button>
+                    </div>
+                    <div class="card table-card">
+                        <div id="tickets-area">
+                            <div class="empty"><div class="ico">⏳</div><div>Loading…</div></div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
         </div>
     </section>
 </main>
+
+<!-- Ticket reply modal -->
+<div class="modal-backdrop" id="ticket-modal" role="dialog">
+    <div class="modal" style="max-width:620px;">
+        <h3 id="tk-title">Ticket</h3>
+        <div id="tk-meta" class="text-muted" style="font-size:12px; margin:0 0 10px;"></div>
+        <div id="tk-message" style="white-space:pre-wrap; font-size:14px; background:#f8fafc; border:1px solid #e5e7eb; border-radius:8px; padding:12px; margin-bottom:10px;"></div>
+        <div id="tk-shot-wrap" class="hidden" style="margin-bottom:12px;">
+            <a id="tk-shot-link" target="_blank"><img id="tk-shot" style="max-width:100%; max-height:280px; border-radius:8px; border:1px solid #e5e7eb;"/></a>
+        </div>
+        <label style="font-size:12px; font-weight:700; color:#475569;">STATUS</label>
+        <select id="tk-status" class="input" style="width:100%; margin:4px 0 12px; padding:8px; border:1px solid #d1d5db; border-radius:8px;">
+            <option value="open">Open</option>
+            <option value="in_progress">In progress</option>
+            <option value="resolved">Resolved</option>
+        </select>
+        <label style="font-size:12px; font-weight:700; color:#475569;">YOUR REPLY (the agency sees this)</label>
+        <textarea class="textarea" id="tk-reply" placeholder="Type your response…" style="margin-top:4px;"></textarea>
+        <div class="otp-actions mt-2">
+            <span></span>
+            <div style="display:flex; gap:8px;">
+                <button class="btn btn-outline btn-sm" id="tk-cancel">Cancel</button>
+                <button class="btn btn-primary btn-sm" id="tk-save">Save &amp; notify</button>
+            </div>
+        </div>
+    </div>
+</div>
 
 <!-- Reject reason modal -->
 <div class="modal-backdrop" id="reject-modal" role="dialog">
@@ -214,5 +260,6 @@
 <script src="js/api.js?v=2"></script>
 <script src="js/manage.js?v=6"></script>
 <script src="js/apps.js?v=4"></script>
+<script src="js/tickets.js?v=1"></script>
 </body>
 </html>

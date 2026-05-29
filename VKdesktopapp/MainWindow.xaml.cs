@@ -104,6 +104,12 @@ public partial class MainWindow : Window
         RefreshFirmLabels();
     }
 
+    private void btnSupport_Click(object sender, RoutedEventArgs e)
+    {
+        var w = new SupportWindow { Owner = this };
+        w.ShowDialog();
+    }
+
     private void btnClose_Click(object sender, RoutedEventArgs e) => Close();
     private void btnMinimize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
     private void btnRestore_Click(object sender, RoutedEventArgs e) =>
