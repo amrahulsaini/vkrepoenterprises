@@ -68,11 +68,16 @@ MinVersion=10.0.17763
 Source: "{#PublishDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
+; IconFilename pins the per-agency logo (app-icon.ico — copied into the publish
+; folder by tools/build_wpf_local.py from THIS agency's favicon.ico) onto every
+; shortcut. The EXE already embeds the same icon, but pointing the shortcuts at
+; the loose .ico is a belt-and-suspenders guarantee that VK shows the VK logo
+; and RK shows the RK logo even if the embedded icon ever regressed.
 ; Start Menu
-Name: "{group}\{#AppName}";     Filename: "{app}\{#AppExe}"
+Name: "{group}\{#AppName}";     Filename: "{app}\{#AppExe}"; IconFilename: "{app}\app-icon.ico"
 Name: "{group}\Uninstall";      Filename: "{uninstallexe}"
 ; Desktop shortcut
-Name: "{commondesktop}\{#AppName}"; Filename: "{app}\{#AppExe}"
+Name: "{commondesktop}\{#AppName}"; Filename: "{app}\{#AppExe}"; IconFilename: "{app}\app-icon.ico"
 
 [Run]
 ; Launch option on the finish page

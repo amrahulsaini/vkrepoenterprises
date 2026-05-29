@@ -43,7 +43,9 @@
 
         <!-- Row: no hover color, subtle selected highlight -->
         <Style x:Key="GridRowStyle" TargetType="DataGridRow">
-            <Setter Property="Height" Value="46" />
+            <!-- MinHeight (not fixed Height) so a long Head Office name can wrap
+                 onto a second line and the row grows to fit it. -->
+            <Setter Property="MinHeight" Value="46" />
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="Background" Value="Transparent" />
             <Style.Triggers>
@@ -326,6 +328,9 @@
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock" BasedOn="{StaticResource CellText}">
                                             <Setter Property="FontWeight" Value="Bold" />
+                                            <!-- Long names wrap to the next line instead of clipping. -->
+                                            <Setter Property="TextWrapping" Value="Wrap" />
+                                            <Setter Property="Padding" Value="0,8" />
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
@@ -507,6 +512,9 @@
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock" BasedOn="{StaticResource CellText}">
                                             <Setter Property="FontWeight" Value="Bold" />
+                                            <!-- Long names wrap to the next line instead of clipping. -->
+                                            <Setter Property="TextWrapping" Value="Wrap" />
+                                            <Setter Property="Padding" Value="0,8" />
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>

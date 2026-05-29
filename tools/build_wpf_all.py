@@ -187,6 +187,14 @@ def publish_for(agency: dict) -> Path:
     out = PUBLISH_ROOT / agency["slug"]
     if out.exists():
         shutil.rmtree(out)
+    # Clean compile so this agency's Win32 EXE icon (favicon.ico, regenerated
+    # from the agency logo above) is re-embedded — MSBuild's incremental check
+    # ignores .ico-only changes, so a warm obj/ leaves the previous agency's (or
+    # generic) icon baked in, and the Desktop shortcut inherits the EXE icon.
+    for d in ("obj", "bin"):
+        p = WPF_DIR / d
+        if p.exists():
+            shutil.rmtree(p, ignore_errors=True)
     run([
         "dotnet", "publish", "-c", "Release",
         "-r", "win-x64", "--self-contained", "true",
@@ -195,6 +203,8 @@ def publish_for(agency: dict) -> Path:
         f'-p:Product={agency["name"]} — CRMS',
         "-o", str(out),
     ], cwd=WPF_DIR)
+    # Loose agency icon for the installer shortcuts' IconFilename (see installer.iss).
+    shutil.copyfile(ICON_PATH, out / "app-icon.ico")
     return out
 
 

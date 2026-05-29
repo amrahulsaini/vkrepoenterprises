@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -40,10 +41,31 @@ BRANDING_PATH    = RESOURCES_DIR / "branding.json"
 PUBLISH_ROOT     = WPF_DIR / "publish"
 INSTALLER_OUTPUT = ROOT / "installer-output"
 GENERIC_LOGO_SRC = ROOT / "main-gallery" / "crmrs-fulllogo.webp"
-# pre-populated via pscp - uses the OS-correct temp dir (Windows: %TEMP%,
-# Linux/Mac: /tmp) so a hardcoded /tmp doesn't silently fall back to the
-# generic logo on Windows where /tmp resolves to C:\tmp.
-LOGO_STAGING     = Path(tempfile.gettempdir()) / "crms-build-logos"
+# Agency logos are pre-staged here via pscp before the build. We search a few
+# candidate dirs because the temp dir Python sees depends on who launches the
+# build: an interactive shell resolves %TEMP% to ...\Local\Temp, but some task
+# runners inject a sandboxed TEMP (e.g. ...\Local\Temp\claude). If we only
+# trusted tempfile.gettempdir() we'd silently miss the logos and fall back to
+# the generic CRMRS brand for EVERY agency. First dir that actually contains
+# logos wins.
+def _find_logo_staging() -> Path:
+    candidates = [
+        Path(tempfile.gettempdir()) / "crms-build-logos",
+        Path(os.environ.get("LOCALAPPDATA", "")) / "Temp" / "crms-build-logos",
+        Path.home() / "AppData" / "Local" / "Temp" / "crms-build-logos",
+        Path(os.environ.get("TEMP", "")) / "crms-build-logos",
+        Path(os.environ.get("TMP", "")) / "crms-build-logos",
+    ]
+    for c in candidates:
+        try:
+            if c.exists() and any(c.glob("*.jpg")):
+                return c
+        except OSError:
+            continue
+    return candidates[0]
+
+
+LOGO_STAGING     = _find_logo_staging()
 
 ISCC = r"C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
 ICON_SIZES = [(16,16),(20,20),(24,24),(32,32),(40,40),
@@ -113,6 +135,20 @@ def publish_for(agency: dict) -> Path:
     out = PUBLISH_ROOT / agency["slug"]
     if out.exists():
         shutil.rmtree(out)
+    # Force a clean compile so THIS agency's Win32 EXE icon — public/favicon.ico,
+    # regenerated from the agency logo by render_icon_and_logo() just above — is
+    # actually re-embedded into CRMRS.exe. MSBuild's incremental up-to-date check
+    # does NOT notice that only the .ico changed (the .cs files are identical
+    # across agencies), so a warm obj/ would otherwise leave the *previous*
+    # agency's icon — or the generic CRMRS icon restored at the end of the last
+    # run — baked into the EXE. The Desktop / Start-Menu shortcuts inherit the
+    # EXE's embedded icon, so a stale icon there means VK ships with RK's (or the
+    # generic) logo. Nuking obj/ + bin/ guarantees csc re-runs with the right
+    # /win32icon. Costs ~30-60s per agency; correctness beats speed here.
+    for d in ("obj", "bin"):
+        p = WPF_DIR / d
+        if p.exists():
+            shutil.rmtree(p, ignore_errors=True)
     # Per-agency file properties:
     #   - AssemblyTitle  → Windows "File description" (e.g. "V K ENTERPRISES")
     #   - Description    → Windows "File description" tooltip in some shells
@@ -127,6 +163,12 @@ def publish_for(agency: dict) -> Path:
         f'-p:Product={agency["name"]} Recovery',
         "-o", str(out),
     ], cwd=WPF_DIR)
+    # Ship the agency icon as a loose file too, so the installer's Desktop /
+    # Start-Menu shortcuts can point at it explicitly (IconFilename in
+    # installer.iss) — a belt-and-suspenders guarantee on top of the embedded
+    # EXE icon. <Resource> only embeds the .ico into the assembly; it is never
+    # copied loose, so we copy it ourselves.
+    shutil.copyfile(ICON_PATH, out / "app-icon.ico")
     return out
 
 
@@ -159,7 +201,7 @@ def write_setup_shortcut_bat(publish_dir: Path, agency_name: str) -> None:
         "setlocal\r\n"
         'set "TARGET=%~dp0CRMRS.exe"\r\n'
         'set "WORKDIR=%~dp0"\r\n'
-        'set "ICON=%~dp0public\\favicon.ico"\r\n'
+        'set "ICON=%~dp0app-icon.ico"\r\n'
         'set "NAME=' + agency_name + '"\r\n'
         "\r\n"
         "echo Preparing %NAME% (this only takes a few seconds)...\r\n"

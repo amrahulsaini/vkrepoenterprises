@@ -30,6 +30,17 @@ node_modules/
 # Test/scratch files with credentials
 test.js
 
+# Ops runbook containing the live Cloudflare API token — must NOT be pushed.
+AUTO_SSL_RENEWAL.md
+
+# Python bytecode cache (tools/)
+__pycache__/
+*.pyc
+
+# Per-build transient — tools/build_wpf_*.py write the current agency's branding
+# here and delete it on exit; never commit a tenant's branding into the repo.
+VKdesktopapp/Resources/branding.json
+
 # Claude Code
 .claude/
 
