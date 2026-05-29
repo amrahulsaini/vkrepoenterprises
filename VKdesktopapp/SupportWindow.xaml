@@ -60,10 +60,12 @@
                                    Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,0,0,14" />
 
                         <TextBlock Text="SUBJECT" Style="{StaticResource FormHeading}" />
-                        <TextBox Name="txtSubject" Style="{StaticResource MaterialTextBox}" Margin="0,4,0,12" />
+                        <TextBox Name="txtSubject" Style="{StaticResource MaterialTextBox}" Margin="0,4,0,12"
+                                 Foreground="#0E1525" CaretBrush="#0E1525" />
 
                         <TextBlock Text="DESCRIPTION" Style="{StaticResource FormHeading}" />
                         <TextBox Name="txtMessage" Style="{StaticResource MaterialTextBox}" Margin="0,4,0,12"
+                                 Foreground="#0E1525" CaretBrush="#0E1525"
                                  Height="130" TextWrapping="Wrap" AcceptsReturn="True"
                                  VerticalScrollBarVisibility="Auto" VerticalContentAlignment="Top" />
 
