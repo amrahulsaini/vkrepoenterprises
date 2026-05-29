@@ -683,6 +683,19 @@ internal static class DesktopApiClient
     internal static Task DownloadBranchXlsxChunkAsync(int branchId, string name, long offset, int count, string savePath, IProgress<long>? onBytes = null)
         => DownloadXlsxAsync($"api/mgr/export/branch-records.xlsx?branchId={branchId}&name={Uri.EscapeDataString(name)}&offset={offset}&limit={count}", savePath, onBytes);
 
+    // Reports record exports — one part = rows [offset, offset+count).
+    // recordType ∈ { vehicle-records, rc-records, chassis-records }.
+    internal static Task DownloadRecordsXlsxChunkAsync(string recordType, string name, long offset, int count, string savePath, IProgress<long>? onBytes = null)
+        => DownloadXlsxAsync($"api/mgr/export/{recordType}.xlsx?name={Uri.EscapeDataString(name)}&offset={offset}&limit={count}", savePath, onBytes);
+
+    // Search Logs — full filtered set streamed to one file.
+    internal static Task DownloadSearchLogsXlsxAsync(string? fromDate, string? toDate, long? userId, string? q, string savePath, IProgress<long>? onBytes = null)
+    {
+        var qs = $"?fromDate={Uri.EscapeDataString(fromDate ?? "")}&toDate={Uri.EscapeDataString(toDate ?? "")}" +
+                 $"&q={Uri.EscapeDataString(q ?? "")}" + (userId.HasValue ? $"&userId={userId.Value}" : "");
+        return DownloadXlsxAsync($"api/mgr/search-logs.xlsx{qs}", savePath, onBytes);
+    }
+
     private static async Task DownloadXlsxAsync(string relativeUrl, string savePath, IProgress<long>? onBytes)
     {
         var base_ = App.ApiBaseUrl.TrimEnd('/');
