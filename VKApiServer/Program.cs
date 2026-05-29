@@ -1817,6 +1817,17 @@ app.MapPost("/api/mgr/records/upload", async (HttpContext ctx) =>
 {
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
 
+    // Chunked-upload mode (for resilience on weak client networks the desktop
+    // splits a big branch into several small POSTs, each retried on failure):
+    //   replace (default / single-shot) → clear old records, insert, finalize
+    //   begin  → clear old records, insert this chunk, DON'T finalize
+    //   append → insert this chunk only (no clear, no finalize)
+    //   finish → insert this chunk, then finalize (branch stats + index rebuild)
+    // No param → "replace" → exactly the original one-shot behaviour.
+    string mode     = (ctx.Request.Query["mode"].FirstOrDefault() ?? "replace").ToLowerInvariant();
+    bool   doClear  = mode is "replace" or "begin";
+    bool   doFinal  = mode is "replace" or "finish";
+
     // ── 1. Decompress + parse BEFORE touching the response ────────────────
     string text;
     try
@@ -1925,20 +1936,26 @@ app.MapPost("/api/mgr/records/upload", async (HttpContext ctx) =>
         await MgrExec("SET foreign_key_checks = 0", conn);
         await MgrExec("SET unique_checks = 0", conn);
 
-        await Push(20, "Checking existing records…");
-        await using var existCmd = new MySqlCommand(
-            "SELECT EXISTS(SELECT 1 FROM vehicle_records WHERE branch_id = @bid LIMIT 1)", conn);
-        existCmd.Parameters.AddWithValue("@bid", branchId);
-        if (Convert.ToInt64(await existCmd.ExecuteScalarAsync()) == 1)
+        // Clear the branch's existing records only on the first (begin) or a
+        // single-shot (replace) upload — append/finish chunks add to the set
+        // the begin chunk already started.
+        if (doClear)
         {
-            await Push(25, "Clearing old records…");
-            await MgrExec(@"
-                DELETE vr, ri, ci
-                FROM   vehicle_records vr
-                LEFT JOIN rc_info      ri ON ri.vehicle_record_id = vr.id
-                LEFT JOIN chassis_info ci ON ci.vehicle_record_id = vr.id
-                WHERE  vr.branch_id = @bid",
-                conn, 300, ("@bid", branchId));
+            await Push(20, "Checking existing records…");
+            await using var existCmd = new MySqlCommand(
+                "SELECT EXISTS(SELECT 1 FROM vehicle_records WHERE branch_id = @bid LIMIT 1)", conn);
+            existCmd.Parameters.AddWithValue("@bid", branchId);
+            if (Convert.ToInt64(await existCmd.ExecuteScalarAsync()) == 1)
+            {
+                await Push(25, "Clearing old records…");
+                await MgrExec(@"
+                    DELETE vr, ri, ci
+                    FROM   vehicle_records vr
+                    LEFT JOIN rc_info      ri ON ri.vehicle_record_id = vr.id
+                    LEFT JOIN chassis_info ci ON ci.vehicle_record_id = vr.id
+                    WHERE  vr.branch_id = @bid",
+                    conn, 300, ("@bid", branchId));
+            }
         }
 
         // ── 5. BulkCopy with real-time progress ──────────────────────────
@@ -1984,10 +2001,17 @@ app.MapPost("/api/mgr/records/upload", async (HttpContext ctx) =>
 
         Console.WriteLine($"[Upload] branch={branchId} sent={totalRows} skipped={skippedRows} bcInserted={bcInserted} dbCount={dbCount}");
 
-        // ── 7. Finalize ───────────────────────────────────────────────────
-        await Push(92, "Updating branch stats…");
-        await MgrExec("UPDATE branches SET total_records=@cnt, uploaded_at=NOW() WHERE id=@bid",
-            conn, 30, ("@cnt", dbCount), ("@bid", branchId));
+        // ── 7. Finalize — only on the last (finish) or single-shot (replace)
+        //       chunk. Intermediate begin/append chunks skip the branch-stats
+        //       write; the finish chunk records the authoritative total. ─────
+        if (doFinal)
+        {
+            await Push(92, "Updating branch stats…");
+            await MgrExec("UPDATE branches SET total_records=@cnt, uploaded_at=NOW() WHERE id=@bid",
+                conn, 30, ("@cnt", dbCount), ("@bid", branchId));
+        }
+        // Re-enable per-connection checks for every chunk (they were disabled
+        // at the top of THIS request's connection).
         await MgrExec("SET foreign_key_checks = 1", conn);
         await MgrExec("SET unique_checks = 1", conn);
 
@@ -1995,11 +2019,15 @@ app.MapPost("/api/mgr/records/upload", async (HttpContext ctx) =>
         await Push(100, $"Done", inserted, sw.Elapsed.TotalSeconds);
 
         // ── 8. Background index rebuild ───────────────────────────────────
+        // Runs only after the final/single chunk, when every vehicle_record for
+        // the branch is present — it rebuilds rc_info/chassis_info for the whole
+        // branch in one pass, so running it per-chunk would be wasted work.
         // DELETE before INSERT makes each task idempotent: if a previous upload's
         // background task is still running when a new upload starts, the stale INSERT
         // targets the same vehicle_record rows and would double rc_info/chassis_info
         // (unique_checks=0 lets duplicates slip through). Deleting first ensures only
         // one set of rows exists regardless of overlapping executions.
+        if (doFinal)
         _ = Task.WhenAll(
             Task.Run(async () =>
             {
