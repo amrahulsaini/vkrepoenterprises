@@ -575,25 +575,24 @@ app.MapGet("/api/mgr/finances", async (HttpContext ctx) =>
     {
         await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
-        // Ordered by most-recently-uploaded first (the finance whose branches
-        // got the latest upload floats to the top), then name as a tiebreaker.
-        // Finances that have never been uploaded (NULL last_upload) sort last.
+        // Head offices listed A→Z. Record counts come from the maintained
+        // branches.total_records column (SUM) — NOT a COUNT over vehicle_records.
+        // The old COUNT(vr.id) join scanned millions of rows (~730 ms); summing
+        // the per-branch counter is sub-millisecond.
         const string sql = @"
             SELECT f.id, f.name,
                    COALESCE(b.branch_cnt, 0) AS branch_count,
                    COALESCE(b.record_cnt, 0) AS total_records
             FROM finances f
             LEFT JOIN (
-                SELECT br.finance_id,
-                       COUNT(DISTINCT br.id) AS branch_cnt,
-                       COUNT(vr.id)          AS record_cnt,
-                       MAX(br.uploaded_at)   AS last_upload
-                FROM   branches br
-                LEFT JOIN vehicle_records vr ON vr.branch_id = br.id
-                WHERE  br.is_active = 1
-                GROUP BY br.finance_id
+                SELECT finance_id,
+                       COUNT(*)                       AS branch_cnt,
+                       COALESCE(SUM(total_records),0) AS record_cnt
+                FROM   branches
+                WHERE  is_active = 1
+                GROUP BY finance_id
             ) b ON b.finance_id = f.id
-            ORDER BY b.last_upload IS NULL, b.last_upload DESC, f.name";
+            ORDER BY f.name";
         await using var cmd = new MySqlCommand(sql, conn) { CommandTimeout = 60 };
         var list = new List<object>();
         await using var rdr = await cmd.ExecuteReaderAsync();
@@ -674,7 +673,7 @@ app.MapGet("/api/mgr/branches", async (HttpContext ctx, int? financeId) =>
             sql = @"SELECT b.id, b.name,
                            COALESCE(b.contact1,'') AS c1, COALESCE(b.contact2,'') AS c2,
                            COALESCE(b.contact3,'') AS c3, COALESCE(b.address,'')  AS addr,
-                           (SELECT COUNT(*) FROM vehicle_records WHERE branch_id = b.id) AS total_records,
+                           b.total_records AS total_records,
                            IFNULL(DATE_FORMAT(b.uploaded_at,'%d %b %y %h:%i %p'),'') AS up,
                            '' AS finance_name,
                            b.finance_id
@@ -689,12 +688,12 @@ app.MapGet("/api/mgr/branches", async (HttpContext ctx, int? financeId) =>
             sql = @"SELECT b.id, b.name,
                            COALESCE(b.contact1,'') AS c1, COALESCE(b.contact2,'') AS c2,
                            COALESCE(b.contact3,'') AS c3, COALESCE(b.address,'')  AS addr,
-                           (SELECT COUNT(*) FROM vehicle_records WHERE branch_id = b.id) AS total_records,
+                           b.total_records AS total_records,
                            IFNULL(DATE_FORMAT(b.uploaded_at,'%d %b %y %h:%i %p'),'') AS up,
                            COALESCE(f.name,'') AS finance_name,
                            b.finance_id
                     FROM branches b LEFT JOIN finances f ON f.id=b.finance_id
-                    WHERE b.is_active=1 ORDER BY f.name, b.name LIMIT 500";
+                    WHERE b.is_active=1 ORDER BY b.uploaded_at DESC, b.name LIMIT 500";
             cmd = new MySqlCommand(sql, conn) { CommandTimeout = 60 };
         }
         var list = new List<object>();
@@ -1518,9 +1517,12 @@ app.MapGet("/api/mgr/dashboard-stats", async (HttpContext ctx) =>
     {
         await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
+        // totalRecords summed from the maintained branches.total_records counter
+        // instead of COUNT(*) over the multi-million-row vehicle_records table
+        // (~410 ms → sub-ms). CAST keeps it a BIGINT for GetInt64.
         const string sql = @"
             SELECT
-                (SELECT COUNT(*) FROM vehicle_records),
+                (SELECT CAST(COALESCE(SUM(total_records),0) AS SIGNED) FROM branches WHERE is_active=1),
                 (SELECT COUNT(*) FROM finances),
                 (SELECT COUNT(*) FROM branches WHERE is_active=1)";
         await using var cmd = new MySqlCommand(sql, conn) { CommandTimeout = 10 };

@@ -288,6 +288,7 @@ input, select, textarea { font: inherit; color: inherit; }
 .input, .textarea, .select {
     width: 100%;
     background: var(--surface);
+    color: var(--text);   /* explicit dark text — was inheriting a light color in the ticket modal (invisible white-on-white) */
     border: 1.5px solid var(--border);
     border-radius: var(--radius-sm);
     padding: 11px 13px;
