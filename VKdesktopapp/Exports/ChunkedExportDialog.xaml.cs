@@ -51,7 +51,12 @@ public partial class ChunkedExportDialog : Window
                 Content = l == 1 ? "1 Lakh (100,000)" : $"{l} Lakhs ({l * 100_000:N0})",
                 Tag     = l * 100_000
             });
-        cmbChunkSize.SelectedIndex = 4; // default 5 Lakh
+        // Default to the largest chunk (10 lakh) so a typical finance/branch
+        // exports as ONE Excel file ("dump all in one"). 10 lakh = 1,000,000
+        // rows, just under Excel's 1,048,576 per-sheet limit; bigger sets
+        // still split safely. The new streamed-xlsx writer makes each file
+        // near-instant regardless of size.
+        cmbChunkSize.SelectedIndex = ChunkSizesLakh.Length - 1; // 10 Lakh
 
         lvFiles.ItemsSource = Chunks;
         _folder = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);

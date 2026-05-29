@@ -263,9 +263,30 @@ public partial class HomePage : Page
         if (!_mapReady || mapView.CoreWebView2 == null) return;
         var payload = users
             .Where(HasRealLocation)
-            .Select(u => new { name = u.Name, mobile = u.Mobile, lastSeen = u.LastSeen, lat = u.Lat!.Value, lng = u.Lng!.Value });
+            .Select(u => new {
+                name = u.Name, mobile = u.Mobile, lastSeen = u.LastSeen,
+                lat = u.Lat!.Value, lng = u.Lng!.Value,
+                pfp = ResolvePfpUrl(u.Pfp)
+            });
         var json = JsonSerializer.Serialize(payload);
         _ = mapView.CoreWebView2.ExecuteScriptAsync($"updateMarkers({json})");
+    }
+
+    // Turns the stored pfp value into something the map's <img> can load:
+    //   - empty            → "" (popup shows initials instead)
+    //   - already http(s)  → as-is
+    //   - data: / base64   → as-is (legacy base64 pfps)
+    //   - relative path    → prefixed with the API host's /uploads/ mount
+    private static string ResolvePfpUrl(string? pfp)
+    {
+        if (string.IsNullOrWhiteSpace(pfp)) return "";
+        var p = pfp.Trim();
+        if (p.StartsWith("http://") || p.StartsWith("https://") || p.StartsWith("data:"))
+            return p;
+        if (p.Length > 200 && !p.Contains('/'))   // bare base64 blob
+            return "data:image/jpeg;base64," + p;
+        var baseUrl = App.ApiBaseUrl.TrimEnd('/');
+        return $"{baseUrl}/uploads/{p.TrimStart('/')}";
     }
 
     private async void AcceptDevice_Click(object sender, RoutedEventArgs e)

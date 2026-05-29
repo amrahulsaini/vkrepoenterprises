@@ -603,17 +603,9 @@
                                            FontFamily="Consolas" />
                             </StackPanel>
 
-                            <!-- Per-user Control Panel password removed — the
-                                 Control Panel password is now a single
-                                 agency-wide value, set in Agency Settings. -->
-                            <Border Margin="0,0,0,16" Padding="12"
-                                    Background="{StaticResource Gray50}"
-                                    BorderBrush="{StaticResource Gray200}" BorderThickness="1"
-                                    CornerRadius="6">
-                                <TextBlock TextWrapping="Wrap" FontSize="12"
-                                           Foreground="{StaticResource Gray600}"
-                                           Text="The Control Panel password is now one shared password for the whole agency. Set it in Agency Settings (gear icon)." />
-                            </Border>
+                            <!-- Per-user Control Panel password removed — it's now
+                                 a single agency-wide value set in Agency Settings.
+                                 The info note was removed per request. -->
 
                             <!-- KYC documents section -->
                             <StackPanel Margin="0,0,0,16">
