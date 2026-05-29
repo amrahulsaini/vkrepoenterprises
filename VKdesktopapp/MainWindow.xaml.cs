@@ -8,6 +8,7 @@ using System.Windows.Media.Imaging;
 using VRASDesktopApp.AppUsers;
 using VRASDesktopApp.Blacklist;
 using VRASDesktopApp.Confirmations;
+using VRASDesktopApp.Data;
 using VRASDesktopApp.Finances;
 using VRASDesktopApp.DirectData;
 using VRASDesktopApp.Records;
@@ -61,6 +62,12 @@ public partial class MainWindow : Window
             clmMenuContainer.Width = new GridLength(320);
         }
         LoadAgencyLogo();
+
+        // Poll the support unread-reply badge: once now + every 60s.
+        _ = UpdateSupportBadgeAsync();
+        var t = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(60) };
+        t.Tick += async (_, _) => await UpdateSupportBadgeAsync();
+        t.Start();
     }
 
     private void LoadPage(Page page)
@@ -104,10 +111,55 @@ public partial class MainWindow : Window
         RefreshFirmLabels();
     }
 
-    private void btnSupport_Click(object sender, RoutedEventArgs e)
+    private async void btnSupport_Click(object sender, RoutedEventArgs e)
     {
         var w = new SupportWindow { Owner = this };
         w.ShowDialog();
+        // Opening Support = the agency has now seen the replies → clear badge.
+        await MarkSupportSeenAsync();
+    }
+
+    // ── Support unread badge ─────────────────────────────────────────────────
+    // Shows a red count on the 🎧 icon when CRMRS has posted admin replies the
+    // agency hasn't opened yet. "Seen" = count of admin messages at the last
+    // time the agency opened Support, stored in a small LocalAppData file.
+    private static string SupportSeenFile => System.IO.Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "VKEnterprises", "tickets_seen.txt");
+
+    private static int ReadSupportSeen()
+    {
+        try { return int.TryParse(System.IO.File.ReadAllText(SupportSeenFile), out var n) ? n : 0; }
+        catch { return 0; }
+    }
+    private static void WriteSupportSeen(int n)
+    {
+        try
+        {
+            System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(SupportSeenFile)!);
+            System.IO.File.WriteAllText(SupportSeenFile, n.ToString());
+        }
+        catch { }
+    }
+
+    private async Task UpdateSupportBadgeAsync()
+    {
+        var count = await DesktopApiClient.GetAdminMessageCountAsync();
+        if (count < 0) return;                 // couldn't check — leave badge as is
+        int unread = count - ReadSupportSeen();
+        if (unread > 0)
+        {
+            supportBadgeText.Text   = unread > 99 ? "99+" : unread.ToString();
+            supportBadge.Visibility = Visibility.Visible;
+        }
+        else supportBadge.Visibility = Visibility.Collapsed;
+    }
+
+    private async Task MarkSupportSeenAsync()
+    {
+        var count = await DesktopApiClient.GetAdminMessageCountAsync();
+        if (count >= 0) WriteSupportSeen(count);
+        supportBadge.Visibility = Visibility.Collapsed;
     }
 
     private void btnClose_Click(object sender, RoutedEventArgs e) => Close();

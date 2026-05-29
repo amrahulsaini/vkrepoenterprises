@@ -720,10 +720,11 @@ internal static class DesktopApiClient
     }
 
     // ── Support tickets (agency Bearer auth, already on App.HttpClient) ──────
+    internal record TicketMsg(int Id, string Sender, string Body, string CreatedAt);
     internal record TicketDto(
         int Id, string Subject, string Message, string ScreenshotUrl,
-        string Status, string AdminReply, string CreatedAt, string UpdatedAt,
-        string AgencyName, string AgencySlug);
+        string Status, string CreatedAt, string UpdatedAt,
+        string AgencyName, string AgencySlug, List<TicketMsg>? Messages);
 
     internal static async Task<List<TicketDto>> GetMyTicketsAsync()
     {
@@ -739,6 +740,33 @@ internal static class DesktopApiClient
         var resp = await App.HttpClient.PostAsJsonAsync(url, new { subject, message, screenshotBase64 });
         if (!resp.IsSuccessStatusCode)
             throw new Exception(await resp.Content.ReadAsStringAsync());
+    }
+
+    // Agency posts a follow-up message on its own ticket.
+    internal static async Task PostTicketMessageAsync(int ticketId, string body)
+    {
+        var url  = $"{App.ApiBaseUrl.TrimEnd('/')}/api/agency/desktop/tickets/{ticketId}/messages";
+        var resp = await App.HttpClient.PostAsJsonAsync(url, new { body });
+        if (!resp.IsSuccessStatusCode)
+            throw new Exception(await resp.Content.ReadAsStringAsync());
+    }
+
+    // Total count of admin (CRMRS) messages across all of this agency's
+    // tickets — used by the desktop to show an unread badge (compared against
+    // a locally-stored last-seen count).
+    internal static async Task<int> GetAdminMessageCountAsync()
+    {
+        try
+        {
+            var tickets = await GetMyTicketsAsync();
+            int n = 0;
+            foreach (var t in tickets)
+                if (t.Messages != null)
+                    foreach (var m in t.Messages)
+                        if (m.Sender == "admin") n++;
+            return n;
+        }
+        catch { return -1; }   // -1 = couldn't check (don't change the badge)
     }
 
     // ── HTTP helper ─────────────────────────────────────────────────────────

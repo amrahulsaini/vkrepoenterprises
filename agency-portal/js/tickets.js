@@ -15,13 +15,10 @@
     const modal   = document.getElementById('ticket-modal');
     const tkTitle = document.getElementById('tk-title');
     const tkMeta  = document.getElementById('tk-meta');
-    const tkMsg   = document.getElementById('tk-message');
-    const tkShotW = document.getElementById('tk-shot-wrap');
-    const tkShot  = document.getElementById('tk-shot');
-    const tkShotL = document.getElementById('tk-shot-link');
+    const tkThread= document.getElementById('tk-thread');
     const tkStat  = document.getElementById('tk-status');
     const tkReply = document.getElementById('tk-reply');
-    const tkSave  = document.getElementById('tk-save');
+    const tkSend  = document.getElementById('tk-send');
     const tkCancel= document.getElementById('tk-cancel');
 
     let _open = null;   // ticket currently open in the modal
@@ -80,7 +77,7 @@
                 <td>${t.screenshotUrl ? '📎' : ''}</td>
                 <td>${statusPill(t.status)}</td>
                 <td class="text-muted" style="font-size:12px;">${escapeHtml(t.createdAt)}</td>
-                <td>${t.adminReply ? '<span class="text-muted" style="font-size:12px;">replied</span>' : '<span style="color:#dc2626;font-size:12px;font-weight:600;">needs reply</span>'}</td>
+                <td><span style="color:#f5a623;font-size:12px;font-weight:600;">Open conversation ›</span></td>
             </tr>`).join('');
         ticketsArea.innerHTML = `
             <table class="data-table">
@@ -93,39 +90,68 @@
             tr.addEventListener('click', () => openTicket(+tr.dataset.id)));
     }
 
-    function openTicket(id) {
+    async function openTicket(id) {
         const t = _cache.find(x => x.id === id);
         if (!t) return;
         _open = t;
         tkTitle.textContent = t.subject;
         tkMeta.innerHTML = `${escapeHtml(t.agencyName || t.agencySlug)} • reported ${escapeHtml(t.createdAt)}`;
-        tkMsg.textContent = t.message;
-        if (t.screenshotUrl) {
-            tkShot.src = t.screenshotUrl; tkShotL.href = t.screenshotUrl;
-            tkShotW.classList.remove('hidden');
-        } else tkShotW.classList.add('hidden');
         tkStat.value = t.status || 'open';
-        tkReply.value = t.adminReply || '';
+        tkReply.value = '';
         modal.classList.add('is-open');
+        await renderThread(t);
+    }
+
+    // Builds the conversation: opening message (+screenshot), then each
+    // back-and-forth message bubble with sender + time.
+    async function renderThread(t) {
+        tkThread.innerHTML = '<div class="text-muted" style="font-size:12px;">Loading…</div>';
+        let msgs = [];
+        try { msgs = await api(`/manage/tickets/${t.id}/messages`) || []; }
+        catch { /* show at least the opening message */ }
+
+        const bubble = (who, body, when, mine) => `
+            <div style="display:flex; ${mine ? 'justify-content:flex-end;' : ''} margin-bottom:8px;">
+              <div style="max-width:78%; background:${mine ? '#eff6ff' : '#fff'}; border:1px solid #e5e7eb; border-radius:10px; padding:9px 12px;">
+                <div style="font-size:10px; font-weight:700; color:${mine ? '#1565c0' : '#c05a00'};">${escapeHtml(who)}</div>
+                <div style="font-size:13px; white-space:pre-wrap; color:#1f2937; margin-top:2px;">${escapeHtml(body)}</div>
+                <div style="font-size:9px; color:#94a3b8; text-align:right; margin-top:3px;">${escapeHtml(when)}</div>
+              </div>
+            </div>`;
+
+        let html = bubble(t.agencyName || 'Agency', t.message, t.createdAt, false);
+        if (t.screenshotUrl)
+            html += `<div style="margin:0 0 8px;"><a href="${t.screenshotUrl}" target="_blank"><img src="${t.screenshotUrl}" style="max-width:60%; max-height:180px; border-radius:8px; border:1px solid #e5e7eb;"/></a></div>`;
+        for (const m of msgs)
+            html += bubble(m.sender === 'admin' ? 'CRMRS (you)' : (t.agencyName || 'Agency'), m.body, m.createdAt, m.sender === 'admin');
+        tkThread.innerHTML = html;
+        tkThread.scrollTop = tkThread.scrollHeight;
     }
 
     function closeModal() { modal.classList.remove('is-open'); _open = null; }
     tkCancel.addEventListener('click', closeModal);
     modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
 
-    tkSave.addEventListener('click', async () => {
+    // Status change → save immediately (separate from messages).
+    tkStat.addEventListener('change', async () => {
         if (!_open) return;
-        tkSave.disabled = true;
+        try { await api(`/manage/tickets/${_open.id}`, { method: 'POST', body: { status: tkStat.value } }); toast('Status updated', 'success'); _open.status = tkStat.value; }
+        catch (err) { toast(err.message || 'Failed', 'error'); }
+    });
+
+    // Send a message — can be done any number of times.
+    tkSend.addEventListener('click', async () => {
+        if (!_open) return;
+        const body = tkReply.value.trim();
+        if (!body) return;
+        tkSend.disabled = true;
         try {
-            await api(`/manage/tickets/${_open.id}`, {
-                method: 'POST',
-                body: { status: tkStat.value, adminReply: tkReply.value }
-            });
-            toast('Ticket updated', 'success');
-            closeModal();
-            await loadTickets();
+            await api(`/manage/tickets/${_open.id}/messages`, { method: 'POST', body: { body } });
+            tkReply.value = '';
+            await renderThread(_open);
+            loadTickets();   // refresh list previews (don't await — keep modal open)
         } catch (err) {
-            toast(err.message || 'Failed to save', 'error');
-        } finally { tkSave.disabled = false; }
+            toast(err.message || 'Failed to send', 'error');
+        } finally { tkSend.disabled = false; }
     });
 })();
