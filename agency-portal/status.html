@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>System Status — CRMRS</title>
+<link rel="icon" href="assets/favicon.ico">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#f6f8fb; --card:#fff; --text:#0E1525; --muted:#64748b; --border:#e6eaf0;
+    --green:#10b981; --green-bg:#ecfdf5; --amber:#f59e0b; --amber-bg:#fffbeb;
+    --red:#ef4444; --red-bg:#fef2f2; --brand:#ea580c;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:Inter,system-ui,sans-serif;background:var(--bg);color:var(--text);
+       min-height:100vh;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:760px;margin:0 auto;padding:32px 18px 60px}
+  .top{display:flex;align-items:center;gap:12px;margin-bottom:26px}
+  .top img{height:34px;width:auto}
+  .top .t{font-size:15px;font-weight:700;letter-spacing:-.01em}
+  .top .t span{color:var(--muted);font-weight:600}
+
+  .banner{border-radius:16px;padding:24px 26px;display:flex;align-items:center;gap:16px;
+          margin-bottom:24px;border:1px solid var(--border)}
+  .banner .dot{width:16px;height:16px;border-radius:50%;flex:0 0 auto;
+               box-shadow:0 0 0 5px rgba(16,185,129,.15)}
+  .banner h1{font-size:21px;font-weight:800;letter-spacing:-.02em;line-height:1.2}
+  .banner p{font-size:13.5px;color:var(--muted);margin-top:3px}
+  .banner.ok   {background:var(--green-bg);border-color:#bbf7d0}
+  .banner.ok   .dot{background:var(--green)}
+  .banner.warn {background:var(--amber-bg);border-color:#fde68a}
+  .banner.warn .dot{background:var(--amber);box-shadow:0 0 0 5px rgba(245,158,11,.15)}
+  .banner.down {background:var(--red-bg);border-color:#fecaca}
+  .banner.down .dot{background:var(--red);box-shadow:0 0 0 5px rgba(239,68,68,.15)}
+
+  .card{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden}
+  .row{display:flex;align-items:center;justify-content:space-between;gap:12px;
+       padding:17px 20px;border-bottom:1px solid var(--border)}
+  .row:last-child{border-bottom:none}
+  .row .name{display:flex;align-items:center;gap:11px;font-weight:600;font-size:15px}
+  .row .name .d{width:10px;height:10px;border-radius:50%;background:#cbd5e1;flex:0 0 auto}
+  .row.op   .name .d{background:var(--green)}
+  .row.down .name .d{background:var(--red)}
+  .right{display:flex;align-items:center;gap:14px}
+  .lat{font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums;
+       background:#f1f5f9;border-radius:6px;padding:3px 8px}
+  .pill{font-size:12px;font-weight:700;letter-spacing:.01em;padding:4px 11px;border-radius:999px}
+  .pill.op  {color:#065f46;background:var(--green-bg)}
+  .pill.down{color:#991b1b;background:var(--red-bg)}
+
+  .foot{display:flex;align-items:center;justify-content:space-between;gap:10px;
+        margin-top:18px;font-size:12.5px;color:var(--muted)}
+  .foot button{font:inherit;font-weight:600;color:var(--brand);background:none;border:none;
+               cursor:pointer;display:inline-flex;align-items:center;gap:5px}
+  .spin{display:inline-block;width:11px;height:11px;border:2px solid #cbd5e1;border-top-color:var(--brand);
+        border-radius:50%;animation:s .7s linear infinite}
+  @keyframes s{to{transform:rotate(360deg)}}
+  .note{margin-top:22px;font-size:12px;color:var(--muted);text-align:center;line-height:1.6}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <img src="assets/crmrs-logo.webp" alt="CRMRS"
+           onerror="this.onerror=null;this.src='assets/favicon.ico'">
+      <div class="t">CRMRS <span>· System Status</span></div>
+    </div>
+
+    <div id="banner" class="banner ok">
+      <div class="dot"></div>
+      <div>
+        <h1 id="banner-title">Checking systems…</h1>
+        <p id="banner-sub">Fetching the latest status</p>
+      </div>
+    </div>
+
+    <div class="card" id="components">
+      <div class="row"><div class="name"><span class="d"></span>Loading…</div></div>
+    </div>
+
+    <div class="foot">
+      <div id="last">—</div>
+      <button id="refresh" onclick="load()"><span id="refresh-ico">↻</span> Refresh</button>
+    </div>
+
+    <div class="note">
+      This page checks every service live and refreshes automatically every 15 seconds.<br>
+      All times shown are response latency in milliseconds.
+    </div>
+  </div>
+
+<script>
+  const API = 'https://api.crmrecoverysoftware.com/api/health';
+  let lastTs = null;
+
+  function timeAgo(d){
+    const s = Math.max(0, Math.round((Date.now()-d)/1000));
+    if (s < 60) return s + 's ago';
+    const m = Math.round(s/60); return m + 'm ago';
+  }
+  function esc(x){return String(x==null?'':x).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
+
+  async function load(){
+    const ico = document.getElementById('refresh-ico');
+    ico.outerHTML = '<span class="spin" id="refresh-ico"></span>';
+    try{
+      const res = await fetch(API, {cache:'no-store'});
+      const data = await res.json();
+      render(data);
+      lastTs = Date.now();
+    }catch(e){
+      renderDown();
+    }
+    document.getElementById('refresh-ico')?.replaceWith(Object.assign(document.createElement('span'),{id:'refresh-ico',textContent:'↻'}));
+    tickLast();
+  }
+
+  function render(d){
+    const comps = d.components || [];
+    const allOp = comps.every(c => c.status === 'operational') && d.overall === 'operational';
+    const anyDown = comps.some(c => c.status !== 'operational');
+
+    const banner = document.getElementById('banner');
+    banner.className = 'banner ' + (allOp ? 'ok' : 'warn');
+    document.getElementById('banner-title').textContent =
+      allOp ? 'All Systems Operational' : 'Some Systems Degraded';
+    document.getElementById('banner-sub').textContent =
+      allOp ? 'Everything is running normally.' : 'We are seeing issues with one or more services.';
+
+    document.getElementById('components').innerHTML = comps.map(c => {
+      const op = c.status === 'operational';
+      return `<div class="row ${op?'op':'down'}">
+        <div class="name"><span class="d"></span>${esc(c.name)}</div>
+        <div class="right">
+          ${op ? `<span class="lat">${c.latencyMs} ms</span>` : ''}
+          <span class="pill ${op?'op':'down'}">${op?'Operational':'Down'}</span>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  function renderDown(){
+    const banner = document.getElementById('banner');
+    banner.className = 'banner down';
+    document.getElementById('banner-title').textContent = 'Status Unreachable';
+    document.getElementById('banner-sub').textContent = 'Could not reach the status service — the API may be down or you are offline.';
+    document.getElementById('components').innerHTML =
+      `<div class="row down"><div class="name"><span class="d"></span>Web API</div>
+        <div class="right"><span class="pill down">Unreachable</span></div></div>`;
+  }
+
+  function tickLast(){
+    document.getElementById('last').textContent = lastTs ? ('Last checked ' + timeAgo(lastTs)) : '—';
+  }
+
+  load();
+  setInterval(load, 15000);   // auto-refresh
+  setInterval(tickLast, 1000); // keep "last checked" fresh
+</script>
+</body>
+</html>
