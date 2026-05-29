@@ -666,6 +666,39 @@ internal static class DesktopApiClient
         return all;
     }
 
+    // ── Instant server-streamed .xlsx download ──────────────────────────────
+    // The server builds the .xlsx and streams it; we just copy the bytes to
+    // disk. No paginated JSON, no client-side workbook assembly. Reports
+    // download progress via onBytes (total bytes written so far).
+    internal static Task DownloadFinanceXlsxAsync(int financeId, string name, string savePath, IProgress<long>? onBytes = null)
+        => DownloadXlsxAsync($"api/mgr/export/finance-records.xlsx?financeId={financeId}&name={Uri.EscapeDataString(name)}", savePath, onBytes);
+
+    internal static Task DownloadBranchXlsxAsync(int branchId, string name, string savePath, IProgress<long>? onBytes = null)
+        => DownloadXlsxAsync($"api/mgr/export/branch-records.xlsx?branchId={branchId}&name={Uri.EscapeDataString(name)}", savePath, onBytes);
+
+    private static async Task DownloadXlsxAsync(string relativeUrl, string savePath, IProgress<long>? onBytes)
+    {
+        var base_ = App.ApiBaseUrl.TrimEnd('/');
+        using var req = new HttpRequestMessage(HttpMethod.Get, $"{base_}/{relativeUrl}");
+        req.Headers.Add("X-Api-Key", App.ApiKey);
+        using var resp = await App.HttpClient.SendAsync(req, HttpCompletionOption.ResponseHeadersRead);
+        if (!resp.IsSuccessStatusCode)
+        {
+            var msg = await resp.Content.ReadAsStringAsync();
+            throw new Exception($"{(int)resp.StatusCode} {resp.ReasonPhrase}: {msg}");
+        }
+        await using var src = await resp.Content.ReadAsStreamAsync();
+        await using var fs  = new FileStream(savePath, FileMode.Create, FileAccess.Write, FileShare.None, 1 << 20);
+        var buf = new byte[1 << 20];
+        long total = 0; int n;
+        while ((n = await src.ReadAsync(buf)) > 0)
+        {
+            await fs.WriteAsync(buf.AsMemory(0, n));
+            total += n;
+            onBytes?.Report(total);
+        }
+    }
+
     // ── HTTP helper ─────────────────────────────────────────────────────────
 
     private static async Task<HttpResponseMessage> Send(
