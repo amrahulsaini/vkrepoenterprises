@@ -39,6 +39,11 @@ public partial class ChunkedExportDialog : Window
 
     internal Func<int, int, Task<DesktopApiClient.ExportPage<DesktopApiClient.ExportVehicleRow>>>? _pageFetcher;
 
+    // Server-stream "part" downloader: (offset, count, savePath, progress) →
+    // streams just that slice as an .xlsx straight to the file. When set, the
+    // dialog uses this instant path instead of the JSON pageFetcher.
+    internal Func<long, int, string, IProgress<long>?, Task>? _chunkDownloader;
+
     public ObservableCollection<ChunkRow> Chunks { get; } = new();
 
     public ChunkedExportDialog()
@@ -51,12 +56,11 @@ public partial class ChunkedExportDialog : Window
                 Content = l == 1 ? "1 Lakh (100,000)" : $"{l} Lakhs ({l * 100_000:N0})",
                 Tag     = l * 100_000
             });
-        // Default to the largest chunk (10 lakh) so a typical finance/branch
-        // exports as ONE Excel file ("dump all in one"). 10 lakh = 1,000,000
-        // rows, just under Excel's 1,048,576 per-sheet limit; bigger sets
-        // still split safely. The new streamed-xlsx writer makes each file
-        // near-instant regardless of size.
-        cmbChunkSize.SelectedIndex = ChunkSizesLakh.Length - 1; // 10 Lakh
+        // Default to 1 lakh records per file — the admin asked for the export
+        // split into 1-lakh parts. They can pick up to 10 lakh per file if
+        // they'd rather have fewer, larger files. Each part streams from the
+        // server as its own .xlsx, so part count doesn't affect speed.
+        cmbChunkSize.SelectedIndex = 0; // 1 Lakh
 
         lvFiles.ItemsSource = Chunks;
         _folder = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
@@ -73,7 +77,8 @@ public partial class ChunkedExportDialog : Window
         string baseName,
         string sheetName,
         long totalHint,
-        Func<int, int, Task<DesktopApiClient.ExportPage<DesktopApiClient.ExportVehicleRow>>> pageFetcher)
+        Func<int, int, Task<DesktopApiClient.ExportPage<DesktopApiClient.ExportVehicleRow>>>? pageFetcher = null,
+        Func<long, int, string, IProgress<long>?, Task>? chunkDownloader = null)
     {
         txtTitle.Text    = title;
         txtSubtitle.Text = subtitle;
@@ -81,6 +86,7 @@ public partial class ChunkedExportDialog : Window
         _sheetName       = string.IsNullOrWhiteSpace(sheetName) ? "Records" : sheetName;
         _total           = totalHint;
         _pageFetcher     = pageFetcher;
+        _chunkDownloader = chunkDownloader;
         txtTotal.Text    = totalHint > 0 ? $"{totalHint:N0}" : "—";
         RecomputeFiles();
     }
@@ -117,7 +123,7 @@ public partial class ChunkedExportDialog : Window
 
     private async void btnDownload_Click(object sender, RoutedEventArgs e)
     {
-        if (_pageFetcher == null) return;
+        if (_pageFetcher == null && _chunkDownloader == null) return;
         var selected = Chunks.Where(c => c.Selected && !c.IsDone).ToList();
         if (selected.Count == 0)
         {
@@ -204,27 +210,45 @@ public partial class ChunkedExportDialog : Window
 
     private async Task RunDownloadAsync(List<ChunkRow> rowsToDo)
     {
-        if (_pageFetcher == null) return;
-
-        // One HTTP request per chunk file. We ask the server for exactly
-        // this chunk's slice via (page=chunk_index, size=chunk_size). As soon
-        // as the rows come back we hand them to the Excel writer, free the
-        // memory, then move to the next chunk. No big in-memory buffer, no
-        // 5000-row paginated round-trips.
         int chunkSize = (cmbChunkSize.SelectedItem is ComboBoxItem ci) ? (int)ci.Tag : 100_000;
-        int totalSteps = rowsToDo.Count * 2; // fetch + write per chunk
-        int stepsDone  = 0;
 
+        // ── Preferred path: server-streamed parts (instant) ──────────────────
+        // For each selected part, the SERVER streams just that slice
+        // (offset, count) as an .xlsx straight to the part's file. No JSON,
+        // no client-side workbook build — each part downloads near-instantly.
+        if (_chunkDownloader != null)
+        {
+            int done = 0;
+            foreach (var row in rowsToDo)
+            {
+                done++;
+                row.SetStatus(ChunkStatus.Writing);
+                txtStatus.Text = $"Downloading {row.FileName} ({done} of {rowsToDo.Count}) — {row.Count:N0} rows…";
+                try
+                {
+                    await _chunkDownloader(row.StartRowInclusive, (int)row.Count, row.FullPath, null);
+                    row.SetStatus(ChunkStatus.Done);
+                }
+                catch (Exception ex)
+                {
+                    row.SetStatus(ChunkStatus.Failed);
+                    txtStatus.Text = $"Failed: {row.FileName}: {ex.Message}";
+                }
+                double p = (double)done / rowsToDo.Count * 100.0;
+                pb.Value = p; txtPct.Text = $"{(int)p}%";
+            }
+            return;
+        }
+
+        // ── Legacy path (Reports): fetch JSON pages, write client-side ───────
+        if (_pageFetcher == null) return;
+        int totalSteps = rowsToDo.Count * 2;
+        int stepsDone  = 0;
         int idx = 0;
         foreach (var row in rowsToDo)
         {
             idx++;
             row.SetStatus(ChunkStatus.Writing);
-
-            // ── Fetch this chunk's records ────────────────────────────────
-            // The server's existing paginated endpoint takes (page, size)
-            // and computes OFFSET = page * size. Map chunk index → page so
-            // each chunk is exactly one query / one network response.
             txtStatus.Text = $"Fetching {row.FileName} ({idx} of {rowsToDo.Count}) — {row.Count:N0} rows…";
             List<DesktopApiClient.ExportVehicleRow> rows;
             try
@@ -242,13 +266,8 @@ public partial class ChunkedExportDialog : Window
             double pct = (double)stepsDone / totalSteps * 100.0;
             pb.Value = pct; txtPct.Text = $"{(int)pct}%";
 
-            if (rows.Count == 0)
-            {
-                row.SetStatus(ChunkStatus.Failed);
-                continue;
-            }
+            if (rows.Count == 0) { row.SetStatus(ChunkStatus.Failed); continue; }
 
-            // ── Write this chunk's Excel file ─────────────────────────────
             txtStatus.Text = $"Writing {row.FileName} ({idx} of {rowsToDo.Count})…";
             try
             {

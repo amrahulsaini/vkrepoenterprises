@@ -676,6 +676,13 @@ internal static class DesktopApiClient
     internal static Task DownloadBranchXlsxAsync(int branchId, string name, string savePath, IProgress<long>? onBytes = null)
         => DownloadXlsxAsync($"api/mgr/export/branch-records.xlsx?branchId={branchId}&name={Uri.EscapeDataString(name)}", savePath, onBytes);
 
+    // Single "part" — streams just the rows [offset, offset+count) into one file.
+    internal static Task DownloadFinanceXlsxChunkAsync(int financeId, string name, long offset, int count, string savePath, IProgress<long>? onBytes = null)
+        => DownloadXlsxAsync($"api/mgr/export/finance-records.xlsx?financeId={financeId}&name={Uri.EscapeDataString(name)}&offset={offset}&limit={count}", savePath, onBytes);
+
+    internal static Task DownloadBranchXlsxChunkAsync(int branchId, string name, long offset, int count, string savePath, IProgress<long>? onBytes = null)
+        => DownloadXlsxAsync($"api/mgr/export/branch-records.xlsx?branchId={branchId}&name={Uri.EscapeDataString(name)}&offset={offset}&limit={count}", savePath, onBytes);
+
     private static async Task DownloadXlsxAsync(string relativeUrl, string savePath, IProgress<long>? onBytes)
     {
         var base_ = App.ApiBaseUrl.TrimEnd('/');
