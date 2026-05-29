@@ -16,17 +16,29 @@ sealed class SearchResult2 {
 class SearchRepository {
     private val api = ApiClient.api
 
+    // NOTE: we must NOT swallow CancellationException. A fast/typed-ahead search
+    // cancels the previous searchJob; if the cancelled call's CancellationException
+    // were caught here (as runCatching{}.getOrElse{} did), the dead search would
+    // fall through and stomp the live search's results with an error — which made
+    // rapid searching appear to "hang" / show nothing. Rethrow it so the cancelled
+    // coroutine unwinds cleanly and only the latest search updates the UI.
     suspend fun searchRc(last4: String, userId: Long): SearchResult2 =
-        runCatching {
-            val resp = api.searchRc(last4, userId)
-            mapSearchResponse(resp)
-        }.getOrElse { SearchResult2.Error(it.message ?: "Network error") }
+        try {
+            mapSearchResponse(api.searchRc(last4, userId))
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            SearchResult2.Error(e.message ?: "Network error")
+        }
 
     suspend fun searchChassis(last5: String, userId: Long): SearchResult2 =
-        runCatching {
-            val resp = api.searchChassis(last5, userId)
-            mapSearchResponse(resp)
-        }.getOrElse { SearchResult2.Error(it.message ?: "Network error") }
+        try {
+            mapSearchResponse(api.searchChassis(last5, userId))
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            SearchResult2.Error(e.message ?: "Network error")
+        }
 
     private fun mapSearchResponse(resp: retrofit2.Response<com.vkenterprises.vras.data.models.SearchResponse>): SearchResult2 {
         if (resp.isSuccessful) return SearchResult2.Success(resp.body()?.results ?: emptyList())
