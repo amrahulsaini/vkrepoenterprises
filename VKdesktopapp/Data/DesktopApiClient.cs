@@ -56,7 +56,8 @@ internal static class DesktopApiClient
     internal record LiveUserDto(
         long    Id, string Name, string Mobile,
         string  LastSeen,
-        double? Lat, double? Lng);
+        double? Lat, double? Lng,
+        string? Pfp = null);
 
     internal record SearchLogRow(
         long    Id,
