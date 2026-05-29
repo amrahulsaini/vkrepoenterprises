@@ -306,17 +306,27 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
             Button(
                 onClick = {
                     focusManager.clearFocus()
-                    if (mobile.isBlank() || name.isBlank()) {
-                        error = "Mobile and name are required."
-                        return@Button
+                    // All fields are now mandatory — profile, full KYC and bank
+                    // details must be provided before an agent can register.
+                    error = when {
+                        mobile.isBlank() || name.isBlank() -> "Mobile and name are required."
+                        address.isBlank()                  -> "Address is required."
+                        pincode.isBlank()                  -> "Pincode is required."
+                        pfpB64 == null                     -> "Profile photo is required."
+                        aadhaarFrontB64 == null            -> "Aadhaar front photo is required."
+                        aadhaarBackB64 == null             -> "Aadhaar back photo is required."
+                        panFrontB64 == null                -> "PAN card photo is required."
+                        accountNumber.isBlank()            -> "Bank account number is required."
+                        ifscCode.isBlank()                 -> "IFSC code is required."
+                        else                               -> ""
                     }
-                    error = ""
+                    if (error.isNotEmpty()) return@Button
                     vm.register(
                         mobile, name,
-                        address.ifBlank { null }, pincode.ifBlank { null },
+                        address, pincode,
                         pfpB64,
                         aadhaarFrontB64, aadhaarBackB64, panFrontB64,
-                        accountNumber.ifBlank { null }, ifscCode.ifBlank { null },
+                        accountNumber, ifscCode,
                         agencySlug, agencyName, ""  // agencyMobile no longer collected
                     )
                 },

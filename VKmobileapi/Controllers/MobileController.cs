@@ -441,6 +441,24 @@ public class MobileController : ControllerBase
         catch (Exception ex) { return StatusCode(500, new ApiError(false, $"Failed: {ex.Message}")); }
     }
 
+    // PATCH /api/mobile/admin/users/{targetUserId}/admin — promote/demote a
+    // user to/from admin from inside the mobile Control Panel.
+    [HttpPatch("admin/users/{targetUserId:long}/admin")]
+    public async Task<IActionResult> AdminSetAdmin(
+        long targetUserId,
+        [FromHeader(Name = "X-User-Id")] long userId,
+        [FromBody] SetUserFlagRequest req)
+    {
+        try
+        {
+            if (!await _repo.IsAdminAsync(userId))
+                return StatusCode(403, new ApiError(false, "Admin access required."));
+            await _repo.SetUserAdminAsync(targetUserId, req.Value);
+            return Ok(new { success = true });
+        }
+        catch (Exception ex) { return StatusCode(500, new ApiError(false, $"Failed: {ex.Message}")); }
+    }
+
     // GET /api/mobile/profile/{userId}
     [HttpGet("profile/{userId:long}")]
     public async Task<IActionResult> GetProfile(long userId)

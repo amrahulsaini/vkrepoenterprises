@@ -126,4 +126,11 @@ interface ApiService {
         @Path("userId") userId: Long,
         @Body request: SetUserFlagRequest
     ): Response<Map<String, Any>>
+
+    @PATCH("api/mobile/admin/users/{userId}/admin")
+    suspend fun adminSetAdmin(
+        @Header("X-User-Id") adminId: Long,
+        @Path("userId") userId: Long,
+        @Body request: SetUserFlagRequest
+    ): Response<Map<String, Any>>
 }

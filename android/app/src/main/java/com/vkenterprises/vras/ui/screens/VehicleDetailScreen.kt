@@ -8,6 +8,7 @@ import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.rememberScrollState
@@ -926,10 +927,11 @@ private fun openWhatsApp(context: Context, message: String) {
 
 // ── Compact row with optional selection checkbox ───────────────────────────
 
-// Matches 10-digit phone numbers starting with 6/7/8/9 (Indian mobile format).
-// \b ensures we don't match digits inside longer numbers.
-private val PHONE_REGEX = Regex("\\b[6-9]\\d{9}\\b")
+// Any run of 6+ digits is treated as a dialable number (mobile, landline,
+// etc.). Per request, ALL numbers are tappable — not just 10-digit mobiles.
+private val PHONE_REGEX = Regex("\\d{6,}")
 
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 private fun SRow(
     label: String,
@@ -940,8 +942,10 @@ private fun SRow(
     chk: Boolean = false,
     onChk: (Boolean) -> Unit = {}
 ) {
-    val display = value.orEmpty()
     val context = LocalContext.current
+    // Admin detail values are shown in CAPITALS — per request, every field on
+    // the admin side reads in uppercase, always.
+    val display = value.orEmpty().let { if (it.isBlank()) it else it.uppercase() }
 
     val baseColor = if (invalid) MaterialTheme.colorScheme.error
                     else if (display.isBlank()) MaterialTheme.colorScheme.outlineVariant
@@ -949,16 +953,15 @@ private fun SRow(
     val phoneColor = MaterialTheme.colorScheme.primary
 
     val phoneMatches = PHONE_REGEX.findAll(display).toList()
+    val firstNumber  = phoneMatches.firstOrNull()?.value
     val annotated = remember(display, phoneColor, baseColor) {
         buildAnnotatedString {
             var last = 0
             phoneMatches.forEach { m ->
                 if (m.range.first > last) append(display.substring(last, m.range.first))
-                pushStringAnnotation(tag = "PHONE", annotation = m.value)
                 withStyle(SpanStyle(color = phoneColor, textDecoration = TextDecoration.Underline)) {
                     append(m.value)
                 }
-                pop()
                 last = m.range.last + 1
             }
             if (last < display.length) append(display.substring(last))
@@ -970,56 +973,56 @@ private fun SRow(
         verticalAlignment = Alignment.CenterVertically
     ) {
         if (sel) {
-            Checkbox(
-                checked = chk,
-                onCheckedChange = onChk,
-                modifier = Modifier.size(24.dp)
-            )
+            Checkbox(checked = chk, onCheckedChange = onChk, modifier = Modifier.size(24.dp))
             Spacer(Modifier.width(6.dp))
         }
-        // Label in a fixed-width box, then the ":" as a separate element so
-        // every colon lines up in one vertical column regardless of label length.
-        // Force SansSerif (Roboto) so the app's typography stays consistent even
-        // when the user has a custom phone font installed.
         Text(
             label,
             fontSize   = 14.sp,
-            fontFamily = FontFamily.SansSerif,
-            fontWeight = FontWeight.SemiBold,
+            fontFamily = FontFamily.Default,
+            fontWeight = FontWeight.Bold,
             color      = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier   = Modifier.width(if (sel) 104.dp else 128.dp)
         )
         Text(
             ":",
             fontSize   = 14.sp,
-            fontFamily = FontFamily.SansSerif,
+            fontFamily = FontFamily.Default,
+            fontWeight = FontWeight.Bold,
             color      = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier   = Modifier.padding(end = 8.dp)
         )
-        ClickableText(
+        // Value cell: tap dials the first number in the value; long-press copies
+        // the whole value. FontWeight.Black + FontFamily.Default forces a heavy
+        // bold that renders even on phones with a custom system font.
+        Text(
             text = annotated,
             style = MaterialTheme.typography.bodyLarge.copy(
                 color      = baseColor,
-                fontWeight = if (display.isBlank()) FontWeight.Normal else FontWeight.ExtraBold,
-                fontFamily = if (mono) FontFamily.Monospace else FontFamily.SansSerif
+                fontWeight = if (display.isBlank()) FontWeight.Normal else FontWeight.Black,
+                fontFamily = if (mono) FontFamily.Monospace else FontFamily.Default
             ),
-            onClick = { offset ->
-                annotated.getStringAnnotations(tag = "PHONE", start = offset, end = offset)
-                    .firstOrNull()?.let { ann ->
-                        runCatching {
-                            context.startActivity(
-                                Intent(Intent.ACTION_DIAL, Uri.parse("tel:${ann.item}"))
-                            )
+            modifier = Modifier
+                .weight(1f)
+                .combinedClickable(
+                    onClick = {
+                        firstNumber?.let { num ->
+                            runCatching {
+                                context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:$num")))
+                            }
+                        }
+                    },
+                    onLongClick = {
+                        if (display.isNotBlank()) {
+                            val cb = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                            cb.setPrimaryClip(ClipData.newPlainText(label, display))
+                            android.widget.Toast.makeText(context, "Copied", android.widget.Toast.LENGTH_SHORT).show()
                         }
                     }
-            },
-            modifier = Modifier.weight(1f)
+                )
         )
         if (invalid) {
-            Surface(
-                shape = RoundedCornerShape(4.dp),
-                color = MaterialTheme.colorScheme.errorContainer
-            ) {
+            Surface(shape = RoundedCornerShape(4.dp), color = MaterialTheme.colorScheme.errorContainer) {
                 Text("INVALID",
                     style    = MaterialTheme.typography.labelSmall,
                     color    = MaterialTheme.colorScheme.onErrorContainer,
@@ -1116,11 +1119,13 @@ private fun DetailRow(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
+            // FontWeight.Black + FontFamily.Default forces a heavy bold that
+            // renders on every device regardless of the user's system font.
             Text(value,
-                style      = MaterialTheme.typography.bodySmall,
-                fontWeight = FontWeight.Bold,
+                style      = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Black,
                 fontFamily = if (label in listOf("Vehicle No","Chassis No","Engine No"))
-                    FontFamily.Monospace else FontFamily.SansSerif,
+                    FontFamily.Monospace else FontFamily.Default,
                 color      = if (isPhone) primary else baseColor,
                 textDecoration = if (isPhone) TextDecoration.Underline else null)
             if (isPhone) {

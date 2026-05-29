@@ -645,7 +645,9 @@ private fun AgencyLandingPanel(
         LandingTile(
             label    = "OFFLINE RECORDS",
             icon     = Icons.Default.CloudDownload,
-            subtitle = "${formatRoomCount(offlineCount)} on this phone",
+            // Record count intentionally hidden — agents shouldn't see how many
+            // records are on the device.
+            subtitle = "Saved on this phone",
             accent   = MaterialTheme.colorScheme.primary
         ) { nav.navigate(Screen.Settings.route) }
         Spacer(Modifier.height(10.dp))
