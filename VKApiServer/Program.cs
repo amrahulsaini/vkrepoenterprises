@@ -2471,6 +2471,13 @@ static bool MgrAuthFlexible(HttpContext ctx, string key) =>
 async Task StreamVehicleXlsx(HttpContext ctx, string whereSql, string sheetName,
                              string downloadName, params (string, object)[] ps)
 {
+    // ZipArchive + StreamWriter do synchronous writes to the response body,
+    // which Kestrel blocks by default ("Synchronous operations are
+    // disallowed"). Opt this one response into sync IO — required for the
+    // streamed-zip writer and standard practice for file-generation endpoints.
+    var bodyControl = ctx.Features.Get<Microsoft.AspNetCore.Http.Features.IHttpBodyControlFeature>();
+    if (bodyControl != null) bodyControl.AllowSynchronousIO = true;
+
     await using var conn = new MySqlConnection(TenantContext.Conn);
     await conn.OpenAsync();
     var sql = $"SELECT {XLSX_FIELDS} FROM vehicle_records vr " +
