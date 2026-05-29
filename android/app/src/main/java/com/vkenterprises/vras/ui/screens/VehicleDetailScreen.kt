@@ -458,7 +458,8 @@ fun VehicleDetailScreen(
                     .fillMaxWidth()
                     .weight(1f)
                     .verticalScroll(rememberScrollState())
-                    .padding(16.dp),
+                    // Minimal side margin so admin detail rows use the full width.
+                    .padding(horizontal = 8.dp, vertical = 10.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 if (isAdmin) {
@@ -615,14 +616,11 @@ private fun AdminDetailView(
         }
     }
 
-    // All fields in one compact card
-    Card(
-        shape     = RoundedCornerShape(12.dp),
-        colors    = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(1.dp),
-        modifier  = Modifier.fillMaxWidth()
-    ) {
-        Column(Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
+    // No box / card — the detail entries span the full width, edge-to-edge,
+    // with no surrounding margin (per request). The double Column keeps the
+    // brace structure unchanged while removing the Card + its inner padding.
+    Column(Modifier.fillMaxWidth()) {
+        Column(Modifier.fillMaxWidth()) {
 
             SRow("Vehicle No",   item.vehicleNo,   mono = true,
                 invalid = !item.vehicleNo.isNullOrBlank() && !item.vehicleNo.isValidRc(),
@@ -676,19 +674,19 @@ private fun AdminDetailView(
 
             SRow("Level 1",         item.level1,
                 sel = showSelection, chk = selChecked["Level 1"] == true) { selChecked["Level 1"] = it }
-            SRow("Level 1 Contact", item.level1Contact, mono = true,
+            SRow("Level 1 Contact", item.level1Contact, mono = true, dialable = true,
                 sel = showSelection, chk = selChecked["Level 1"] == true) { selChecked["Level 1"] = it }
             SRow("Level 2",         item.level2,
                 sel = showSelection, chk = selChecked["Level 2"] == true) { selChecked["Level 2"] = it }
-            SRow("Level 2 Contact", item.level2Contact, mono = true,
+            SRow("Level 2 Contact", item.level2Contact, mono = true, dialable = true,
                 sel = showSelection, chk = selChecked["Level 2"] == true) { selChecked["Level 2"] = it }
             SRow("Level 3",         item.level3,
                 sel = showSelection, chk = selChecked["Level 3"] == true) { selChecked["Level 3"] = it }
-            SRow("Level 3 Contact", item.level3Contact, mono = true,
+            SRow("Level 3 Contact", item.level3Contact, mono = true, dialable = true,
                 sel = showSelection, chk = selChecked["Level 3"] == true) { selChecked["Level 3"] = it }
             SRow("Level 4",         item.level4,
                 sel = showSelection, chk = selChecked["Level 4"] == true) { selChecked["Level 4"] = it }
-            SRow("Level 4 Contact", item.level4Contact, mono = true,
+            SRow("Level 4 Contact", item.level4Contact, mono = true, dialable = true,
                 sel = showSelection, chk = selChecked["Level 4"] == true) { selChecked["Level 4"] = it }
 
             CSep()
@@ -948,6 +946,7 @@ private fun SRow(
     value: String?,
     mono: Boolean = false,
     invalid: Boolean = false,
+    dialable: Boolean = false,   // only Level-contact rows: numbers shown blue + tap-to-dial
     sel: Boolean = false,
     chk: Boolean = false,
     onChk: (Boolean) -> Unit = {}
@@ -962,9 +961,12 @@ private fun SRow(
                     else MaterialTheme.colorScheme.onSurface
     val phoneColor = MaterialTheme.colorScheme.primary
 
-    val phoneMatches = PHONE_REGEX.findAll(display).toList()
+    // Only "dialable" rows (the Level contacts) highlight numbers in blue and
+    // make them tap-to-dial. Every other field — customer/branch contacts,
+    // agreement no, chassis, etc. — is plain text, no blue, no keypad.
+    val phoneMatches = if (dialable) PHONE_REGEX.findAll(display).toList() else emptyList()
     val firstNumber  = phoneMatches.firstOrNull()?.value
-    val annotated = remember(display, phoneColor, baseColor) {
+    val annotated = remember(display, phoneColor, baseColor, dialable) {
         buildAnnotatedString {
             var last = 0
             phoneMatches.forEach { m ->
@@ -1016,7 +1018,7 @@ private fun SRow(
                 .weight(1f)
                 .combinedClickable(
                     onClick = {
-                        firstNumber?.let { num ->
+                        if (dialable) firstNumber?.let { num ->
                             runCatching {
                                 context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:$num")))
                             }
