@@ -228,10 +228,17 @@ class SearchViewModel @Inject constructor(
                         result.data.filter { it.vehicleNo.isValidRc() }.sortedBy { it.vehicleNo }
                     else
                         result.data.sortedBy { it.chassisNo }
+                    // De-dupe TRUE duplicates only (the same vehicle listed twice
+                    // in the same branch & finance — e.g. a row repeated in the
+                    // uploaded file). A vehicle that is legitimately listed under
+                    // several finances keeps ONE card per finance, so a copy under
+                    // e.g. VASTU FINANCE is never hidden behind an ALL-FINANCE copy
+                    // of the same RC (which the old distinctBy { vehicleNo } did —
+                    // it showed only the alphabetically-first branch).
                     val unique = if (mode == SearchMode.RC)
-                        full.distinctBy { it.vehicleNo }
+                        full.distinctBy { "${it.vehicleNo}|${it.branchName}|${it.financer}" }
                     else
-                        full.distinctBy { it.chassisNo }
+                        full.distinctBy { "${it.chassisNo}|${it.branchName}|${it.financer}" }
                     it.copy(results = unique, allResults = full, lastQuery = q, errorMsg = null, isSearching = false)
                 }
                 is SearchResult2.SubscriptionExpired -> it.copy(subscriptionExpired = true, isSearching = false)
