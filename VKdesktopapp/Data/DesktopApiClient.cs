@@ -442,90 +442,157 @@ internal static class DesktopApiClient
         int branchId, List<UploadRecord> records,
         IProgress<(int pct, string msg)>? progress = null)
     {
-        // Build pipe-delimited text (~300 bytes/row for 100k = ~30 MB raw)
-        var sb = new StringBuilder(records.Count * 300 + 16);
-        sb.AppendLine(branchId.ToString());
-        foreach (var r in records)
-        {
-            sb.Append(r.FormatedVehicleNo).Append('|')
-              .Append(r.ChasisNo).Append('|')
-              .Append(r.EngineNo).Append('|')
-              .Append(r.Model).Append('|')
-              .Append(r.AgreementNo).Append('|')
-              .Append(r.Bucket).Append('|')
-              .Append(r.GV).Append('|')
-              .Append(r.OD).Append('|')
-              .Append(r.Seasoning).Append('|')
-              .Append(r.TBRFlag).Append('|')
-              .Append(r.Sec9Available).Append('|')
-              .Append(r.Sec17Available).Append('|')
-              .Append(r.CustomerName).Append('|')
-              .Append(r.CustomerAddress).Append('|')
-              .Append(r.CustomerContactNos).Append('|')
-              .Append(r.Region).Append('|')
-              .Append(r.Area).Append('|')
-              .Append(r.BranchName).Append('|')
-              .Append(r.Level1).Append('|')
-              .Append(r.Level1ContactNos).Append('|')
-              .Append(r.Level2).Append('|')
-              .Append(r.Level2ContactNos).Append('|')
-              .Append(r.Level3).Append('|')
-              .Append(r.Level3ContactNos).Append('|')
-              .Append(r.Level4).Append('|')
-              .Append(r.Level4ContactNos).Append('|')
-              .Append(r.SenderMailId1).Append('|')
-              .Append(r.SenderMailId2).Append('|')
-              .Append(r.ExecutiveName).Append('|')
-              .Append(r.POS).Append('|')
-              .Append(r.TOSS).Append('|')
-              .AppendLine(r.Remark);
-        }
-
-        // Gzip — Fastest gives ~5-10x compression on repetitive text, minimal CPU
-        var raw = Encoding.UTF8.GetBytes(sb.ToString());
-        byte[] compressed;
-        using (var ms = new MemoryStream())
-        {
-            using (var gz = new GZipStream(ms, CompressionLevel.Fastest))
-                gz.Write(raw, 0, raw.Length);
-            compressed = ms.ToArray();
-        }
-
-        var base_ = App.ApiBaseUrl.TrimEnd('/');
-        var req = new HttpRequestMessage(HttpMethod.Post, $"{base_}/api/mgr/records/upload");
-        req.Headers.Add("X-Api-Key", App.ApiKey);
-        req.Content = new ByteArrayContent(compressed);
-        req.Content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
-
-        // ResponseHeadersRead lets us stream the ndjson chunks as they arrive
-        using var resp = await App.HttpClient.SendAsync(req, HttpCompletionOption.ResponseHeadersRead);
-        resp.EnsureSuccessStatusCode();
-
-        using var stream = await resp.Content.ReadAsStreamAsync();
-        using var reader = new StreamReader(stream, Encoding.UTF8);
+        // Resilient upload for weak / unstable client networks. A single giant
+        // POST (a large branch is tens of MB gzipped) dies on ANY network blip
+        // with no recovery — that was the "error sending the request" /
+        // "copying content to a stream" failure agencies hit. Instead we split
+        // the branch into small chunks and upload each as its own request,
+        // retrying transient failures so a hiccup only re-sends ~1 MB, not the
+        // whole file. Replace-semantics are preserved across chunks via ?mode=:
+        //   begin  → clear old records + insert this chunk
+        //   append → insert this chunk
+        //   finish → insert this chunk + finalize (branch stats + index rebuild)
+        // A single-chunk upload uses mode=replace = the original one-shot path.
+        const int CHUNK = 25_000;
+        int total  = records.Count;
+        int chunks = Math.Max(1, (total + CHUNK - 1) / CHUNK);
 
         int inserted = 0;
         double elapsedSeconds = 0;
 
-        while (!reader.EndOfStream)
+        // Build the gzipped pipe-delimited payload for one slice of records.
+        static byte[] BuildPayload(int bId, List<UploadRecord> rows)
         {
-            var line = await reader.ReadLineAsync();
-            if (string.IsNullOrWhiteSpace(line)) continue;
-
-            using var doc = JsonDocument.Parse(line);
-            var root = doc.RootElement;
-            int pct   = root.GetProperty("pct").GetInt32();
-            string msg = root.GetProperty("msg").GetString() ?? "";
-
-            if (pct == -1) throw new Exception(msg);
-
-            if (pct == 100)
+            var sb = new StringBuilder(rows.Count * 300 + 16);
+            sb.AppendLine(bId.ToString());
+            foreach (var r in rows)
             {
-                inserted       = root.GetProperty("inserted").GetInt32();
-                elapsedSeconds = root.GetProperty("elapsedSeconds").GetDouble();
+                sb.Append(r.FormatedVehicleNo).Append('|')
+                  .Append(r.ChasisNo).Append('|')
+                  .Append(r.EngineNo).Append('|')
+                  .Append(r.Model).Append('|')
+                  .Append(r.AgreementNo).Append('|')
+                  .Append(r.Bucket).Append('|')
+                  .Append(r.GV).Append('|')
+                  .Append(r.OD).Append('|')
+                  .Append(r.Seasoning).Append('|')
+                  .Append(r.TBRFlag).Append('|')
+                  .Append(r.Sec9Available).Append('|')
+                  .Append(r.Sec17Available).Append('|')
+                  .Append(r.CustomerName).Append('|')
+                  .Append(r.CustomerAddress).Append('|')
+                  .Append(r.CustomerContactNos).Append('|')
+                  .Append(r.Region).Append('|')
+                  .Append(r.Area).Append('|')
+                  .Append(r.BranchName).Append('|')
+                  .Append(r.Level1).Append('|')
+                  .Append(r.Level1ContactNos).Append('|')
+                  .Append(r.Level2).Append('|')
+                  .Append(r.Level2ContactNos).Append('|')
+                  .Append(r.Level3).Append('|')
+                  .Append(r.Level3ContactNos).Append('|')
+                  .Append(r.Level4).Append('|')
+                  .Append(r.Level4ContactNos).Append('|')
+                  .Append(r.SenderMailId1).Append('|')
+                  .Append(r.SenderMailId2).Append('|')
+                  .Append(r.ExecutiveName).Append('|')
+                  .Append(r.POS).Append('|')
+                  .Append(r.TOSS).Append('|')
+                  .AppendLine(r.Remark);
             }
+            var raw = Encoding.UTF8.GetBytes(sb.ToString());
+            using var ms = new MemoryStream();
+            using (var gz = new GZipStream(ms, CompressionLevel.Fastest))
+                gz.Write(raw, 0, raw.Length);
+            return ms.ToArray();
+        }
 
-            progress?.Report((pct, msg));
+        // POST one chunk and stream its ndjson progress. Returns (inserted, elapsed).
+        static async Task<(int Inserted, double Elapsed)> PostOnce(
+            byte[] payload, string mode, Action<int, string> rep)
+        {
+            var base_ = App.ApiBaseUrl.TrimEnd('/');
+            var req = new HttpRequestMessage(HttpMethod.Post,
+                $"{base_}/api/mgr/records/upload?mode={mode}");
+            req.Headers.Add("X-Api-Key", App.ApiKey);
+            req.Content = new ByteArrayContent(payload);
+            req.Content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
+
+            using var resp = await App.HttpClient.SendAsync(req, HttpCompletionOption.ResponseHeadersRead);
+            resp.EnsureSuccessStatusCode();
+            using var stream = await resp.Content.ReadAsStreamAsync();
+            using var reader = new StreamReader(stream, Encoding.UTF8);
+
+            int ins = 0; double el = 0;
+            while (!reader.EndOfStream)
+            {
+                var line = await reader.ReadLineAsync();
+                if (string.IsNullOrWhiteSpace(line)) continue;
+                using var doc = JsonDocument.Parse(line);
+                var root = doc.RootElement;
+                int pct = root.GetProperty("pct").GetInt32();
+                string msg = root.GetProperty("msg").GetString() ?? "";
+                if (pct == -1) throw new Exception(msg);
+                if (pct == 100 && root.TryGetProperty("inserted", out var insEl))
+                {
+                    ins = insEl.GetInt32();
+                    el  = root.GetProperty("elapsedSeconds").GetDouble();
+                }
+                rep(pct, msg);
+            }
+            return (ins, el);
+        }
+
+        // Connection-level failures (reset / DNS / TLS → no status), 408/429 and
+        // 5xx are transient and worth retrying. A genuine 4xx (bad payload, auth)
+        // is not — retrying would just fail the same way.
+        static bool IsTransient(Exception ex)
+        {
+            if (ex is IOException or TaskCanceledException or System.Net.Sockets.SocketException)
+                return true;
+            if (ex is HttpRequestException hre)
+                return hre.StatusCode is null
+                    || (int)hre.StatusCode.Value is 408 or 429 or >= 500;
+            return false;
+        }
+
+        for (int ci = 0; ci < chunks; ci++)
+        {
+            int start = ci * CHUNK;
+            int count = Math.Min(CHUNK, total - start);
+            var slice = records.GetRange(start, count);
+            string mode = chunks == 1        ? "replace"
+                        : ci == 0            ? "begin"
+                        : ci == chunks - 1   ? "finish"
+                        :                      "append";
+
+            byte[] payload = BuildPayload(branchId, slice);
+
+            // Map this chunk's 0-100 server progress onto its slice of the
+            // overall bar so the UI advances smoothly across all chunks.
+            int lo = (int)(100.0 * ci / chunks);
+            int hi = (int)(100.0 * (ci + 1) / chunks);
+            int doneBefore = start;
+            void Report(int chunkPct, string msg) =>
+                progress?.Report((
+                    Math.Clamp(lo + (hi - lo) * chunkPct / 100, 0, 100),
+                    chunks == 1 ? msg : $"Batch {ci + 1}/{chunks} ({doneBefore:N0}/{total:N0}) — {msg}"));
+
+            const int MAX_ATTEMPTS = 4;
+            for (int attempt = 1; ; attempt++)
+            {
+                try
+                {
+                    (inserted, elapsedSeconds) = await PostOnce(payload, mode, Report);
+                    break;
+                }
+                catch (Exception ex) when (attempt < MAX_ATTEMPTS && IsTransient(ex))
+                {
+                    int wait = 2 * attempt;   // 2s, 4s, 6s
+                    Report(0, $"network issue — retrying in {wait}s (try {attempt + 1}/{MAX_ATTEMPTS})");
+                    await Task.Delay(TimeSpan.FromSeconds(wait));
+                }
+            }
         }
 
         return (inserted, elapsedSeconds);
