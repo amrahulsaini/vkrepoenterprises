@@ -2469,7 +2469,7 @@ static bool MgrAuthFlexible(HttpContext ctx, string key) =>
     (ctx.Request.Query.TryGetValue("key", out var q) && q == key);
 
 async Task StreamVehicleXlsx(HttpContext ctx, string whereSql, string sheetName,
-                             string downloadName, params (string, object)[] ps)
+                             string downloadName, long offset, int limit, params (string, object)[] ps)
 {
     // ZipArchive + StreamWriter do synchronous writes to the response body,
     // which Kestrel blocks by default ("Synchronous operations are
@@ -2480,10 +2480,14 @@ async Task StreamVehicleXlsx(HttpContext ctx, string whereSql, string sheetName,
 
     await using var conn = new MySqlConnection(TenantContext.Conn);
     await conn.OpenAsync();
+    // When limit > 0 we stream just one slice (used for the "parts" export:
+    // each part is its own file of `limit` rows starting at `offset`). When
+    // limit <= 0 we stream the whole result set in one file.
+    var slice = limit > 0 ? $" LIMIT {limit} OFFSET {offset}" : "";
     var sql = $"SELECT {XLSX_FIELDS} FROM vehicle_records vr " +
               "INNER JOIN branches b ON b.id = vr.branch_id " +
               "LEFT JOIN finances f ON f.id = b.finance_id " +
-              $"WHERE {whereSql} ORDER BY vr.id";
+              $"WHERE {whereSql} ORDER BY vr.id{slice}";
     await using var cmd = new MySqlCommand(sql, conn) { CommandTimeout = 600 };
     foreach (var (n, val) in ps) cmd.Parameters.AddWithValue(n, val);
 
@@ -2495,16 +2499,20 @@ async Task StreamVehicleXlsx(HttpContext ctx, string whereSql, string sheetName,
                                XLSX_HEADERS.Length, ctx.RequestAborted);
 }
 
+// offset/limit are optional: omit for one full file, or pass them for a
+// single "part" (e.g. offset=0&limit=100000 = first 1-lakh part).
 app.MapGet("/api/mgr/export/finance-records.xlsx", async (HttpContext ctx) =>
 {
     if (!MgrAuthFlexible(ctx, desktopLoginPassword)) { ctx.Response.StatusCode = 401; return; }
     int fid = int.TryParse(ctx.Request.Query["financeId"], out var f) ? f : 0;
     if (fid <= 0) { ctx.Response.StatusCode = 400; return; }
     var name = (ctx.Request.Query["name"].FirstOrDefault() ?? $"finance_{fid}");
+    long offset = long.TryParse(ctx.Request.Query["offset"], out var o) ? o : 0;
+    int  limit  = int.TryParse(ctx.Request.Query["limit"], out var l) ? l : 0;
     try
     {
         await StreamVehicleXlsx(ctx, "b.finance_id = @fid", name,
-            $"{name}_AllRecords.xlsx", ("@fid", fid));
+            $"{name}.xlsx", offset, limit, ("@fid", fid));
     }
     catch (Exception ex) when (!ctx.Response.HasStarted)
     { ctx.Response.StatusCode = 500; await ctx.Response.WriteAsync(ex.Message); }
@@ -2516,10 +2524,12 @@ app.MapGet("/api/mgr/export/branch-records.xlsx", async (HttpContext ctx) =>
     int bid = int.TryParse(ctx.Request.Query["branchId"], out var b) ? b : 0;
     if (bid <= 0) { ctx.Response.StatusCode = 400; return; }
     var name = (ctx.Request.Query["name"].FirstOrDefault() ?? $"branch_{bid}");
+    long offset = long.TryParse(ctx.Request.Query["offset"], out var o) ? o : 0;
+    int  limit  = int.TryParse(ctx.Request.Query["limit"], out var l) ? l : 0;
     try
     {
         await StreamVehicleXlsx(ctx, "vr.branch_id = @bid", name,
-            $"{name}_Records.xlsx", ("@bid", bid));
+            $"{name}.xlsx", offset, limit, ("@bid", bid));
     }
     catch (Exception ex) when (!ctx.Response.HasStarted)
     { ctx.Response.StatusCode = 500; await ctx.Response.WriteAsync(ex.Message); }

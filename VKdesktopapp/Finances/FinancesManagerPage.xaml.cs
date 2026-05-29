@@ -580,9 +580,13 @@ public partial class FinancesManagerPage : Page
     private async void FinanceDownloadAll_Click(object sender, RoutedEventArgs e)
     {
         if (dgFinances.SelectedItem is not FinanceListItem fi) return;
-        await DownloadVehicleXlsx(
-            suggestedName: $"{fi.Name}_AllRecords",
-            download: (path, prog) => DesktopApiClient.DownloadFinanceXlsxAsync(fi.Id, fi.Name, path, prog),
+        await OpenChunkedExport(
+            title:    $"Download Records — {fi.Name}",
+            baseName: $"{fi.Name}_AllRecords",
+            sheetName: fi.Name,
+            probe:     () => DesktopApiClient.ExportFinanceRecordsPageAsync(fi.Id, 0, 1),
+            chunkDownloader: (offset, count, path, prog) =>
+                DesktopApiClient.DownloadFinanceXlsxChunkAsync(fi.Id, fi.Name, offset, count, path, prog),
             setLoading: SetFinanceLoading);
     }
 
@@ -594,54 +598,54 @@ public partial class FinancesManagerPage : Page
     {
         if (dgBranches.SelectedItem is not BranchSummaryItem bi) return;
         if (!int.TryParse(bi.BranchId, out int branchId)) return;
-        await DownloadVehicleXlsx(
-            suggestedName: $"{bi.BranchName}_Records",
-            download: (path, prog) => DesktopApiClient.DownloadBranchXlsxAsync(branchId, bi.BranchName, path, prog),
+        await OpenChunkedExport(
+            title:    $"Download Records — {bi.BranchName}",
+            baseName: $"{bi.BranchName}_Records",
+            sheetName: bi.BranchName,
+            probe:     () => DesktopApiClient.ExportBranchRecordsPageAsync(branchId, 0, 1),
+            chunkDownloader: (offset, count, path, prog) =>
+                DesktopApiClient.DownloadBranchXlsxChunkAsync(branchId, bi.BranchName, offset, count, path, prog),
             setLoading: SetBranchLoading);
     }
 
-    // Shared instant-download flow: pick a save path, then let the SERVER
-    // stream the whole .xlsx straight to disk. No paginated JSON fetch, no
-    // client-side workbook build — the file appears as fast as it can be
-    // transferred (compressed xlsx). Progress shows bytes received.
-    private async Task DownloadVehicleXlsx(
-        string suggestedName,
-        Func<string, IProgress<long>, Task> download,
+    // Opens the parts dialog: the admin picks how many records per file
+    // (1–10 lakh), the dialog lists the resulting parts, and each part is
+    // streamed from the SERVER as its own instant .xlsx (offset/limit slice).
+    // Parts again — but instant, because the server builds each file.
+    private async Task OpenChunkedExport(
+        string title, string baseName, string sheetName,
+        Func<Task<DesktopApiClient.ExportPage<DesktopApiClient.ExportVehicleRow>>> probe,
+        Func<long, int, string, IProgress<long>?, Task> chunkDownloader,
         Action<bool> setLoading)
     {
-        var dlg = new SaveFileDialog
-        {
-            Title      = "Save records as Excel",
-            Filter     = "Excel Workbook (*.xlsx)|*.xlsx",
-            FileName   = $"{SafeFileName(suggestedName)}_{DateTime.Now:yyyyMMdd}.xlsx",
-            DefaultExt = "xlsx"
-        };
-        if (dlg.ShowDialog() != true) return;
-
         setLoading(true);
-        try
-        {
-            var prog = new Progress<long>(); // (hook a UI label here later if desired)
-            await download(dlg.FileName, prog);
-            setLoading(false);
-            var open = MessageBox.Show(
-                $"Saved to:\n{dlg.FileName}\n\nOpen it now?",
-                "Download complete", MessageBoxButton.YesNo, MessageBoxImage.Information);
-            if (open == MessageBoxResult.Yes)
-                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(dlg.FileName) { UseShellExecute = true });
-        }
+        long total;
+        try { total = (await probe()).Total; }
         catch (Exception ex)
         {
             setLoading(false);
-            MessageBox.Show($"Download failed: {ex.Message}", "Export",
+            MessageBox.Show($"Failed to count records: {ex.Message}", "Export",
                 MessageBoxButton.OK, MessageBoxImage.Error);
+            return;
         }
-    }
+        setLoading(false);
 
-    private static string SafeFileName(string s)
-    {
-        foreach (var c in System.IO.Path.GetInvalidFileNameChars()) s = s.Replace(c, '_');
-        return s.Trim();
+        if (total <= 0)
+        {
+            MessageBox.Show("No records to export.", "Nothing to export",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        var win = new VRASDesktopApp.Exports.ChunkedExportDialog { Owner = Window.GetWindow(this) };
+        win.Configure(
+            title:      title,
+            subtitle:   $"{total:N0} records — choose records-per-file, then download each part.",
+            baseName:   baseName,
+            sheetName:  sheetName,
+            totalHint:  total,
+            chunkDownloader: chunkDownloader);
+        win.ShowDialog();
     }
 
     private async void BranchClearRecords_Click(object sender, RoutedEventArgs e)
