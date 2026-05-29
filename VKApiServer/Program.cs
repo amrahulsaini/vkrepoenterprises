@@ -2433,6 +2433,91 @@ app.MapGet("/api/mgr/export/finance-records", async (HttpContext ctx) =>
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
 
+// ── Instant streaming .xlsx exports ─────────────────────────────────────────
+// These generate the Excel file ON THE SERVER and stream it straight to the
+// client as a download. The desktop just saves the bytes — no paginated JSON
+// fetch, no client-side workbook assembly. A MySqlDataReader feeds rows
+// directly into a zipped OpenXML worksheet (XlsxStream), so even a few hundred
+// thousand records use almost no memory and start downloading immediately.
+//
+// Shared 34-column schema — must match XLSX_HEADERS order below.
+const string XLSX_FIELDS = @"
+    vr.vehicle_no, vr.chassis_no, vr.engine_no, vr.model, vr.agreement_no,
+    vr.customer_name, vr.customer_contact, vr.customer_address,
+    COALESCE(f.name,'') AS financer, COALESCE(b.name,'') AS branch_name,
+    vr.bucket, vr.gv, vr.od, vr.seasoning, vr.tbr_flag,
+    vr.sec9_available, vr.sec17_available,
+    vr.level1, vr.level1_contact, vr.level2, vr.level2_contact,
+    vr.level3, vr.level3_contact, vr.level4, vr.level4_contact,
+    vr.sender_mail1, vr.sender_mail2, vr.executive_name,
+    vr.pos, vr.toss, vr.remark, vr.region, vr.area,
+    COALESCE(DATE_FORMAT(vr.created_at,'%d %b %Y'),'') AS created_on";
+
+string[] XLSX_HEADERS = {
+    "Vehicle No","Chassis No","Engine No","Model","Agreement No",
+    "Customer Name","Customer Contact","Customer Address",
+    "Finance Name","Branch Name","Bucket","GV","OD","Seasoning",
+    "TBR Flag","Sec9 Available","Sec17 Available",
+    "Level1","Level1 Contact","Level2","Level2 Contact",
+    "Level3","Level3 Contact","Level4","Level4 Contact",
+    "Sender Mail 1","Sender Mail 2","Executive Name",
+    "POS","TOSS","Remark","Region","Area","Created On" };
+
+// Token via header OR ?key= so a plain browser/HttpClient download works.
+static bool MgrAuthFlexible(HttpContext ctx, string key) =>
+    (ctx.Request.Headers.TryGetValue("X-Api-Key", out var v) && v == key) ||
+    (ctx.Request.Query.TryGetValue("key", out var q) && q == key);
+
+async Task StreamVehicleXlsx(HttpContext ctx, string whereSql, string sheetName,
+                             string downloadName, params (string, object)[] ps)
+{
+    await using var conn = new MySqlConnection(TenantContext.Conn);
+    await conn.OpenAsync();
+    var sql = $"SELECT {XLSX_FIELDS} FROM vehicle_records vr " +
+              "INNER JOIN branches b ON b.id = vr.branch_id " +
+              "LEFT JOIN finances f ON f.id = b.finance_id " +
+              $"WHERE {whereSql} ORDER BY vr.id";
+    await using var cmd = new MySqlCommand(sql, conn) { CommandTimeout = 600 };
+    foreach (var (n, val) in ps) cmd.Parameters.AddWithValue(n, val);
+
+    ctx.Response.ContentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+    ctx.Response.Headers["Content-Disposition"] = $"attachment; filename=\"{downloadName}\"";
+
+    await using var rdr = await cmd.ExecuteReaderAsync(ctx.RequestAborted);
+    await XlsxStream.WriteAsync(ctx.Response.Body, sheetName, XLSX_HEADERS, rdr,
+                               XLSX_HEADERS.Length, ctx.RequestAborted);
+}
+
+app.MapGet("/api/mgr/export/finance-records.xlsx", async (HttpContext ctx) =>
+{
+    if (!MgrAuthFlexible(ctx, desktopLoginPassword)) { ctx.Response.StatusCode = 401; return; }
+    int fid = int.TryParse(ctx.Request.Query["financeId"], out var f) ? f : 0;
+    if (fid <= 0) { ctx.Response.StatusCode = 400; return; }
+    var name = (ctx.Request.Query["name"].FirstOrDefault() ?? $"finance_{fid}");
+    try
+    {
+        await StreamVehicleXlsx(ctx, "b.finance_id = @fid", name,
+            $"{name}_AllRecords.xlsx", ("@fid", fid));
+    }
+    catch (Exception ex) when (!ctx.Response.HasStarted)
+    { ctx.Response.StatusCode = 500; await ctx.Response.WriteAsync(ex.Message); }
+});
+
+app.MapGet("/api/mgr/export/branch-records.xlsx", async (HttpContext ctx) =>
+{
+    if (!MgrAuthFlexible(ctx, desktopLoginPassword)) { ctx.Response.StatusCode = 401; return; }
+    int bid = int.TryParse(ctx.Request.Query["branchId"], out var b) ? b : 0;
+    if (bid <= 0) { ctx.Response.StatusCode = 400; return; }
+    var name = (ctx.Request.Query["name"].FirstOrDefault() ?? $"branch_{bid}");
+    try
+    {
+        await StreamVehicleXlsx(ctx, "vr.branch_id = @bid", name,
+            $"{name}_Records.xlsx", ("@bid", bid));
+    }
+    catch (Exception ex) when (!ctx.Response.HasStarted)
+    { ctx.Response.StatusCode = 500; await ctx.Response.WriteAsync(ex.Message); }
+});
+
 // ── Forward /api/mobile/* → VKmobileapi on port 5001 ─────────────────────────
 app.Map("/api/mobile/{**rest}", async (HttpContext ctx) =>
 {

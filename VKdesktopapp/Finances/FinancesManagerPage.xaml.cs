@@ -580,42 +580,10 @@ public partial class FinancesManagerPage : Page
     private async void FinanceDownloadAll_Click(object sender, RoutedEventArgs e)
     {
         if (dgFinances.SelectedItem is not FinanceListItem fi) return;
-
-        SetFinanceLoading(true);
-        long total;
-        try
-        {
-            // One probe call to learn how many records this finance has, so the
-            // dialog can preview the file list before the user picks a chunk size.
-            var probe = await DesktopApiClient.ExportFinanceRecordsPageAsync(fi.Id, 0, 1);
-            total = probe.Total;
-        }
-        catch (Exception ex)
-        {
-            SetFinanceLoading(false);
-            MessageBox.Show($"Failed to count records: {ex.Message}",
-                "Export", MessageBoxButton.OK, MessageBoxImage.Error);
-            return;
-        }
-        SetFinanceLoading(false);
-
-        if (total <= 0)
-        {
-            MessageBox.Show("This finance has no records to export.",
-                "Nothing to export", MessageBoxButton.OK, MessageBoxImage.Information);
-            return;
-        }
-
-        var win = new VRASDesktopApp.Exports.ChunkedExportDialog
-        { Owner = Window.GetWindow(this) };
-        win.Configure(
-            title:      $"Download Records — {fi.Name}",
-            subtitle:   $"All vehicle records assigned to this finance ({total:N0} rows).",
-            baseName:   $"{fi.Name}_AllRecords",
-            sheetName:  fi.Name,
-            totalHint:  total,
-            pageFetcher: (page, size) => DesktopApiClient.ExportFinanceRecordsPageAsync(fi.Id, page, size));
-        win.ShowDialog();
+        await DownloadVehicleXlsx(
+            suggestedName: $"{fi.Name}_AllRecords",
+            download: (path, prog) => DesktopApiClient.DownloadFinanceXlsxAsync(fi.Id, fi.Name, path, prog),
+            setLoading: SetFinanceLoading);
     }
 
     // ─────────────────────────────────────────────────────
@@ -626,40 +594,54 @@ public partial class FinancesManagerPage : Page
     {
         if (dgBranches.SelectedItem is not BranchSummaryItem bi) return;
         if (!int.TryParse(bi.BranchId, out int branchId)) return;
+        await DownloadVehicleXlsx(
+            suggestedName: $"{bi.BranchName}_Records",
+            download: (path, prog) => DesktopApiClient.DownloadBranchXlsxAsync(branchId, bi.BranchName, path, prog),
+            setLoading: SetBranchLoading);
+    }
 
-        SetBranchLoading(true);
-        long total;
+    // Shared instant-download flow: pick a save path, then let the SERVER
+    // stream the whole .xlsx straight to disk. No paginated JSON fetch, no
+    // client-side workbook build — the file appears as fast as it can be
+    // transferred (compressed xlsx). Progress shows bytes received.
+    private async Task DownloadVehicleXlsx(
+        string suggestedName,
+        Func<string, IProgress<long>, Task> download,
+        Action<bool> setLoading)
+    {
+        var dlg = new SaveFileDialog
+        {
+            Title      = "Save records as Excel",
+            Filter     = "Excel Workbook (*.xlsx)|*.xlsx",
+            FileName   = $"{SafeFileName(suggestedName)}_{DateTime.Now:yyyyMMdd}.xlsx",
+            DefaultExt = "xlsx"
+        };
+        if (dlg.ShowDialog() != true) return;
+
+        setLoading(true);
         try
         {
-            var probe = await DesktopApiClient.ExportBranchRecordsPageAsync(branchId, 0, 1);
-            total = probe.Total;
+            var prog = new Progress<long>(); // (hook a UI label here later if desired)
+            await download(dlg.FileName, prog);
+            setLoading(false);
+            var open = MessageBox.Show(
+                $"Saved to:\n{dlg.FileName}\n\nOpen it now?",
+                "Download complete", MessageBoxButton.YesNo, MessageBoxImage.Information);
+            if (open == MessageBoxResult.Yes)
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(dlg.FileName) { UseShellExecute = true });
         }
         catch (Exception ex)
         {
-            SetBranchLoading(false);
-            MessageBox.Show($"Failed to count records: {ex.Message}",
-                "Export", MessageBoxButton.OK, MessageBoxImage.Error);
-            return;
+            setLoading(false);
+            MessageBox.Show($"Download failed: {ex.Message}", "Export",
+                MessageBoxButton.OK, MessageBoxImage.Error);
         }
-        SetBranchLoading(false);
+    }
 
-        if (total <= 0)
-        {
-            MessageBox.Show("This branch has no records to export.",
-                "Nothing to export", MessageBoxButton.OK, MessageBoxImage.Information);
-            return;
-        }
-
-        var win = new VRASDesktopApp.Exports.ChunkedExportDialog
-        { Owner = Window.GetWindow(this) };
-        win.Configure(
-            title:      $"Download Records — {bi.BranchName}",
-            subtitle:   $"All vehicle records for this branch ({total:N0} rows).",
-            baseName:   $"{bi.BranchName}_Records",
-            sheetName:  bi.BranchName,
-            totalHint:  total,
-            pageFetcher: (page, size) => DesktopApiClient.ExportBranchRecordsPageAsync(branchId, page, size));
-        win.ShowDialog();
+    private static string SafeFileName(string s)
+    {
+        foreach (var c in System.IO.Path.GetInvalidFileNameChars()) s = s.Replace(c, '_');
+        return s.Trim();
     }
 
     private async void BranchClearRecords_Click(object sender, RoutedEventArgs e)
