@@ -23,6 +23,18 @@ public partial class TicketThreadWindow : Window
         txtCreated.Text = $"Reported {ticket.CreatedAt}";
         SetStatus(ticket.Status);
         RenderThread(ticket);
+
+        // This window opens as a modal ON TOP of the (also-modal) SupportWindow.
+        // With the custom chrome window, the new dialog doesn't automatically
+        // route keyboard input to its TextBoxes — the reply box looks focused
+        // but won't accept typing. Explicitly activate the window and put
+        // keyboard focus in the reply box once it's loaded.
+        Loaded += (_, __) =>
+        {
+            Activate();
+            txtReply.Focus();
+            System.Windows.Input.Keyboard.Focus(txtReply);
+        };
     }
 
     private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
