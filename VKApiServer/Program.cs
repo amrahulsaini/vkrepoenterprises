@@ -98,6 +98,56 @@ var mobileHttp = new HttpClient
     Timeout     = TimeSpan.FromSeconds(60)
 };
 
+// ── Public health / status endpoint ─────────────────────────────────────────
+// Powers the "System Status" page. No auth — it only reports up/down + latency
+// per component, nothing sensitive. Each check is bounded so a hung dependency
+// can't hang the status check itself.
+app.MapGet("/api/health", async () =>
+{
+    var components = new List<object>();
+    bool allOk = true;
+
+    // Database — any successful connection + SELECT 1 proves MariaDB is reachable.
+    var dbSw = Stopwatch.StartNew();
+    bool dbOk;
+    try
+    {
+        await using var conn = new MySqlConnection(TenantContext.DefaultConn);
+        await conn.OpenAsync();
+        await using var cmd = new MySqlCommand("SELECT 1", conn) { CommandTimeout = 5 };
+        await cmd.ExecuteScalarAsync();
+        dbOk = true;
+    }
+    catch { dbOk = false; }
+    dbSw.Stop();
+    allOk &= dbOk;
+    components.Add(new { name = "Database", status = dbOk ? "operational" : "down", latencyMs = (long)dbSw.ElapsedMilliseconds });
+
+    // Mobile API (VKmobileapi on :5001) — hit a light public endpoint.
+    var mSw = Stopwatch.StartNew();
+    bool mOk;
+    try
+    {
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        var r = await mobileHttp.GetAsync("api/mobile/agencies", cts.Token);
+        mOk = r.IsSuccessStatusCode;
+    }
+    catch { mOk = false; }
+    mSw.Stop();
+    allOk &= mOk;
+    components.Add(new { name = "Mobile API", status = mOk ? "operational" : "down", latencyMs = (long)mSw.ElapsedMilliseconds });
+
+    // Web API (this service) — if it's answering, it's up.
+    components.Add(new { name = "Web API", status = "operational", latencyMs = 0L });
+
+    return Results.Ok(new
+    {
+        overall   = allOk ? "operational" : "degraded",
+        checkedAt = DateTime.UtcNow.ToString("o"),
+        components
+    });
+});
+
 app.MapPost("/api/AppUsers/Login", async (LoginRequest request) =>
 {
     if (!Regex.IsMatch(request.mobileno ?? string.Empty, @"^\d{10}$"))
