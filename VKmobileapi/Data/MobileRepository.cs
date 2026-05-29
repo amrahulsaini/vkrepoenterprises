@@ -640,6 +640,7 @@ public class MobileRepository
     // ── Admin: user state toggles ──────────────────────────────────────────
     public async Task SetUserActiveAsync(long userId, bool active)   => await SetUserFlagAsync(userId, "is_active", active);
     public async Task SetUserStoppedAsync(long userId, bool stopped) => await SetUserFlagAsync(userId, "is_stopped", stopped);
+    public async Task SetUserAdminAsync(long userId, bool admin)     => await SetUserFlagAsync(userId, "is_admin", admin);
 
     public async Task SetUserBlacklistedAsync(long userId, bool blacklisted)
     {

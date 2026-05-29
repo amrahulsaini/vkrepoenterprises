@@ -190,6 +190,20 @@ class ControlPanelViewModel @Inject constructor(
         }
     }
 
+    // Promote/demote the selected user to/from admin.
+    fun setAdmin(admin: Boolean) {
+        val user = _ui.value.selectedUser ?: return
+        viewModelScope.launch {
+            _ui.update { it.copy(busy = true) }
+            runCatching {
+                val resp = api.adminSetAdmin(adminUserId, user.id, SetUserFlagRequest(admin))
+                if (resp.isSuccessful) mutateSelected { it.copy(isAdmin = admin) }
+                else _ui.update { it.copy(errorMsg = "Failed to update admin role") }
+            }.onFailure { _ui.update { it.copy(errorMsg = "Network error. Try again.") } }
+            _ui.update { it.copy(busy = false) }
+        }
+    }
+
     // ── Subscriptions ──────────────────────────────────────────────────────
     fun showAddDialog() = _ui.update {
         it.copy(showAddDialog = true, addStartDate = "", addEndDate = "",

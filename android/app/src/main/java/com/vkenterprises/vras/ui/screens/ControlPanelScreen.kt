@@ -305,6 +305,8 @@ private fun UserDetail(vm: ControlPanelViewModel, ui: com.vkenterprises.vras.vie
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     SectionTitle("User Status")
                     ToggleRow("Active account", user.isActive, ui.busy) { vm.setActive(it) }
+                    // Promote/demote — ON = Admin, OFF = normal user.
+                    ToggleRow("Admin (full access)", user.isAdmin, ui.busy) { vm.setAdmin(it) }
                     ToggleRow("App stopped", user.isStopped, ui.busy) { vm.setStopped(it) }
                     ToggleRow("Blacklisted", user.isBlacklisted, ui.busy) { vm.setBlacklisted(it) }
                 }

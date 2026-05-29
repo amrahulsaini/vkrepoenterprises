@@ -110,46 +110,8 @@ fun SettingsScreen(
                 }
             }
 
-            // ── Server DB Stats (admin only) ─────────────────────────────
-            if (isAdmin) {
-                item {
-                    SectionCard(title = "Server Database") {
-                        if (ui.isLoading) {
-                            Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
-                                CircularProgressIndicator(modifier = Modifier.size(24.dp))
-                            }
-                        } else if (ui.statsError != null) {
-                            Row(Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Icon(Icons.Default.CloudOff, null,
-                                    tint = MaterialTheme.colorScheme.error,
-                                    modifier = Modifier.size(16.dp))
-                                Text(ui.statsError!!,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.error)
-                            }
-                        } else {
-                            StatRow("Vehicle Records", ui.serverVehicleRecords)
-                            StatRow("RC Info Records", ui.serverRcRecords)
-                            StatRow("Chassis Info Records", ui.serverChassisRecords)
-                        }
-                        Spacer(Modifier.height(4.dp))
-                        TextButton(onClick = { settingsVm.loadAll() }) {
-                            Icon(Icons.Default.Refresh, null, Modifier.size(16.dp))
-                            Spacer(Modifier.width(4.dp))
-                            Text("Refresh", style = MaterialTheme.typography.labelMedium)
-                        }
-                    }
-                }
-            }
-
-            // ── Local Cache ──────────────────────────────────────────────
-            item {
-                SectionCard(title = "Local Cache") {
-                    StatRow("Cached Records", ui.roomCount)
-                }
-            }
+            // Server DB stats & Local Cache count intentionally hidden — record
+            // counts must not be visible to admins or agents anywhere in the app.
 
             // ── Sync ─────────────────────────────────────────────────────
             item {
