@@ -66,7 +66,14 @@ public partial class App : Application
             Settings.Default.Save();
         }
 
-        HttpClient = new HttpClient();
+        // Enable gzip: large search / list responses (a busy RC search can be
+        // hundreds of KB of JSON) arrive compressed — OLS gzips them ~5-10x.
+        // Without a decompression handler the client never sends Accept-Encoding,
+        // so every response transfers uncompressed and feels slow on weak links.
+        HttpClient = new HttpClient(new HttpClientHandler
+        {
+            AutomaticDecompression = System.Net.DecompressionMethods.GZip | System.Net.DecompressionMethods.Deflate
+        });
         HttpClient.DefaultRequestHeaders.Add("Connection", "keep-alive");
         // 5-minute ceiling — generous enough for big xlsx uploads (the
         // streaming /api/mgr/records/upload call hits this client), tight
