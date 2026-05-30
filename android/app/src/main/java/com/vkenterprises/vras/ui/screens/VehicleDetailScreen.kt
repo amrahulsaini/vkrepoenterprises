@@ -682,21 +682,16 @@ private fun AdminDetailView(
 
             CSep()
 
-            SRow("Level 1",         item.level1,
+            // One row per level: the name on the first line and, if present, its
+            // contact number on the next line (blue, tap-to-dial, long-press to
+            // copy). No separate "Level N Contact" label rows.
+            SLevelRow("Level 1", item.level1, item.level1Contact,
                 sel = showSelection, chk = selChecked["Level 1"] == true) { selChecked["Level 1"] = it }
-            SRow("Level 1 Contact", item.level1Contact, mono = true, dialable = true,
-                sel = showSelection, chk = selChecked["Level 1"] == true) { selChecked["Level 1"] = it }
-            SRow("Level 2",         item.level2,
+            SLevelRow("Level 2", item.level2, item.level2Contact,
                 sel = showSelection, chk = selChecked["Level 2"] == true) { selChecked["Level 2"] = it }
-            SRow("Level 2 Contact", item.level2Contact, mono = true, dialable = true,
-                sel = showSelection, chk = selChecked["Level 2"] == true) { selChecked["Level 2"] = it }
-            SRow("Level 3",         item.level3,
+            SLevelRow("Level 3", item.level3, item.level3Contact,
                 sel = showSelection, chk = selChecked["Level 3"] == true) { selChecked["Level 3"] = it }
-            SRow("Level 3 Contact", item.level3Contact, mono = true, dialable = true,
-                sel = showSelection, chk = selChecked["Level 3"] == true) { selChecked["Level 3"] = it }
-            SRow("Level 4",         item.level4,
-                sel = showSelection, chk = selChecked["Level 4"] == true) { selChecked["Level 4"] = it }
-            SRow("Level 4 Contact", item.level4Contact, mono = true, dialable = true,
+            SLevelRow("Level 4", item.level4, item.level4Contact,
                 sel = showSelection, chk = selChecked["Level 4"] == true) { selChecked["Level 4"] = it }
 
             CSep()
@@ -707,13 +702,13 @@ private fun AdminDetailView(
             SRow("Head Office",    branchRecord.financer,
                 sel = showSelection, chk = selChecked["Head Office"] == true
             ) { selChecked["Head Office"] = it }
-            SRow("Contact 1",      branchRecord.firstContact,  mono = true,
+            SRow("Contact 1",      branchRecord.firstContact,  mono = true, dialable = true,
                 sel = showSelection, chk = selChecked["Contact 1"] == true
             ) { selChecked["Contact 1"] = it }
-            SRow("Contact 2",      branchRecord.secondContact, mono = true,
+            SRow("Contact 2",      branchRecord.secondContact, mono = true, dialable = true,
                 sel = showSelection, chk = selChecked["Contact 2"] == true
             ) { selChecked["Contact 2"] = it }
-            SRow("Contact 3",      branchRecord.thirdContact,  mono = true,
+            SRow("Contact 3",      branchRecord.thirdContact,  mono = true, dialable = true,
                 sel = showSelection, chk = selChecked["Contact 3"] == true
             ) { selChecked["Contact 3"] = it }
             SRow("Mail Id 1",      branchRecord.senderMail1,
@@ -1021,8 +1016,11 @@ private fun SRow(
             text = annotated,
             style = MaterialTheme.typography.bodyLarge.copy(
                 color      = baseColor,
+                // Always Default family — Monospace has no real bold face on
+                // Android, so Vehicle/Chassis/Eng/Agreement rendered thin. Roboto
+                // Black is a true heavy weight that shows bold on every device.
                 fontWeight = if (display.isBlank()) FontWeight.Normal else FontWeight.Black,
-                fontFamily = if (mono) FontFamily.Monospace else FontFamily.Default
+                fontFamily = FontFamily.Default
             ),
             modifier = Modifier
                 .weight(1f)
@@ -1057,6 +1055,104 @@ private fun SRow(
 @Composable
 private fun CRow(label: String, value: String?, mono: Boolean = false, invalid: Boolean = false) {
     SRow(label, value, mono, invalid)
+}
+
+// Level row: shows the level name and — directly beneath it — that level's
+// contact number (blue, underlined, tap-to-dial, long-press to copy). Replaces
+// the old pair of "Level N" + "Level N Contact" rows so the contact reads as
+// part of the same person, not a separate labelled field.
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+@Composable
+private fun SLevelRow(
+    label: String,
+    name: String?,
+    contact: String?,
+    sel: Boolean = false,
+    chk: Boolean = false,
+    onChk: (Boolean) -> Unit = {}
+) {
+    val context = LocalContext.current
+    val nm = name.orEmpty().trim().let { if (it.isBlank()) it else it.uppercase() }
+    val ct = contact.orEmpty().trim()
+    val firstNumber = PHONE_REGEX.find(ct)?.value
+    val phoneColor  = MaterialTheme.colorScheme.primary
+    val baseColor   = if (nm.isBlank() && ct.isBlank()) MaterialTheme.colorScheme.outlineVariant
+                      else MaterialTheme.colorScheme.onSurface
+
+    Row(
+        Modifier.fillMaxWidth().padding(vertical = 3.dp),
+        verticalAlignment = Alignment.Top
+    ) {
+        if (sel) {
+            Checkbox(checked = chk, onCheckedChange = onChk, modifier = Modifier.size(24.dp))
+            Spacer(Modifier.width(6.dp))
+        }
+        Text(
+            label,
+            fontSize   = 14.sp,
+            fontFamily = FontFamily.Default,
+            fontWeight = FontWeight.Bold,
+            color      = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier   = Modifier.width(if (sel) 104.dp else 128.dp).padding(top = 2.dp)
+        )
+        Text(
+            ":",
+            fontSize   = 14.sp,
+            fontFamily = FontFamily.Default,
+            fontWeight = FontWeight.Bold,
+            color      = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier   = Modifier.padding(end = 8.dp, top = 2.dp)
+        )
+        Column(Modifier.weight(1f)) {
+            // Line 1 — the level name (heavy bold). Long-press copies it.
+            Text(
+                text = nm.ifBlank { if (ct.isBlank()) "—" else "" },
+                style = MaterialTheme.typography.bodyLarge.copy(
+                    color      = baseColor,
+                    fontWeight = if (nm.isBlank()) FontWeight.Normal else FontWeight.Black,
+                    fontFamily = FontFamily.Default
+                ),
+                modifier = Modifier.combinedClickable(
+                    onClick = {},
+                    onLongClick = {
+                        if (nm.isNotBlank()) {
+                            val cb = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                            cb.setPrimaryClip(ClipData.newPlainText(label, nm))
+                            android.widget.Toast.makeText(context, "Copied", android.widget.Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                )
+            )
+            // Line 2 — the contact number (blue, tap dials, long-press copies).
+            if (ct.isNotBlank()) {
+                Text(
+                    text = ct,
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        color          = phoneColor,
+                        fontWeight     = FontWeight.Bold,
+                        fontFamily     = FontFamily.Default,
+                        textDecoration = TextDecoration.Underline
+                    ),
+                    modifier = Modifier
+                        .padding(top = 1.dp)
+                        .combinedClickable(
+                            onClick = {
+                                firstNumber?.let { num ->
+                                    runCatching {
+                                        context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:$num")))
+                                    }
+                                }
+                            },
+                            onLongClick = {
+                                val cb = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                cb.setPrimaryClip(ClipData.newPlainText(label, ct))
+                                android.widget.Toast.makeText(context, "Copied", android.widget.Toast.LENGTH_SHORT).show()
+                            }
+                        )
+                )
+            }
+        }
+    }
 }
 
 @Composable
@@ -1146,8 +1242,7 @@ private fun DetailRow(
             Text(value,
                 style      = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Black,
-                fontFamily = if (label in listOf("Vehicle No","Chassis No","Engine No"))
-                    FontFamily.Monospace else FontFamily.Default,
+                fontFamily = FontFamily.Default,
                 color      = if (isPhone) primary else baseColor,
                 textDecoration = if (isPhone) TextDecoration.Underline else null)
             if (isPhone) {
