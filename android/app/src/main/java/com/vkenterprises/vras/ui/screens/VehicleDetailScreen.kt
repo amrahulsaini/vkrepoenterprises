@@ -160,6 +160,20 @@ fun VehicleDetailScreen(
 
     val branchRecord: SearchResult? = uniqueBranches.getOrNull(selectedBranchIdx)?.record ?: item
 
+    // Search now returns SKINNY rows, so fetch the FULL record for whichever
+    // finance is selected, on demand. `detailRecord` uses the fetched full
+    // record once its id matches the selection; until then the skinny row shows
+    // (vehicle no, model, finance) so nothing looks blank while it loads.
+    val selectedId = branchRecord?.id
+    LaunchedEffect(selectedId) {
+        if (selectedId != null) {
+            val uid = authVm.userId.first()
+            if (uid != 0L) searchVm.fetchFullRecord(selectedId, uid)
+        }
+    }
+    val detailRecord: SearchResult? =
+        if (selectedId != null && ui.fullRecord?.id == selectedId) ui.fullRecord else branchRecord
+
     LaunchedEffect(item?.vehicleNo) {
         selectedBranchIdx = 0
         selChecked.clear()
@@ -168,10 +182,6 @@ fun VehicleDetailScreen(
         if (item == null) return@LaunchedEffect
         val userId = authVm.userId.first()
         if (userId == 0L) return@LaunchedEffect
-
-        if (isAdmin && item.agreementNo.isBlank()) {
-            searchVm.refetchSelectedFromServer(userId)
-        }
 
         val loc     = getLocationOnce(context)
         val address = reverseGeocode(context, loc?.latitude, loc?.longitude)
@@ -227,17 +237,17 @@ fun VehicleDetailScreen(
                 )
                 Spacer(Modifier.height(2.dp))
                 WaOptionButton("Banker for Confirmation", Color(0xFF1565C0)) {
-                    openWhatsApp(context, buildQuickWaMessage(item, "Please confirm this vehicle.",
+                    openWhatsApp(context, buildQuickWaMessage(detailRecord ?: item,"Please confirm this vehicle.",
                         agentName, agentPhone, vehicleLocation, loadDetails))
                     showWaSheet = false
                 }
                 WaOptionButton("OK for Repo", Color(0xFF2E7D32)) {
-                    openWhatsApp(context, buildQuickWaMessage(item, "Ok for repo.",
+                    openWhatsApp(context, buildQuickWaMessage(detailRecord ?: item,"Ok for repo.",
                         agentName, agentPhone, vehicleLocation, loadDetails))
                     showWaSheet = false
                 }
                 WaOptionButton("Not Confirmed", Color(0xFFC62828)) {
-                    openWhatsApp(context, buildQuickWaMessage(item, "Cancel",
+                    openWhatsApp(context, buildQuickWaMessage(detailRecord ?: item,"Cancel",
                         agentName, agentPhone, vehicleLocation, loadDetails))
                     showWaSheet = false
                 }
@@ -246,7 +256,7 @@ fun VehicleDetailScreen(
     }
 
     if (showCopyDialog && item != null) {
-        CopyDialog(item = item, onDismiss = { showCopyDialog = false }, context = context)
+        CopyDialog(item = detailRecord ?: item, onDismiss = { showCopyDialog = false }, context = context)
     }
 
     // ── FOUND IN BRANCHES bottom sheet ────────────────────────────────────────
@@ -377,7 +387,7 @@ fun VehicleDetailScreen(
                         ) {
                             // Copy the SELECTED finance's record (vehicle + branch
                             // fields), so what you copy matches what's on screen.
-                            val currentBr   = branchRecord ?: item
+                            val currentBr   = detailRecord ?: item
                             val currentItem = currentBr
                             if (showSelection) {
                                 val fields = buildAdminFields(currentItem, currentBr)
@@ -472,8 +482,8 @@ fun VehicleDetailScreen(
                         // finance — not the first-tapped (deduped) copy. This makes
                         // the Android detail match the desktop, which opens the
                         // selected row in full.
-                        item              = branchRecord ?: item,
-                        branchRecord      = branchRecord ?: item,
+                        item              = detailRecord ?: item,
+                        branchRecord      = detailRecord ?: item,
                         uniqueBranches    = uniqueBranches,
                         selectedBranchIdx = selectedBranchIdx,
                         onBranchSelect    = { selectedBranchIdx = it },

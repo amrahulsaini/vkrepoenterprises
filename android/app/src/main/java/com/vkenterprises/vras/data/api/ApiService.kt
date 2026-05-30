@@ -21,17 +21,29 @@ interface ApiService {
     @POST("api/mobile/login")
     suspend fun login(@Body request: LoginRequest): Response<AuthResponse>
 
+    // lite=true → skinny list (id, vehicle/chassis no, model, finance, branch,
+    // date) so the search response is tiny and instant. Full detail is fetched
+    // per-record via getRecord() only when a result is opened.
     @GET("api/mobile/search/rc/{last4}")
     suspend fun searchRc(
         @Path("last4")       last4: String,
-        @Header("X-User-Id") userId: Long
+        @Header("X-User-Id") userId: Long,
+        @Query("lite")       lite: Boolean = true
     ): Response<SearchResponse>
 
     @GET("api/mobile/search/chassis/{last5}")
     suspend fun searchChassis(
         @Path("last5")       last5: String,
-        @Header("X-User-Id") userId: Long
+        @Header("X-User-Id") userId: Long,
+        @Query("lite")       lite: Boolean = true
     ): Response<SearchResponse>
+
+    // Full record detail for one search result (opened on tap).
+    @GET("api/mobile/record/{id}")
+    suspend fun getRecord(
+        @Path("id")          id: Long,
+        @Header("X-User-Id") userId: Long
+    ): Response<SearchResult>
 
     @GET("api/mobile/profile/{userId}")
     suspend fun getProfile(@Path("userId") userId: Long): Response<ProfileResponse>

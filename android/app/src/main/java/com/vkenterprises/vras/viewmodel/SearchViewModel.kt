@@ -22,6 +22,10 @@ data class SearchUiState(
     val results: List<SearchResult>   = emptyList(),
     val allResults: List<SearchResult> = emptyList(),
     val selectedResult: SearchResult? = null,
+    // Full record for the currently-open detail (search returns skinny rows;
+    // the heavy fields are fetched per-record on tap). Keyed by id so a stale
+    // one is ignored until the right record's detail arrives.
+    val fullRecord: SearchResult?     = null,
     val errorMsg: String?             = null,
     val isSearching: Boolean          = false,
     val subscriptionExpired: Boolean  = false,
@@ -144,7 +148,17 @@ class SearchViewModel @Inject constructor(
     }
 
     fun selectResult(result: SearchResult) {
-        _ui.update { it.copy(selectedResult = result) }
+        _ui.update { it.copy(selectedResult = result, fullRecord = null) }
+    }
+
+    // Fetches the FULL record (all fields) for one result by id — called when a
+    // detail / finance is opened, since the search list itself is skinny. The
+    // detail screen uses this only when its id matches the selected record.
+    fun fetchFullRecord(id: Long, userId: Long) {
+        viewModelScope.launch {
+            val rec = withContext(Dispatchers.IO) { serverRepo.getRecord(id, userId) }
+            if (rec != null) _ui.update { it.copy(fullRecord = rec) }
+        }
     }
 
     fun setOnlineOnly(v: Boolean) {
