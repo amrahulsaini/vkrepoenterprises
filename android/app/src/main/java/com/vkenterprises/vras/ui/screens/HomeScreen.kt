@@ -746,8 +746,11 @@ private fun VehicleGridCell(item: SearchResult, mode: SearchMode, onClick: () ->
         Text(
             display,
             style = MaterialTheme.typography.bodyLarge,
-            fontWeight = FontWeight.ExtraBold,
-            fontFamily = FontFamily.Monospace,
+            // Default family (not Monospace) — Android's monospace face has no
+            // real bold weight, so Monospace + Black still rendered thin. Roboto
+            // Black is a true heavy weight that shows clearly on every device.
+            fontWeight = FontWeight.Black,
+            fontFamily = FontFamily.Default,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
@@ -848,8 +851,8 @@ private fun VehicleListRow(item: SearchResult, mode: SearchMode, onClick: () -> 
         Text(
             rcOrChassis,
             style = MaterialTheme.typography.bodyLarge,
-            fontWeight = FontWeight.ExtraBold,
-            fontFamily = FontFamily.Monospace,
+            fontWeight = FontWeight.Black,
+            fontFamily = FontFamily.Default,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f)
