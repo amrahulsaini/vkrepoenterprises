@@ -123,9 +123,16 @@ class SearchViewModel @Inject constructor(
         val capped = text.take(requiredLen)
         _ui.update { it.copy(inputText = capped, errorMsg = null) }
         if (capped.length == requiredLen) {
+            val q    = capped.uppercase()
+            val mode = _ui.value.mode
             searchJob?.cancel()
             searchJob = viewModelScope.launch {
-                executeSearch(capped.uppercase(), _ui.value.mode, userId)
+                // Debounce: if the user fires another search right away, THIS job
+                // is cancelled during the delay — before it ever opens a network
+                // call. That stops fast searches from piling up OkHttp requests
+                // (the cause of the "stuck, only old results" freeze).
+                delay(220)
+                executeSearch(q, mode, userId)
             }
             _ui.update { it.copy(inputText = "") }
         }
@@ -216,10 +223,21 @@ class SearchViewModel @Inject constructor(
             return
         }
 
-        // Online mode: server only — no cache fallback.
-        val result = withContext(Dispatchers.IO) {
-            if (mode == SearchMode.RC) serverRepo.searchRc(q, userId)
-            else serverRepo.searchChassis(q, userId)
+        // Online mode: server only — no cache fallback. Hard-capped at 20s so a
+        // slow/stalled network can NEVER freeze search forever — it surfaces a
+        // clean error at 20s instead of hanging up to OkHttp's 120s call timeout
+        // while showing stale results. (A real cancellation by a newer search
+        // throws a plain CancellationException, which we let propagate — only
+        // the timeout is caught here.)
+        val result = try {
+            withContext(Dispatchers.IO) {
+                withTimeout(20_000) {
+                    if (mode == SearchMode.RC) serverRepo.searchRc(q, userId)
+                    else serverRepo.searchChassis(q, userId)
+                }
+            }
+        } catch (e: TimeoutCancellationException) {
+            SearchResult2.Error("Search timed out — please check your connection and try again.")
         }
         _ui.update {
             when (result) {
