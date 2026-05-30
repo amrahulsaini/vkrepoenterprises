@@ -3,357 +3,503 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="description" content="CRMS Recovery Software — multi-tenant vehicle recovery & repossession operations platform for finance companies and recovery agencies.">
-<title>CRMS Recovery Software — Vehicle Recovery Operations Platform</title>
+<meta name="description" content="CRMRS — Recovery Software. A multi-tenant vehicle recovery & repossession operations platform for finance companies and recovery agencies. Live agent tracking, instant record search, Android + Windows apps.">
+<meta name="theme-color" content="#0a1f3c">
+<meta property="og:title" content="CRMRS — Vehicle Recovery Operations Platform">
+<meta property="og:description" content="Power your repossession workflows end-to-end — head-office dashboards, field-agent apps, live GPS tracking, and audit-grade record keeping.">
+<meta property="og:type" content="website">
+<title>CRMRS — Vehicle Recovery Operations Platform</title>
 <link rel="icon" href="assets/favicon.ico">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  html { scroll-behavior: smooth; }
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, sans-serif;
-    line-height: 1.6;
-    color: #1a1a1a;
-    background: #fff;
-    -webkit-font-smoothing: antialiased;
+  :root{
+    --navy:#0a1f3c; --navy-2:#0d2c5c; --ink:#0f1b2d; --blue:#1e63d8; --blue-2:#3b82f6;
+    --gold:#e3ad5f; --bg:#ffffff; --soft:#f4f8fd; --soft-2:#eef4fb;
+    --muted:#5a6b82; --line:#e3ebf4; --line-2:#d7e2ef;
+    --shadow:0 18px 50px rgba(11,35,66,.10);
+    --shadow-lg:0 30px 70px rgba(11,35,66,.18);
+    --radius:16px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    font-family:'Inter',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    line-height:1.65;color:var(--ink);background:var(--bg);
+    -webkit-font-smoothing:antialiased;overflow-x:hidden;
+  }
+  h1,h2,h3,h4,.brand-text{font-family:'Sora',sans-serif}
+  a{color:inherit}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 24px}
+  .accent{color:var(--blue)}
+
+  /* ── Scroll reveal ── */
+  .reveal{opacity:0;transform:translateY(26px);transition:opacity .7s cubic-bezier(.2,.7,.2,1),transform .7s cubic-bezier(.2,.7,.2,1)}
+  .reveal.in{opacity:1;transform:none}
+  .reveal[data-d="1"]{transition-delay:.08s}
+  .reveal[data-d="2"]{transition-delay:.16s}
+  .reveal[data-d="3"]{transition-delay:.24s}
+  .reveal[data-d="4"]{transition-delay:.32s}
+  .reveal[data-d="5"]{transition-delay:.40s}
+  @media (prefers-reduced-motion:reduce){.reveal{opacity:1;transform:none;transition:none}}
+
+  /* ── Nav ── */
+  nav{position:sticky;top:0;z-index:200;background:rgba(255,255,255,.72);
+    backdrop-filter:saturate(160%) blur(14px);-webkit-backdrop-filter:saturate(160%) blur(14px);
+    border-bottom:1px solid transparent;transition:border-color .3s,box-shadow .3s,background .3s}
+  nav.scrolled{border-bottom-color:var(--line);box-shadow:0 6px 24px rgba(11,35,66,.06)}
+  .nav-inner{display:flex;align-items:center;justify-content:space-between;height:68px}
+  .brand{display:flex;align-items:center;gap:11px;text-decoration:none}
+  .brand img{height:34px;width:auto;border-radius:7px}
+  .brand-text{font-weight:800;font-size:20px;letter-spacing:.5px;color:var(--navy)}
+  .brand-text small{display:block;font-family:'Inter';font-weight:600;font-size:9.5px;letter-spacing:2.4px;color:var(--blue);margin-top:-3px}
+  .nav-links{display:flex;align-items:center;gap:30px}
+  .nav-links a{text-decoration:none;color:#33415a;font-weight:500;font-size:14.5px;position:relative;transition:color .2s}
+  .nav-links a:not(.btn)::after{content:'';position:absolute;left:0;bottom:-6px;width:0;height:2px;background:var(--blue);transition:width .25s}
+  .nav-links a:not(.btn):hover{color:var(--blue)}
+  .nav-links a:not(.btn):hover::after{width:100%}
+
+  .btn{display:inline-flex;align-items:center;gap:9px;padding:12px 24px;border-radius:10px;
+    font-weight:600;font-size:14.5px;text-decoration:none;border:none;cursor:pointer;
+    transition:transform .2s cubic-bezier(.2,.7,.2,1),box-shadow .25s,background .25s;position:relative;overflow:hidden}
+  .btn-primary{background:linear-gradient(135deg,var(--blue),#1450b8);color:#fff;box-shadow:0 10px 24px rgba(30,99,216,.32)}
+  .btn-primary:hover{transform:translateY(-2px);box-shadow:0 16px 34px rgba(30,99,216,.42)}
+  .btn-primary::after{content:'';position:absolute;top:0;left:-120%;width:60%;height:100%;
+    background:linear-gradient(120deg,transparent,rgba(255,255,255,.35),transparent);transition:left .6s}
+  .btn-primary:hover::after{left:140%}
+  .btn-ghost{background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.32)}
+  .btn-ghost:hover{background:rgba(255,255,255,.18);transform:translateY(-2px)}
+  .btn-outline{background:#fff;color:var(--blue);border:1.5px solid var(--line-2)}
+  .btn-outline:hover{border-color:var(--blue);transform:translateY(-2px);box-shadow:var(--shadow)}
+  .btn-sm{padding:9px 18px;font-size:13.5px;border-radius:9px}
+
+  @media (max-width:860px){.nav-links a:not(.btn){display:none}}
+
+  /* ── Hero ── */
+  .hero{position:relative;background:
+      radial-gradient(1100px 500px at 88% -8%,rgba(59,130,246,.30),transparent 60%),
+      radial-gradient(800px 460px at 6% 110%,rgba(227,173,95,.16),transparent 55%),
+      linear-gradient(150deg,#08203f 0%,#0b2c5b 55%,#103a78 100%);
+    color:#fff;padding:110px 0 130px;overflow:hidden}
+  .hero::before{content:'';position:absolute;inset:0;
+    background-image:linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px);
+    background-size:46px 46px;mask-image:radial-gradient(circle at 50% 30%,#000,transparent 75%);opacity:.6}
+  .orb{position:absolute;border-radius:50%;filter:blur(8px);pointer-events:none}
+  .orb.a{width:420px;height:420px;top:-120px;right:-80px;background:radial-gradient(circle,rgba(59,130,246,.28),transparent 70%);animation:float 9s ease-in-out infinite}
+  .orb.b{width:300px;height:300px;bottom:-90px;left:8%;background:radial-gradient(circle,rgba(227,173,95,.18),transparent 70%);animation:float 11s ease-in-out infinite reverse}
+  @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-26px)}}
+  .hero-grid{position:relative;z-index:2;display:grid;grid-template-columns:1.05fr .95fr;gap:54px;align-items:center}
+  .pill{display:inline-flex;align-items:center;gap:9px;background:rgba(255,255,255,.1);
+    border:1px solid rgba(255,255,255,.2);padding:7px 15px;border-radius:999px;font-size:13px;font-weight:500;margin-bottom:24px;
+    backdrop-filter:blur(4px)}
+  .pill .dot{width:8px;height:8px;border-radius:50%;background:#48d178;box-shadow:0 0 0 0 rgba(72,209,120,.6);animation:ping 2s infinite}
+  @keyframes ping{0%{box-shadow:0 0 0 0 rgba(72,209,120,.55)}70%{box-shadow:0 0 0 9px rgba(72,209,120,0)}100%{box-shadow:0 0 0 0 rgba(72,209,120,0)}}
+  .hero h1{font-size:clamp(34px,4.6vw,56px);line-height:1.08;font-weight:800;letter-spacing:-1.4px;margin-bottom:20px}
+  .hero h1 .grad{background:linear-gradient(100deg,#7db4ff,#e3ad5f);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .hero .lead{font-size:18.5px;line-height:1.6;color:rgba(255,255,255,.86);max-width:560px;margin-bottom:34px}
+  .hero-cta{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:30px}
+  .hero-mini{display:flex;gap:26px;flex-wrap:wrap}
+  .hero-mini div{font-size:13.5px;color:rgba(255,255,255,.7)}
+  .hero-mini b{display:block;font-family:'Sora';font-size:19px;color:#fff;font-weight:700;letter-spacing:-.3px}
+
+  /* ── Hero device mock ── */
+  .mock{position:relative;z-index:2}
+  .mock-card{background:rgba(255,255,255,.96);border-radius:20px;box-shadow:var(--shadow-lg);
+    padding:18px;transform:perspective(1400px) rotateY(-9deg) rotateX(4deg);transition:transform .5s;animation:rise 1s cubic-bezier(.2,.8,.2,1) both}
+  .mock-card:hover{transform:perspective(1400px) rotateY(-3deg) rotateX(1deg)}
+  @keyframes rise{from{opacity:0;transform:perspective(1400px) rotateY(-14deg) rotateX(8deg) translateY(40px)}}
+  .mock-top{display:flex;align-items:center;gap:7px;padding:4px 4px 12px}
+  .mock-top i{width:10px;height:10px;border-radius:50%;background:#e2e8f0}
+  .mock-top i:nth-child(1){background:#ff6058}.mock-top i:nth-child(2){background:#ffbd2e}.mock-top i:nth-child(3){background:#28c840}
+  .mock-top span{margin-left:8px;font-size:11.5px;color:#94a3b8;font-weight:500}
+  .mock-map{position:relative;height:210px;border-radius:13px;overflow:hidden;
+    background:
+      radial-gradient(circle at 30% 40%,#e7f0fb,#dce8f7),
+      repeating-linear-gradient(0deg,rgba(148,163,184,.18) 0 1px,transparent 1px 34px),
+      repeating-linear-gradient(90deg,rgba(148,163,184,.18) 0 1px,transparent 1px 34px)}
+  .road{position:absolute;background:#c3d3e6;border-radius:3px}
+  .road.r1{top:55%;left:-5%;width:110%;height:9px;transform:rotate(-7deg)}
+  .road.r2{top:10%;left:42%;width:9px;height:90%;transform:rotate(6deg)}
+  .geo-pin{position:absolute;width:20px;height:20px}
+  .geo-pin::before{content:'';position:absolute;inset:0;border-radius:50% 50% 50% 0;transform:rotate(-45deg);
+    background:linear-gradient(135deg,#1e63d8,#1450b8);box-shadow:0 6px 14px rgba(20,80,184,.5)}
+  .geo-pin::after{content:'';position:absolute;left:6px;top:5px;width:8px;height:8px;border-radius:50%;background:#fff}
+  .geo-pin .pulse{position:absolute;left:-9px;top:-9px;width:38px;height:38px;border-radius:50%;background:rgba(30,99,216,.22);animation:ping 2s infinite}
+  .p1{top:30%;left:24%}.p2{top:62%;left:60%}.p3{top:40%;left:74%}
+  .chip{position:absolute;background:#fff;border-radius:11px;box-shadow:0 10px 26px rgba(11,35,66,.16);
+    padding:9px 13px;font-size:12px;display:flex;align-items:center;gap:9px;font-weight:600;color:var(--ink)}
+  .chip small{display:block;font-weight:500;color:var(--muted);font-size:10.5px}
+  .chip .av{width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,#1e63d8,#0d2c5c);
+    color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700}
+  .chip.c1{top:14px;right:-14px;animation:float 6s ease-in-out infinite}
+  .chip.c2{bottom:-16px;left:-12px;animation:float 7.5s ease-in-out infinite reverse}
+  .mock-rows{padding:14px 6px 4px}
+  .mrow{display:flex;align-items:center;gap:12px;padding:9px 4px;border-bottom:1px solid #eef3f9}
+  .mrow:last-child{border-bottom:none}
+  .mrow .tag{font-family:'Sora';font-weight:700;font-size:12.5px;color:var(--navy);background:var(--soft-2);padding:4px 9px;border-radius:7px;letter-spacing:.3px}
+  .mrow .txt{flex:1;font-size:12px;color:var(--muted)}
+  .mrow .stat{font-size:11px;font-weight:700;color:#0f9d58}
+  .mrow .stat.amber{color:#d98a17}
+
+  @media (max-width:920px){
+    .hero{padding:80px 0 90px}
+    .hero-grid{grid-template-columns:1fr;gap:54px}
+    .mock-card{transform:none;max-width:440px;margin:0 auto}
+    .mock-card:hover{transform:none}
   }
 
-  /* ─── Nav ────────────────────────────────────────────────────────────── */
-  nav {
-    position: sticky; top: 0; z-index: 100;
-    background: rgba(255,255,255,0.95);
-    backdrop-filter: blur(10px);
-    border-bottom: 1px solid #e8e8e8;
-    padding: 14px 0;
-  }
-  .nav-inner {
-    max-width: 1200px; margin: 0 auto; padding: 0 24px;
-    display: flex; justify-content: space-between; align-items: center;
-  }
-  .nav-logo { display: flex; align-items: center; gap: 12px; text-decoration: none; }
-  .nav-logo img { height: 40px; width: auto; }
-  .nav-logo-text { font-weight: 700; font-size: 18px; color: #1565c0; letter-spacing: -0.3px; }
-  .nav-links { display: flex; gap: 28px; }
-  .nav-links a {
-    text-decoration: none; color: #444; font-weight: 500; font-size: 15px;
-    transition: color .15s;
-  }
-  .nav-links a:hover { color: #1565c0; }
-  .nav-cta {
-    background: #1565c0; color: #fff !important; padding: 9px 18px;
-    border-radius: 6px; font-weight: 600 !important;
-  }
-  .nav-cta:hover { background: #0d4a8f; }
+  /* ── Logos / trust strip ── */
+  .strip{background:var(--navy);color:#fff;padding:30px 0}
+  .strip-inner{display:flex;flex-wrap:wrap;gap:18px;justify-content:space-between;align-items:center}
+  .strip-item{display:flex;align-items:center;gap:12px;font-size:14px;color:rgba(255,255,255,.82);font-weight:500}
+  .strip-item .ic{width:38px;height:38px;border-radius:10px;background:rgba(255,255,255,.08);
+    display:flex;align-items:center;justify-content:center;font-size:18px}
 
-  @media (max-width: 720px) {
-    .nav-links a:not(.nav-cta) { display: none; }
-  }
+  /* ── Sections ── */
+  section{padding:96px 0}
+  .head{text-align:center;max-width:680px;margin:0 auto 58px}
+  .eyebrow{display:inline-block;color:var(--blue);font-weight:700;font-size:12.5px;letter-spacing:2px;
+    text-transform:uppercase;margin-bottom:14px}
+  .head h2{font-size:clamp(28px,3.4vw,40px);line-height:1.15;letter-spacing:-.7px;color:var(--navy);margin-bottom:14px}
+  .head p{font-size:17px;color:var(--muted)}
 
-  /* ─── Hero ───────────────────────────────────────────────────────────── */
-  .hero {
-    background: linear-gradient(135deg, #1565c0 0%, #0d47a1 100%);
-    color: #fff;
-    padding: 96px 24px 120px;
-    position: relative;
-    overflow: hidden;
-  }
-  .hero::before {
-    content: ''; position: absolute; top: -50%; right: -10%;
-    width: 600px; height: 600px;
-    background: radial-gradient(circle, rgba(255,255,255,0.08) 0%, transparent 70%);
-    border-radius: 50%;
-  }
-  .hero-inner {
-    max-width: 1200px; margin: 0 auto;
-    display: grid; grid-template-columns: 1fr 1fr; gap: 48px;
-    align-items: center; position: relative; z-index: 1;
-  }
-  .hero h1 {
-    font-size: 48px; line-height: 1.15; font-weight: 800;
-    letter-spacing: -1.2px; margin-bottom: 20px;
-  }
-  .hero .tagline {
-    font-size: 19px; line-height: 1.55; color: rgba(255,255,255,0.92);
-    margin-bottom: 32px; max-width: 540px;
-  }
-  .hero-buttons { display: flex; gap: 14px; flex-wrap: wrap; }
-  .btn {
-    display: inline-flex; align-items: center; gap: 8px;
-    padding: 13px 26px; border-radius: 8px;
-    font-weight: 600; font-size: 15px; text-decoration: none;
-    transition: transform .15s, box-shadow .15s;
-  }
-  .btn:hover { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(0,0,0,0.15); }
-  .btn-primary { background: #fff; color: #1565c0; }
-  .btn-secondary { background: rgba(255,255,255,0.12); color: #fff; border: 1px solid rgba(255,255,255,0.3); }
+  /* ── Features ── */
+  .features{background:linear-gradient(180deg,var(--soft),#fff)}
+  .fgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
+  .card{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:30px 28px;
+    transition:transform .3s cubic-bezier(.2,.7,.2,1),box-shadow .3s,border-color .3s;position:relative;overflow:hidden}
+  .card::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(30,99,216,.05),transparent 60%);opacity:0;transition:opacity .3s}
+  .card:hover{transform:translateY(-6px);box-shadow:var(--shadow);border-color:transparent}
+  .card:hover::before{opacity:1}
+  .ficon{width:52px;height:52px;border-radius:13px;display:flex;align-items:center;justify-content:center;
+    font-size:24px;margin-bottom:18px;background:linear-gradient(135deg,#eaf2ff,#dbe8fc);color:var(--blue);
+    transition:transform .3s}
+  .card:hover .ficon{transform:scale(1.08) rotate(-4deg)}
+  .card h3{font-size:18.5px;color:var(--navy);margin-bottom:9px;font-weight:700}
+  .card p{font-size:14.5px;color:var(--muted);line-height:1.66}
+  @media (max-width:920px){.fgrid{grid-template-columns:1fr}}
 
-  .hero-visual {
-    display: flex; justify-content: center; align-items: center;
-    position: relative;
-  }
-  .hero-visual img {
-    max-width: 100%; height: auto; max-height: 360px;
-    filter: drop-shadow(0 20px 40px rgba(0,0,0,0.25));
-    background: #fff; padding: 32px; border-radius: 16px;
-  }
+  /* ── How it works ── */
+  .steps{display:grid;grid-template-columns:repeat(4,1fr);gap:22px;counter-reset:s}
+  .step{position:relative;padding:30px 24px;border-radius:var(--radius);background:var(--soft);
+    border:1px solid var(--line);transition:transform .3s,box-shadow .3s}
+  .step:hover{transform:translateY(-5px);box-shadow:var(--shadow)}
+  .step .num{counter-increment:s;width:42px;height:42px;border-radius:11px;
+    background:linear-gradient(135deg,var(--navy),var(--blue));color:#fff;display:flex;align-items:center;justify-content:center;
+    font-family:'Sora';font-weight:700;font-size:17px;margin-bottom:16px}
+  .step .num::before{content:counter(s,decimal-leading-zero)}
+  .step h3{font-size:16.5px;color:var(--navy);margin-bottom:7px}
+  .step p{font-size:13.8px;color:var(--muted)}
+  @media (max-width:920px){.steps{grid-template-columns:1fr 1fr}}
+  @media (max-width:540px){.steps{grid-template-columns:1fr}}
 
-  @media (max-width: 900px) {
-    .hero { padding: 64px 24px 80px; }
-    .hero h1 { font-size: 34px; }
-    .hero-inner { grid-template-columns: 1fr; gap: 40px; text-align: center; }
-    .hero-buttons { justify-content: center; }
-    .hero .tagline { margin-left: auto; margin-right: auto; }
-  }
+  /* ── Platforms ── */
+  .platforms{background:linear-gradient(180deg,#fff,var(--soft))}
+  .pgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
+  .plat{border:1px solid var(--line);border-radius:var(--radius);padding:32px 28px;text-align:center;background:#fff;
+    transition:transform .3s,box-shadow .3s,border-color .3s}
+  .plat:hover{transform:translateY(-6px);box-shadow:var(--shadow);border-color:var(--blue)}
+  .plat .pe{width:62px;height:62px;margin:0 auto 18px;border-radius:16px;display:flex;align-items:center;justify-content:center;
+    font-size:30px;background:linear-gradient(135deg,#eaf2ff,#dbe8fc)}
+  .plat h3{font-size:19px;color:var(--navy);margin-bottom:9px}
+  .plat p{font-size:14px;color:var(--muted);margin-bottom:22px;min-height:46px}
+  .badge{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;font-weight:600;color:var(--muted);
+    background:var(--soft-2);padding:9px 16px;border-radius:9px}
+  @media (max-width:920px){.pgrid{grid-template-columns:1fr}}
 
-  /* ─── Sections ───────────────────────────────────────────────────────── */
-  section { padding: 80px 24px; }
-  .section-inner { max-width: 1200px; margin: 0 auto; }
-  .section-header { text-align: center; margin-bottom: 56px; }
-  .eyebrow {
-    color: #1565c0; font-weight: 700; font-size: 13px;
-    letter-spacing: 1.4px; text-transform: uppercase; margin-bottom: 10px;
-  }
-  .section-header h2 {
-    font-size: 36px; line-height: 1.2; letter-spacing: -0.5px;
-    color: #0d2748; margin-bottom: 14px;
-  }
-  .section-header p {
-    font-size: 17px; color: #555; max-width: 620px; margin: 0 auto;
-  }
+  /* ── Contact / CTA ── */
+  .contact{background:
+      radial-gradient(800px 400px at 90% 0%,rgba(59,130,246,.28),transparent 60%),
+      linear-gradient(140deg,#08203f,#0d2c5c 70%,#123e7e);color:#fff;text-align:center;position:relative;overflow:hidden}
+  .contact .orb.a{top:-100px;right:-60px;width:340px;height:340px}
+  .contact h2{font-size:clamp(28px,3.4vw,40px);letter-spacing:-.6px;margin-bottom:14px}
+  .contact .lead{font-size:17.5px;color:rgba(255,255,255,.85);max-width:560px;margin:0 auto 38px}
+  .cc-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;max-width:860px;margin:0 auto 38px}
+  .cc{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.16);border-radius:14px;padding:26px 20px;
+    text-decoration:none;color:#fff;transition:transform .3s,background .3s,border-color .3s;backdrop-filter:blur(4px)}
+  .cc:hover{transform:translateY(-5px);background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.35)}
+  .cc .ci{width:48px;height:48px;margin:0 auto 14px;border-radius:12px;display:flex;align-items:center;justify-content:center;
+    font-size:22px;background:rgba(255,255,255,.12)}
+  .cc small{display:block;font-size:11.5px;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,255,255,.6);margin-bottom:6px}
+  .cc b{font-family:'Sora';font-size:15.5px;font-weight:600;word-break:break-word}
+  @media (max-width:760px){.cc-grid{grid-template-columns:1fr}}
 
-  /* ─── Features ───────────────────────────────────────────────────────── */
-  .features {
-    background: #f8fafc;
-  }
-  .feature-grid {
-    display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px;
-  }
-  .feature {
-    background: #fff; padding: 32px 28px; border-radius: 12px;
-    border: 1px solid #e8edf3; transition: transform .2s, box-shadow .2s;
-  }
-  .feature:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 12px 24px rgba(13,71,161,0.08);
-  }
-  .feature-icon {
-    width: 48px; height: 48px;
-    background: linear-gradient(135deg, #1565c0, #0d47a1);
-    border-radius: 10px;
-    display: flex; align-items: center; justify-content: center;
-    color: #fff; font-size: 22px; font-weight: 700;
-    margin-bottom: 18px;
-  }
-  .feature h3 { font-size: 18px; color: #0d2748; margin-bottom: 8px; }
-  .feature p { font-size: 14.5px; color: #555; line-height: 1.6; }
-  @media (max-width: 900px) {
-    .feature-grid { grid-template-columns: 1fr; }
-    section { padding: 60px 24px; }
-    .section-header h2 { font-size: 28px; }
-  }
+  /* ── Footer ── */
+  footer{background:#06152b;color:rgba(255,255,255,.66);padding:60px 0 30px}
+  .foot{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:42px}
+  .foot-brand{display:flex;align-items:center;gap:11px;margin-bottom:16px}
+  .foot-brand img{height:34px;border-radius:7px}
+  .foot-brand .brand-text{color:#fff}
+  .foot p{font-size:13.8px;line-height:1.7;max-width:330px}
+  .fcol h4{color:#fff;font-size:12.5px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;margin-bottom:16px}
+  .fcol a{display:block;color:rgba(255,255,255,.66);text-decoration:none;font-size:14px;padding:6px 0;transition:color .2s,padding-left .2s}
+  .fcol a:hover{color:#fff;padding-left:5px}
+  .foot-bottom{margin-top:44px;padding-top:24px;border-top:1px solid rgba(255,255,255,.1);
+    display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px;font-size:13px;color:rgba(255,255,255,.45)}
+  @media (max-width:860px){.foot{grid-template-columns:1fr 1fr;gap:32px}}
+  @media (max-width:520px){.foot{grid-template-columns:1fr}}
 
-  /* ─── Platforms / downloads ──────────────────────────────────────────── */
-  .platform-grid {
-    display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px;
-  }
-  .platform {
-    border: 2px solid #e8edf3; border-radius: 14px; padding: 28px;
-    text-align: center; transition: border-color .2s, transform .2s;
-  }
-  .platform:hover { border-color: #1565c0; transform: translateY(-4px); }
-  .platform-emoji { font-size: 42px; margin-bottom: 16px; }
-  .platform h3 { font-size: 19px; color: #0d2748; margin-bottom: 8px; }
-  .platform p { font-size: 14.5px; color: #555; margin-bottom: 22px; min-height: 44px; }
-  .platform .btn { display: inline-block; }
-  @media (max-width: 900px) { .platform-grid { grid-template-columns: 1fr; } }
-
-  /* ─── CTA strip ──────────────────────────────────────────────────────── */
-  .cta {
-    background: linear-gradient(135deg, #0d2748 0%, #1565c0 100%);
-    color: #fff; text-align: center;
-  }
-  .cta h2 { font-size: 32px; margin-bottom: 14px; letter-spacing: -0.4px; }
-  .cta p { font-size: 17px; color: rgba(255,255,255,0.85); margin-bottom: 28px; }
-
-  /* ─── Footer ─────────────────────────────────────────────────────────── */
-  footer {
-    background: #0a1a2f; color: rgba(255,255,255,0.7);
-    padding: 56px 24px 32px;
-  }
-  .footer-inner {
-    max-width: 1200px; margin: 0 auto;
-    display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 40px;
-  }
-  .footer-brand img { height: 44px; margin-bottom: 14px; background: #fff; padding: 8px 12px; border-radius: 8px; }
-  .footer-brand p { font-size: 14px; line-height: 1.6; max-width: 320px; }
-  .footer-col h4 {
-    color: #fff; font-size: 14px; font-weight: 700;
-    letter-spacing: 1px; text-transform: uppercase; margin-bottom: 16px;
-  }
-  .footer-col a {
-    display: block; color: rgba(255,255,255,0.7); text-decoration: none;
-    font-size: 14.5px; padding: 5px 0; transition: color .15s;
-  }
-  .footer-col a:hover { color: #fff; }
-  .footer-bottom {
-    max-width: 1200px; margin: 40px auto 0;
-    padding-top: 24px; border-top: 1px solid rgba(255,255,255,0.1);
-    display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px;
-    font-size: 13px; color: rgba(255,255,255,0.5);
-  }
-  @media (max-width: 900px) {
-    .footer-inner { grid-template-columns: 1fr 1fr; gap: 32px; }
-  }
-  @media (max-width: 500px) {
-    .footer-inner { grid-template-columns: 1fr; }
-  }
+  /* back to top */
+  .top{position:fixed;right:22px;bottom:22px;width:46px;height:46px;border-radius:50%;
+    background:var(--blue);color:#fff;display:flex;align-items:center;justify-content:center;font-size:20px;
+    box-shadow:0 12px 26px rgba(30,99,216,.4);cursor:pointer;opacity:0;pointer-events:none;transform:translateY(14px);
+    transition:opacity .3s,transform .3s;z-index:150;text-decoration:none}
+  .top.show{opacity:1;pointer-events:auto;transform:none}
 </style>
 </head>
 <body>
 
-<nav>
-  <div class="nav-inner">
-    <a class="nav-logo" href="/">
-      <img src="assets/logo.webp" alt="CRMS Recovery Software">
-      <span class="nav-logo-text">CRMS Recovery</span>
+<nav id="nav">
+  <div class="wrap nav-inner">
+    <a class="brand" href="/">
+      <img src="assets/logo.webp" alt="CRMRS logo">
+      <span class="brand-text">CRMRS<small>RECOVERY SOFTWARE</small></span>
     </a>
     <div class="nav-links">
       <a href="#features">Features</a>
+      <a href="#how">How it works</a>
       <a href="#platforms">Apps</a>
       <a href="#contact">Contact</a>
-      <a href="https://agency.crmrecoverysoftware.com" class="nav-cta">Agency Portal</a>
+      <a href="https://agency.crmrecoverysoftware.com" class="btn btn-primary btn-sm">Agency Portal</a>
     </div>
   </div>
 </nav>
 
 <header class="hero">
-  <div class="hero-inner">
+  <span class="orb a"></span><span class="orb b"></span>
+  <div class="wrap hero-grid">
     <div>
-      <h1>Vehicle recovery operations, built for modern agencies.</h1>
-      <p class="tagline">
-        CRMS Recovery Software is a multi-tenant platform that powers
-        repossession workflows end-to-end — from head-office dashboards
-        to field agents in the truck. Per-agency data isolation, real-time
-        tracking, and audit-grade record keeping.
+      <span class="pill"><span class="dot"></span> Live agent tracking · Multi-tenant · Audit-ready</span>
+      <h1>Vehicle recovery operations,<br><span class="grad">built for modern agencies.</span></h1>
+      <p class="lead">
+        CRMRS is an end-to-end repossession platform — from head-office dashboards
+        to field agents in the truck. Real-time GPS tracking, instant record search
+        across millions of vehicles, and bank-grade data isolation for every agency.
       </p>
-      <div class="hero-buttons">
+      <div class="hero-cta">
         <a href="#platforms" class="btn btn-primary">Get the apps →</a>
-        <a href="https://agency.crmrecoverysoftware.com" class="btn btn-secondary">Agency portal</a>
+        <a href="https://agency.crmrecoverysoftware.com" class="btn btn-ghost">Open Agency Portal</a>
+      </div>
+      <div class="hero-mini">
+        <div><b>2 platforms</b> Android &amp; Windows</div>
+        <div><b>Real-time</b> Live map &amp; events</div>
+        <div><b>Isolated</b> Per-agency tenant</div>
       </div>
     </div>
-    <div class="hero-visual">
-      <img src="assets/logo.webp" alt="CRMS Recovery Software platform">
+
+    <div class="mock">
+      <div class="mock-card">
+        <div class="mock-top"><i></i><i></i><i></i><span>CRMRS — Live Operations</span></div>
+        <div class="mock-map">
+          <span class="road r1"></span><span class="road r2"></span>
+          <span class="geo-pin p1"><span class="pulse"></span></span>
+          <span class="geo-pin p2"><span class="pulse"></span></span>
+          <span class="geo-pin p3"><span class="pulse"></span></span>
+          <div class="chip c1"><span class="av">JB</span><div>Agent online<small>Satara, MH · just now</small></div></div>
+          <div class="chip c2"><span class="av">RK</span><div>Vehicle located<small>MH-12 · matched</small></div></div>
+        </div>
+        <div class="mock-rows">
+          <div class="mrow"><span class="tag">MH-36-AA-2594</span><span class="txt">Honda Activa · Bucket 2</span><span class="stat">RECOVERED</span></div>
+          <div class="mrow"><span class="tag">MH-16-CW-5003</span><span class="txt">Bajaj Pulsar · Seasoning 3</span><span class="stat amber">IN FIELD</span></div>
+          <div class="mrow"><span class="tag">MH-12-KJ-8841</span><span class="txt">Maruti Swift · Sec 17</span><span class="stat amber">ASSIGNED</span></div>
+        </div>
+      </div>
     </div>
   </div>
 </header>
 
+<div class="strip">
+  <div class="wrap strip-inner">
+    <div class="strip-item"><span class="ic">🛰️</span> Real-time GPS tracking</div>
+    <div class="strip-item"><span class="ic">⚡</span> Instant record search</div>
+    <div class="strip-item"><span class="ic">🔒</span> Per-agency data isolation</div>
+    <div class="strip-item"><span class="ic">📲</span> White-labeled agent apps</div>
+    <div class="strip-item"><span class="ic">🧾</span> Audit-grade history</div>
+  </div>
+</div>
+
 <section id="features" class="features">
-  <div class="section-inner">
-    <div class="section-header">
-      <div class="eyebrow">Why CRMS</div>
-      <h2>Everything an agency needs in one platform</h2>
-      <p>Replace spreadsheets, WhatsApp groups, and disconnected logbooks with a single source of truth.</p>
+  <div class="wrap">
+    <div class="head reveal">
+      <div class="eyebrow">Why CRMRS</div>
+      <h2>Everything an agency needs, in one platform</h2>
+      <p>Replace scattered spreadsheets, WhatsApp groups, and paper logbooks with a single, reliable source of truth.</p>
     </div>
-    <div class="feature-grid">
-      <div class="feature">
-        <div class="feature-icon">🔒</div>
+    <div class="fgrid">
+      <div class="card reveal" data-d="1">
+        <div class="ficon">🔒</div>
         <h3>Tenant-isolated</h3>
-        <p>Every agency gets its own logically isolated database. No shared tables, no cross-agency data leakage.</p>
+        <p>Every agency runs in its own private workspace. No shared records, no cross-agency leakage — your data is yours alone.</p>
       </div>
-      <div class="feature">
-        <div class="feature-icon">📍</div>
+      <div class="card reveal" data-d="2">
+        <div class="ficon">📍</div>
         <h3>Live agent tracking</h3>
-        <p>Watch your field agents on the map in real time. Geo-tagged recovery events, automatic time-stamped logs.</p>
+        <p>Watch your field team on a real-time map. Every recovery event is geo-tagged and time-stamped automatically.</p>
       </div>
-      <div class="feature">
-        <div class="feature-icon">📱</div>
-        <h3>Android + Desktop</h3>
-        <p>Native white-labeled Android apps for agents, full-featured Windows desktop for head-office admins.</p>
+      <div class="card reveal" data-d="3">
+        <div class="ficon">⚡</div>
+        <h3>Instant record search</h3>
+        <p>Search by RC number, chassis, or model across millions of vehicle records — results in a blink, online or offline.</p>
       </div>
-      <div class="feature">
-        <div class="feature-icon">⚡</div>
-        <h3>Offline-first</h3>
-        <p>The Android app caches assigned vehicles locally — agents work uninterrupted even on flaky connections.</p>
+      <div class="card reveal" data-d="1">
+        <div class="ficon">📱</div>
+        <h3>Android + Windows</h3>
+        <p>Native, white-labeled Android apps for agents and a full-featured Windows console for head-office admins.</p>
       </div>
-      <div class="feature">
-        <div class="feature-icon">🛡️</div>
+      <div class="card reveal" data-d="2">
+        <div class="ficon">🛡️</div>
         <h3>Device-locked accounts</h3>
-        <p>Each agent account is bound to one device. Lost phone? Admin re-issues access from the portal in seconds.</p>
+        <p>Each agent account is bound to a single device. Lost a phone? Re-issue access from the portal in seconds.</p>
       </div>
-      <div class="feature">
-        <div class="feature-icon">📊</div>
+      <div class="card reveal" data-d="3">
+        <div class="ficon">📊</div>
+        <h3>Finances &amp; reporting</h3>
+        <p>Track head offices and financers, see records by branch, and review uploads sorted by the latest activity.</p>
+      </div>
+      <div class="card reveal" data-d="1">
+        <div class="ficon">📥</div>
+        <h3>Bulk data import</h3>
+        <p>Onboard portfolios fast — import large vehicle datasets in one go, with duplicates handled cleanly.</p>
+      </div>
+      <div class="card reveal" data-d="2">
+        <div class="ficon">🧾</div>
         <h3>Audit-grade history</h3>
-        <p>Every login, search, and recovery event is logged with timestamp and location. Built for regulatory review.</p>
+        <p>Every login, search, and recovery is logged with time and location — built for regulatory review and accountability.</p>
+      </div>
+      <div class="card reveal" data-d="3">
+        <div class="ficon">🛟</div>
+        <h3>Built-in support</h3>
+        <p>Raise and track support tickets from inside the apps, and check live platform status any time.</p>
       </div>
     </div>
   </div>
 </section>
 
-<section id="platforms">
-  <div class="section-inner">
-    <div class="section-header">
-      <div class="eyebrow">Get the apps</div>
-      <h2>Download CRMS for your role</h2>
-      <p>Each agency gets its own branded build of the agent app. Head-office admins use the desktop console.</p>
+<section id="how">
+  <div class="wrap">
+    <div class="head reveal">
+      <div class="eyebrow">How it works</div>
+      <h2>From onboarding to recovery in four steps</h2>
+      <p>A simple flow that gets your agency operational fast — no IT team required.</p>
     </div>
-    <div class="platform-grid">
-      <div class="platform">
-        <div class="platform-emoji">🖥️</div>
+    <div class="steps">
+      <div class="step reveal" data-d="1"><div class="num"></div><h3>Onboard your agency</h3><p>Apply through the Agency Portal and get your own isolated, secure workspace.</p></div>
+      <div class="step reveal" data-d="2"><div class="num"></div><h3>Agents get the app</h3><p>Field agents install your branded Android app and sign in on their device.</p></div>
+      <div class="step reveal" data-d="3"><div class="num"></div><h3>Assign &amp; track</h3><p>Assign vehicles, search records instantly, and follow agents live on the map.</p></div>
+      <div class="step reveal" data-d="4"><div class="num"></div><h3>Report &amp; audit</h3><p>Review recoveries, finances, and a complete time-stamped activity history.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="platforms" class="platforms">
+  <div class="wrap">
+    <div class="head reveal">
+      <div class="eyebrow">Get the apps</div>
+      <h2>Download CRMRS for your role</h2>
+      <p>Head-office admins use the Windows console. Each agency gets its own branded agent app.</p>
+    </div>
+    <div class="pgrid">
+      <div class="plat reveal" data-d="1">
+        <div class="pe">🖥️</div>
         <h3>Windows Desktop</h3>
-        <p>Admin console — manage agents, assign vehicles, view live map, run reports.</p>
+        <p>Admin console — manage agents, assign vehicles, view the live map, and run reports.</p>
         <a href="https://api.crmrecoverysoftware.com/download" class="btn btn-primary">Download installer</a>
       </div>
-      <div class="platform">
-        <div class="platform-emoji">📲</div>
-        <h3>V K Enterprises Recovery</h3>
-        <p>Android app for V K Enterprises (Satara, MH) field recovery agents.</p>
-        <a href="#contact" class="btn btn-primary">Coming to Play Store</a>
+      <div class="plat reveal" data-d="2">
+        <div class="pe">📲</div>
+        <h3>V K Enterprises</h3>
+        <p>Android recovery app for V K Enterprises field agents (Satara, Maharashtra).</p>
+        <span class="badge">▶ Coming to Play Store</span>
       </div>
-      <div class="platform">
-        <div class="platform-emoji">📲</div>
-        <h3>RK Enterprises Recovery</h3>
-        <p>Android app for RK Enterprises field recovery agents.</p>
-        <a href="#contact" class="btn btn-primary">Coming to Play Store</a>
+      <div class="plat reveal" data-d="3">
+        <div class="pe">📲</div>
+        <h3>RK Enterprises</h3>
+        <p>Android recovery app for RK Enterprises field recovery agents.</p>
+        <span class="badge">▶ Coming to Play Store</span>
       </div>
     </div>
   </div>
 </section>
 
-<section id="contact" class="cta">
-  <div class="section-inner">
-    <h2>Looking to onboard your agency?</h2>
-    <p>Each agency gets a fully white-labeled Android app and an isolated database tenant.</p>
-    <a href="mailto:support@crmrecoverysoftware.com" class="btn btn-primary">support@crmrecoverysoftware.com</a>
+<section id="contact" class="contact">
+  <span class="orb a"></span>
+  <div class="wrap">
+    <div class="reveal">
+      <div class="eyebrow" style="color:#7db4ff">Get in touch</div>
+      <h2>Looking to onboard your agency?</h2>
+      <p class="lead">Every agency gets a fully white-labeled Android app and a private, isolated workspace. Talk to us — we'll get you set up.</p>
+    </div>
+    <div class="cc-grid">
+      <a class="cc reveal" data-d="1" href="tel:+916377362603">
+        <div class="ci">📞</div><small>Call us</small><b>+91 63773 62603</b>
+      </a>
+      <a class="cc reveal" data-d="2" href="mailto:team@crmrecoverysoftware.com">
+        <div class="ci">✉️</div><small>Email</small><b>team@crmrecoverysoftware.com</b>
+      </a>
+      <a class="cc reveal" data-d="3" href="mailto:rahul@loopwar.dev">
+        <div class="ci">💬</div><small>Sales &amp; partnerships</small><b>rahul@loopwar.dev</b>
+      </a>
+    </div>
+    <div class="reveal" data-d="3">
+      <a href="https://agency.crmrecoverysoftware.com/register.html" class="btn btn-primary">Apply for an agency account →</a>
+    </div>
   </div>
 </section>
 
 <footer>
-  <div class="footer-inner">
-    <div class="footer-brand">
-      <img src="assets/logo.webp" alt="CRMS Recovery Software">
-      <p>Multi-tenant vehicle recovery operations platform. Built in India for agencies that take compliance seriously.</p>
+  <div class="wrap">
+    <div class="foot">
+      <div>
+        <div class="foot-brand">
+          <img src="assets/logo.webp" alt="CRMRS logo">
+          <span class="brand-text">CRMRS</span>
+        </div>
+        <p>Multi-tenant vehicle recovery operations platform. Built in India for agencies that take field accountability and compliance seriously.</p>
+      </div>
+      <div class="fcol">
+        <h4>Product</h4>
+        <a href="#features">Features</a>
+        <a href="#how">How it works</a>
+        <a href="#platforms">Apps</a>
+        <a href="https://api.crmrecoverysoftware.com/download">Desktop installer</a>
+      </div>
+      <div class="fcol">
+        <h4>Agency</h4>
+        <a href="https://agency.crmrecoverysoftware.com">Agency portal</a>
+        <a href="https://agency.crmrecoverysoftware.com/register.html">Apply now</a>
+      </div>
+      <div class="fcol">
+        <h4>Contact</h4>
+        <a href="tel:+916377362603">+91 63773 62603</a>
+        <a href="mailto:team@crmrecoverysoftware.com">team@crmrecoverysoftware.com</a>
+        <a href="mailto:rahul@loopwar.dev">rahul@loopwar.dev</a>
+        <a href="/privacy-policy.html">Privacy policy</a>
+      </div>
     </div>
-    <div class="footer-col">
-      <h4>Product</h4>
-      <a href="#features">Features</a>
-      <a href="#platforms">Apps</a>
-      <a href="https://api.crmrecoverysoftware.com/download">Desktop installer</a>
+    <div class="foot-bottom">
+      <div>&copy; 2026 CRMRS — Recovery Software. All rights reserved.</div>
+      <div>crmrecoverysoftware.com</div>
     </div>
-    <div class="footer-col">
-      <h4>Agency</h4>
-      <a href="https://agency.crmrecoverysoftware.com">Agency portal</a>
-      <a href="https://agency.crmrecoverysoftware.com/register.html">Apply</a>
-    </div>
-    <div class="footer-col">
-      <h4>Legal</h4>
-      <a href="/privacy-policy.html">Privacy policy</a>
-      <a href="mailto:support@crmrecoverysoftware.com">Support</a>
-    </div>
-  </div>
-  <div class="footer-bottom">
-    <div>&copy; 2026 CRMS Recovery Software. All rights reserved.</div>
-    <div>crmrecoverysoftware.com</div>
   </div>
 </footer>
 
+<a href="#" class="top" id="top" aria-label="Back to top">↑</a>
+
+<script>
+  // Nav shadow on scroll + back-to-top toggle
+  var nav=document.getElementById('nav'),top=document.getElementById('top');
+  window.addEventListener('scroll',function(){
+    var y=window.scrollY;
+    nav.classList.toggle('scrolled',y>10);
+    top.classList.toggle('show',y>600);
+  },{passive:true});
+
+  // Scroll reveal
+  var io=new IntersectionObserver(function(es){
+    es.forEach(function(e){ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); } });
+  },{threshold:.14});
+  document.querySelectorAll('.reveal').forEach(function(el){io.observe(el)});
+</script>
 </body>
 </html>
