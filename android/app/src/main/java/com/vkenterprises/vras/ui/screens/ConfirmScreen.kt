@@ -30,19 +30,37 @@ fun ConfirmScreen(
 ) {
     val context    = LocalContext.current
     val ui         by searchVm.ui.collectAsState()
-    val item       = ui.selectedResult
+    // Search returns SKINNY rows (vehicle / chassis / model / finance only) — the
+    // tapped row has every other field blank, so the admin message preview printed
+    // "null" for Customer / Engine / Loan No / BKT / OD / Levels etc. The detail
+    // screen fetches the FULL record for the selected finance into ui.fullRecord;
+    // use that here (matched to the same vehicle) so the preview shows real data.
+    val skinny     = ui.selectedResult
+    val full       = ui.fullRecord
+    val item       = full?.takeIf {
+        skinny == null || it.vehicleNo == skinny.vehicleNo || it.chassisNo == skinny.chassisNo
+    } ?: skinny
     val actionType = ui.actionType
     val agentName  by authVm.userName.collectAsState(initial = "")
     val agentPhone by authVm.userMobile.collectAsState(initial = "")
     val isAdmin    by authVm.isAdmin.collectAsState(initial = false)
+    val userId     by authVm.userId.collectAsState(initial = -1L)
+
+    // Safety net: if we somehow arrived without the full record (e.g. the detail
+    // fetch hadn't finished), fetch it now so the preview isn't all "null".
+    LaunchedEffect(skinny?.id, full?.id, userId) {
+        val s = skinny ?: return@LaunchedEffect
+        val haveFull = full != null && (full.vehicleNo == s.vehicleNo || full.chassisNo == s.chassisNo)
+        if (!haveFull && userId > 0L) searchVm.fetchFullRecord(s.id, userId)
+    }
 
     // SMS recipient checkboxes — pre-tick any contact that has a number
-    var chkL1 by remember { mutableStateOf(item?.level1Contact?.isNotBlank() == true) }
-    var chkL2 by remember { mutableStateOf(item?.level2Contact?.isNotBlank() == true) }
-    var chkL3 by remember { mutableStateOf(item?.level3Contact?.isNotBlank() == true) }
-    var chkL4 by remember { mutableStateOf(item?.level4Contact?.isNotBlank() == true) }
-    var chkC1 by remember { mutableStateOf(item?.firstContact?.isNotBlank()  == true) }
-    var chkC2 by remember { mutableStateOf(item?.secondContact?.isNotBlank() == true) }
+    var chkL1 by remember(item?.id) { mutableStateOf(item?.level1Contact?.isNotBlank() == true) }
+    var chkL2 by remember(item?.id) { mutableStateOf(item?.level2Contact?.isNotBlank() == true) }
+    var chkL3 by remember(item?.id) { mutableStateOf(item?.level3Contact?.isNotBlank() == true) }
+    var chkL4 by remember(item?.id) { mutableStateOf(item?.level4Contact?.isNotBlank() == true) }
+    var chkC1 by remember(item?.id) { mutableStateOf(item?.firstContact?.isNotBlank()  == true) }
+    var chkC2 by remember(item?.id) { mutableStateOf(item?.secondContact?.isNotBlank() == true) }
 
     var vehicleAddress by remember { mutableStateOf("") }
     var carriesGoods   by remember { mutableStateOf("") }
