@@ -60,6 +60,12 @@
 </style>
 <link rel="stylesheet" href="leaflet/leaflet.css"/>
 <script src="leaflet/leaflet.js"></script>
+<!-- Marker clustering: co-located / nearby pins collapse into a numbered
+     badge that splits (spiderfies) on click, so 4 users in 2 spots reads
+     as "2" + "2" instead of looking like just 2 lonely pins. -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css"/>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 </head>
 <body>
 <div id="map"></div>
@@ -133,6 +139,20 @@
   var markers = [];
   var geocodeCache = {};
 
+  // Cluster group — collapses overlapping/nearby pins into a numbered badge
+  // that spiderfies (fans out) on click and at max zoom, so every online user
+  // is reachable even when several share the same office GPS. Falls back to a
+  // plain layer group if the markercluster plugin failed to load (offline).
+  var clusterGroup = (typeof L.markerClusterGroup === 'function')
+    ? L.markerClusterGroup({
+        maxClusterRadius: 45,
+        spiderfyOnMaxZoom: true,
+        showCoverageOnHover: false,
+        spiderfyDistanceMultiplier: 1.6
+      })
+    : L.layerGroup();
+  map.addLayer(clusterGroup);
+
   function initials(name) {
     var p = (name || '').trim().split(/\s+/);
     return ((p[0]||'')[0]||'').toUpperCase() + ((p[1]||'')[0]||'').toUpperCase() || '?';
@@ -176,31 +196,32 @@
   }
 
   function updateMarkers(j) {
-    markers.forEach(function(m){ map.removeLayer(m); });
+    clusterGroup.clearLayers();
     markers = [];
     var users = Array.isArray(j) ? j : JSON.parse(j);
 
-    // Spread overlapping pins in a small circle so each is clickable.
-    var count = {}, idx = {};
-    users.forEach(function(u){ if(!u.lat||!u.lng) return;
-      var k=u.lat.toFixed(4)+','+u.lng.toFixed(4); count[k]=(count[k]||0)+1; });
-
+    // Exact-duplicate coordinates (two users at the same office GPS) would
+    // otherwise sit pixel-perfect on top of each other even inside a cluster.
+    // Nudge each repeat by a few metres so spiderfy/zoom can always separate
+    // them; the cluster badge still reports the true count.
+    var seen = {};
     users.forEach(function(u){
       if (!u.lat || !u.lng) return;
-      var k = u.lat.toFixed(4)+','+u.lng.toFixed(4);
-      idx[k] = idx[k]||0; var i = idx[k], total = count[k]; idx[k]++;
+      var k = u.lat.toFixed(5)+','+u.lng.toFixed(5);
+      var n = seen[k] || 0; seen[k] = n + 1;
       var lat = u.lat, lng = u.lng;
-      if (total > 1) {
-        var ang = (2*Math.PI/total)*i, off = 0.0015;
+      if (n > 0) {
+        var ang = (2*Math.PI/8)*n, off = 0.00008;   // ~9 m ring
         lat += off*Math.cos(ang); lng += off*Math.sin(ang);
       }
-      var m = L.marker([lat,lng], { icon: redIcon }).addTo(map);
+      var m = L.marker([lat,lng], { icon: redIcon });
       m.bindPopup(buildPopupHtml(u, ''), { maxWidth: 280 });
       m.on('popupopen', function(){
         reverseGeocode(u.lat, u.lng, function(place){
           m.getPopup().setContent(buildPopupHtml(u, place));
         });
       });
+      clusterGroup.addLayer(m);
       markers.push(m);
     });
   }
