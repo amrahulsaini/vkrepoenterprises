@@ -40,6 +40,17 @@ class SearchRepository {
             SearchResult2.Error(e.message ?: "Network error")
         }
 
+    // Full record for one search result, fetched on tap (search itself is skinny).
+    suspend fun getRecord(id: Long, userId: Long): SearchResult? =
+        try {
+            val resp = api.getRecord(id, userId)
+            if (resp.isSuccessful) resp.body() else null
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            null
+        }
+
     private fun mapSearchResponse(resp: retrofit2.Response<com.vkenterprises.vras.data.models.SearchResponse>): SearchResult2 {
         if (resp.isSuccessful) return SearchResult2.Success(resp.body()?.results ?: emptyList())
         val body = resp.errorBody()?.string()
