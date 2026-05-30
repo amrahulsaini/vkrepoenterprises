@@ -171,8 +171,17 @@ fun VehicleDetailScreen(
             if (uid != 0L) searchVm.fetchFullRecord(selectedId, uid)
         }
     }
-    val detailRecord: SearchResult? =
-        if (selectedId != null && ui.fullRecord?.id == selectedId) ui.fullRecord else branchRecord
+    // Prefer the full record for the SELECTED finance. If that exact fetch isn't
+    // back yet, still prefer ANY full record already loaded for this same vehicle
+    // over the skinny branch row — so WhatsApp / OK-Repo / Copy / Confirm never
+    // emit blank ("null") fields just because the detail fetch is mid-flight.
+    val detailRecord: SearchResult? = when {
+        selectedId != null && ui.fullRecord?.id == selectedId -> ui.fullRecord
+        ui.fullRecord != null && branchRecord != null &&
+            (ui.fullRecord!!.vehicleNo == branchRecord.vehicleNo ||
+             ui.fullRecord!!.chassisNo == branchRecord.chassisNo) -> ui.fullRecord
+        else -> branchRecord
+    }
 
     LaunchedEffect(item?.vehicleNo) {
         selectedBranchIdx = 0
