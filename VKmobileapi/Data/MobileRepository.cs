@@ -561,6 +561,94 @@ public class MobileRepository
             last5.ToUpper());
     }
 
+    // ── Skinny search (instant) ───────────────────────────────────────────
+    // Only the fields the result list + finance chooser need — NOT the ~40
+    // heavy columns. Full detail is fetched per-record via GetRecordByIdAsync
+    // when a result is opened. Cuts the response ~10x so search is instant.
+    private const string LiteFields = @"
+        vr.id, vr.vehicle_no, vr.chassis_no, vr.model,
+        COALESCE(f.name,'') AS financer, b.name AS branch_name,
+        COALESCE(DATE_FORMAT(vr.created_at,'%d %b %Y, %h:%i %p'),'') AS created_on";
+
+    public async Task<List<SearchResult>> SearchByRcLiteAsync(string last4, long userId)
+    {
+        var restricted = await GetFinanceRestrictionsAsync(userId);
+        var filter = restricted.Count > 0
+            ? $"AND b.finance_id NOT IN ({string.Join(",", restricted)})" : "";
+        return await SearchLiteAsync($@"
+            SELECT {LiteFields}
+            FROM rc_info ri
+            INNER JOIN vehicle_records vr ON vr.id = ri.vehicle_record_id
+            INNER JOIN branches b ON b.id = vr.branch_id
+            LEFT  JOIN finances f ON f.id = b.finance_id
+            WHERE ri.last4 = @q {filter}
+            ORDER BY b.name, vr.vehicle_no LIMIT 500", last4.ToUpper());
+    }
+
+    public async Task<List<SearchResult>> SearchByChassisLiteAsync(string last5, long userId)
+    {
+        var restricted = await GetFinanceRestrictionsAsync(userId);
+        var filter = restricted.Count > 0
+            ? $"AND b.finance_id NOT IN ({string.Join(",", restricted)})" : "";
+        return await SearchLiteAsync($@"
+            SELECT {LiteFields}
+            FROM chassis_info ci
+            INNER JOIN vehicle_records vr ON vr.id = ci.vehicle_record_id
+            INNER JOIN branches b ON b.id = vr.branch_id
+            LEFT  JOIN finances f ON f.id = b.finance_id
+            WHERE ci.last5 = @q {filter}
+            ORDER BY b.name, vr.chassis_no LIMIT 500", last5.ToUpper());
+    }
+
+    // Maps the 7 skinny columns to a SearchResult with heavy fields left blank
+    // (named args so the 40-field record can't be mis-positioned).
+    private static async Task<List<SearchResult>> SearchLiteAsync(string sql, string query)
+    {
+        var list = new List<SearchResult>();
+        await using var conn = DbFactory.Create();
+        await conn.OpenAsync();
+        await using var cmd = new MySqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("@q", query);
+        await using var r = await cmd.ExecuteReaderAsync();
+        string S(int i) => r.IsDBNull(i) ? "" : r.GetString(i);
+        while (await r.ReadAsync())
+            list.Add(new SearchResult(
+                Id: r.GetInt64(0), VehicleNo: S(1), ChassisNo: S(2), Model: S(3),
+                Financer: S(4), BranchName: S(5), CreatedOn: S(6),
+                EngineNo: "", AgreementNo: "", CustomerName: "", CustomerContact: "",
+                CustomerAddress: "", FirstContact: "", SecondContact: "", ThirdContact: "",
+                Address: "", Region: "", Area: "", Bucket: "", GV: "", OD: "", Seasoning: "",
+                TbrFlag: "", Sec9: "", Sec17: "", Level1: "", Level1Contact: "", Level2: "",
+                Level2Contact: "", Level3: "", Level3Contact: "", Level4: "", Level4Contact: "",
+                SenderMail1: "", SenderMail2: "", ExecutiveName: "", Pos: "", Toss: "",
+                Remark: "", BranchFromExcel: ""));
+        return list;
+    }
+
+    // Full record by id — fetched only when a search result is opened.
+    public async Task<SearchResult?> GetRecordByIdAsync(long id)
+    {
+        await using var conn = DbFactory.Create();
+        await conn.OpenAsync();
+        await using var cmd = new MySqlCommand($@"
+            SELECT {SelectFields}
+            FROM vehicle_records vr
+            INNER JOIN branches b ON b.id = vr.branch_id
+            LEFT  JOIN finances f ON f.id = b.finance_id
+            WHERE vr.id = @id LIMIT 1", conn);
+        cmd.Parameters.AddWithValue("@id", id);
+        await using var r = await cmd.ExecuteReaderAsync();
+        string S(int i) => r.IsDBNull(i) ? "" : r.GetString(i);
+        if (!await r.ReadAsync()) return null;
+        return new SearchResult(
+            r.GetInt64(0), S(1), S(2), S(3), S(4), S(5),
+            S(6), S(7), S(8), S(9), S(10), S(11), S(12), S(13),
+            S(14), S(15), S(16), S(17), S(18), S(19), S(20), S(21),
+            S(22), S(23), S(24), S(25), S(26), S(27), S(28), S(29),
+            S(30), S(31), S(32), S(33), S(34), S(35), S(36), S(37),
+            S(38), S(39));
+    }
+
     // ── Admin: get subscriptions for a specific user ──────────────────────
     public async Task<List<SubscriptionRecord>> GetUserSubscriptionsAsync(long userId)
     {

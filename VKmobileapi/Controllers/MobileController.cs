@@ -223,7 +223,8 @@ public class MobileController : ControllerBase
     [HttpGet("search/rc/{last4}")]
     public async Task<IActionResult> SearchRc(
         string last4,
-        [FromHeader(Name = "X-User-Id")] long userId)
+        [FromHeader(Name = "X-User-Id")] long userId,
+        [FromQuery] bool lite = false)
     {
         try
         {
@@ -237,7 +238,9 @@ public class MobileController : ControllerBase
             if (!await _repo.HasActiveSubscriptionAsync(userId))
                 return StatusCode(402, new ApiError(false, "subscription_expired"));
 
-            var results = await _repo.SearchByRcAsync(last4, userId);
+            // lite=true → skinny list (instant); full detail fetched per-record via record/{id}.
+            var results = lite ? await _repo.SearchByRcLiteAsync(last4, userId)
+                               : await _repo.SearchByRcAsync(last4, userId);
             return Ok(new SearchResponse(true, "rc", last4.ToUpper(), results.Count, results));
         }
         catch (Exception ex)
@@ -250,7 +253,8 @@ public class MobileController : ControllerBase
     [HttpGet("search/chassis/{last5}")]
     public async Task<IActionResult> SearchChassis(
         string last5,
-        [FromHeader(Name = "X-User-Id")] long userId)
+        [FromHeader(Name = "X-User-Id")] long userId,
+        [FromQuery] bool lite = false)
     {
         try
         {
@@ -264,12 +268,39 @@ public class MobileController : ControllerBase
             if (!await _repo.HasActiveSubscriptionAsync(userId))
                 return StatusCode(402, new ApiError(false, "subscription_expired"));
 
-            var results = await _repo.SearchByChassisAsync(last5, userId);
+            var results = lite ? await _repo.SearchByChassisLiteAsync(last5, userId)
+                               : await _repo.SearchByChassisAsync(last5, userId);
             return Ok(new SearchResponse(true, "chassis", last5.ToUpper(), results.Count, results));
         }
         catch (Exception ex)
         {
             return StatusCode(500, new ApiError(false, $"Search failed: {ex.Message}"));
+        }
+    }
+
+    // GET /api/mobile/record/{id} — full detail for one record, fetched only
+    // when a (skinny) search result is opened.
+    [HttpGet("record/{id:long}")]
+    public async Task<IActionResult> GetRecord(
+        long id,
+        [FromHeader(Name = "X-User-Id")] long userId)
+    {
+        try
+        {
+            var status = await _repo.GetUserStatusAsync(userId);
+            if (status.IsBlacklisted) return StatusCode(403, new ApiError(false, "blacklisted"));
+            if (!status.IsActive)     return StatusCode(403, new ApiError(false, "inactive"));
+            if (status.IsStopped)     return StatusCode(403, new ApiError(false, "app_stopped"));
+            if (!await _repo.HasActiveSubscriptionAsync(userId))
+                return StatusCode(402, new ApiError(false, "subscription_expired"));
+
+            var rec = await _repo.GetRecordByIdAsync(id);
+            if (rec is null) return NotFound(new ApiError(false, "Record not found."));
+            return Ok(rec);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new ApiError(false, $"Fetch failed: {ex.Message}"));
         }
     }
 
