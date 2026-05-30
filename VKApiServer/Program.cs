@@ -1558,6 +1558,108 @@ app.MapGet("/api/mgr/search", async (HttpContext ctx, string? q, string? mode) =
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
 
+// ── Skinny search list ──────────────────────────────────────────────────────
+// Returns ONLY what the result list + "found in finances" chooser need (id,
+// vehicle/chassis no, model, branch, finance, date) — NOT the ~40 heavy columns.
+// Shrinks a search response from ~300 KB to a few KB → instant even online. The
+// full record is fetched on tap via /api/mgr/record/{id}.
+app.MapGet("/api/mgr/search/list", async (HttpContext ctx, string? q, string? mode) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    if (string.IsNullOrWhiteSpace(q)) return Results.Ok(new List<object>());
+    try
+    {
+        var isChassis = string.Equals(mode, "chassis", StringComparison.OrdinalIgnoreCase);
+        const string lite = @"
+            vr.id, vr.vehicle_no, vr.chassis_no, vr.model,
+            b.name AS branch_name, COALESCE(f.name,'') AS financer,
+            COALESCE(DATE_FORMAT(vr.created_at,'%d %b %Y %h:%i %p'),'') AS created_on";
+        var sql = isChassis
+            ? $@"SELECT {lite} FROM chassis_info ci
+                 INNER JOIN vehicle_records vr ON vr.id = ci.vehicle_record_id
+                 INNER JOIN branches b ON b.id = vr.branch_id
+                 LEFT  JOIN finances f ON f.id = b.finance_id
+                 WHERE ci.last5 = @q ORDER BY b.name, vr.chassis_no LIMIT 500"
+            : $@"SELECT {lite} FROM rc_info ri
+                 INNER JOIN vehicle_records vr ON vr.id = ri.vehicle_record_id
+                 INNER JOIN branches b ON b.id = vr.branch_id
+                 LEFT  JOIN finances f ON f.id = b.finance_id
+                 WHERE ri.last4 = @q ORDER BY b.name, vr.vehicle_no LIMIT 500";
+
+        await using var conn = new MySqlConnection(TenantContext.Conn);
+        await conn.OpenAsync();
+        await using var cmd = new MySqlCommand(sql, conn) { CommandTimeout = 15 };
+        cmd.Parameters.AddWithValue("@q", q.ToUpper().Trim());
+        await using var rdr = await cmd.ExecuteReaderAsync();
+        var results = new List<object>();
+        while (await rdr.ReadAsync())
+        {
+            string S(int i) => rdr.IsDBNull(i) ? "" : rdr.GetString(i);
+            results.Add(new
+            {
+                Id = rdr.GetInt64(0).ToString(),
+                VehicleNo = S(1), ChassisNo = S(2), Model = S(3),
+                BranchName = S(4), Financer = S(5), CreatedOn = S(6)
+            });
+        }
+        return Results.Ok(results);
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+// ── Full record detail by id (fetched only when a search result is opened) ──
+app.MapGet("/api/mgr/record/{id:long}", async (HttpContext ctx, long id) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        const string fields = @"
+            vr.id, vr.vehicle_no, vr.chassis_no, vr.engine_no, vr.model,
+            vr.agreement_no, vr.bucket, vr.gv, vr.od, vr.seasoning, vr.tbr_flag,
+            vr.sec9_available, vr.sec17_available, vr.customer_name, vr.customer_address, vr.customer_contact,
+            vr.region, vr.area, vr.branch_name_raw,
+            vr.level1, vr.level1_contact, vr.level2, vr.level2_contact,
+            vr.level3, vr.level3_contact, vr.level4, vr.level4_contact,
+            vr.sender_mail1, vr.sender_mail2, vr.executive_name, vr.pos, vr.toss, vr.remark,
+            COALESCE(DATE_FORMAT(vr.created_at,'%d %b %Y %h:%i %p'),'') AS created_on,
+            b.name AS branch_name,
+            COALESCE(f.name,'') AS financer,
+            COALESCE(b.contact1,'') AS b_c1,
+            COALESCE(b.contact2,'') AS b_c2,
+            COALESCE(b.contact3,'') AS b_c3,
+            COALESCE(b.address,'') AS b_addr";
+        var sql = $@"SELECT {fields}
+                     FROM vehicle_records vr
+                     INNER JOIN branches b ON b.id = vr.branch_id
+                     LEFT  JOIN finances f ON f.id = b.finance_id
+                     WHERE vr.id = @id LIMIT 1";
+        await using var conn = new MySqlConnection(TenantContext.Conn);
+        await conn.OpenAsync();
+        await using var cmd = new MySqlCommand(sql, conn) { CommandTimeout = 15 };
+        cmd.Parameters.AddWithValue("@id", id);
+        await using var rdr = await cmd.ExecuteReaderAsync();
+        if (!await rdr.ReadAsync()) return Results.NotFound();
+        string S(int i) => rdr.IsDBNull(i) ? "" : rdr.GetString(i);
+        return Results.Ok(new
+        {
+            Id = rdr.GetInt64(0).ToString(),
+            VehicleNo = S(1), ChassisNo = S(2), EngineNo = S(3), Model = S(4),
+            AgreementNo = S(5), Bucket = S(6), GV = S(7), OD = S(8),
+            Seasoning = S(9), TBRFlag = S(10), Sec9Available = S(11), Sec17Available = S(12),
+            CustomerName = S(13), CustomerAddress = S(14), CustomerContactNos = S(15),
+            Region = S(16), Area = S(17), BranchFromExcel = S(18),
+            Level1 = S(19), Level1ContactNos = S(20), Level2 = S(21), Level2ContactNos = S(22),
+            Level3 = S(23), Level3ContactNos = S(24), Level4 = S(25), Level4ContactNos = S(26),
+            SenderMailId1 = S(27), SenderMailId2 = S(28), ExecutiveName = S(29),
+            POS = S(30), TOSS = S(31), Remark = S(32), CreatedOn = S(33),
+            BranchName = S(34), Financer = S(35),
+            FirstContactDetails = S(36), SecondContactDetails = S(37),
+            ThirdContactDetails = S(38), Address = S(39)
+        });
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
 // ── Dashboard quick stats ──────────────────────────────────────────────────
 
 app.MapGet("/api/mgr/dashboard-stats", async (HttpContext ctx) =>
