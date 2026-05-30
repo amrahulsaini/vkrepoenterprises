@@ -1517,14 +1517,14 @@ app.MapGet("/api/mgr/search", async (HttpContext ctx, string? q, string? mode) =
                  INNER JOIN branches b ON b.id = vr.branch_id
                  LEFT  JOIN finances f ON f.id = b.finance_id
                  WHERE ci.last5 = @q
-                 ORDER BY b.name, vr.chassis_no LIMIT 500"
+                 ORDER BY b.name, vr.chassis_no LIMIT 10000"
             : $@"SELECT {fields}
                  FROM rc_info ri
                  INNER JOIN vehicle_records vr ON vr.id = ri.vehicle_record_id
                  INNER JOIN branches b ON b.id = vr.branch_id
                  LEFT  JOIN finances f ON f.id = b.finance_id
                  WHERE ri.last4 = @q
-                 ORDER BY b.name, vr.vehicle_no LIMIT 500";
+                 ORDER BY b.name, vr.vehicle_no LIMIT 10000";
 
         await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
@@ -1579,12 +1579,12 @@ app.MapGet("/api/mgr/search/list", async (HttpContext ctx, string? q, string? mo
                  INNER JOIN vehicle_records vr ON vr.id = ci.vehicle_record_id
                  INNER JOIN branches b ON b.id = vr.branch_id
                  LEFT  JOIN finances f ON f.id = b.finance_id
-                 WHERE ci.last5 = @q ORDER BY b.name, vr.chassis_no LIMIT 500"
+                 WHERE ci.last5 = @q ORDER BY b.name, vr.chassis_no LIMIT 10000"
             : $@"SELECT {lite} FROM rc_info ri
                  INNER JOIN vehicle_records vr ON vr.id = ri.vehicle_record_id
                  INNER JOIN branches b ON b.id = vr.branch_id
                  LEFT  JOIN finances f ON f.id = b.finance_id
-                 WHERE ri.last4 = @q ORDER BY b.name, vr.vehicle_no LIMIT 500";
+                 WHERE ri.last4 = @q ORDER BY b.name, vr.vehicle_no LIMIT 10000";
 
         await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();

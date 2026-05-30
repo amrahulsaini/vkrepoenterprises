@@ -539,7 +539,7 @@ public class MobileRepository
             INNER JOIN branches b ON b.id = vr.branch_id
             LEFT  JOIN finances f ON f.id = b.finance_id
             WHERE ri.last4 = @q {filter}
-            ORDER BY b.name, vr.vehicle_no LIMIT 500",
+            ORDER BY b.name, vr.vehicle_no LIMIT 10000",
             last4.ToUpper());
     }
 
@@ -557,7 +557,7 @@ public class MobileRepository
             INNER JOIN branches b ON b.id = vr.branch_id
             LEFT  JOIN finances f ON f.id = b.finance_id
             WHERE ci.last5 = @q {filter}
-            ORDER BY b.name, vr.chassis_no LIMIT 500",
+            ORDER BY b.name, vr.chassis_no LIMIT 10000",
             last5.ToUpper());
     }
 
@@ -582,7 +582,7 @@ public class MobileRepository
             INNER JOIN branches b ON b.id = vr.branch_id
             LEFT  JOIN finances f ON f.id = b.finance_id
             WHERE ri.last4 = @q {filter}
-            ORDER BY b.name, vr.vehicle_no LIMIT 500", last4.ToUpper());
+            ORDER BY b.name, vr.vehicle_no LIMIT 10000", last4.ToUpper());
     }
 
     public async Task<List<SearchResult>> SearchByChassisLiteAsync(string last5, long userId)
@@ -597,7 +597,7 @@ public class MobileRepository
             INNER JOIN branches b ON b.id = vr.branch_id
             LEFT  JOIN finances f ON f.id = b.finance_id
             WHERE ci.last5 = @q {filter}
-            ORDER BY b.name, vr.chassis_no LIMIT 500", last5.ToUpper());
+            ORDER BY b.name, vr.chassis_no LIMIT 10000", last5.ToUpper());
     }
 
     // Maps the 7 skinny columns to a SearchResult with heavy fields left blank
