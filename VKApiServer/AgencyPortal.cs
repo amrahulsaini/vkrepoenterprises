@@ -206,12 +206,17 @@ internal static class AgencyPortal
             $"pwd={Env("PROVISIONER_DB_PASSWORD", "SET_VIA_ENV")};" +
              "Pooling=false;DefaultCommandTimeout=60;AllowUserVariables=true;";
 
-        // ── SMTP (Brevo) — sends the OTP emails ──────────────────────
+        // ── SMTP — sends the OTP / approval emails ───────────────────
+        // Default is the local Postfix relay (same box): plain SMTP to
+        // 127.0.0.1:25, which mynetworks trusts (no auth) and OpenDKIM signs
+        // automatically. SMTP_SSL/USER/PASS let us point at an authenticated
+        // submission relay instead, without a code change.
         var smtp = new SmtpConfig {
-            Host     = Env("SMTP_HOST",      "smtp-relay.brevo.com"),
-            Port     = int.Parse(Env("SMTP_PORT", "587")),
-            User     = Env("SMTP_USER",      "9a47c5001@smtp-brevo.com"),
-            Pass     = Env("SMTP_PASS",      "SET_VIA_ENV"),
+            Host     = Env("SMTP_HOST",      "127.0.0.1"),
+            Port     = int.Parse(Env("SMTP_PORT", "25")),
+            User     = Env("SMTP_USER",      ""),
+            Pass     = Env("SMTP_PASS",      ""),
+            Ssl      = Env("SMTP_SSL", "false").Trim().ToLowerInvariant() is "true" or "1" or "yes",
             FromAddr = Env("SMTP_FROM",      "team@crmrecoverysoftware.com"),
             FromName = Env("SMTP_FROM_NAME", "CRMS TEAM"),
         };
@@ -1432,6 +1437,7 @@ internal static class AgencyPortal
     {
         public string Host = ""; public int Port;
         public string User = ""; public string Pass = "";
+        public bool Ssl = true;
         public string FromAddr = ""; public string FromName = "";
     }
 
@@ -1496,10 +1502,13 @@ internal static class AgencyPortal
 
         using var client = new SmtpClient(s.Host, s.Port)
         {
-            Credentials = new NetworkCredential(s.User, s.Pass),
-            EnableSsl = true,
+            EnableSsl = s.Ssl,
             DeliveryMethod = SmtpDeliveryMethod.Network,
         };
+        // Only authenticate when a user is configured — the local Postfix relay
+        // accepts unauthenticated mail from 127.0.0.1 (mynetworks).
+        if (!string.IsNullOrEmpty(s.User))
+            client.Credentials = new NetworkCredential(s.User, s.Pass);
         await client.SendMailAsync(msg);
     }
 }
