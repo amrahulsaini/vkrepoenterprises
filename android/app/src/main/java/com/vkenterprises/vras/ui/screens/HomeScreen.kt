@@ -456,6 +456,17 @@ fun HomeScreen(
                 }
             }
 
+            // Thin indeterminate bar whenever a search is in-flight — visible
+            // even while refining an existing result set, so the user always
+            // sees the app is working.
+            if (ui.isSearching) {
+                LinearProgressIndicator(
+                    modifier   = Modifier.fillMaxWidth(),
+                    color      = MaterialTheme.colorScheme.primary,
+                    trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
+                )
+            }
+
             // ── Error ────────────────────────────────────────────────────
             if (ui.errorMsg != null) {
                 Surface(color = MaterialTheme.colorScheme.errorContainer) {
@@ -528,6 +539,22 @@ fun HomeScreen(
                                 nav.navigate(Screen.VehicleDetail.route)
                             }
                         }
+                    }
+                }
+            } else if (ui.isSearching) {
+                // First search of a session: the server can take a moment to warm
+                // up, so show a clear busy state instead of flashing the dashboard.
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement  = Arrangement.spacedBy(14.dp)
+                    ) {
+                        CircularProgressIndicator()
+                        Text(
+                            "Searching…",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
             } else if (ui.errorMsg == null) {

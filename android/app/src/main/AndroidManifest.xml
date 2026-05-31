@@ -9,6 +9,27 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
 
+    <!-- Package visibility (Android 11+). Lets us target WhatsApp Messenger
+         (com.whatsapp) / WhatsApp Business (com.whatsapp.w4b) directly when
+         sharing a confirmation, and resolve the SMS + dialer apps. Without this,
+         a wa.me link could be grabbed by WhatsApp Business and fail with
+         "your number is not registered to WhatsApp Business". -->
+    <queries>
+        <package android:name="com.whatsapp" />
+        <package android:name="com.whatsapp.w4b" />
+        <intent>
+            <action android:name="android.intent.action.SENDTO" />
+            <data android:scheme="smsto" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.DIAL" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.SEND" />
+            <data android:mimeType="text/plain" />
+        </intent>
+    </queries>
+
     <application
         android:name=".VKApp"
         android:allowBackup="true"
