@@ -78,4 +78,26 @@ object ApiClient {
         .addConverterFactory(GsonConverterFactory.create())
         .build()
         .create(ApiService::class.java)
+
+    // Pre-opens the TCP + TLS connection to the API host so the user's FIRST
+    // search reuses a hot socket instead of paying the ~300-600ms DNS +
+    // TLS-handshake cost on a cold connection. THIS is what made the first
+    // online search feel slow; subsequent searches were already fast because
+    // OkHttp's connection pool kept the socket alive. Mirrors the desktop
+    // app's App() warm-up (App.xaml.cs). Best-effort and fully async — any
+    // failure (and any non-200 like a 404/405 on the bare base URL) is
+    // ignored, because the only thing we want is the negotiated socket left
+    // sitting in the pool. The 60s sync-poll then keeps it warm for the rest
+    // of the session, so search never hits a cold connection again.
+    fun warmUp() {
+        runCatching {
+            val req = okhttp3.Request.Builder().url(BuildConfig.BASE_URL).get().build()
+            okHttp.newCall(req).enqueue(object : okhttp3.Callback {
+                override fun onFailure(call: okhttp3.Call, e: java.io.IOException) {}
+                override fun onResponse(call: okhttp3.Call, response: okhttp3.Response) {
+                    response.close()
+                }
+            })
+        }
+    }
 }

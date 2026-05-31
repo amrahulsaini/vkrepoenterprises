@@ -16,9 +16,13 @@ namespace VRASDesktopApp.Records;
 public partial class FindVehiclePage : Page
 {
     private CancellationTokenSource? _searchCts;
+    private CancellationTokenSource? _detailCts;
     private readonly DispatcherTimer _debounceTimer;
     private List<VehicleSearchItem> _fullResults = new();
     private readonly VehicleSearchRepository _searchRepo = new();
+    // Full records fetched on tap, keyed by record id — so re-opening the same
+    // record never re-hits the network.
+    private readonly Dictionary<string, VehicleSearchItem> _fullRecordCache = new();
 
     public FindVehiclePage()
     {
@@ -187,8 +191,12 @@ public partial class FindVehiclePage : Page
         {
             var chassis = IsChassisMode();
             var key     = chassis ? vehicle.ChassisNo : vehicle.VehicleNo;
+            // Sort the finance/branch copies client-side (the server no longer
+            // sorts the skinny list — see VehicleSearchRepository).
             var branches = _fullResults
                 .Where(x => (chassis ? x.ChassisNo : x.VehicleNo) == key)
+                .OrderBy(x => x.Financer, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(x => x.BranchName, StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
             lstBranches.ItemsSource = branches;
@@ -205,17 +213,44 @@ public partial class FindVehiclePage : Page
         }
     }
 
-    private void lstBranches_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    private async void lstBranches_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (lstBranches.SelectedItem is VehicleSearchItem specificRecord)
-        {
-            brdDetails.Visibility  = Visibility.Visible;
-            brdDetails.DataContext = specificRecord;
-        }
-        else
+        if (lstBranches.SelectedItem is not VehicleSearchItem skinny)
         {
             brdDetails.Visibility = Visibility.Collapsed;
+            return;
         }
+
+        // Show immediately with the skinny fields we already have (vehicle/
+        // chassis/model/branch/finance) — no blank panel while the heavy fields
+        // load.
+        brdDetails.Visibility  = Visibility.Visible;
+        brdDetails.DataContext = skinny;
+
+        // Already fetched once this session? use the cached full record.
+        if (_fullRecordCache.TryGetValue(skinny.Id, out var cached))
+        {
+            brdDetails.DataContext = cached;
+            return;
+        }
+
+        // Fetch the ~40 heavy fields for THIS record on tap. Cancel any earlier
+        // in-flight fetch so a fast click-through doesn't race.
+        _detailCts?.Cancel();
+        _detailCts?.Dispose();
+        _detailCts = new CancellationTokenSource();
+        var ct = _detailCts.Token;
+        try
+        {
+            var full = await _searchRepo.GetRecordByIdAsync(long.Parse(skinny.Id), ct);
+            if (ct.IsCancellationRequested || full == null) return;
+            _fullRecordCache[skinny.Id] = full;
+            // Only apply if the user is still looking at this same record.
+            if (lstBranches.SelectedItem is VehicleSearchItem stillSel && stillSel.Id == skinny.Id)
+                brdDetails.DataContext = full;
+        }
+        catch (OperationCanceledException) { }
+        catch { /* keep the skinny data shown if the full fetch fails */ }
     }
 
     // Right-click "Copy" handlers on Branches/Finances list items. They put

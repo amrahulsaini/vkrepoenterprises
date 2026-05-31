@@ -575,14 +575,18 @@ public class MobileRepository
         var restricted = await GetFinanceRestrictionsAsync(userId);
         var filter = restricted.Count > 0
             ? $"AND b.finance_id NOT IN ({string.Join(",", restricted)})" : "";
+        // No ORDER BY: a common last4 can match thousands of duplicate rows;
+        // sorting them server-side is a filesort (the "common number = seconds"
+        // lag). The app re-sorts this skinny list by vehicle no anyway, so the
+        // server sort is wasted work. Dropping it keeps the query a pure indexed
+        // lookup that stays fast no matter how many rows match.
         return await SearchLiteAsync($@"
             SELECT {LiteFields}
             FROM rc_info ri
             INNER JOIN vehicle_records vr ON vr.id = ri.vehicle_record_id
             INNER JOIN branches b ON b.id = vr.branch_id
             LEFT  JOIN finances f ON f.id = b.finance_id
-            WHERE ri.last4 = @q {filter}
-            ORDER BY b.name, vr.vehicle_no", last4.ToUpper());
+            WHERE ri.last4 = @q {filter}", last4.ToUpper());
     }
 
     public async Task<List<SearchResult>> SearchByChassisLiteAsync(string last5, long userId)
@@ -596,8 +600,7 @@ public class MobileRepository
             INNER JOIN vehicle_records vr ON vr.id = ci.vehicle_record_id
             INNER JOIN branches b ON b.id = vr.branch_id
             LEFT  JOIN finances f ON f.id = b.finance_id
-            WHERE ci.last5 = @q {filter}
-            ORDER BY b.name, vr.chassis_no", last5.ToUpper());
+            WHERE ci.last5 = @q {filter}", last5.ToUpper());
     }
 
     // Maps the 7 skinny columns to a SearchResult with heavy fields left blank
