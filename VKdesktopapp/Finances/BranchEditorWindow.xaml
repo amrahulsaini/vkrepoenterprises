@@ -6,7 +6,7 @@
         ResizeMode="NoResize"
         Style="{StaticResource ChromeWindow}"
         Background="{StaticResource Gray50}"
-        FontFamily="Segoe UI">
+        FontFamily="{StaticResource FontBody}">
 
     <Window.Resources>
         <!-- Focusable input border -->

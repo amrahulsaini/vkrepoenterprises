@@ -58,6 +58,7 @@
          Typography
          ───────────────────────────────────────────────────────────────── -->
     <Style x:Key="Heading3" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource FontHead}" />
         <Setter Property="FontSize" Value="25" />
         <Setter Property="FontWeight" Value="Bold" />
         <Setter Property="Foreground" Value="{StaticResource Gray900}" />
@@ -65,6 +66,7 @@
     </Style>
 
     <Style x:Key="Heading4" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource FontHead}" />
         <Setter Property="FontSize" Value="21" />
         <Setter Property="FontWeight" Value="Bold" />
         <Setter Property="Foreground" Value="{StaticResource Gray900}" />
@@ -72,12 +74,14 @@
     </Style>
 
     <Style x:Key="Heading5" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource FontHead}" />
         <Setter Property="FontSize" Value="18" />
         <Setter Property="FontWeight" Value="SemiBold" />
         <Setter Property="Foreground" Value="{StaticResource Gray900}" />
     </Style>
 
     <Style x:Key="Heading6" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource FontHead}" />
         <Setter Property="FontSize" Value="15" />
         <Setter Property="FontWeight" Value="Bold" />
         <Setter Property="Foreground" Value="{StaticResource Gray800}" />
@@ -111,6 +115,7 @@
     </Style>
 
     <Style x:Key="StatValue" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource FontHead}" />
         <Setter Property="FontSize" Value="30" />
         <Setter Property="FontWeight" Value="Bold" />
         <Setter Property="Foreground" Value="{StaticResource Gray900}" />

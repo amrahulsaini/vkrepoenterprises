@@ -7,7 +7,7 @@
         ResizeMode="NoResize"
         Style="{StaticResource ChromeWindow}"
         Background="{StaticResource AppBackground}"
-        FontFamily="Segoe UI">
+        FontFamily="{StaticResource FontBody}">
 
     <Grid>
         <Grid.RowDefinitions>

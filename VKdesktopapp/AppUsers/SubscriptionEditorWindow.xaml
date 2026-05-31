@@ -6,7 +6,7 @@
     Width="380" SizeToContent="Height"
     WindowStartupLocation="CenterOwner"
     ResizeMode="NoResize"
-    FontFamily="Segoe UI"
+    FontFamily="{StaticResource FontBody}"
     Background="{StaticResource Gray50}">
 
     <Window.Resources>

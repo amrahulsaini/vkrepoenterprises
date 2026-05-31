@@ -6,7 +6,7 @@
     Title="Search Location Map"
     Width="860" Height="620"
     WindowStartupLocation="CenterOwner"
-    FontFamily="Segoe UI"
+    FontFamily="{StaticResource FontBody}"
     Loaded="Window_Loaded">
 
     <Grid>

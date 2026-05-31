@@ -8,7 +8,7 @@
         ShowInTaskbar="False"
         Style="{StaticResource ChromeWindow}"
         Background="{StaticResource Gray50}"
-        FontFamily="Segoe UI">
+        FontFamily="{StaticResource FontBody}">
 
     <Grid>
         <Grid.RowDefinitions>
