@@ -8,20 +8,24 @@
          25+ XAML files — keys are STABLE, only values are tuned.
          ════════════════════════════════════════════════════════════════════ -->
 
-    <!-- ── Orange accent ramp ── -->
-    <Color x:Key="cOrange50">#FFFFF4E5</Color>
+    <!-- ── Brand fonts (bundled, match the website) ── -->
+    <FontFamily x:Key="FontBody">pack://application:,,,/Fonts/#Hanken Grotesk</FontFamily>
+    <FontFamily x:Key="FontHead">pack://application:,,,/Fonts/#Archivo</FontFamily>
+
+    <!-- ── Orange accent ramp (website red-orange) ── -->
+    <Color x:Key="cOrange50">#FFFFEAE0</Color>
     <Color x:Key="cOrange100">#FFFFE3BF</Color>
     <Color x:Key="cOrange200">#FFFFCD8C</Color>
     <Color x:Key="cOrange300">#FFFFB74D</Color>
     <Color x:Key="cOrange400">#FFFFA422</Color>
-    <Color x:Key="cOrange500">#FFFF9800</Color>
-    <Color x:Key="cOrange600">#FFF57C00</Color>
-    <Color x:Key="cOrange700">#FFE36C00</Color>
+    <Color x:Key="cOrange500">#FFFF4D00</Color>
+    <Color x:Key="cOrange600">#FFD63E00</Color>
+    <Color x:Key="cOrange700">#FFB53400</Color>
     <Color x:Key="cOrange800">#FFCE5E00</Color>
     <Color x:Key="cOrange900">#FFB04E00</Color>
 
     <!-- ── Neutral ramp (slightly cool grey for a cleaner, modern surface) ── -->
-    <Color x:Key="cGray50">#FFF7F8FA</Color>
+    <Color x:Key="cGray50">#FFF8F4EC</Color>
     <Color x:Key="cGray100">#FFEEF0F3</Color>
     <Color x:Key="cGray200">#FFE2E5EA</Color>
     <Color x:Key="cGray300">#FFCBD0D8</Color>
@@ -90,10 +94,10 @@
     <SolidColorBrush x:Key="SurfaceSunken"  Color="{StaticResource cGray100}" />
     <SolidColorBrush x:Key="AppBackground"  Color="{StaticResource cGray50}" />
 
-    <SolidColorBrush x:Key="BorderSoft"     Color="{StaticResource cGray200}" />
-    <SolidColorBrush x:Key="BorderHairline" Color="{StaticResource cGray100}" />
-    <SolidColorBrush x:Key="BorderStrong"   Color="{StaticResource cGray300}" />
-    <SolidColorBrush x:Key="Divider"        Color="{StaticResource cGray100}" />
+    <SolidColorBrush x:Key="BorderSoft"     Color="#FFE6DDCA" />
+    <SolidColorBrush x:Key="BorderHairline" Color="#FFEFE7D6" />
+    <SolidColorBrush x:Key="BorderStrong"   Color="#FFD8CBB0" />
+    <SolidColorBrush x:Key="Divider"        Color="#FFEFE7D6" />
 
     <SolidColorBrush x:Key="TextPrimary"    Color="{StaticResource cGray900}" />
     <SolidColorBrush x:Key="TextSecondary"  Color="{StaticResource cGray600}" />

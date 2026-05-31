@@ -5,7 +5,7 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:local="clr-namespace:VRASDesktopApp"
-    FontFamily="Segoe UI"
+    FontFamily="{StaticResource FontBody}"
     Style="{StaticResource ChromeWindow}"
     Background="{StaticResource Gray50}"
     Icon="public/favicon.ico"
@@ -28,7 +28,7 @@
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="40" />
             </Grid.ColumnDefinitions>
-            <TextBlock Text="CRMS"
+            <TextBlock Text="CRMRS"
                        VerticalAlignment="Center" Margin="14,0,0,0"
                        FontSize="12" FontWeight="SemiBold"
                        Foreground="{StaticResource Orange500}"
@@ -36,7 +36,7 @@
             <Button Name="btnClose" Click="btnClose_Click"
                     Grid.Column="1" Width="40" Height="36"
                     Background="Transparent" BorderThickness="0"
-                    Content="&#x2715;" FontFamily="Segoe UI" FontSize="14"
+                    Content="&#x2715;" FontFamily="{StaticResource FontBody}" FontSize="14"
                     Foreground="{StaticResource Gray400}"
                     Cursor="Hand"
                     WindowChrome.IsHitTestVisibleInChrome="True">
@@ -76,13 +76,14 @@
                  replaces it with the signed-in agency's name on every launch
                  after the first successful sign-in. -->
             <TextBlock Name="lblAppName"
-                       Text="CRMS"
+                       Text="CRMRS"
                        TextAlignment="Center"
+                       FontFamily="{StaticResource FontHead}"
                        FontSize="26" FontWeight="Bold"
                        Foreground="{StaticResource Gray900}"
                        Margin="16,4,16,0"
                        TextWrapping="Wrap" />
-            <TextBlock Text="Recovery management software for agencies"
+            <TextBlock Text="CRMRS — Recovery software for agencies"
                        TextAlignment="Center"
                        FontSize="11"
                        Foreground="{StaticResource Gray500}"

@@ -27,7 +27,7 @@ public static class Branding
 
     static Branding()
     {
-        Name          = "CRMS";
+        Name          = "CRMRS";
         Slug          = string.Empty;
         Mobile        = string.Empty;
         Address       = string.Empty;

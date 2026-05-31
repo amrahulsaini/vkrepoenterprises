@@ -7,7 +7,7 @@
     WindowStartupLocation="CenterOwner"
     ResizeMode="NoResize"
     Background="White"
-    FontFamily="Segoe UI"
+    FontFamily="{StaticResource FontBody}"
     ShowInTaskbar="False">
 
     <Window.Resources>

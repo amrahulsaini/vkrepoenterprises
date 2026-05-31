@@ -29,7 +29,7 @@
                        IsHitTestVisible="False" />
             <Button Grid.Column="1" Name="btnClose" Click="btnClose_Click"
                     Background="Transparent" BorderThickness="0"
-                    Content="&#x2715;" FontFamily="Segoe UI" FontSize="14"
+                    Content="&#x2715;" FontFamily="{StaticResource FontBody}" FontSize="14"
                     Foreground="{StaticResource Gray400}" Cursor="Hand"
                     WindowChrome.IsHitTestVisibleInChrome="True">
                 <Button.Template>

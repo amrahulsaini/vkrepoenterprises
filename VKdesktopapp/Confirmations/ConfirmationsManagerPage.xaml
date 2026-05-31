@@ -5,7 +5,7 @@
     xmlns:local="clr-namespace:VRASDesktopApp.Confirmations"
     Title="Confirmations Manager"
     Background="{StaticResource Gray50}"
-    FontFamily="Segoe UI">
+    FontFamily="{StaticResource FontBody}">
     <Grid Margin="20">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />

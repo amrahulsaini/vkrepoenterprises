@@ -4,7 +4,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:fa="http://schemas.fontawesome.com/icons/"
     Background="{StaticResource AppBackground}"
-    FontFamily="Segoe UI"
+    FontFamily="{StaticResource FontBody}"
     Loaded="Page_Loaded">
 
     <Page.Resources>

@@ -6,7 +6,7 @@
     Title="Select Agent"
     Width="480" Height="580"
     WindowStartupLocation="CenterOwner"
-    FontFamily="Segoe UI"
+    FontFamily="{StaticResource FontBody}"
     ResizeMode="NoResize"
     Loaded="Window_Loaded">
 

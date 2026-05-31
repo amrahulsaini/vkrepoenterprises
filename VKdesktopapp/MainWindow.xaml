@@ -5,11 +5,11 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:local="clr-namespace:VRASDesktopApp"
-    FontFamily="Segoe UI"
+    FontFamily="{StaticResource FontBody}"
     Style="{StaticResource ChromeWindow}"
     Background="{StaticResource Gray200}"
     Icon="public/favicon.ico"
-    Title="CRMS"
+    Title="CRMRS"
     Width="1366" Height="768"
     WindowState="Maximized"
     Loaded="Window_Loaded">
@@ -54,7 +54,7 @@
             <Button Name="btnMinimize" Click="btnMinimize_Click"
                     Grid.Column="1" Width="40" Height="40"
                     Background="Transparent" BorderThickness="0"
-                    Content="&#x2014;" FontFamily="Segoe UI" FontSize="14"
+                    Content="&#x2014;" FontFamily="{StaticResource FontBody}" FontSize="14"
                     Foreground="{StaticResource Gray400}" Cursor="Hand"
                     WindowChrome.IsHitTestVisibleInChrome="True">
                 <Button.Template>
@@ -73,7 +73,7 @@
             <Button Name="btnRestore" Click="btnRestore_Click"
                     Grid.Column="2" Width="40" Height="40"
                     Background="Transparent" BorderThickness="0"
-                    Content="&#x2750;" FontFamily="Segoe UI" FontSize="12"
+                    Content="&#x2750;" FontFamily="{StaticResource FontBody}" FontSize="12"
                     Foreground="{StaticResource Gray400}" Cursor="Hand"
                     WindowChrome.IsHitTestVisibleInChrome="True">
                 <Button.Template>
@@ -92,7 +92,7 @@
             <Button Name="btnClose" Click="btnClose_Click"
                     Grid.Column="3" Width="40" Height="40"
                     Background="Transparent" BorderThickness="0"
-                    Content="&#x2715;" FontFamily="Segoe UI" FontSize="14"
+                    Content="&#x2715;" FontFamily="{StaticResource FontBody}" FontSize="14"
                     Foreground="{StaticResource Gray400}" Cursor="Hand"
                     WindowChrome.IsHitTestVisibleInChrome="True">
                 <Button.Template>
@@ -130,43 +130,43 @@
             <Button Name="btnHome" Click="btnNav_Click"
                     Grid.Row="1" Width="64" Height="56"
                     Background="Transparent" BorderThickness="0"
-                    Content="&#x1F3E0;" FontFamily="Segoe UI" FontSize="20"
+                    Content="&#x1F3E0;" FontFamily="{StaticResource FontBody}" FontSize="20"
                     Foreground="{StaticResource Gray400}" Cursor="Hand"
                     Tag="Home" />
             <Button Name="btnSearch" Click="btnNav_Click"
                     Grid.Row="2" Width="64" Height="56"
                     Background="Transparent" BorderThickness="0"
-                    Content="&#x1F50D;" FontFamily="Segoe UI" FontSize="20"
+                    Content="&#x1F50D;" FontFamily="{StaticResource FontBody}" FontSize="20"
                     Foreground="{StaticResource Orange500}" Cursor="Hand"
                     Tag="Search" />
             <Button Name="btnFinances" Click="btnNav_Click"
                     Grid.Row="3" Width="64" Height="56"
                     Background="Transparent" BorderThickness="0"
-                    Content="&#x1F4B0;" FontFamily="Segoe UI" FontSize="20"
+                    Content="&#x1F4B0;" FontFamily="{StaticResource FontBody}" FontSize="20"
                     Foreground="{StaticResource Gray400}" Cursor="Hand"
                     Tag="Finances" />
             <Button Name="btnUsers" Click="btnNav_Click"
                     Grid.Row="4" Width="64" Height="56"
                     Background="Transparent" BorderThickness="0"
-                    Content="&#x1F465;" FontFamily="Segoe UI" FontSize="20"
+                    Content="&#x1F465;" FontFamily="{StaticResource FontBody}" FontSize="20"
                     Foreground="{StaticResource Gray400}" Cursor="Hand"
                     Tag="Users" />
             <Button Name="btnConfirmations" Click="btnNav_Click"
                     Grid.Row="5" Width="64" Height="56"
                     Background="Transparent" BorderThickness="0"
-                    Content="&#x2705;" FontFamily="Segoe UI" FontSize="20"
+                    Content="&#x2705;" FontFamily="{StaticResource FontBody}" FontSize="20"
                     Foreground="{StaticResource Gray400}" Cursor="Hand"
                     Tag="Confirmations" />
             <Button Name="btnReports" Click="btnNav_Click"
                     Grid.Row="6" Width="64" Height="56"
                     Background="Transparent" BorderThickness="0"
-                    Content="&#x1F4CA;" FontFamily="Segoe UI" FontSize="20"
+                    Content="&#x1F4CA;" FontFamily="{StaticResource FontBody}" FontSize="20"
                     Foreground="{StaticResource Gray400}" Cursor="Hand"
                     Tag="Reports" />
             <Button Name="btnDirectData" Click="btnNav_Click"
                     Grid.Row="7" Width="64" Height="56"
                     Background="Transparent" BorderThickness="0"
-                    Content="&#x1F4E5;" FontFamily="Segoe UI" FontSize="20"
+                    Content="&#x1F4E5;" FontFamily="{StaticResource FontBody}" FontSize="20"
                     Foreground="{StaticResource Gray400}" Cursor="Hand"
                     Tag="DirectData" />
             <!-- Support / report an issue — sits just above Settings -->
@@ -174,7 +174,7 @@
                     Grid.Row="8" Width="64" Height="56"
                     Background="Transparent" BorderThickness="0"
                     VerticalAlignment="Bottom"
-                    Content="&#x1F3A7;" FontFamily="Segoe UI" FontSize="20"
+                    Content="&#x1F3A7;" FontFamily="{StaticResource FontBody}" FontSize="20"
                     Foreground="{StaticResource Gray400}" Cursor="Hand"
                     ToolTip="Support / Report an issue" />
             <!-- Unread-reply badge (red, count) overlaid on the Support icon -->
@@ -191,7 +191,7 @@
             <Button Name="btnSettings" Click="btnSettings_Click"
                     Grid.Row="9" Width="64" Height="56"
                     Background="Transparent" BorderThickness="0"
-                    Content="&#x2699;" FontFamily="Segoe UI" FontSize="22"
+                    Content="&#x2699;" FontFamily="{StaticResource FontBody}" FontSize="22"
                     Foreground="{StaticResource Gray400}" Cursor="Hand" />
         </Grid>
 
@@ -219,7 +219,7 @@
                              admin / firm names with descenders (g, y, j) don't
                              have their bottoms clipped by parent height rules. -->
                         <StackPanel Margin="10,0,0,0" VerticalAlignment="Top" MaxWidth="220">
-                            <TextBlock x:Name="lblFirmName" Text="CRMS"
+                            <TextBlock x:Name="lblFirmName" Text="CRMRS"
                                        FontSize="14" FontWeight="Bold"
                                        Foreground="{StaticResource Gray900}"
                                        TextWrapping="Wrap"
