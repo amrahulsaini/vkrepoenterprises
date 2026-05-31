@@ -6,6 +6,8 @@ import com.vkenterprises.vras.data.local.TenantDb
 import com.vkenterprises.vras.data.local.VehicleCache
 import com.vkenterprises.vras.data.models.SyncBranch
 import kotlinx.coroutines.*
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import java.util.concurrent.atomic.AtomicLong
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -98,11 +100,18 @@ class SyncRepository @Inject constructor(
 
         val synced = AtomicLong(0L)
 
-        // Download all branches in parallel
+        // Download branches in parallel but BOUNDED — a semaphore caps how many
+        // run at once. With unbounded parallelism, an agency with hundreds of
+        // branches would fire hundreds of simultaneous HTTP calls, exhausting the
+        // connection pool and triggering timeouts/OOM as data grows. 5 at a time
+        // keeps the pipe full without overwhelming the network or the server.
+        val gate = Semaphore(5)
         coroutineScope {
             tasks.map { task ->
                 async(Dispatchers.IO) {
-                    downloadBranch(task, totalToDownload, synced, onProgress)
+                    gate.withPermit {
+                        downloadBranch(task, totalToDownload, synced, onProgress)
+                    }
                 }
             }.awaitAll()
         }
