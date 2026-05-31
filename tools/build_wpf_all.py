@@ -76,8 +76,12 @@ SERVER_LOGOS = "/opt/vkapi/agency-uploads"
 SERVER_APPS  = "/opt/vkapi/agency-apps"
 
 ISCC = r"C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+# NOTE: max frame is 128, NOT 256. WPF's WIC .ico decoder throws
+# "The image decoder cannot decode the image" on a 256x256 PNG-compressed
+# frame, so a Window with Icon="favicon.ico" crashes at startup. Capping at
+# 128 keeps every frame decodable. (128 is plenty for taskbar / Start.)
 ICON_SIZES = [(16,16),(20,20),(24,24),(32,32),(40,40),
-              (48,48),(64,64),(96,96),(128,128),(256,256)]
+              (48,48),(64,64),(96,96),(128,128)]
 PALETTE = ["#FF6B35","#1565C0","#2E7D32","#6A1B9A",
            "#C2185B","#EF6C00","#00838F","#37474F"]
 
