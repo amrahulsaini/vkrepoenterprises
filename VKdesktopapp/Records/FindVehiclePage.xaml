@@ -69,27 +69,29 @@
             </Grid>
         </Border>
 
-        <UniformGrid Grid.Row="1" Columns="3" Margin="0,10,0,10">
-            <Border Style="{StaticResource DashboardCard}" Margin="0,0,12,0">
+        <!-- Compact stat cards (smaller padding + value font) so the VEHICLE
+             MATCHES grid below gets more height. -->
+        <UniformGrid Grid.Row="1" Columns="3" Margin="0,8,0,8">
+            <Border Style="{StaticResource DashboardCard}" Margin="0,0,12,0" Padding="14,9">
                 <StackPanel>
                     <TextBlock Text="RESULTS" Style="{StaticResource FormHeading}" />
-                    <TextBlock Name="lblResults" Style="{StaticResource StatValue}" Text="0" />
+                    <TextBlock Name="lblResults" Style="{StaticResource StatValue}" FontSize="24" Text="0" />
                     <TextBlock Text="Matching rows shown in the desktop grid"
                                Style="{StaticResource Caption}" />
                 </StackPanel>
             </Border>
-            <Border Style="{StaticResource DashboardCard}" Margin="0,0,12,0">
+            <Border Style="{StaticResource DashboardCard}" Margin="0,0,12,0" Padding="14,9">
                 <StackPanel>
                     <TextBlock Text="BRANCHES" Style="{StaticResource FormHeading}" />
-                    <TextBlock Name="lblBranchCount" Style="{StaticResource StatValue}" Text="0" />
+                    <TextBlock Name="lblBranchCount" Style="{StaticResource StatValue}" FontSize="24" Text="0" />
                     <TextBlock Text="Unique branches found in the current result"
                                Style="{StaticResource Caption}" />
                 </StackPanel>
             </Border>
-            <Border Style="{StaticResource DashboardCard}">
+            <Border Style="{StaticResource DashboardCard}" Padding="14,9">
                 <StackPanel>
                     <TextBlock Text="SEARCH MODE" Style="{StaticResource FormHeading}" />
-                    <TextBlock Name="lblMode" Style="{StaticResource StatValue}" Text="RC" />
+                    <TextBlock Name="lblMode" Style="{StaticResource StatValue}" FontSize="24" Text="RC" />
                     <TextBlock Name="lblSearchHint"
                                Text="Recent records are shown when the search box is empty."
                                Style="{StaticResource Caption}" />
@@ -122,6 +124,7 @@
                               ClipboardCopyMode="IncludeHeader"
                               IsReadOnly="True"
                               RowHeight="36"
+                              HorizontalScrollBarVisibility="Auto"
                               Style="{StaticResource MaterialDataGrid}">
                         <DataGrid.Resources>
                             <!-- Big, bold, monospace cells for RC / Chassis so the
@@ -143,7 +146,10 @@
                                                 ElementStyle="{StaticResource BigBoldCell}" />
                             <DataGridTextColumn x:Name="colChassis" Header="Chassis no" Binding="{Binding ChassisNo}" Width="170" Visibility="Collapsed"
                                                 ElementStyle="{StaticResource BigBoldCell}" />
-                            <DataGridTextColumn x:Name="colModel" Header="Model" Binding="{Binding Model}" Width="*"
+                            <!-- Auto width + a sensible minimum so long model names
+                                 push past the panel edge and the horizontal
+                                 scrollbar lets you read them in full. -->
+                            <DataGridTextColumn x:Name="colModel" Header="Model" Binding="{Binding Model}" Width="Auto" MinWidth="220"
                                                 ElementStyle="{StaticResource BoldCell}" />
                         </DataGrid.Columns>
                     </DataGrid>
