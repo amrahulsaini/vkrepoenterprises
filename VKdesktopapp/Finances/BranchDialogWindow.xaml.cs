@@ -1,9 +1,11 @@
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using VRASDesktopApp.Data;
 using VRASDesktopApp.Models;
 
 namespace VRASDesktopApp.Finances;
@@ -35,7 +37,9 @@ public partial class BranchDialogWindow : Window
         Close();
     }
 
-    private void txtTerm_TextChanged(object sender, TextChangedEventArgs e)
+    private void txtTerm_TextChanged(object sender, TextChangedEventArgs e) => RebuildFiltered();
+
+    private void RebuildFiltered()
     {
         lblTerm_Placeholder.Visibility = txtTerm.Text.Length <= 0 ? Visibility.Visible : Visibility.Collapsed;
         BranchesFiltered.Clear();
@@ -47,6 +51,39 @@ public partial class BranchDialogWindow : Window
         foreach (var item in list)
         {
             BranchesFiltered.Add(item);
+        }
+    }
+
+    // Re-pull the latest branches from the server — for when a branch/finance was
+    // created (or records uploaded) after this window opened, so the picker isn't
+    // stuck on a stale snapshot. Keeps the current search term applied.
+    private async void btnRefresh_Click(object sender, RoutedEventArgs e)
+    {
+        btnRefresh.IsEnabled = false;
+        var prevContent = btnRefresh.Content;
+        btnRefresh.Content = "⟳ …";
+        try
+        {
+            var dtos = await DesktopApiClient.GetAllBranchesAsync();
+            Branches = dtos.Select(d => new Branch
+            {
+                BranchId       = d.Id.ToString(),
+                BranchName     = d.Name,
+                HeadOfficeName = d.FinanceName,
+                BranchCode     = "",
+                Address        = d.Address
+            }).ToList();
+            RebuildFiltered();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Failed to refresh branches: {ex.Message}", "Error",
+                MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally
+        {
+            btnRefresh.Content = prevContent;
+            btnRefresh.IsEnabled = true;
         }
     }
 
