@@ -366,7 +366,7 @@ app.MapGet("/api/Branches/GetBranches/{financeId}", async (int financeId) =>
         await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
         await using var cmd = new MySqlCommand(
-            "SELECT id, name, contact1, contact2 FROM branches WHERE finance_id = @fid AND is_active = 1 ORDER BY name LIMIT 100",
+            "SELECT id, name, contact1, contact2 FROM branches WHERE finance_id = @fid AND is_active = 1 ORDER BY name",
             conn);
         cmd.Parameters.AddWithValue("@fid", financeId);
         var branches = new List<object>();
