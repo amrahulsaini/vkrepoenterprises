@@ -106,12 +106,14 @@ fun ConfirmScreen(
         appendLine("Vehicle location: *${vehicleAddress.trim().ifBlank { "-" }}*")
         appendLine("Load details: *${carriesGoods.trim().ifBlank { "-" }}*")
 
-        // Levels: bold "name - contact -" (blank contact leaves a trailing dash,
-        // matching the requested format). Empty level → "null" for admins.
+        // Levels: bold "name - contact". CRITICAL — no space immediately inside
+        // the asterisks, or WhatsApp shows the literal "*". The old "*n - c*" left
+        // a trailing " - " (space before the closing *) so it never rendered bold.
         fun levelLine(label: String, name: String?, contact: String?) {
             val n = name?.trim().orEmpty(); val c = contact?.trim().orEmpty()
-            if (n.isNotBlank() || c.isNotBlank()) appendLine("$label: *$n - $c*")
-            else if (isAdmin)                     appendLine("$label: null")
+            val content = listOf(n, c).filter { it.isNotBlank() }.joinToString(" - ")
+            if (content.isNotBlank()) appendLine("$label: *$content*")
+            else if (isAdmin)         appendLine("$label: *null*")
         }
         levelLine("Level1", item?.level1, item?.level1Contact)
         levelLine("Level2", item?.level2, item?.level2Contact)
@@ -124,9 +126,11 @@ fun ConfirmScreen(
             else     -> "We urgently need you to confirm the status of this vehicle, whether it is to be Repo released."
         }
         append(closing)
-        append("*${BuildConfig.AGENCY_NAME} *")
+        // Tight asterisks (no inner space) so the agency name renders bold; the
+        // separating spaces go OUTSIDE the asterisks.
+        append(" *${BuildConfig.AGENCY_NAME}*")
         val person = listOf(agentName.trim(), agentPhone.trim()).filter { it.isNotBlank() }.joinToString(" - ")
-        if (person.isNotBlank()) append(person)
+        if (person.isNotBlank()) append(" $person")
     }
 
     fun checkedNumbers(): List<String> = buildList {
