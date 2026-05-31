@@ -21,13 +21,15 @@ public partial class LoginWindow : Window
     public LoginWindow()
     {
         InitializeComponent();
-        // Tenant builds carry the agency name baked into Branding (read from
-        // Resources/branding.json). Generic CRMS builds fall back to the
-        // post-login disk cache. Either way the login screen never says
-        // "CRMS" once an agency is established on the machine.
+        // When NOT signed in, the login screen always shows the generic CRMRS
+        // brand (from XAML). Only a tenant-baked build overrides the name from
+        // its bundled branding.json. We deliberately do NOT show any cached
+        // agency branding before sign-in, so a fresh generic install never
+        // inherits a previously-installed agency's name/logo on the login
+        // screen — the agency is captured and shown only AFTER sign-in
+        // (inside MainWindow).
         if (Branding.IsTenantBuild)
             lblAppName.Text = Branding.Name;
-        Loaded += (_, __) => LoadCachedAgencyBranding();
     }
 
     private void LoadCachedAgencyBranding()
@@ -217,10 +219,6 @@ public partial class LoginWindow : Window
 
         App.SignedAppUser = signed;
         App.SetAuthToken(signed.Token);
-
-        // Fire-and-forget — the cached logo + name are used on the NEXT
-        // launch, so we don't block the sign-in flow waiting for them.
-        _ = CacheAgencyBrandingAsync(signed.AgencyName, signed.LogoPath);
 
         // Construct the main window first to catch any initialization/XAML errors
         MainWindow window;
