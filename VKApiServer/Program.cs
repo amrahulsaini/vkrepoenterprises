@@ -729,7 +729,7 @@ app.MapGet("/api/mgr/branches", async (HttpContext ctx, int? financeId) =>
                            b.finance_id
                     FROM branches b
                     WHERE b.finance_id=@fid AND b.is_active=1
-                    ORDER BY total_records DESC LIMIT 100";
+                    ORDER BY total_records DESC";
             cmd = new MySqlCommand(sql, conn) { CommandTimeout = 60 };
             cmd.Parameters.AddWithValue("@fid", financeId.Value);
         }
@@ -743,7 +743,7 @@ app.MapGet("/api/mgr/branches", async (HttpContext ctx, int? financeId) =>
                            COALESCE(f.name,'') AS finance_name,
                            b.finance_id
                     FROM branches b LEFT JOIN finances f ON f.id=b.finance_id
-                    WHERE b.is_active=1 ORDER BY b.uploaded_at DESC, b.name LIMIT 500";
+                    WHERE b.is_active=1 ORDER BY b.uploaded_at DESC, b.name";
             cmd = new MySqlCommand(sql, conn) { CommandTimeout = 60 };
         }
         var list = new List<object>();
