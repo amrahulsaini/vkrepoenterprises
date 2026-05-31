@@ -43,8 +43,12 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Window">
+                    <!-- Crisp 1.5px near-black frame (matches the website's
+                         bold-bordered cards). A single, even, intentional edge —
+                         replaces the old thin gray line that read as broken. -->
                     <Border Background="{TemplateBinding Background}"
-                            BorderBrush="{StaticResource Gray800}" BorderThickness="1">
+                            BorderBrush="{StaticResource BlackBrush}" BorderThickness="1.5"
+                            SnapsToDevicePixels="True" UseLayoutRounding="True">
                         <AdornerDecorator>
                             <ContentPresenter />
                         </AdornerDecorator>
