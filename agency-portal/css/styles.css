@@ -4,47 +4,51 @@
    restrained motion. Class names are kept stable for the JS layer.
    ─────────────────────────────────────────────────────────────────── */
 
+@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800;900&family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap');
+
 :root {
-    --brand:       #EA580C;
-    --brand-600:   #C2410C;
-    --brand-700:   #9A3412;
-    --brand-tint:  #FFF3EA;
-    --brand-glow:  rgba(234, 88, 12, .35);
+    /* Cream / orange base theme — matches the main marketing site. */
+    --brand:       #FF4D00;
+    --brand-600:   #D63E00;
+    --brand-700:   #B53400;
+    --brand-tint:  #FFE9DF;
+    --brand-glow:  rgba(255, 77, 0, .32);
 
-    --ink:         #0B1120;   /* hero / dark surfaces */
-    --ink-2:       #131C30;
+    --ink:         #100F0C;   /* hero / dark surfaces */
+    --ink-2:       #1C1A16;
 
-    --bg:          #FFFFFF;
-    --bg-soft:     #F7F8FA;
-    --surface:     #FFFFFF;
-    --surface-alt: #F6F8FB;
-    --border:      #E5E8EC;
-    --border-soft: #EEF0F4;
+    --bg:          #F8F4EC;   /* creamy base */
+    --bg-soft:     #F1EBDD;
+    --surface:     #FFFDF8;   /* card surface */
+    --surface-alt: #F1EBDD;
+    --border:      #E6DDCA;   /* warm hairline */
+    --border-soft: #EFE7D6;
 
-    --text:        #0E1525;
-    --text-muted:  #5B6676;
-    --text-dim:    #97A1B0;
+    --text:        #2A2823;
+    --text-muted:  #756F62;
+    --text-dim:    #A39C8C;
 
-    --success:     #0E9F6E;
-    --success-tint:#E7F8F1;
+    --success:     #1E8E5A;
+    --success-tint:#E7F6EE;
     --warning:     #C2410C;
-    --warning-tint:#FFF3EA;
-    --danger:      #E02424;
-    --danger-tint: #FDECEC;
-    --info:        #2563EB;
+    --warning-tint:#FFF0E6;
+    --danger:      #D63A2E;
+    --danger-tint: #FBEAE8;
+    --info:        #2C5F9E;
 
-    --radius-sm: 9px;
-    --radius:    13px;
-    --radius-lg: 20px;
+    --radius-sm: 10px;
+    --radius:    14px;
+    --radius-lg: 18px;
 
-    --shadow-xs: 0 1px 2px rgba(11, 17, 32, .05);
-    --shadow-sm: 0 2px 6px rgba(11, 17, 32, .06);
-    --shadow:    0 8px 24px rgba(11, 17, 32, .08), 0 2px 6px rgba(11, 17, 32, .05);
-    --shadow-md: 0 16px 44px rgba(11, 17, 32, .12), 0 4px 12px rgba(11, 17, 32, .06);
-    --shadow-lg: 0 30px 70px rgba(11, 17, 32, .22);
+    --shadow-xs: 0 1px 2px rgba(16, 15, 12, .05);
+    --shadow-sm: 0 2px 8px rgba(16, 15, 12, .06);
+    --shadow:    0 8px 26px rgba(16, 15, 12, .10), 0 2px 6px rgba(16, 15, 12, .05);
+    --shadow-md: 0 16px 44px rgba(16, 15, 12, .14), 0 4px 12px rgba(16, 15, 12, .06);
+    --shadow-lg: 0 30px 70px rgba(16, 15, 12, .24);
 
-    --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
-            'Helvetica Neue', Arial, sans-serif;
+    --font:      'Hanken Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-head: 'Archivo', 'Hanken Grotesk', sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, monospace;
 
     --ease: cubic-bezier(.22, .61, .36, 1);
 }
@@ -68,6 +72,14 @@ img { max-width: 100%; display: block; }
 button { font-family: inherit; cursor: pointer; border: 0; background: none; }
 input, select, textarea { font: inherit; color: inherit; }
 ::selection { background: var(--brand); color: #fff; }
+
+/* Typeface roles to match the main site: Archivo for headings/brand,
+   JetBrains Mono for kickers/labels/eyebrows. */
+h1, h2, h3, h4,
+.brand .brand-word,
+.section-head h2, .card h2, .modal h3,
+.hero h1, .cta-band h2 { font-family: var(--font-head); letter-spacing: -.02em; }
+.section-head .kicker, .label, .hero .eyebrow { font-family: var(--font-mono); }
 
 /* ── Layout ────────────────────────────────────────────────────────── */
 .container        { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
