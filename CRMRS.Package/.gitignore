@@ -1,0 +1,11 @@
+# Build artifacts — never commit these (large / machine-specific)
+pkg_layout/
+AppPackages/
+BundleArtifacts/
+*.msix
+*.msixbundle
+*.msixupload
+*.appx
+*.appxbundle
+*.cer
+*.pfx

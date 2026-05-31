@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Package
+  xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+  xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+  xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+  IgnorableNamespaces="uap rescap">
+
+  <!-- ===================================================================
+       IMPORTANT — Identity is a PLACEHOLDER.
+       In Visual Studio:  (right-click the package project) Publish ▸
+       "Associate App with the Store" ▸ sign in to Partner Center ▸ pick
+       your reserved app name. Visual Studio then OVERWRITES Name,
+       Publisher and PublisherDisplayName below with the exact values
+       Partner Center assigned to you. Do NOT hand-edit them — a mismatch
+       makes the Store reject the upload.
+       Version: the 4th number (revision) MUST stay 0 — the Store owns it.
+       =================================================================== -->
+  <Identity
+    Name="CRMRS"
+    Publisher="CN=CRMRS"
+    Version="1.0.0.0"
+    ProcessorArchitecture="x64" />
+
+  <Properties>
+    <DisplayName>CRMRS</DisplayName>
+    <PublisherDisplayName>CRMRS</PublisherDisplayName>
+    <Logo>Images\StoreLogo.png</Logo>
+  </Properties>
+
+  <Dependencies>
+    <!-- 1809 is a safe floor; WebView2 + .NET 6 desktop runtime are present
+         on every supported Windows 10/11 build at or above this. -->
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.17763.0" MaxVersionTested="10.0.22621.0" />
+  </Dependencies>
+
+  <Resources>
+    <Resource Language="en-us" />
+  </Resources>
+
+  <Applications>
+    <!-- Executable = the WPF project's output exe (AssemblyName = CRMRS).
+         EntryPoint Windows.FullTrustApplication = a packaged full-trust
+         Win32/WPF app (Desktop Bridge). -->
+    <Application Id="CRMRS" Executable="CRMRS.exe" EntryPoint="Windows.FullTrustApplication">
+      <uap:VisualElements
+        DisplayName="CRMRS"
+        Description="CRMRS — loan recovery software for agencies. Search, confirm and manage vehicle recovery records."
+        BackgroundColor="#FFFFFF"
+        Square150x150Logo="Images\Square150x150Logo.png"
+        Square44x44Logo="Images\Square44x44Logo.png">
+        <uap:DefaultTile
+            Wide310x150Logo="Images\Wide310x150Logo.png"
+            Square71x71Logo="Images\Square71x71Logo.png"
+            Square310x310Logo="Images\Square310x310Logo.png">
+          <uap:ShowNameOnTiles>
+            <uap:ShowOn Tile="square150x150Logo" />
+            <uap:ShowOn Tile="wide310x150Logo" />
+          </uap:ShowNameOnTiles>
+        </uap:DefaultTile>
+        <uap:SplashScreen Image="Images\SplashScreen.png" BackgroundColor="#FFFFFF" />
+      </uap:VisualElements>
+    </Application>
+  </Applications>
+
+  <Capabilities>
+    <!-- internetClient: the app talks to https://api.crmrecoverysoftware.com.
+         runFullTrust: required for any packaged Win32/WPF desktop app. It is a
+         restricted capability but is auto-approved for desktop apps on the
+         Store — no special request needed. -->
+    <Capability Name="internetClient" />
+    <rescap:Capability Name="runFullTrust" />
+  </Capabilities>
+</Package>
