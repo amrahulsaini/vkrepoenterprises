@@ -71,65 +71,60 @@ fun ConfirmScreen(
         else     -> "Send Confirmation"
     }
 
-    // Status line at the bottom changes per action — but the body is the same
-    // fixed set of fields the user asked for (Customer / Vehicle / Model /
-    // Chassis / Engine / Vehicle location / Load details). Admins additionally
-    // see Loan / Branch / BKT / OD / levels so they have enough context to act.
+    // Message layout requested for CNF (Confirm); OK-Repo / Cancel reuse the same
+    // body with a different opening + closing line. Body fields are plain text
+    // (admins see "null" for blanks so missing data is obvious); Level lines are
+    // *bold* as "name - contact -". Closing names the agency + the contact person.
     fun buildMessage(): String = buildString {
         appendLine("*Respected sir,*")
+        when (actionType) {
+            "okrepo" -> appendLine("This vehicle is confirmed OK for repo. The details of the vehicle and customer are as below.")
+            "cancel" -> appendLine("Please note the status update for the vehicle below.")
+            else     -> appendLine("A Vehicle has been traced out by our ground team. The details of the vehicle and customer are as below.")
+        }
         appendLine()
 
-        // Non-admin fields skip blank values; admin sees "null" for empties so
-        // missing data is visible at a glance.
+        // Plain "Label: value"; admin sees "null" for empties, users skip blanks.
         fun line(label: String, value: String?) {
             val v = value?.trim().orEmpty()
-            if (v.isNotBlank()) appendLine("$label: *$v*")
-            else if (isAdmin)   appendLine("$label: *null*")
+            if (v.isNotBlank()) appendLine("$label: $v")
+            else if (isAdmin)   appendLine("$label: null")
         }
 
-        // Admin-only header fields (Loan, Branch, BKT, OD). Hidden for users
-        // so their message matches the format requested.
-        if (isAdmin) {
-            line("Loan No", item?.agreementNo)
-            line("Branch",  item?.branchFromExcel)
-        }
+        line("Loan No",       item?.agreementNo)
+        line("Branch",        item?.branchFromExcel)
         line("Customer Name", item?.customerName)
         line("Vehicle No",    item?.vehicleNo)
         line("Model/Maker",   item?.model)
         line("Chassis No",    item?.chassisNo)
         line("Engine No",     item?.engineNo)
-        if (isAdmin) {
-            line("BKT", item?.bucket)
-            line("OD",  item?.od)
-        }
-        // Vehicle location + load details always printed — "-" if blank so the
-        // recipient knows the fields were considered but left empty.
-        appendLine("Vehicle location: *${vehicleAddress.trim().ifBlank { "-" }}*")
-        appendLine("Load details: *${carriesGoods.trim().ifBlank { "-" }}*")
+        line("BKT",           item?.bucket)
+        line("OD",            item?.od)
+        // Always printed — "-" if left blank so the recipient knows it was empty.
+        appendLine("Vehicle location: ${vehicleAddress.trim().ifBlank { "-" }}")
+        appendLine("Load details: ${carriesGoods.trim().ifBlank { "-" }}")
 
-        // Admin keeps the Level1/2/3 context lines — only adds them if there's
-        // useful data (or if isAdmin and they want to see the "null" markers).
-        if (isAdmin) {
-            fun levelLine(label: String, name: String?, contact: String?) {
-                val n = name?.trim().orEmpty(); val c = contact?.trim().orEmpty()
-                if (n.isNotBlank() || c.isNotBlank()) appendLine("$label: *$n - $c*")
-                else                                  appendLine("$label: *null*")
-            }
-            levelLine("Level1", item?.level1, item?.level1Contact)
-            levelLine("Level2", item?.level2, item?.level2Contact)
-            levelLine("Level3", item?.level3, item?.level3Contact)
+        // Levels: bold "name - contact -" (blank contact leaves a trailing dash,
+        // matching the requested format). Empty level → "null" for admins.
+        fun levelLine(label: String, name: String?, contact: String?) {
+            val n = name?.trim().orEmpty(); val c = contact?.trim().orEmpty()
+            if (n.isNotBlank() || c.isNotBlank()) appendLine("$label: *$n - $c*")
+            else if (isAdmin)                     appendLine("$label: null")
         }
+        levelLine("Level1", item?.level1, item?.level1Contact)
+        levelLine("Level2", item?.level2, item?.level2Contact)
+        levelLine("Level3", item?.level3, item?.level3Contact)
 
         appendLine()
-        val status = when (actionType) {
-            "cancel" -> "Cancel"
-            "okrepo" -> "Ok for repo."
-            else     -> "Please confirm this vehicle."
+        val closing = when (actionType) {
+            "okrepo" -> "Kindly proceed — this vehicle is OK for repo."
+            "cancel" -> "Kindly note: this vehicle stands cancelled / not confirmed."
+            else     -> "We urgently need you to confirm the status of this vehicle, whether it is to be Repo released."
         }
-        appendLine("Status: *$status*")
-        if (agentName.isNotBlank() && agentPhone.isNotBlank())
-            appendLine("$agentName - $agentPhone")
-        append("Agency Name: *${BuildConfig.AGENCY_NAME}*")
+        append(closing)
+        append("*${BuildConfig.AGENCY_NAME} *")
+        val person = listOf(agentName.trim(), agentPhone.trim()).filter { it.isNotBlank() }.joinToString(" - ")
+        if (person.isNotBlank()) append(person)
     }
 
     fun checkedNumbers(): List<String> = buildList {
@@ -142,10 +137,23 @@ fun ConfirmScreen(
     }
 
     fun sendWhatsApp() {
-        val msg    = buildMessage()
-        val intent = Intent(Intent.ACTION_VIEW,
-            Uri.parse("https://wa.me/?text=${Uri.encode(msg)}"))
-        context.startActivity(intent)
+        val msg  = buildMessage()
+        val base = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_TEXT, msg)
+        }
+        // Prefer regular WhatsApp Messenger; else WhatsApp Business; else chooser.
+        // ACTION_SEND avoids the wa.me deep link that WhatsApp Business hijacks
+        // with "your number is not registered to WhatsApp Business".
+        val pm = context.packageManager
+        val target = listOf("com.whatsapp", "com.whatsapp.w4b").firstOrNull { p ->
+            runCatching { pm.getPackageInfo(p, 0); true }.getOrDefault(false)
+        }
+        val launch = if (target != null) Intent(base).setPackage(target)
+                     else Intent.createChooser(base, "Share confirmation via")
+        runCatching { context.startActivity(launch) }.onFailure {
+            runCatching { context.startActivity(Intent.createChooser(base, "Share confirmation via")) }
+        }
     }
 
     fun sendSms() {

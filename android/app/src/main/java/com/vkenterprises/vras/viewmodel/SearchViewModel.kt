@@ -130,6 +130,10 @@ class SearchViewModel @Inject constructor(
             val q    = capped.uppercase()
             val mode = _ui.value.mode
             searchJob?.cancel()
+            // Flip the spinner ON immediately (even before the debounce) so the
+            // very first keystroke that completes the query shows "Searching…"
+            // instantly — no dead air while the network call spins up.
+            _ui.update { it.copy(inputText = "", isSearching = true, errorMsg = null) }
             searchJob = viewModelScope.launch {
                 // Debounce: if the user fires another search right away, THIS job
                 // is cancelled during the delay — before it ever opens a network
@@ -138,7 +142,6 @@ class SearchViewModel @Inject constructor(
                 delay(220)
                 executeSearch(q, mode, userId)
             }
-            _ui.update { it.copy(inputText = "") }
         }
     }
 
@@ -284,7 +287,7 @@ class SearchViewModel @Inject constructor(
     // Used by the back-navigation handler on HomeScreen.
     fun clearResults() {
         searchJob?.cancel()
-        _ui.update { it.copy(results = emptyList(), allResults = emptyList(), lastQuery = "", inputText = "", errorMsg = null) }
+        _ui.update { it.copy(results = emptyList(), allResults = emptyList(), lastQuery = "", inputText = "", errorMsg = null, isSearching = false) }
     }
 }
 

@@ -365,7 +365,7 @@ fun VehicleDetailScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         ActionChip(
-                            label = "Confirm",
+                            label = "CNF",
                             icon  = Icons.Default.CheckCircle,
                             color = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.weight(1f)
@@ -374,7 +374,7 @@ fun VehicleDetailScreen(
                             nav.navigate(Screen.Confirm.route)
                         }
                         ActionChip(
-                            label = "WhatsApp",
+                            label = "WP",
                             icon  = Icons.Default.Chat,
                             color = Color(0xFF25D366),
                             modifier = Modifier.weight(1f)
@@ -941,10 +941,25 @@ private fun buildQuickWaMessage(
     append("Agency Name: *${BuildConfig.AGENCY_NAME}*")
 }
 
+// Share the message into WhatsApp. Prefer regular WhatsApp Messenger
+// (com.whatsapp); if only WhatsApp Business (com.whatsapp.w4b) is present, use
+// that; otherwise fall back to a chooser. Using ACTION_SEND (not the wa.me
+// deep link) avoids WhatsApp Business hijacking the link and failing with
+// "your number is not registered to WhatsApp Business".
 private fun openWhatsApp(context: Context, message: String) {
-    val intent = Intent(Intent.ACTION_VIEW,
-        Uri.parse("https://wa.me/?text=${Uri.encode(message)}"))
-    context.startActivity(intent)
+    val base = Intent(Intent.ACTION_SEND).apply {
+        type = "text/plain"
+        putExtra(Intent.EXTRA_TEXT, message)
+    }
+    val pm = context.packageManager
+    val target = listOf("com.whatsapp", "com.whatsapp.w4b").firstOrNull { p ->
+        runCatching { pm.getPackageInfo(p, 0); true }.getOrDefault(false)
+    }
+    val launch = if (target != null) Intent(base).setPackage(target)
+                 else Intent.createChooser(base, "Share confirmation via")
+    runCatching { context.startActivity(launch) }.onFailure {
+        runCatching { context.startActivity(Intent.createChooser(base, "Share confirmation via")) }
+    }
 }
 
 // ── Compact row with optional selection checkbox ───────────────────────────
@@ -1066,11 +1081,12 @@ private fun CRow(label: String, value: String?, mono: Boolean = false, invalid: 
     SRow(label, value, mono, invalid)
 }
 
-// Level row: shows the level name and — directly beneath it — that level's
-// contact number (blue, underlined, tap-to-dial, long-press to copy). Replaces
-// the old pair of "Level N" + "Level N Contact" rows so the contact reads as
-// part of the same person, not a separate labelled field.
-@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+// Level row: the level NAME and its CONTACT shown together as one value, with
+// any phone number in it highlighted blue + tap-to-dial (long-press copies the
+// whole value). The data frequently stores the number INSIDE the name field
+// (e.g. "ANOOP SINGH TOMAR - 9301108659", contact column blank), so we must
+// detect numbers across the whole combined string — that's exactly what
+// SRow(dialable = true) already does, so we delegate to it.
 @Composable
 private fun SLevelRow(
     label: String,
@@ -1080,88 +1096,14 @@ private fun SLevelRow(
     chk: Boolean = false,
     onChk: (Boolean) -> Unit = {}
 ) {
-    val context = LocalContext.current
-    val nm = name.orEmpty().trim().let { if (it.isBlank()) it else it.uppercase() }
-    val ct = contact.orEmpty().trim()
-    val firstNumber = PHONE_REGEX.find(ct)?.value
-    val phoneColor  = MaterialTheme.colorScheme.primary
-    val baseColor   = if (nm.isBlank() && ct.isBlank()) MaterialTheme.colorScheme.outlineVariant
-                      else MaterialTheme.colorScheme.onSurface
-
-    Row(
-        Modifier.fillMaxWidth().padding(vertical = 3.dp),
-        verticalAlignment = Alignment.Top
-    ) {
-        if (sel) {
-            Checkbox(checked = chk, onCheckedChange = onChk, modifier = Modifier.size(24.dp))
-            Spacer(Modifier.width(6.dp))
-        }
-        Text(
-            label,
-            fontSize   = 14.sp,
-            fontFamily = FontFamily.Default,
-            fontWeight = FontWeight.Bold,
-            color      = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier   = Modifier.width(if (sel) 104.dp else 128.dp).padding(top = 2.dp)
-        )
-        Text(
-            ":",
-            fontSize   = 14.sp,
-            fontFamily = FontFamily.Default,
-            fontWeight = FontWeight.Bold,
-            color      = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier   = Modifier.padding(end = 8.dp, top = 2.dp)
-        )
-        Column(Modifier.weight(1f)) {
-            // Line 1 — the level name (heavy bold). Long-press copies it.
-            Text(
-                text = nm.ifBlank { if (ct.isBlank()) "—" else "" },
-                style = MaterialTheme.typography.bodyLarge.copy(
-                    color      = baseColor,
-                    fontWeight = if (nm.isBlank()) FontWeight.Normal else FontWeight.Black,
-                    fontFamily = FontFamily.Default
-                ),
-                modifier = Modifier.combinedClickable(
-                    onClick = {},
-                    onLongClick = {
-                        if (nm.isNotBlank()) {
-                            val cb = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                            cb.setPrimaryClip(ClipData.newPlainText(label, nm))
-                            android.widget.Toast.makeText(context, "Copied", android.widget.Toast.LENGTH_SHORT).show()
-                        }
-                    }
-                )
-            )
-            // Line 2 — the contact number (blue, tap dials, long-press copies).
-            if (ct.isNotBlank()) {
-                Text(
-                    text = ct,
-                    style = MaterialTheme.typography.bodyMedium.copy(
-                        color          = phoneColor,
-                        fontWeight     = FontWeight.Bold,
-                        fontFamily     = FontFamily.Default,
-                        textDecoration = TextDecoration.Underline
-                    ),
-                    modifier = Modifier
-                        .padding(top = 1.dp)
-                        .combinedClickable(
-                            onClick = {
-                                firstNumber?.let { num ->
-                                    runCatching {
-                                        context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:$num")))
-                                    }
-                                }
-                            },
-                            onLongClick = {
-                                val cb = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                cb.setPrimaryClip(ClipData.newPlainText(label, ct))
-                                android.widget.Toast.makeText(context, "Copied", android.widget.Toast.LENGTH_SHORT).show()
-                            }
-                        )
-                )
-            }
-        }
+    val n = name.orEmpty().trim()
+    val c = contact.orEmpty().trim()
+    val combined = when {
+        n.isNotBlank() && c.isNotBlank() -> "$n - $c"
+        n.isNotBlank()                   -> n
+        else                             -> c
     }
+    SRow(label, combined, dialable = true, sel = sel, chk = chk, onChk = onChk)
 }
 
 @Composable
