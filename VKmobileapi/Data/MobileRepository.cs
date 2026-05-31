@@ -364,7 +364,7 @@ public class MobileRepository
             SELECT id, name, mobile, last_seen, last_lat, last_lng
             FROM app_users
             WHERE last_seen >= NOW() - INTERVAL 15 MINUTE
-            ORDER BY last_seen DESC LIMIT 100";
+            ORDER BY last_seen DESC";
         await using var cmd = new MySqlCommand(sql, conn) { CommandTimeout = 5 };
         var list = new List<LiveUserItem>();
         await using var rdr = await cmd.ExecuteReaderAsync();
