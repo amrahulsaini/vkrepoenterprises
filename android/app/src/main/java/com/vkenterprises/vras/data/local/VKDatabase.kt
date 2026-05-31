@@ -32,15 +32,15 @@ data class BranchSyncState(
 // ── DAOs ─────────────────────────────────────────────────────────────────────
 @Dao
 interface VehicleCacheDao {
-    // LIMIT 10000 matches the server cap. The old 500 silently dropped records
-    // for dense last-4/last-5 keys (a single last-4 can already have ~880 rows,
-    // and that only grows), so offline search would miss vehicles the server
-    // returns — the offline twin of the "MH-16-CW-5003 not found" bug. The query
-    // is index-backed (idx on last4/last5) so the higher cap stays fast.
-    @Query("SELECT * FROM vehicle_cache WHERE last4 = :q ORDER BY vehicleNo LIMIT 10000")
+    // NO LIMIT — return every match. This is an indexed exact-match on last4/
+    // last5 (idx on both), so it only ever returns the rows that actually share
+    // that key (~hundreds), never the whole table. The old 500/10000 caps could
+    // silently drop records for dense keys (the "MH-16-CW-5003 not found" bug);
+    // an exact-key lookup has no runaway risk, so the cap is removed entirely.
+    @Query("SELECT * FROM vehicle_cache WHERE last4 = :q ORDER BY vehicleNo")
     suspend fun searchByLast4(q: String): List<VehicleCache>
 
-    @Query("SELECT * FROM vehicle_cache WHERE last5 = :q ORDER BY chassisNo LIMIT 10000")
+    @Query("SELECT * FROM vehicle_cache WHERE last5 = :q ORDER BY chassisNo")
     suspend fun searchByLast5(q: String): List<VehicleCache>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
