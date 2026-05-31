@@ -142,10 +142,23 @@ public partial class FinancesManagerPage : Page
     //  Search — pure in-memory, 0 ms
     // ─────────────────────────────────────────────────────
 
+    // Word-token match: every whitespace-separated word in the query must appear
+    // (case-insensitive substring) somewhere in the target. This is tolerant of
+    // double/extra spaces in the stored names (the data has "LTD  NON TBR 1"
+    // with two spaces) and of word order — so typing "tata motors finance ltd
+    // non" still matches "TATA MOTORS FINANCE LTD  NON TBR 1". A plain Contains
+    // failed because "ltd non" (one space) != "ltd  non" (two spaces).
+    private static bool MatchesAllWords(string? target, string? query)
+    {
+        if (string.IsNullOrWhiteSpace(query)) return true;
+        if (string.IsNullOrEmpty(target))     return false;
+        foreach (var w in query.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries))
+            if (target.IndexOf(w, StringComparison.OrdinalIgnoreCase) < 0) return false;
+        return true;
+    }
+
     private bool FilterFinance(object obj) =>
-        obj is FinanceListItem item &&
-        (string.IsNullOrEmpty(txtSearch.Text) ||
-         item.Name.Contains(txtSearch.Text, StringComparison.OrdinalIgnoreCase));
+        obj is FinanceListItem item && MatchesAllWords(item.Name, txtSearch.Text);
 
     private void txtSearch_TextChanged(object sender, TextChangedEventArgs e)
         => _financesView?.Refresh();
@@ -173,8 +186,7 @@ public partial class FinancesManagerPage : Page
         _displayedBranches.Clear();
         foreach (var b in _allCurrentBranches)
         {
-            if (string.IsNullOrEmpty(term) ||
-                b.BranchName.Contains(term, StringComparison.OrdinalIgnoreCase))
+            if (MatchesAllWords(b.BranchName, term))
                 _displayedBranches.Add(b);
         }
     }
