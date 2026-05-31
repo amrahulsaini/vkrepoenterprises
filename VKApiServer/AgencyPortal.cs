@@ -471,7 +471,7 @@ internal static class AgencyPortal
                 SELECT id, name, slug, mobile1, mobile2, address, logo_path,
                        email1, email2, db_name, status, rejected_reason,
                        created_at, approved_at
-                  FROM agencies " + where + " ORDER BY created_at DESC LIMIT 500;", conn);
+                  FROM agencies " + where + " ORDER BY created_at DESC;", conn);
             foreach (var (k, v) in paramz) cmd.Parameters.AddWithValue(k, v);
 
             var rows = new System.Collections.Generic.List<object>();
@@ -841,7 +841,7 @@ internal static class AgencyPortal
             await using var conn = new MySqlConnection(masterConn);
             await conn.OpenAsync();
             var tickets = await ReadTicketHeaders(conn,
-                "WHERE agency_slug=@s ORDER BY id DESC LIMIT 200", false, ("@s", me.slug));
+                "WHERE agency_slug=@s ORDER BY id DESC", false, ("@s", me.slug));
             foreach (var t in tickets) t["messages"] = await LoadMessages(conn, (int)t["id"]);
             return Results.Ok(tickets);
         });
@@ -965,7 +965,7 @@ internal static class AgencyPortal
             await using var conn = new MySqlConnection(masterConn);
             await conn.OpenAsync();
             var tickets = await ReadTicketHeaders(conn,
-                "ORDER BY (status='resolved'), id DESC LIMIT 500", true);
+                "ORDER BY (status='resolved'), id DESC", true);
             return Results.Ok(tickets);
         });
 

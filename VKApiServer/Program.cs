@@ -477,7 +477,7 @@ app.MapGet("/api/Confirmations", async () =>
         await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
         await using var cmd = new MySqlCommand(
-            "SELECT id,vehicle_no,chassis_no,model,seizer_name,status,created_at FROM repoconformations ORDER BY created_at DESC LIMIT 5000",
+            "SELECT id,vehicle_no,chassis_no,model,seizer_name,status,created_at FROM repoconformations ORDER BY created_at DESC",
             conn);
         var results = new List<ConfirmationResponseItem>();
         await using var reader = await cmd.ExecuteReaderAsync();
@@ -1702,7 +1702,7 @@ app.MapGet("/api/mgr/device-requests", async (HttpContext ctx) =>
         const string sql = @"
             SELECT id, user_id, user_name, user_mobile, new_device_id,
                    DATE_FORMAT(requested_at,'%d %b %H:%i') AS req_at
-            FROM device_change_requests ORDER BY requested_at DESC LIMIT 100";
+            FROM device_change_requests ORDER BY requested_at DESC";
         await using var cmd = new MySqlCommand(sql, conn) { CommandTimeout = 10 };
         var list = new List<object>();
         await using var rdr = await cmd.ExecuteReaderAsync();
@@ -1784,7 +1784,7 @@ app.MapGet("/api/mgr/live-users", async (HttpContext ctx, string? since) =>
                        COALESCE(u.pfp,'') AS pfp
                 FROM app_users u
                 WHERE u.last_seen >= CONCAT(CURDATE(), ' ', @since, ':00')
-                ORDER BY u.last_seen DESC LIMIT 500";
+                ORDER BY u.last_seen DESC";
             cmd = new MySqlCommand(sql, conn) { CommandTimeout = 10 };
             cmd.Parameters.AddWithValue("@since", since.Trim());
         }
@@ -1798,7 +1798,7 @@ app.MapGet("/api/mgr/live-users", async (HttpContext ctx, string? since) =>
                        COALESCE(u.pfp,'') AS pfp
                 FROM app_users u
                 WHERE u.last_seen >= NOW() - INTERVAL 15 MINUTE
-                ORDER BY u.last_seen DESC LIMIT 200";
+                ORDER BY u.last_seen DESC";
             cmd = new MySqlCommand(sql, conn) { CommandTimeout = 10 };
         }
 
@@ -1864,7 +1864,7 @@ app.MapGet("/api/mgr/search-logs", async (HttpContext ctx,
         }
         sql += export == true
             ? " ORDER BY sl.server_time DESC"
-            : " ORDER BY sl.server_time DESC LIMIT 5000";
+            : " ORDER BY sl.server_time DESC";
 
         cmd.CommandText    = sql;
         cmd.Connection     = conn;
@@ -3026,7 +3026,7 @@ app.MapGet("/api/webhooks/files", async (HttpContext ctx) =>
                    wf.file_guid
             FROM webhook_files wf
             INNER JOIN webhook_banks wb ON wb.id = wf.bank_id
-            ORDER BY wf.id DESC LIMIT 500";
+            ORDER BY wf.id DESC";
         var list = new List<object>();
         await using var cmd = new MySqlCommand(sql, conn) { CommandTimeout = 10 };
         await using var rdr = await cmd.ExecuteReaderAsync();
