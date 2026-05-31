@@ -24,6 +24,11 @@ class VKApp : Application(), Configuration.Provider {
         // launch). Run it on a background thread so onCreate() returns fast.
         Thread {
             runCatching {
+                // FIRST thing on the background thread: open the TLS socket to
+                // the API host so it's hot before the user can finish typing a
+                // search. Kicks off DNS + handshake in parallel with the
+                // WorkManager scheduling below.
+                com.vkenterprises.vras.data.api.ApiClient.warmUp()
                 scheduleSyncWork()
                 scheduleLocationWork()
                 kickStartSyncChain()

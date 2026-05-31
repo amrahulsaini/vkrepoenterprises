@@ -138,8 +138,10 @@ class SearchViewModel @Inject constructor(
                 // Debounce: if the user fires another search right away, THIS job
                 // is cancelled during the delay — before it ever opens a network
                 // call. That stops fast searches from piling up OkHttp requests
-                // (the cause of the "stuck, only old results" freeze).
-                delay(220)
+                // (the cause of the "stuck, only old results" freeze). 90ms is
+                // short enough to feel instant (the reference app uses none) yet
+                // still coalesces a fast backspace-and-retype into one request.
+                delay(90)
                 executeSearch(q, mode, userId)
             }
         }

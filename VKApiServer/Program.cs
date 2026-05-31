@@ -1574,17 +1574,23 @@ app.MapGet("/api/mgr/search/list", async (HttpContext ctx, string? q, string? mo
             vr.id, vr.vehicle_no, vr.chassis_no, vr.model,
             b.name AS branch_name, COALESCE(f.name,'') AS financer,
             COALESCE(DATE_FORMAT(vr.created_at,'%d %b %Y %h:%i %p'),'') AS created_on";
+        // No ORDER BY: a common last4/last5 can match thousands of duplicate
+        // rows, and sorting them server-side forces a filesort (the cause of
+        // "common number = seconds, rare number = instant"). The desktop client
+        // re-sorts this skinny list by RC/chassis for the grid anyway, so the
+        // server sort is wasted work. Dropping it makes the query a pure indexed
+        // lookup → consistently fast regardless of how many rows match.
         var sql = isChassis
             ? $@"SELECT {lite} FROM chassis_info ci
                  INNER JOIN vehicle_records vr ON vr.id = ci.vehicle_record_id
                  INNER JOIN branches b ON b.id = vr.branch_id
                  LEFT  JOIN finances f ON f.id = b.finance_id
-                 WHERE ci.last5 = @q ORDER BY b.name, vr.chassis_no"
+                 WHERE ci.last5 = @q"
             : $@"SELECT {lite} FROM rc_info ri
                  INNER JOIN vehicle_records vr ON vr.id = ri.vehicle_record_id
                  INNER JOIN branches b ON b.id = vr.branch_id
                  LEFT  JOIN finances f ON f.id = b.finance_id
-                 WHERE ri.last4 = @q ORDER BY b.name, vr.vehicle_no";
+                 WHERE ri.last4 = @q";
 
         await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
