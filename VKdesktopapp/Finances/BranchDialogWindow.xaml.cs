@@ -39,14 +39,29 @@ public partial class BranchDialogWindow : Window
     {
         lblTerm_Placeholder.Visibility = txtTerm.Text.Length <= 0 ? Visibility.Visible : Visibility.Collapsed;
         BranchesFiltered.Clear();
+        var term = txtTerm.Text;
         var list = Branches
-            .Where(b => b.BranchName.ToLower().Contains(txtTerm.Text.Trim().ToLower()))
+            .Where(b => MatchesAllWords(b.BranchName, term))
             .OrderBy(b => b.BranchName)
             .ToList();
         foreach (var item in list)
         {
             BranchesFiltered.Add(item);
         }
+    }
+
+    // Every whitespace-separated word in the query must appear (case-insensitive)
+    // somewhere in the name. Tolerant of double/extra spaces in the stored names
+    // (e.g. "TATA MOTORS FINANCE LTD  KISHOR NON TBR 2" has two spaces) and of
+    // word order — a plain Contains failed because "ltd kishor" (one space) does
+    // not match "ltd  kishor" (two spaces).
+    private static bool MatchesAllWords(string? target, string? query)
+    {
+        if (string.IsNullOrWhiteSpace(query)) return true;
+        if (string.IsNullOrEmpty(target))     return false;
+        foreach (var w in query.Split((char[]?)null, System.StringSplitOptions.RemoveEmptyEntries))
+            if (target.IndexOf(w, System.StringComparison.OrdinalIgnoreCase) < 0) return false;
+        return true;
     }
 
     private void Window_PreviewKeyDown(object sender, KeyEventArgs e)

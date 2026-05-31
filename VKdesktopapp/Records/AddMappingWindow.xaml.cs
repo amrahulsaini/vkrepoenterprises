@@ -46,10 +46,23 @@ public partial class AddMappingWindow : Window
     {
         lblTerm_Placeholder.Visibility = txtTerm.Text.Length <= 0 ? Visibility.Visible : Visibility.Collapsed;
         ColumnTypesFiltered.Clear();
+        var term = txtTerm.Text;
         foreach (var item in ColumnTypes
-            .Where(f => f.ColumnTypeName.ToLower().Contains(txtTerm.Text.Trim().ToLower()))
+            .Where(f => MatchesAllWords(f.ColumnTypeName, term))
             .OrderBy(f => f.ColumnTypeId))
             ColumnTypesFiltered.Add(item);
+    }
+
+    // Every whitespace-separated word in the query must appear (case-insensitive)
+    // in the name — tolerant of double/extra spaces and word order, where a plain
+    // Contains would miss "a  b" vs "a b".
+    private static bool MatchesAllWords(string? target, string? query)
+    {
+        if (string.IsNullOrWhiteSpace(query)) return true;
+        if (string.IsNullOrEmpty(target))     return false;
+        foreach (var w in query.Split((char[]?)null, System.StringSplitOptions.RemoveEmptyEntries))
+            if (target.IndexOf(w, System.StringComparison.OrdinalIgnoreCase) < 0) return false;
+        return true;
     }
 
     private void Window_KeyDown(object sender, KeyEventArgs e)
