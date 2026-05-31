@@ -84,11 +84,13 @@ fun ConfirmScreen(
         }
         appendLine()
 
-        // Plain "Label: value"; admin sees "null" for empties, users skip blanks.
+        // Bold the VALUES (*...*) so every record stands out in WhatsApp. SMS
+        // strips the asterisks (see sendSms) so it stays clean there. Admin sees
+        // "null" for empties; users skip blanks.
         fun line(label: String, value: String?) {
             val v = value?.trim().orEmpty()
-            if (v.isNotBlank()) appendLine("$label: $v")
-            else if (isAdmin)   appendLine("$label: null")
+            if (v.isNotBlank()) appendLine("$label: *$v*")
+            else if (isAdmin)   appendLine("$label: *null*")
         }
 
         line("Loan No",       item?.agreementNo)
@@ -101,8 +103,8 @@ fun ConfirmScreen(
         line("BKT",           item?.bucket)
         line("OD",            item?.od)
         // Always printed — "-" if left blank so the recipient knows it was empty.
-        appendLine("Vehicle location: ${vehicleAddress.trim().ifBlank { "-" }}")
-        appendLine("Load details: ${carriesGoods.trim().ifBlank { "-" }}")
+        appendLine("Vehicle location: *${vehicleAddress.trim().ifBlank { "-" }}*")
+        appendLine("Load details: *${carriesGoods.trim().ifBlank { "-" }}*")
 
         // Levels: bold "name - contact -" (blank contact leaves a trailing dash,
         // matching the requested format). Empty level → "null" for admins.
