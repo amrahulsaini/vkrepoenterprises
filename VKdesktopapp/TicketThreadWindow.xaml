@@ -75,9 +75,16 @@
                 <Button DockPanel.Dock="Right" Name="btnSend" Content="Send"
                         Style="{StaticResource PrimaryButton}" Height="40" Width="90"
                         Margin="10,0,0,0" Click="btnSend_Click" />
-                <TextBox Name="txtReply" Style="{StaticResource MaterialTextBox}"
-                         Foreground="#0E1525" CaretBrush="#0E1525"
-                         Height="40" VerticalContentAlignment="Center"
+                <!-- Plain TextBox with EXPLICIT black-on-white colors — no themed
+                     style/template — so typed text is always visible regardless of
+                     theme. (The old MaterialTextBox path rendered invisibly on some
+                     installs.) -->
+                <TextBox Name="txtReply"
+                         Background="White" Foreground="Black" CaretBrush="Black"
+                         SelectionBrush="#FFCC80"
+                         FontSize="15"
+                         BorderBrush="#F5A623" BorderThickness="1.4"
+                         Height="40" VerticalContentAlignment="Center" Padding="10,0"
                          TextWrapping="Wrap" AcceptsReturn="False"
                          ToolTip="Type a message and press Send — you can reply any number of times." />
             </DockPanel>
