@@ -62,3 +62,6 @@ VKdesktopapp/publish-fresh/
 VKApiServer/bin/publish/
 VKmobileapi/bin/publish/
 android/keystore/
+
+# Windows SDK BuildTools fetched for MSIX packaging (large, machine-local)
+tools/_sdk/
