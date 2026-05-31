@@ -649,7 +649,14 @@ public class MobileController : ControllerBase
     {
         try
         {
-            if (!DateTime.TryParse(req.DeviceTimeIso, out var deviceTime))
+            // Parse the device's ISO timestamp AS UTC regardless of this server's
+            // local timezone, so search_logs.device_time is always stored in UTC.
+            // The read side (CONVERT_TZ +00:00 -> +05:30) then shows it in IST.
+            if (!DateTime.TryParse(req.DeviceTimeIso,
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.AssumeUniversal |
+                    System.Globalization.DateTimeStyles.AdjustToUniversal,
+                    out var deviceTime))
                 deviceTime = DateTime.UtcNow;
 
             var address = req.Address;

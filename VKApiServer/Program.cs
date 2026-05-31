@@ -1835,7 +1835,7 @@ app.MapGet("/api/mgr/search-logs", async (HttpContext ctx,
                    sl.vehicle_no, sl.chassis_no, sl.model,
                    sl.lat, sl.lng, sl.address,
                    COALESCE(u.address,'') AS user_address,
-                   DATE_FORMAT(sl.device_time, '%Y-%m-%d %H:%i:%s') AS device_time,
+                   DATE_FORMAT(CONVERT_TZ(sl.device_time,'+00:00','+05:30'), '%Y-%m-%d %H:%i:%s') AS device_time,
                    DATE_FORMAT(sl.server_time, '%Y-%m-%d %H:%i:%s') AS server_time
             FROM search_logs sl
             JOIN app_users u ON u.id = sl.user_id
@@ -2782,7 +2782,7 @@ app.MapGet("/api/mgr/search-logs.xlsx", async (HttpContext ctx) =>
 
     var sql = @"SELECT u.name, u.mobile, sl.vehicle_no, sl.chassis_no, sl.model,
                        COALESCE(sl.address,''), COALESCE(u.address,''),
-                       DATE_FORMAT(sl.device_time,'%Y-%m-%d %H:%i:%s'),
+                       DATE_FORMAT(CONVERT_TZ(sl.device_time,'+00:00','+05:30'),'%Y-%m-%d %H:%i:%s'),
                        DATE_FORMAT(sl.server_time,'%Y-%m-%d %H:%i:%s')
                 FROM search_logs sl JOIN app_users u ON u.id = sl.user_id"
               + where + " ORDER BY sl.server_time DESC";

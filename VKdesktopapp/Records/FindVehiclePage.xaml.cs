@@ -138,10 +138,6 @@ public partial class FindVehiclePage : Page
 
             lblResults.Text     = results.Count.ToString("N0");
             lblBranchCount.Text = results.Select(r => r.BranchName).Distinct().Count().ToString("N0");
-            lblMode.Text        = chassis ? "CHASSIS" : "RC";
-            lblSearchHint.Text  = results.Count == 0
-                ? $"No records found for '{query}'."
-                : $"Showing {results.Count} match(es) for '{query}'.";
 
             if (chassis)
             {
