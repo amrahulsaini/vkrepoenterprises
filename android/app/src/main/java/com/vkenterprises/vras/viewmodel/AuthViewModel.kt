@@ -199,7 +199,13 @@ class AuthViewModel @Inject constructor(
         panFront: String?,
         accountNumber: String?, ifscCode: String?,
         slug: String, agencyName: String, agencyMobile: String,
-        agencyLogo: String = ""
+        agencyLogo: String = "",
+        // Registration-time KYC
+        selfieWithAadhaar: String? = null,
+        aadhaarNumber: String? = null, aadhaarName: String? = null,
+        aadhaarDob: String? = null, aadhaarGender: String? = null,
+        aadhaarAddress: String? = null, aadhaarVerified: Boolean = false,
+        regLat: Double? = null, regLng: Double? = null, regLocation: String? = null
     ) = viewModelScope.launch {
         _state.value = AuthUiState.Loading
         val deviceId = DeviceIdUtil.get(context)
@@ -210,7 +216,11 @@ class AuthViewModel @Inject constructor(
                 pfpBase64, deviceId,
                 aadhaarFront, aadhaarBack, panFront,
                 accountNumber?.trim(), ifscCode?.trim(),
-                slug.trim(), agencyMobile.trim()
+                slug.trim(), agencyMobile.trim(),
+                selfieWithAadhaar,
+                aadhaarNumber, aadhaarName, aadhaarDob, aadhaarGender,
+                aadhaarAddress, aadhaarVerified,
+                regLat, regLng, regLocation
             )
         )
         _state.value = when (result) {

@@ -255,7 +255,15 @@ internal static class DesktopApiClient
     }
 
     // ── KYC documents ──────────────────────────────────────────────────────
-    internal record KycDocsDto(string AadhaarFront, string AadhaarBack, string PanFront);
+    // Document image URLs + the registration-time Aadhaar OKYC demographics and
+    // capture location (read-only — the admin reviews these against the photos).
+    internal record KycDocsDto(
+        string AadhaarFront, string AadhaarBack, string PanFront, string? Selfie,
+        KycAadhaarDto? Aadhaar, KycLocationDto? Location);
+    internal record KycAadhaarDto(
+        bool Verified, string? Last4, string? Name, string? Dob, string? Gender,
+        string? Address, DateTime? VerifiedAt);
+    internal record KycLocationDto(double? Lat, double? Lng, string? Label);
 
     internal static async Task<KycDocsDto> GetUserKycAsync(long userId)
     {

@@ -1,9 +1,14 @@
 package com.vkenterprises.vras.ui.screens
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.location.Geocoder
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import com.vkenterprises.vras.utils.compressImageToBase64
+import com.vkenterprises.vras.utils.extractAadhaarNumber
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.relocation.BringIntoViewRequester
@@ -30,12 +35,23 @@ import androidx.compose.foundation.Image
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import coil.compose.AsyncImage
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
 import com.vkenterprises.vras.BuildConfig
 import com.vkenterprises.vras.R
+import com.vkenterprises.vras.data.api.ApiClient
 import com.vkenterprises.vras.navigation.Screen
 import com.vkenterprises.vras.viewmodel.AuthUiState
 import com.vkenterprises.vras.viewmodel.AuthViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
+import java.util.Locale
+import kotlin.coroutines.resume
+
+private val OK_GREEN = Color(0xFF16A34A)
+private val ERR_RED  = Color(0xFFDC2626)
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -54,44 +70,128 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
     var pfpUri   by remember { mutableStateOf<Uri?>(null) }
     var pfpB64   by remember { mutableStateOf<String?>(null) }
 
-    // KYC fields
+    // Bank
+    var accountNumber by remember { mutableStateOf("") }
+    var ifscCode      by remember { mutableStateOf("") }
+
+    // KYC photos
     var aadhaarFrontUri by remember { mutableStateOf<Uri?>(null) }
     var aadhaarFrontB64 by remember { mutableStateOf<String?>(null) }
     var aadhaarBackUri  by remember { mutableStateOf<Uri?>(null) }
     var aadhaarBackB64  by remember { mutableStateOf<String?>(null) }
     var panFrontUri     by remember { mutableStateOf<Uri?>(null) }
     var panFrontB64     by remember { mutableStateOf<String?>(null) }
-    var accountNumber   by remember { mutableStateOf("") }
-    var ifscCode        by remember { mutableStateOf("") }
+    var selfieUri       by remember { mutableStateOf<Uri?>(null) }
+    var selfieB64       by remember { mutableStateOf<String?>(null) }
+
+    // Aadhaar OKYC state
+    var aadhaarNumber by remember { mutableStateOf("") }
+    var ocrRunning    by remember { mutableStateOf(false) }
+    var otpRefId      by remember { mutableStateOf<String?>(null) }
+    var otp           by remember { mutableStateOf("") }
+    var otpSending    by remember { mutableStateOf(false) }
+    var otpVerifying  by remember { mutableStateOf(false) }
+    var kycMsg        by remember { mutableStateOf("") }
+    var aadhaarVerified by remember { mutableStateOf(false) }
+    var aaName    by remember { mutableStateOf<String?>(null) }
+    var aaDob     by remember { mutableStateOf<String?>(null) }
+    var aaGender  by remember { mutableStateOf<String?>(null) }
+    var aaAddress by remember { mutableStateOf<String?>(null) }
+
+    // Live location
+    var regLat   by remember { mutableStateOf<Double?>(null) }
+    var regLng   by remember { mutableStateOf<Double?>(null) }
+    var regLabel by remember { mutableStateOf<String?>(null) }
+    var locating by remember { mutableStateOf(false) }
 
     var error by remember { mutableStateOf("") }
 
-    // White-label build — agency is fixed at compile time. The agency
-    // primary-mobile verification field was removed per UX request — the
-    // server now accepts an empty agencyMobile and skips that check.
     val agencySlug = BuildConfig.AGENCY_SLUG
     val agencyName = BuildConfig.AGENCY_NAME
 
-    // Compress every picked image down to <= 1280px max side + JPEG quality 80
-    // before base64-encoding. Modern phone cameras output 4-8 MB photos; raw
-    // base64 of that turns the register payload into 20-30 MB, which times
-    // out reliably on slow networks. Post-compression we're at ~80-200 KB
-    // per image — register call completes in 2-5 seconds even on 3G.
-    fun uriToBase64(uri: Uri): String? = runCatching {
-        compressImageToBase64(context, uri)
-    }.getOrNull()
+    fun uriToBase64(uri: Uri): String? = runCatching { compressImageToBase64(context, uri) }.getOrNull()
+
+    // Captures the device's current fix + reverse-geocodes a human label. Called
+    // after location permission is granted and from the "Capture again" button.
+    fun captureLocation() {
+        scope.launch {
+            val fine = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) ==
+                    PackageManager.PERMISSION_GRANTED
+            val coarse = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) ==
+                    PackageManager.PERMISSION_GRANTED
+            if (!fine && !coarse) return@launch
+            locating = true
+            @android.annotation.SuppressLint("MissingPermission")
+            val loc = runCatching {
+                val client = LocationServices.getFusedLocationProviderClient(context)
+                suspendCancellableCoroutine<android.location.Location?> { cont ->
+                    client.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
+                        .addOnSuccessListener { cont.resume(it) }
+                        .addOnFailureListener { cont.resume(null) }
+                        .addOnCanceledListener { cont.resume(null) }
+                }
+            }.getOrNull()
+            if (loc != null) {
+                regLat = loc.latitude; regLng = loc.longitude
+                regLabel = withContext(Dispatchers.IO) {
+                    runCatching {
+                        @Suppress("DEPRECATION")
+                        Geocoder(context, Locale.getDefault())
+                            .getFromLocation(loc.latitude, loc.longitude, 1)
+                            ?.firstOrNull()
+                            ?.let { a ->
+                                listOfNotNull(a.subLocality, a.locality, a.adminArea, a.postalCode)
+                                    .distinct().joinToString(", ").ifBlank { null }
+                            }
+                    }.getOrNull()
+                }
+            }
+            locating = false
+        }
+    }
+
+    val locationPermLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { granted ->
+        if (granted.values.any { it }) captureLocation()
+    }
 
     val pfpPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         pfpUri = uri; pfpB64 = uri?.let { uriToBase64(it) }
     }
     val aadhaarFrontPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        aadhaarFrontUri = uri; aadhaarFrontB64 = uri?.let { uriToBase64(it) }
+        aadhaarFrontUri = uri
+        if (uri != null) scope.launch {
+            aadhaarFrontB64 = uriToBase64(uri)
+            // Auto-read the Aadhaar number off the front photo (on-device OCR).
+            ocrRunning = true
+            val num = runCatching { extractAadhaarNumber(context, uri) }.getOrNull()
+            if (!num.isNullOrBlank()) {
+                aadhaarNumber = num
+                // A new number invalidates any previous OTP verification.
+                aadhaarVerified = false; otpRefId = null; otp = ""
+            }
+            ocrRunning = false
+        }
     }
     val aadhaarBackPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         aadhaarBackUri = uri; aadhaarBackB64 = uri?.let { uriToBase64(it) }
     }
     val panFrontPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         panFrontUri = uri; panFrontB64 = uri?.let { uriToBase64(it) }
+    }
+    val selfiePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        selfieUri = uri; selfieB64 = uri?.let { uriToBase64(it) }
+    }
+
+    // Ask for location as soon as the screen opens so the fix is ready by submit.
+    LaunchedEffect(Unit) {
+        val fine = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) ==
+                PackageManager.PERMISSION_GRANTED
+        if (fine) captureLocation()
+        else locationPermLauncher.launch(
+            arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
+        )
     }
 
     LaunchedEffect(state) {
@@ -107,12 +207,9 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
         }
     }
 
-    // Full-screen upload progress dialog. Replaces the tiny inline spinner
-    // with a clear "we're uploading" message so the user doesn't think the
-    // app froze during the multi-MB POST.
     if (state is AuthUiState.Loading) {
         UploadingDialog(
-            hasImages = listOf(pfpB64, aadhaarFrontB64, aadhaarBackB64, panFrontB64).any { it != null },
+            hasImages = listOf(pfpB64, aadhaarFrontB64, aadhaarBackB64, panFrontB64, selfieB64).any { it != null },
         )
     }
 
@@ -173,10 +270,7 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            // ── Agency identity card — big agency logo + name. No
-            // verification mobile field; agency identity is fixed by the
-            // per-flavor build (BuildConfig.AGENCY_SLUG), so there's nothing
-            // for the user to "confirm" any more.
+            // ── Agency identity card ───────────────────────────────────
             Surface(
                 shape = RoundedCornerShape(14.dp),
                 color = Color.White,
@@ -241,33 +335,11 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
                 )
             }
 
-            // ── Bank details ───────────────────────────────────────────
-            SectionHeader("Bank Details")
-
-            FocusedField(scrollState) {
-                OutlinedTextField(
-                    value = accountNumber, onValueChange = { accountNumber = it },
-                    label = { Text("Account Number") },
-                    leadingIcon = { Icon(Icons.Default.AccountBalance, null) },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
-                    singleLine = true, modifier = Modifier.fillMaxWidth().then(it)
-                )
-            }
-            FocusedField(scrollState) {
-                OutlinedTextField(
-                    value = ifscCode, onValueChange = { ifscCode = it.uppercase().take(11) },
-                    label = { Text("IFSC Code") },
-                    leadingIcon = { Icon(Icons.Default.Code, null) },
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                    keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
-                    singleLine = true, modifier = Modifier.fillMaxWidth().then(it)
-                )
-            }
-
-            // ── KYC documents ──────────────────────────────────────────
-            SectionHeader("KYC Documents")
+            // ── Aadhaar verification (OKYC) ────────────────────────────
+            SectionHeader("Aadhaar Verification")
             Text(
-                "Upload Aadhaar (front & back) and PAN card front image.",
+                "Upload your Aadhaar front photo — we read the number automatically — " +
+                    "then verify it with the OTP sent to your Aadhaar-linked mobile.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -286,12 +358,201 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
                     onClick = { aadhaarBackPicker.launch("image/*") }
                 )
             }
+
+            OutlinedTextField(
+                value = aadhaarNumber,
+                onValueChange = { v -> aadhaarNumber = v.filter { it.isDigit() }.take(12)
+                    aadhaarVerified = false; otpRefId = null },
+                label = { Text("Aadhaar Number *") },
+                leadingIcon = { Icon(Icons.Default.Badge, null) },
+                trailingIcon = {
+                    when {
+                        ocrRunning      -> Spinner()
+                        aadhaarVerified -> Icon(Icons.Default.CheckCircle, null, tint = OK_GREEN)
+                        else            -> {}
+                    }
+                },
+                supportingText = { if (ocrRunning) Text("Reading number from photo…") },
+                enabled = !aadhaarVerified,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                singleLine = true, modifier = Modifier.fillMaxWidth()
+            )
+
+            if (!aadhaarVerified) {
+                if (otpRefId == null) {
+                    Button(
+                        onClick = {
+                            focusManager.clearFocus(); kycMsg = ""
+                            scope.launch {
+                                otpSending = true
+                                val r = runCatching {
+                                    ApiClient.api.kycAadhaarOtp(mapOf("aadhaarNumber" to aadhaarNumber))
+                                }.getOrNull()
+                                val body = r?.body()
+                                if (r?.isSuccessful == true && body?.ok == true && body.referenceId != null) {
+                                    otpRefId = body.referenceId
+                                    kycMsg = "OTP sent to your Aadhaar-linked mobile."
+                                } else {
+                                    kycMsg = body?.message ?: "Could not send OTP. Check the Aadhaar number."
+                                }
+                                otpSending = false
+                            }
+                        },
+                        enabled = aadhaarNumber.length == 12 && !otpSending,
+                        modifier = Modifier.fillMaxWidth()
+                    ) { if (otpSending) Spinner(onPrimary = true) else Text("SEND OTP") }
+                } else {
+                    OutlinedTextField(
+                        value = otp, onValueChange = { otp = it.filter { c -> c.isDigit() }.take(6) },
+                        label = { Text("Enter OTP *") },
+                        leadingIcon = { Icon(Icons.Default.Sms, null) },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true, modifier = Modifier.fillMaxWidth()
+                    )
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        OutlinedButton(
+                            onClick = { otpRefId = null; otp = ""; kycMsg = "" },
+                            modifier = Modifier.weight(1f)
+                        ) { Text("Resend") }
+                        Button(
+                            onClick = {
+                                focusManager.clearFocus(); kycMsg = ""
+                                scope.launch {
+                                    otpVerifying = true
+                                    val r = runCatching {
+                                        ApiClient.api.kycAadhaarVerifyAnon(
+                                            mapOf("referenceId" to otpRefId, "otp" to otp, "aadhaarNumber" to aadhaarNumber)
+                                        )
+                                    }.getOrNull()
+                                    val body = r?.body()
+                                    if (r?.isSuccessful == true && body?.ok == true && body.verified) {
+                                        aadhaarVerified = true
+                                        aaName = body.name; aaDob = body.dob
+                                        aaGender = body.gender; aaAddress = body.address
+                                        kycMsg = ""
+                                    } else {
+                                        kycMsg = body?.message ?: "OTP verification failed. Try again."
+                                    }
+                                    otpVerifying = false
+                                }
+                            },
+                            enabled = otp.length >= 4 && !otpVerifying,
+                            modifier = Modifier.weight(1f)
+                        ) { if (otpVerifying) Spinner(onPrimary = true) else Text("VERIFY OTP") }
+                    }
+                }
+            }
+
+            if (kycMsg.isNotEmpty()) {
+                Text(kycMsg, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+            }
+
+            // Verified demographics — read straight from UIDAI via Sandbox OKYC.
+            if (aadhaarVerified) {
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = OK_GREEN.copy(alpha = 0.08f),
+                    border = BorderStroke(1.dp, OK_GREEN.copy(alpha = 0.4f)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Verified, null, tint = OK_GREEN, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("Aadhaar Verified", fontWeight = FontWeight.Bold, color = OK_GREEN)
+                        }
+                        Detail("Name", aaName)
+                        Detail("Date of Birth", aaDob)
+                        Detail("Gender", aaGender)
+                        Detail("Address", aaAddress)
+                    }
+                }
+            }
+
+            // ── PAN card ───────────────────────────────────────────────
+            SectionHeader("PAN Card")
             KycImageCard(
                 label = "PAN Card Front",
                 uri = panFrontUri,
-                modifier = Modifier.fillMaxWidth().height(110.dp),
+                modifier = Modifier.fillMaxWidth().height(120.dp),
                 onClick = { panFrontPicker.launch("image/*") }
             )
+
+            // ── Selfie holding Aadhaar ─────────────────────────────────
+            SectionHeader("Selfie with Aadhaar")
+            Text(
+                "Take a clear photo of yourself holding your Aadhaar card in hand — " +
+                    "your face and the Aadhaar must both be visible. The agency will verify this.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            KycImageCard(
+                label = "Selfie holding Aadhaar",
+                uri = selfieUri,
+                modifier = Modifier.fillMaxWidth().height(160.dp),
+                onClick = { selfiePicker.launch("image/*") }
+            )
+
+            // ── Live location ──────────────────────────────────────────
+            SectionHeader("Current Location")
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    Modifier.padding(14.dp).fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        if (regLat != null) Icons.Default.LocationOn else Icons.Default.LocationSearching,
+                        null, tint = if (regLat != null) OK_GREEN else MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(Modifier.width(10.dp))
+                    Column(Modifier.weight(1f)) {
+                        when {
+                            locating       -> Text("Getting your location…")
+                            regLat != null -> {
+                                Text(regLabel ?: "Location captured", fontWeight = FontWeight.Medium)
+                                Text("%.5f, %.5f".format(regLat, regLng),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            else -> Text("Location not captured yet")
+                        }
+                    }
+                    if (locating) Spinner() else TextButton(onClick = {
+                        val fine = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) ==
+                                PackageManager.PERMISSION_GRANTED
+                        if (fine) captureLocation()
+                        else locationPermLauncher.launch(
+                            arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
+                        )
+                    }) { Text(if (regLat != null) "Refresh" else "Capture") }
+                }
+            }
+
+            // ── Bank details ───────────────────────────────────────────
+            SectionHeader("Bank Details")
+            FocusedField(scrollState) {
+                OutlinedTextField(
+                    value = accountNumber, onValueChange = { accountNumber = it },
+                    label = { Text("Account Number *") },
+                    leadingIcon = { Icon(Icons.Default.AccountBalance, null) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
+                    singleLine = true, modifier = Modifier.fillMaxWidth().then(it)
+                )
+            }
+            FocusedField(scrollState) {
+                OutlinedTextField(
+                    value = ifscCode, onValueChange = { ifscCode = it.uppercase().take(11) },
+                    label = { Text("IFSC Code *") },
+                    leadingIcon = { Icon(Icons.Default.Code, null) },
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
+                    singleLine = true, modifier = Modifier.fillMaxWidth().then(it)
+                )
+            }
 
             // ── Error ──────────────────────────────────────────────────
             if (error.isNotEmpty()) {
@@ -306,8 +567,6 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
             Button(
                 onClick = {
                     focusManager.clearFocus()
-                    // All fields are now mandatory — profile, full KYC and bank
-                    // details must be provided before an agent can register.
                     error = when {
                         mobile.isBlank() || name.isBlank() -> "Mobile and name are required."
                         address.isBlank()                  -> "Address is required."
@@ -315,7 +574,11 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
                         pfpB64 == null                     -> "Profile photo is required."
                         aadhaarFrontB64 == null            -> "Aadhaar front photo is required."
                         aadhaarBackB64 == null             -> "Aadhaar back photo is required."
+                        aadhaarNumber.length != 12         -> "Enter your 12-digit Aadhaar number."
+                        !aadhaarVerified                   -> "Please verify your Aadhaar with the OTP."
                         panFrontB64 == null                -> "PAN card photo is required."
+                        selfieB64 == null                  -> "Selfie holding your Aadhaar is required."
+                        regLat == null || regLng == null   -> "Please capture your current location."
                         accountNumber.isBlank()            -> "Bank account number is required."
                         ifscCode.isBlank()                 -> "IFSC code is required."
                         else                               -> ""
@@ -327,7 +590,12 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
                         pfpB64,
                         aadhaarFrontB64, aadhaarBackB64, panFrontB64,
                         accountNumber, ifscCode,
-                        agencySlug, agencyName, ""  // agencyMobile no longer collected
+                        agencySlug, agencyName, "",
+                        selfieWithAadhaar = selfieB64,
+                        aadhaarNumber = aadhaarNumber,
+                        aadhaarName = aaName, aadhaarDob = aaDob, aadhaarGender = aaGender,
+                        aadhaarAddress = aaAddress, aadhaarVerified = aadhaarVerified,
+                        regLat = regLat, regLng = regLng, regLocation = regLabel
                     )
                 },
                 enabled  = state !is AuthUiState.Loading,
@@ -380,6 +648,24 @@ private fun SectionHeader(text: String) {
 }
 
 @Composable
+private fun Detail(label: String, value: String?) {
+    if (value.isNullOrBlank()) return
+    Row {
+        Text("$label: ", fontWeight = FontWeight.SemiBold,
+            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface)
+        Text(value, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface)
+    }
+}
+
+@Composable
+private fun Spinner(onPrimary: Boolean = false) {
+    CircularProgressIndicator(
+        Modifier.size(18.dp), strokeWidth = 2.dp,
+        color = if (onPrimary) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary
+    )
+}
+
+@Composable
 private fun KycImageCard(
     label: String,
     uri: Uri?,
@@ -397,7 +683,6 @@ private fun KycImageCard(
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()
                 )
-                // Label overlay
                 Box(
                     Modifier.fillMaxWidth().align(Alignment.BottomCenter)
                         .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.75f))
@@ -426,10 +711,6 @@ private fun KycImageCard(
     }
 }
 
-// Full-screen non-dismissible dialog while the register call is in flight.
-// Three status lines cycle every ~2s so the user sees there's real activity:
-// "Compressing photos…" → "Uploading to server…" → "Almost done…". The
-// indeterminate progress bar shows the call is still healthy.
 @Composable
 private fun UploadingDialog(hasImages: Boolean) {
     var step by remember { mutableStateOf(0) }
@@ -449,7 +730,7 @@ private fun UploadingDialog(hasImages: Boolean) {
         }
     }
     AlertDialog(
-        onDismissRequest = { /* not dismissible — registration is in flight */ },
+        onDismissRequest = { },
         confirmButton = { },
         title = {
             Text("Creating your account",
@@ -473,6 +754,3 @@ private fun UploadingDialog(hasImages: Boolean) {
         }
     )
 }
-
-// compressImageToBase64 lives in com.vkenterprises.vras.utils.ImageUpload.kt
-// — shared with ProfileScreen so the pfp picker uses the same compression.

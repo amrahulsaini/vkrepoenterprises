@@ -1227,28 +1227,91 @@ app.MapGet("/api/mgr/users/{id:long}/kyc", async (HttpContext ctx, long id) =>
     {
         await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
-        await using var cmd = new MySqlCommand(
-            "SELECT aadhaar_front, aadhaar_back, pan_front FROM user_kyc WHERE user_id=@uid", conn);
-        cmd.Parameters.AddWithValue("@uid", id);
-        await using var rdr = await cmd.ExecuteReaderAsync();
-
-        string? af = null, ab = null, pf = null;
-        if (await rdr.ReadAsync())
+        // selfie column was added with the registration-time KYC flow; guard
+        // with COALESCE-style try so legacy schemas without it still respond.
+        string? af = null, ab = null, pf = null, selfie = null;
+        try
         {
-            af = rdr.IsDBNull(0) ? null : rdr.GetString(0);
-            ab = rdr.IsDBNull(1) ? null : rdr.GetString(1);
-            pf = rdr.IsDBNull(2) ? null : rdr.GetString(2);
+            await using var cmd = new MySqlCommand(
+                "SELECT aadhaar_front, aadhaar_back, pan_front, selfie FROM user_kyc WHERE user_id=@uid", conn);
+            cmd.Parameters.AddWithValue("@uid", id);
+            await using var rdr = await cmd.ExecuteReaderAsync();
+            if (await rdr.ReadAsync())
+            {
+                af = rdr.IsDBNull(0) ? null : rdr.GetString(0);
+                ab = rdr.IsDBNull(1) ? null : rdr.GetString(1);
+                pf = rdr.IsDBNull(2) ? null : rdr.GetString(2);
+                selfie = rdr.IsDBNull(3) ? null : rdr.GetString(3);
+            }
+        }
+        catch
+        {
+            // No selfie column — fall back to the original 3-column read.
+            await using var cmd = new MySqlCommand(
+                "SELECT aadhaar_front, aadhaar_back, pan_front FROM user_kyc WHERE user_id=@uid", conn);
+            cmd.Parameters.AddWithValue("@uid", id);
+            await using var rdr = await cmd.ExecuteReaderAsync();
+            if (await rdr.ReadAsync())
+            {
+                af = rdr.IsDBNull(0) ? null : rdr.GetString(0);
+                ab = rdr.IsDBNull(1) ? null : rdr.GetString(1);
+                pf = rdr.IsDBNull(2) ? null : rdr.GetString(2);
+            }
         }
 
         string ToUrl(string? rel) => string.IsNullOrEmpty(rel)
             ? ""
             : $"{ctx.Request.Scheme}://{ctx.Request.Host}/uploads/{rel.TrimStart('/')}";
 
+        // ── Number-based KYC verification (Aadhaar OKYC / PAN / bank), stored
+        // on app_users by VKmobileapi when the agent verifies in the mobile app.
+        // Admin-only read-out for the desktop Users page. Columns are nullable
+        // and may not exist on very old schemas, so guard the whole block.
+        string? aaName = null, aaDob = null, aaGender = null, aaAddr = null, aaLast4 = null;
+        bool aaVer = false; DateTime? aaVerAt = null;
+        string? pan = null, panName = null; bool panVer = false;
+        string? acct = null, ifsc = null, bankHolder = null; bool bankVer = false;
+        double? regLat = null, regLng = null; string? regLoc = null;
+        try
+        {
+            await using var kc = new MySqlCommand(@"
+                SELECT kyc_aadhaar_name, kyc_aadhaar_dob, kyc_aadhaar_gender,
+                       kyc_aadhaar_address, kyc_aadhaar_last4, kyc_aadhaar_verified, kyc_verified_at,
+                       kyc_pan, kyc_pan_name, kyc_pan_verified,
+                       account_number, ifsc_code, kyc_bank_holder, kyc_bank_verified,
+                       kyc_reg_lat, kyc_reg_lng, kyc_reg_location
+                FROM app_users WHERE id=@uid", conn);
+            kc.Parameters.AddWithValue("@uid", id);
+            await using var kr = await kc.ExecuteReaderAsync();
+            if (await kr.ReadAsync())
+            {
+                string? S(int i) => kr.IsDBNull(i) ? null : kr.GetString(i);
+                bool   B(int i) => !kr.IsDBNull(i) && kr.GetInt32(i) != 0;
+                aaName   = S(0); aaDob = S(1); aaGender = S(2); aaAddr = S(3); aaLast4 = S(4);
+                aaVer    = B(5); aaVerAt = kr.IsDBNull(6) ? (DateTime?)null : kr.GetDateTime(6);
+                pan      = S(7); panName = S(8); panVer = B(9);
+                acct     = S(10); ifsc = S(11); bankHolder = S(12); bankVer = B(13);
+                regLat   = kr.IsDBNull(14) ? (double?)null : kr.GetDouble(14);
+                regLng   = kr.IsDBNull(15) ? (double?)null : kr.GetDouble(15);
+                regLoc   = S(16);
+            }
+        }
+        catch { /* columns missing on legacy schema — return docs only */ }
+
         return Results.Ok(new
         {
             aadhaarFront = ToUrl(af),
             aadhaarBack  = ToUrl(ab),
-            panFront     = ToUrl(pf)
+            panFront     = ToUrl(pf),
+            selfie       = ToUrl(selfie),
+            // number-verification block
+            aadhaar = new {
+                verified = aaVer, last4 = aaLast4, name = aaName, dob = aaDob,
+                gender = aaGender, address = aaAddr, verifiedAt = aaVerAt
+            },
+            pan = new { verified = panVer, number = pan, name = panName },
+            bank = new { verified = bankVer, accountNumber = acct, ifsc = ifsc, holder = bankHolder },
+            location = new { lat = regLat, lng = regLng, label = regLoc }
         });
     }
     catch (Exception ex) { return Results.Problem(ex.Message); }
@@ -1259,7 +1322,7 @@ app.MapGet("/api/mgr/users/{id:long}/kyc", async (HttpContext ctx, long id) =>
 app.MapDelete("/api/mgr/users/{id:long}/kyc/{docType}", async (HttpContext ctx, long id, string docType) =>
 {
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
-    if (docType != "aadhaar_front" && docType != "aadhaar_back" && docType != "pan_front")
+    if (docType != "aadhaar_front" && docType != "aadhaar_back" && docType != "pan_front" && docType != "selfie")
         return Results.BadRequest(new { message = "invalid docType" });
     try
     {

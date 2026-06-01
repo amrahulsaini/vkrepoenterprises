@@ -258,12 +258,16 @@ public partial class AppUsersManagerPage : Page
         imgKycAadhaarFront.Visibility = Visibility.Collapsed;
         imgKycAadhaarBack.Visibility  = Visibility.Collapsed;
         imgKycPanFront.Visibility     = Visibility.Collapsed;
+        imgKycSelfie.Visibility       = Visibility.Collapsed;
         txtKycAadhaarFrontEmpty.Visibility = Visibility.Visible;
         txtKycAadhaarBackEmpty.Visibility  = Visibility.Visible;
         txtKycPanFrontEmpty.Visibility     = Visibility.Visible;
+        txtKycSelfieEmpty.Visibility       = Visibility.Visible;
         txtKycAadhaarFrontEmpty.Text = "Loading…";
         txtKycAadhaarBackEmpty.Text  = "Loading…";
         txtKycPanFrontEmpty.Text     = "Loading…";
+        txtKycSelfieEmpty.Text       = "Loading…";
+        ClearKycDetails();
         _kycDocs = null;
 
         DesktopApiClient.KycDocsDto? docs = null;
@@ -276,20 +280,66 @@ public partial class AppUsersManagerPage : Page
         txtKycAadhaarFrontEmpty.Text = "Not uploaded";
         txtKycAadhaarBackEmpty.Text  = "Not uploaded";
         txtKycPanFrontEmpty.Text     = "Not uploaded";
+        txtKycSelfieEmpty.Text       = "Not uploaded";
 
         if (docs == null) return;
 
-        // Download all three image bytes in parallel — previously sequential
-        // awaits made a single-doc load take 3× longer than necessary, and
+        PopulateKycDetails(docs);
+
+        // Download all four image bytes in parallel — previously sequential
+        // awaits made a single-doc load take 4× longer than necessary, and
         // the UI showed "Not uploaded" for the entire duration.
         var aFrontTask = LoadKycBytesAsync(docs.AadhaarFront);
         var aBackTask  = LoadKycBytesAsync(docs.AadhaarBack);
         var pFrontTask = LoadKycBytesAsync(docs.PanFront);
-        await Task.WhenAll(aFrontTask, aBackTask, pFrontTask);
+        var selfieTask = LoadKycBytesAsync(docs.Selfie ?? "");
+        await Task.WhenAll(aFrontTask, aBackTask, pFrontTask, selfieTask);
 
         ApplyKycImage(imgKycAadhaarFront, txtKycAadhaarFrontEmpty, await aFrontTask);
         ApplyKycImage(imgKycAadhaarBack,  txtKycAadhaarBackEmpty,  await aBackTask);
         ApplyKycImage(imgKycPanFront,     txtKycPanFrontEmpty,     await pFrontTask);
+        ApplyKycImage(imgKycSelfie,       txtKycSelfieEmpty,       await selfieTask);
+    }
+
+    // Resets the read-only OKYC demographic/location text fields.
+    private void ClearKycDetails()
+    {
+        txtKycAaVerified.Text   = "Aadhaar: Not verified";
+        txtKycAaVerified.Foreground = (System.Windows.Media.Brush)FindResource("Gray700");
+        txtKycAaNumber.Text  = "";
+        txtKycAaName.Text    = "";
+        txtKycAaDob.Text     = "";
+        txtKycAaGender.Text  = "";
+        txtKycAaAddress.Text = "";
+        txtKycLocation.Text  = "Location: not captured";
+    }
+
+    // Fills the OKYC demographics + capture location the agent verified at
+    // registration. Read-only — the admin eyeballs these against the photos and
+    // toggles the account Active/Inactive accordingly.
+    private void PopulateKycDetails(DesktopApiClient.KycDocsDto docs)
+    {
+        var a = docs.Aadhaar;
+        bool verified = a?.Verified == true;
+        txtKycAaVerified.Text = verified ? "✓ Aadhaar Verified (OKYC)" : "Aadhaar: Not verified";
+        txtKycAaVerified.Foreground = verified
+            ? new System.Windows.Media.SolidColorBrush(
+                System.Windows.Media.Color.FromRgb(0x16, 0xA3, 0x4A))
+            : (System.Windows.Media.Brush)FindResource("Gray700");
+
+        txtKycAaNumber.Text  = string.IsNullOrWhiteSpace(a?.Last4) ? "" : $"Aadhaar No: XXXX XXXX {a!.Last4}";
+        txtKycAaName.Text    = string.IsNullOrWhiteSpace(a?.Name)   ? "" : $"Name: {a!.Name}";
+        txtKycAaDob.Text     = string.IsNullOrWhiteSpace(a?.Dob)    ? "" : $"Date of Birth: {a!.Dob}";
+        txtKycAaGender.Text  = string.IsNullOrWhiteSpace(a?.Gender) ? "" : $"Gender: {a!.Gender}";
+        txtKycAaAddress.Text = string.IsNullOrWhiteSpace(a?.Address)? "" : $"Address: {a!.Address}";
+
+        var loc = docs.Location;
+        if (loc?.Lat != null && loc.Lng != null)
+        {
+            var label = string.IsNullOrWhiteSpace(loc.Label) ? "" : $"{loc.Label}  ";
+            txtKycLocation.Text = $"Location: {label}({loc.Lat:F5}, {loc.Lng:F5})";
+        }
+        else txtKycLocation.Text = "Location: not captured";
     }
 
     // Downloads the bytes for one KYC image — runs off the UI thread. Returns
@@ -334,6 +384,7 @@ public partial class AppUsersManagerPage : Page
         "aadhaar_front" => _kycDocs?.AadhaarFront,
         "aadhaar_back"  => _kycDocs?.AadhaarBack,
         "pan_front"     => _kycDocs?.PanFront,
+        "selfie"        => _kycDocs?.Selfie,
         _ => null
     };
 
