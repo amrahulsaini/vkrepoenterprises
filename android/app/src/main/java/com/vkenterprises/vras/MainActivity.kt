@@ -60,11 +60,7 @@ fun VKNavHost() {
             arguments = listOf(navArgument("reason") { type = NavType.StringType })
         ) { back ->
             val reason = back.arguments?.getString("reason") ?: ""
-            WaitingApprovalScreen(reason) {
-                navController.navigate(Screen.Login.route) {
-                    popUpTo(0) { inclusive = true }
-                }
-            }
+            WaitingApprovalScreen(reason, authVm, navController)
         }
 
         composable(Screen.Home.route) {
@@ -96,10 +92,9 @@ fun VKNavHost() {
                 }
             }
             AppStoppedScreen(
-                msg = ui.appStoppedMsg.ifBlank { "Your app has been stopped by admin. Please contact agency to start app." }
-            ) {
-                navController.navigate(Screen.Login.route) { popUpTo(0) { inclusive = true } }
-            }
+                msg = ui.appStoppedMsg.ifBlank { "Your app has been stopped by admin. Please contact agency to start app." },
+                vm = authVm, nav = navController
+            )
         }
 
         composable(Screen.Blacklisted.route) {
@@ -111,19 +106,17 @@ fun VKNavHost() {
                 }
             }
             BlacklistedScreen(
-                msg = ui.blacklistedMsg.ifBlank { "You have been blocked by the agency. Please contact the agency for assistance." }
-            ) {
-                navController.navigate(Screen.Login.route) { popUpTo(0) { inclusive = true } }
-            }
+                msg = ui.blacklistedMsg.ifBlank { "You have been blocked by the agency. Please contact the agency for assistance." },
+                vm = authVm, nav = navController
+            )
         }
 
         composable(Screen.Inactive.route) {
             val ui by searchVm.ui.collectAsState()
             InactiveScreen(
-                msg = ui.inactiveMsg.ifBlank { "Your account is inactive. Please contact agency." }
-            ) {
-                navController.navigate(Screen.Login.route) { popUpTo(0) { inclusive = true } }
-            }
+                msg = ui.inactiveMsg.ifBlank { "Your account is inactive. Please contact agency." },
+                vm = authVm, nav = navController
+            )
         }
 
         composable(Screen.KycPending.route)  { KycPendingScreen(authVm, navController) }

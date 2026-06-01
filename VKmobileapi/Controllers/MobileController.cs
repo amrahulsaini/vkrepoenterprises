@@ -760,6 +760,18 @@ public class MobileController : ControllerBase
             var r = await SandboxKyc.AadhaarVerifyAsync(req.ReferenceId!, req.Otp!);
             if (!r.TryGetProperty("data", out var d))
                 return BadRequest(new { ok = false, message = SandboxKyc.Message(r) });
+            // Sandbox returns HTTP 200 with data even on a WRONG OTP — the body is
+            // then just { "message": "Invalid OTP..." } with no identity fields.
+            // Treat the absence of name AND date_of_birth as a failure so we don't
+            // report "verified" for a bad OTP.
+            string vName = JStr(d, "name");
+            string vDob  = JStr(d, "date_of_birth");
+            if (vName.Length == 0 && vDob.Length == 0)
+            {
+                var dm = JStr(d, "message");
+                return BadRequest(new { ok = false,
+                    message = dm.Length > 0 ? dm : "OTP verification failed. Please check the OTP and try again." });
+            }
             string addr = JStr(d, "full_address");
             if (addr.Length == 0 && d.TryGetProperty("address", out var a) && a.ValueKind == System.Text.Json.JsonValueKind.Object)
                 addr = a.ToString();

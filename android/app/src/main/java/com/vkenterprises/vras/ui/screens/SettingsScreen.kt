@@ -1,8 +1,12 @@
 package com.vkenterprises.vras.ui.screens
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -14,6 +18,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.*
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -21,6 +27,7 @@ import androidx.compose.ui.unit.*
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.vkenterprises.vras.BuildConfig
+import com.vkenterprises.vras.R
 import com.vkenterprises.vras.navigation.Screen
 import com.vkenterprises.vras.viewmodel.AuthViewModel
 import com.vkenterprises.vras.viewmodel.SearchViewModel
@@ -302,6 +309,10 @@ fun SettingsScreen(
                 val agencyLogo by authVm.agencyLogo.collectAsState(initial = null)
                 val logoUrl = agencyLogo?.takeIf { it.isNotBlank() }
                     ?.let { BuildConfig.BASE_URL.trimEnd('/') + "/" + it.trimStart('/') }
+                val ctx = LocalContext.current
+                fun openSite() = runCatching {
+                    ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://crmrecoverysoftware.com/")))
+                }
 
                 Column(
                     Modifier.fillMaxWidth().padding(top = 24.dp, bottom = 12.dp),
@@ -322,8 +333,8 @@ fun SettingsScreen(
                             )
                         } else {
                             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                Text("CRMS", fontWeight = FontWeight.Black,
-                                    fontSize = 18.sp,
+                                Text("CRMRS", fontWeight = FontWeight.Black,
+                                    fontSize = 16.sp,
                                     color = MaterialTheme.colorScheme.primary)
                             }
                         }
@@ -333,15 +344,32 @@ fun SettingsScreen(
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.SemiBold,
                             textAlign = TextAlign.Center)
-                    Spacer(Modifier.height(2.dp))
-                    Text("Developed by CRMS",
+
+                    Spacer(Modifier.height(10.dp))
+                    HorizontalDivider(Modifier.fillMaxWidth(0.5f))
+                    Spacer(Modifier.height(10.dp))
+
+                    // CRMRS brand logo (tap → website) + version, matching the
+                    // WPF server-settings footer.
+                    Image(
+                        painter = painterResource(id = R.drawable.crmrs_logo),
+                        contentDescription = "CRMRS",
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier.height(36.dp).clickable { openSite() }
+                    )
+                    Text("Developed by CRMRS",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center)
-                    Text("rahul@loopwar.dev",
+                    Text("Version ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center)
+                    Text("crmrecoverysoftware.com",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.primary,
-                        textAlign = TextAlign.Center)
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.clickable { openSite() })
                 }
             }
 
