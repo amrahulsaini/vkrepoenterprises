@@ -8,7 +8,7 @@ public record RegisterRequest(
     string? Pincode,
     string? PfpBase64,
     string  DeviceId,
-    // KYC
+    // KYC document photos (base64) — reviewed by the agency admin in WPF.
     string? AadhaarFront,
     string? AadhaarBack,
     string? PanFront,
@@ -16,7 +16,23 @@ public record RegisterRequest(
     string? IfscCode,
     // Agency the user is joining + the agency's primary mobile (verification gate)
     string? Slug = null,
-    string? AgencyMobile = null);
+    string? AgencyMobile = null,
+    // ── Registration-time KYC (new flow) ──────────────────────────────────
+    // Selfie of the agent holding their Aadhaar in hand (base64). Aadhaar OKYC
+    // (OTP) is verified live on the device before submit; the verified
+    // demographics + the agent's live location are carried here and stored on
+    // the user row. AadhaarNumber is the full 12-digit number — only the last 4
+    // are persisted (kyc_aadhaar_last4).
+    string? SelfieWithAadhaar = null,
+    string? AadhaarNumber = null,
+    string? AadhaarName = null,
+    string? AadhaarDob = null,
+    string? AadhaarGender = null,
+    string? AadhaarAddress = null,
+    bool    AadhaarVerified = false,
+    double? RegLat = null,
+    double? RegLng = null,
+    string? RegLocation = null);
 
 public record LoginRequest(
     string  Mobile,

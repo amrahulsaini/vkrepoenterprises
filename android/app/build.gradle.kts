@@ -49,8 +49,8 @@ android {
         applicationId = "com.crmrecoverysoftware.crms"
         minSdk        = 26
         targetSdk     = 35
-        versionCode   = 20
-        versionName   = "1.0.19"
+        versionCode   = 21
+        versionName   = "1.0.20"
 
         buildConfigField("String", "BASE_URL", "\"https://api.crmrecoverysoftware.com/\"")
     }
@@ -78,8 +78,8 @@ android {
             create(t.flavor) {
                 dimension      = "agency"
                 applicationId  = "com.crmrecoverysoftware.${t.pkg}"
-                versionCode    = 20
-                versionName    = "1.0.19"
+                versionCode    = 21
+                versionName    = "1.0.20"
                 // Bundled into BuildConfig so the app pre-binds to this tenant
                 // — no agency picker on the login screen.
                 buildConfigField("String", "AGENCY_SLUG",    "\"${t.slug}\"")
@@ -169,13 +169,10 @@ dependencies {
     // Location
     implementation("com.google.android.gms:play-services-location:21.3.0")
 
-    // ── KYC (on-device, free) ───────────────────────────────────────────────
-    // ML Kit text recognition → reads the Aadhaar / PAN number straight off the
-    // captured document photo (no server, no cost). Face detection → liveness
-    // (a real face present) on the selfie before it's submitted. The actual
-    // Aadhaar OTP / PAN / bank VERIFICATION is done server-side via Sandbox.
+    // On-device OCR — reads the 12-digit Aadhaar number off the front photo at
+    // registration so the agent doesn't type it (Latin text recognition, models
+    // bundled in the APK, fully offline).
     implementation("com.google.mlkit:text-recognition:16.0.1")
-    implementation("com.google.mlkit:face-detection:16.1.7")
 }
 
 kapt { correctErrorTypes = true }

@@ -151,7 +151,11 @@ public class MobileController : ControllerBase
                 req.Address?.Trim(), req.Pincode?.Trim(),
                 req.PfpBase64, clean.Device,
                 req.AadhaarFront, req.AadhaarBack, req.PanFront,
-                req.AccountNumber?.Trim(), req.IfscCode?.Trim());
+                req.AccountNumber?.Trim(), req.IfscCode?.Trim(),
+                req.SelfieWithAadhaar,
+                req.AadhaarNumber, req.AadhaarName, req.AadhaarDob,
+                req.AadhaarGender, req.AadhaarAddress, req.AadhaarVerified,
+                req.RegLat, req.RegLng, req.RegLocation);
 
             if (!success && reason == "mobile_exists")
                 return Conflict(new ApiError(false, "This mobile number is already registered with this agency."));
@@ -735,9 +739,14 @@ public class MobileController : ControllerBase
         catch (Exception ex) { return StatusCode(500, new ApiError(false, ex.Message)); }
     }
 
+    // Verifies the Aadhaar OKYC OTP. X-User-Id is OPTIONAL: during NEW-agent
+    // registration there is no user row yet, so the header is absent — we then
+    // just return the verified demographics and the register call persists them.
+    // For an existing user (re-verify from inside the app) the header is sent and
+    // we store the result directly onto their row.
     [HttpPost("kyc/aadhaar/verify")]
     public async Task<IActionResult> KycAadhaarVerify(
-        [FromHeader(Name = "X-User-Id")] long userId, [FromBody] KycAadhaarVerifyReq req)
+        [FromHeader(Name = "X-User-Id")] long? userId, [FromBody] KycAadhaarVerifyReq req)
     {
         if (!SandboxKyc.Configured) return StatusCode(503, new ApiError(false, "KYC is not configured on the server."));
         if (req == null || string.IsNullOrWhiteSpace(req.ReferenceId) || (req.Otp ?? "").Length < 4)
@@ -751,18 +760,23 @@ public class MobileController : ControllerBase
             string addr = JStr(d, "full_address");
             if (addr.Length == 0 && d.TryGetProperty("address", out var a) && a.ValueKind == System.Text.Json.JsonValueKind.Object)
                 addr = a.ToString();
-            var digits = Digits(req.AadhaarNumber);
-            var last4 = digits.Length >= 4 ? digits[^4..] : digits;
-            await _repo.UpdateKycFieldsAsync(userId, new()
+            // Only persist if this is an existing user re-verifying. During
+            // registration (no user yet) the data rides along in the register call.
+            if (userId is long uid && uid > 0)
             {
-                ["kyc_aadhaar_last4"]    = last4.Length > 0 ? last4 : null,
-                ["kyc_aadhaar_name"]     = JStr(d, "name"),
-                ["kyc_aadhaar_dob"]      = JStr(d, "date_of_birth"),
-                ["kyc_aadhaar_gender"]   = JStr(d, "gender"),
-                ["kyc_aadhaar_address"]  = addr,
-                ["kyc_aadhaar_verified"] = 1,
-                ["kyc_verified_at"]      = DateTime.UtcNow
-            });
+                var digits = Digits(req.AadhaarNumber);
+                var last4 = digits.Length >= 4 ? digits[^4..] : digits;
+                await _repo.UpdateKycFieldsAsync(uid, new()
+                {
+                    ["kyc_aadhaar_last4"]    = last4.Length > 0 ? last4 : null,
+                    ["kyc_aadhaar_name"]     = JStr(d, "name"),
+                    ["kyc_aadhaar_dob"]      = JStr(d, "date_of_birth"),
+                    ["kyc_aadhaar_gender"]   = JStr(d, "gender"),
+                    ["kyc_aadhaar_address"]  = addr,
+                    ["kyc_aadhaar_verified"] = 1,
+                    ["kyc_verified_at"]      = DateTime.UtcNow
+                });
+            }
             return Ok(new { ok = true, verified = true, name = JStr(d, "name"), dob = JStr(d, "date_of_birth"),
                             gender = JStr(d, "gender"), address = addr, photo = JStr(d, "photo") });
         }

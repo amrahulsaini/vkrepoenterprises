@@ -9,7 +9,7 @@ data class RegisterRequest(
     val pincode: String?,
     val pfpBase64: String?,
     val deviceId: String,
-    // KYC
+    // KYC document photos (reviewed by the agency admin in WPF)
     val aadhaarFront: String?,
     val aadhaarBack: String?,
     val panFront: String?,
@@ -17,7 +17,18 @@ data class RegisterRequest(
     val ifscCode: String?,
     // Agency the user is joining + the agency's primary mobile (verification gate)
     val slug: String? = null,
-    val agencyMobile: String? = null
+    val agencyMobile: String? = null,
+    // ── Registration-time KYC (Aadhaar OKYC + selfie + location) ───────────
+    val selfieWithAadhaar: String? = null,
+    val aadhaarNumber: String? = null,
+    val aadhaarName: String? = null,
+    val aadhaarDob: String? = null,
+    val aadhaarGender: String? = null,
+    val aadhaarAddress: String? = null,
+    val aadhaarVerified: Boolean = false,
+    val regLat: Double? = null,
+    val regLng: Double? = null,
+    val regLocation: String? = null
 )
 
 data class LoginRequest(

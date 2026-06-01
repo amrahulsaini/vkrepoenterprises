@@ -196,7 +196,13 @@ public class MobileRepository
         string mobile, string name, string? address, string? pincode,
         string? pfpBase64, string deviceId,
         string? aadhaarFront, string? aadhaarBack, string? panFront,
-        string? accountNumber, string? ifscCode)
+        string? accountNumber, string? ifscCode,
+        // New registration-time KYC (selfie photo + verified Aadhaar demographics
+        // + live location). All optional / nullable so older callers still work.
+        string? selfieWithAadhaar = null,
+        string? aadhaarNumber = null, string? aadhaarName = null, string? aadhaarDob = null,
+        string? aadhaarGender = null, string? aadhaarAddress = null, bool aadhaarVerified = false,
+        double? regLat = null, double? regLng = null, string? regLocation = null)
     {
         await using var conn = DbFactory.Create();
         await conn.OpenAsync();
@@ -238,24 +244,65 @@ public class MobileRepository
             await pfpCmd.ExecuteNonQueryAsync();
         }
 
-        // Save KYC documents as files; store relative paths in DB
-        bool hasKyc = aadhaarFront != null || aadhaarBack != null || panFront != null;
+        // Save KYC documents as files; store relative paths in DB. The selfie
+        // (agent holding their Aadhaar in hand) is part of the same set — the
+        // admin eyeballs it against the Aadhaar photos in the WPF review page.
+        bool hasKyc = aadhaarFront != null || aadhaarBack != null
+                      || panFront != null || selfieWithAadhaar != null;
         if (hasKyc)
         {
             var kycDir   = $"kyc/{id}";
-            var afPath   = await SaveBase64ImageAsync(aadhaarFront, kycDir, "aadhaar_front.jpg");
-            var abPath   = await SaveBase64ImageAsync(aadhaarBack,  kycDir, "aadhaar_back.jpg");
-            var pfPath   = await SaveBase64ImageAsync(panFront,     kycDir, "pan_front.jpg");
+            var afPath   = await SaveBase64ImageAsync(aadhaarFront,     kycDir, "aadhaar_front.jpg");
+            var abPath   = await SaveBase64ImageAsync(aadhaarBack,      kycDir, "aadhaar_back.jpg");
+            var pfPath   = await SaveBase64ImageAsync(panFront,         kycDir, "pan_front.jpg");
+            var selPath  = await SaveBase64ImageAsync(selfieWithAadhaar, kycDir, "selfie.jpg");
 
             const string kycSql = @"
-                INSERT INTO user_kyc (user_id, aadhaar_front, aadhaar_back, pan_front)
-                VALUES (@uid, @af, @ab, @pf)";
+                INSERT INTO user_kyc (user_id, aadhaar_front, aadhaar_back, pan_front, selfie)
+                VALUES (@uid, @af, @ab, @pf, @sel)";
             await using var kycCmd = new MySqlCommand(kycSql, conn);
             kycCmd.Parameters.AddWithValue("@uid", id);
-            kycCmd.Parameters.AddWithValue("@af",  (object?)afPath ?? DBNull.Value);
-            kycCmd.Parameters.AddWithValue("@ab",  (object?)abPath ?? DBNull.Value);
-            kycCmd.Parameters.AddWithValue("@pf",  (object?)pfPath ?? DBNull.Value);
+            kycCmd.Parameters.AddWithValue("@af",  (object?)afPath  ?? DBNull.Value);
+            kycCmd.Parameters.AddWithValue("@ab",  (object?)abPath  ?? DBNull.Value);
+            kycCmd.Parameters.AddWithValue("@pf",  (object?)pfPath  ?? DBNull.Value);
+            kycCmd.Parameters.AddWithValue("@sel", (object?)selPath ?? DBNull.Value);
             await kycCmd.ExecuteNonQueryAsync();
+        }
+
+        // Persist the live-verified Aadhaar demographics + capture location onto
+        // the user row (only the last 4 of the Aadhaar number are kept). These
+        // come from the on-device Aadhaar OKYC OTP verify done before submit.
+        var digits = new string((aadhaarNumber ?? "").Where(char.IsDigit).ToArray());
+        var last4  = digits.Length >= 4 ? digits[^4..] : null;
+        bool hasDemo = aadhaarVerified || last4 != null || regLat != null || regLng != null
+                       || !string.IsNullOrWhiteSpace(regLocation);
+        if (hasDemo)
+        {
+            const string demoSql = @"
+                UPDATE app_users SET
+                    kyc_aadhaar_last4    = @l4,
+                    kyc_aadhaar_name     = @an,
+                    kyc_aadhaar_dob      = @adob,
+                    kyc_aadhaar_gender   = @agen,
+                    kyc_aadhaar_address  = @aaddr,
+                    kyc_aadhaar_verified = @aver,
+                    kyc_verified_at      = CASE WHEN @aver=1 THEN UTC_TIMESTAMP() ELSE kyc_verified_at END,
+                    kyc_reg_lat          = @lat,
+                    kyc_reg_lng          = @lng,
+                    kyc_reg_location     = @loc
+                WHERE id = @id";
+            await using var demoCmd = new MySqlCommand(demoSql, conn);
+            demoCmd.Parameters.AddWithValue("@l4",    (object?)last4 ?? DBNull.Value);
+            demoCmd.Parameters.AddWithValue("@an",    (object?)aadhaarName    ?? DBNull.Value);
+            demoCmd.Parameters.AddWithValue("@adob",  (object?)aadhaarDob     ?? DBNull.Value);
+            demoCmd.Parameters.AddWithValue("@agen",  (object?)aadhaarGender  ?? DBNull.Value);
+            demoCmd.Parameters.AddWithValue("@aaddr", (object?)aadhaarAddress ?? DBNull.Value);
+            demoCmd.Parameters.AddWithValue("@aver",  aadhaarVerified ? 1 : 0);
+            demoCmd.Parameters.AddWithValue("@lat",   (object?)regLat ?? DBNull.Value);
+            demoCmd.Parameters.AddWithValue("@lng",   (object?)regLng ?? DBNull.Value);
+            demoCmd.Parameters.AddWithValue("@loc",   (object?)regLocation ?? DBNull.Value);
+            demoCmd.Parameters.AddWithValue("@id",    id);
+            await demoCmd.ExecuteNonQueryAsync();
         }
 
         return (true, "registered", id);

@@ -70,6 +70,25 @@ interface ApiService {
     @GET("api/mobile/me/status")
     suspend fun getMyStatus(@Header("X-User-Id") userId: Long): Response<UserStatusResponse>
 
+    // ── KYC (Sandbox-backed; verification + storage happen server-side) ──────
+    @POST("api/mobile/kyc/aadhaar/otp")
+    suspend fun kycAadhaarOtp(@Body body: Map<String, String?>): Response<KycOtpResp>
+
+    @POST("api/mobile/kyc/aadhaar/verify")
+    suspend fun kycAadhaarVerify(@Header("X-User-Id") userId: Long, @Body body: Map<String, String?>): Response<KycAadhaarResp>
+
+    // Registration flow: no user row exists yet, so no X-User-Id header. The
+    // server verifies the OTP and returns the demographics WITHOUT storing —
+    // the register call then persists them onto the new user.
+    @POST("api/mobile/kyc/aadhaar/verify")
+    suspend fun kycAadhaarVerifyAnon(@Body body: Map<String, String?>): Response<KycAadhaarResp>
+
+    @POST("api/mobile/kyc/pan")
+    suspend fun kycPan(@Header("X-User-Id") userId: Long, @Body body: Map<String, String?>): Response<KycPanResp>
+
+    @POST("api/mobile/kyc/bank")
+    suspend fun kycBank(@Header("X-User-Id") userId: Long, @Body body: Map<String, String?>): Response<KycBankResp>
+
     @POST("api/mobile/heartbeat")
     suspend fun heartbeat(@Body request: HeartbeatRequest): Response<HeartbeatResponse>
 
