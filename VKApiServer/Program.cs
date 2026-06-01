@@ -3146,6 +3146,11 @@ app.MapDelete("/api/webhooks/users/{id:int}", async (HttpContext ctx, int id) =>
 // ── CRMS Agency Portal endpoints (/api/agency/*) ────────────────────────────
 AgencyPortal.Map(app, mysqlHost, mysqlPort);
 
+// ── Sandbox KYC endpoints (/api/mgr/kyc/*) — Aadhaar OKYC + PAN + bank ──────
+// Desktop-gated (same X-Api-Key as the rest of /api/mgr/*). Sandbox credentials
+// come from the SANDBOX_API_KEY / SANDBOX_API_SECRET env vars on the server.
+SandboxKyc.Map(app, ctx => MgrAuth(ctx, desktopLoginPassword));
+
 app.Run($"http://localhost:{port}");
 
 // Local functions must appear before type declarations (CS8803)
