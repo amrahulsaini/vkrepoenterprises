@@ -261,6 +261,20 @@ public class MobileRepository
         return (true, "registered", id);
     }
 
+    // ── KYC: store verified Sandbox results onto the agent's app_users row ────
+    // Dynamic UPDATE of only the supplied columns (all KYC columns are nullable).
+    public async Task UpdateKycFieldsAsync(long userId, Dictionary<string, object?> fields)
+    {
+        if (fields.Count == 0) return;
+        await using var conn = DbFactory.Create();
+        await conn.OpenAsync();
+        var sets = string.Join(", ", fields.Keys.Select(k => $"`{k}`=@{k}"));
+        await using var cmd = new MySqlCommand($"UPDATE app_users SET {sets} WHERE id=@id", conn);
+        foreach (var kv in fields) cmd.Parameters.AddWithValue("@" + kv.Key, kv.Value ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@id", userId);
+        await cmd.ExecuteNonQueryAsync();
+    }
+
     // ── Login ─────────────────────────────────────────────────────────────
     public async Task<AuthResponse> LoginAsync(string mobile, string deviceId)
     {

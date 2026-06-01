@@ -708,6 +708,144 @@ public class MobileController : ControllerBase
             return StatusCode(500, new ApiError(false, $"Sync records failed: {ex.Message}"));
         }
     }
+
+    // ═══════════════════════ KYC verification (Sandbox) ═══════════════════════
+    // Agents verify Aadhaar (OTP), PAN and bank during registration; each
+    // verified result is stored on the agent's app_users row so the desktop
+    // (WPF) can display it read-only. Sandbox credentials live only in the
+    // service env (never in the app).
+    private static string JStr(System.Text.Json.JsonElement d, string k) =>
+        d.TryGetProperty(k, out var v)
+            ? (v.ValueKind == System.Text.Json.JsonValueKind.String ? v.GetString() ?? "" : v.ToString())
+            : "";
+
+    [HttpPost("kyc/aadhaar/otp")]
+    public async Task<IActionResult> KycAadhaarOtp([FromBody] KycAadhaarOtpReq req)
+    {
+        if (!SandboxKyc.Configured) return StatusCode(503, new ApiError(false, "KYC is not configured on the server."));
+        var aadhaar = Digits(req?.AadhaarNumber);
+        if (aadhaar.Length != 12) return BadRequest(new ApiError(false, "Enter a valid 12-digit Aadhaar number."));
+        try
+        {
+            var r = await SandboxKyc.AadhaarOtpAsync(aadhaar);
+            if (r.TryGetProperty("data", out var d) && d.TryGetProperty("reference_id", out var refId))
+                return Ok(new { ok = true, referenceId = refId.ToString() });
+            return BadRequest(new { ok = false, message = SandboxKyc.Message(r) });
+        }
+        catch (Exception ex) { return StatusCode(500, new ApiError(false, ex.Message)); }
+    }
+
+    [HttpPost("kyc/aadhaar/verify")]
+    public async Task<IActionResult> KycAadhaarVerify(
+        [FromHeader(Name = "X-User-Id")] long userId, [FromBody] KycAadhaarVerifyReq req)
+    {
+        if (!SandboxKyc.Configured) return StatusCode(503, new ApiError(false, "KYC is not configured on the server."));
+        if (req == null || string.IsNullOrWhiteSpace(req.ReferenceId) || (req.Otp ?? "").Length < 4)
+            return BadRequest(new ApiError(false, "Reference id and the 6-digit OTP are required."));
+        try
+        {
+            object refVal = long.TryParse(req.ReferenceId, out var ri) ? ri : req.ReferenceId!;
+            var r = await SandboxKyc.AadhaarVerifyAsync(refVal, req.Otp!);
+            if (!r.TryGetProperty("data", out var d))
+                return BadRequest(new { ok = false, message = SandboxKyc.Message(r) });
+            string addr = JStr(d, "full_address");
+            if (addr.Length == 0 && d.TryGetProperty("address", out var a) && a.ValueKind == System.Text.Json.JsonValueKind.Object)
+                addr = a.ToString();
+            var digits = Digits(req.AadhaarNumber);
+            var last4 = digits.Length >= 4 ? digits[^4..] : digits;
+            await _repo.UpdateKycFieldsAsync(userId, new()
+            {
+                ["kyc_aadhaar_last4"]    = last4.Length > 0 ? last4 : null,
+                ["kyc_aadhaar_name"]     = JStr(d, "name"),
+                ["kyc_aadhaar_dob"]      = JStr(d, "date_of_birth"),
+                ["kyc_aadhaar_gender"]   = JStr(d, "gender"),
+                ["kyc_aadhaar_address"]  = addr,
+                ["kyc_aadhaar_verified"] = 1,
+                ["kyc_verified_at"]      = DateTime.UtcNow
+            });
+            return Ok(new { ok = true, verified = true, name = JStr(d, "name"), dob = JStr(d, "date_of_birth"),
+                            gender = JStr(d, "gender"), address = addr, photo = JStr(d, "photo") });
+        }
+        catch (Exception ex) { return StatusCode(500, new ApiError(false, ex.Message)); }
+    }
+
+    [HttpPost("kyc/pan")]
+    public async Task<IActionResult> KycPan(
+        [FromHeader(Name = "X-User-Id")] long userId, [FromBody] KycPanReq req)
+    {
+        if (!SandboxKyc.Configured) return StatusCode(503, new ApiError(false, "KYC is not configured on the server."));
+        var pan = (req?.Pan ?? "").Trim().ToUpper();
+        if (pan.Length != 10) return BadRequest(new ApiError(false, "Enter a valid 10-character PAN."));
+        try
+        {
+            var r = await SandboxKyc.PanVerifyAsync(pan, req!.Name ?? "", req.Dob ?? "");
+            if (!r.TryGetProperty("data", out var d))
+                return BadRequest(new { ok = false, message = SandboxKyc.Message(r) });
+            bool ok = JStr(d, "status").Equals("valid", StringComparison.OrdinalIgnoreCase);
+            await _repo.UpdateKycFieldsAsync(userId, new()
+            {
+                ["kyc_pan"]          = pan,
+                ["kyc_pan_name"]     = req.Name ?? "",
+                ["kyc_pan_verified"] = ok ? 1 : 0
+            });
+            bool B(string k) => d.TryGetProperty(k, out var v) && v.ValueKind == System.Text.Json.JsonValueKind.True;
+            return Ok(new { ok = true, verified = ok, status = JStr(d, "status"),
+                            nameMatch = B("name_as_per_pan_match"), dobMatch = B("date_of_birth_match"), category = JStr(d, "category") });
+        }
+        catch (Exception ex) { return StatusCode(500, new ApiError(false, ex.Message)); }
+    }
+
+    [HttpPost("kyc/bank")]
+    public async Task<IActionResult> KycBank(
+        [FromHeader(Name = "X-User-Id")] long userId, [FromBody] KycBankReq req)
+    {
+        if (!SandboxKyc.Configured) return StatusCode(503, new ApiError(false, "KYC is not configured on the server."));
+        var ifsc = (req?.Ifsc ?? "").Trim().ToUpper();
+        var acct = (req?.AccountNumber ?? "").Trim();
+        if (ifsc.Length != 11 || acct.Length == 0)
+            return BadRequest(new ApiError(false, "Enter a valid account number and 11-character IFSC."));
+        try
+        {
+            var r = await SandboxKyc.BankVerifyAsync(ifsc, acct, req!.Name ?? "");
+            if (!r.TryGetProperty("data", out var d))
+                return BadRequest(new { ok = false, message = SandboxKyc.Message(r) });
+            bool exists = d.TryGetProperty("account_exists", out var e) && e.ValueKind == System.Text.Json.JsonValueKind.True;
+            string holder = d.TryGetProperty("name_at_bank", out var n) ? (n.GetString() ?? "") : "";
+            await _repo.UpdateKycFieldsAsync(userId, new()
+            {
+                ["account_number"]    = acct,
+                ["ifsc_code"]         = ifsc,
+                ["kyc_bank_holder"]   = holder,
+                ["kyc_bank_verified"] = exists ? 1 : 0
+            });
+            return Ok(new { ok = true, verified = exists, nameAtBank = holder });
+        }
+        catch (Exception ex) { return StatusCode(500, new ApiError(false, ex.Message)); }
+    }
+
+    [HttpPost("kyc/location")]
+    public async Task<IActionResult> KycLocation(
+        [FromHeader(Name = "X-User-Id")] long userId, [FromBody] KycLocationReq req)
+    {
+        try
+        {
+            await _repo.UpdateKycFieldsAsync(userId, new()
+            {
+                ["kyc_reg_lat"]      = req?.Lat,
+                ["kyc_reg_lng"]      = req?.Lng,
+                ["kyc_reg_location"] = req?.Location
+            });
+            return Ok(new { ok = true });
+        }
+        catch (Exception ex) { return StatusCode(500, new ApiError(false, ex.Message)); }
+    }
 }
 
 public record UpdatePfpRequest(string? PfpBase64);
+
+// ── KYC request bodies ──────────────────────────────────────────────────────
+public record KycAadhaarOtpReq(string? AadhaarNumber);
+public record KycAadhaarVerifyReq(string? ReferenceId, string? Otp, string? AadhaarNumber);
+public record KycPanReq(string? Pan, string? Name, string? Dob);
+public record KycBankReq(string? Ifsc, string? AccountNumber, string? Name);
+public record KycLocationReq(double? Lat, double? Lng, string? Location);
