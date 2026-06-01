@@ -124,8 +124,17 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
             @android.annotation.SuppressLint("MissingPermission")
             val loc = runCatching {
                 val client = LocationServices.getFusedLocationProviderClient(context)
-                suspendCancellableCoroutine<android.location.Location?> { cont ->
+                // Fresh high-accuracy fix; if the GPS is cold and returns null,
+                // fall back to the OS-cached last position so we still capture
+                // *something* rather than leaving the field empty.
+                val fresh = suspendCancellableCoroutine<android.location.Location?> { cont ->
                     client.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
+                        .addOnSuccessListener { cont.resume(it) }
+                        .addOnFailureListener { cont.resume(null) }
+                        .addOnCanceledListener { cont.resume(null) }
+                }
+                fresh ?: suspendCancellableCoroutine<android.location.Location?> { cont ->
+                    client.lastLocation
                         .addOnSuccessListener { cont.resume(it) }
                         .addOnFailureListener { cont.resume(null) }
                         .addOnCanceledListener { cont.resume(null) }
