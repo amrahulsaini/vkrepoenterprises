@@ -39,6 +39,8 @@ sealed class AuthUiState {
     data class AppStopped(val message: String) : AuthUiState()
     data class Blacklisted(val message: String) : AuthUiState()
     data class Inactive(val message: String) : AuthUiState()
+    data class KycPending(val message: String) : AuthUiState()
+    data class KycRejected(val message: String) : AuthUiState()
     data class Error(val message: String) : AuthUiState()
 }
 
@@ -234,7 +236,18 @@ class AuthViewModel @Inject constructor(
         }
     }
 
+    // Last mobile a user tried to log in with — used by the KYC re-submit flow
+    // (a rejected agent has no session/token, so resubmit is keyed by mobile).
+    var lastMobile: String = ""
+        private set
+
+    // Message from the most recent KYC pending/rejected login — shown on the
+    // KYC status screens (the login state is reset right after navigation).
+    var lastKycMessage: String = ""
+        private set
+
     fun login(mobile: String, slug: String, agencyName: String, agencyLogo: String = "") = viewModelScope.launch {
+        lastMobile = mobile.trim()
         _state.value = AuthUiState.Loading
         val newSlug  = slug.trim()
         val prevSlug = prefs.agencySlug.first()
@@ -269,6 +282,8 @@ class AuthViewModel @Inject constructor(
                     AuthUiState.LoginSuccess
             }
             is AuthResult.Error -> when (result.reason) {
+                "kyc_pending"      -> AuthUiState.KycPending(result.message).also { lastKycMessage = result.message }
+                "kyc_failed"       -> AuthUiState.KycRejected(result.message).also { lastKycMessage = result.message }
                 "pending_approval" -> AuthUiState.PendingApproval(result.message)
                 "device_mismatch"  -> AuthUiState.DeviceMismatch(result.message)
                 "app_stopped"      -> AuthUiState.AppStopped(result.message)

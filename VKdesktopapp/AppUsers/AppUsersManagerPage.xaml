@@ -755,16 +755,10 @@
                                     </Border>
                                 </UniformGrid>
 
-                                <!-- UIDAI photo + selfie holding Aadhaar + verified OKYC demographics -->
-                                <Grid Margin="0,10,0,0">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="150" />
-                                        <ColumnDefinition Width="200" />
-                                        <ColumnDefinition Width="*" />
-                                    </Grid.ColumnDefinitions>
-
+                                <!-- Review images: UIDAI photo + selfie side by side -->
+                                <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
                                     <!-- UIDAI photo (from Aadhaar OKYC) -->
-                                    <Border Grid.Column="0" Margin="0,0,12,0"
+                                    <Border Width="170" Margin="0,0,12,0"
                                             BorderBrush="{StaticResource Gray200}"
                                             BorderThickness="1" CornerRadius="6"
                                             Background="{StaticResource Gray50}">
@@ -803,7 +797,7 @@
                                     </Border>
 
                                     <!-- Selfie tile -->
-                                    <Border Grid.Column="1" Margin="0,0,12,0"
+                                    <Border Width="210"
                                             BorderBrush="{StaticResource Gray200}"
                                             BorderThickness="1" CornerRadius="6"
                                             Background="{StaticResource Gray50}">
@@ -840,31 +834,98 @@
                                                     Click="btnKycDownload_Click" />
                                         </StackPanel>
                                     </Border>
+                                </StackPanel>
 
-                                    <!-- Verified Aadhaar (OKYC) details — read-only review -->
-                                    <Border Grid.Column="2"
-                                            BorderBrush="{StaticResource Gray200}"
-                                            BorderThickness="1" CornerRadius="6"
-                                            Background="{StaticResource Gray50}">
-                                        <StackPanel Margin="12">
-                                            <TextBlock Name="txtKycAaVerified" Text="Aadhaar: Not verified"
-                                                       FontSize="12" FontWeight="SemiBold"
-                                                       Foreground="{StaticResource Gray700}" Margin="0,0,0,6" />
-                                            <TextBlock Name="txtKycAaNumber" FontSize="11"
-                                                       Foreground="{StaticResource Gray700}" Margin="0,0,0,2" />
-                                            <TextBlock Name="txtKycAaName" FontSize="11"
-                                                       Foreground="{StaticResource Gray700}" Margin="0,0,0,2" />
-                                            <TextBlock Name="txtKycAaDob" FontSize="11"
-                                                       Foreground="{StaticResource Gray700}" Margin="0,0,0,2" />
-                                            <TextBlock Name="txtKycAaGender" FontSize="11"
-                                                       Foreground="{StaticResource Gray700}" Margin="0,0,0,2" />
-                                            <TextBlock Name="txtKycAaAddress" FontSize="11" TextWrapping="Wrap"
-                                                       Foreground="{StaticResource Gray700}" Margin="0,0,0,2" />
-                                            <TextBlock Name="txtKycLocation" FontSize="11" TextWrapping="Wrap"
-                                                       Foreground="{StaticResource Gray600}" Margin="0,8,0,0" />
-                                        </StackPanel>
-                                    </Border>
-                                </Grid>
+                                <!-- Verified Aadhaar (OKYC) details — full width so the address wraps cleanly -->
+                                <Border Margin="0,10,0,0"
+                                        BorderBrush="{StaticResource Gray200}"
+                                        BorderThickness="1" CornerRadius="6"
+                                        Background="{StaticResource Gray50}">
+                                    <StackPanel Margin="14,12">
+                                        <TextBlock Name="txtKycAaVerified" Text="Aadhaar: Not verified"
+                                                   FontSize="13" FontWeight="SemiBold"
+                                                   Foreground="{StaticResource Gray700}" Margin="0,0,0,8" />
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="130" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                            </Grid.RowDefinitions>
+
+                                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Aadhaar No." FontSize="12"
+                                                       FontWeight="SemiBold" Foreground="{StaticResource Gray500}" Margin="0,0,0,5" />
+                                            <TextBlock Grid.Row="0" Grid.Column="1" Name="txtKycAaNumber" FontSize="12"
+                                                       Foreground="{StaticResource Gray800}" Margin="0,0,0,5" />
+
+                                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Name" FontSize="12"
+                                                       FontWeight="SemiBold" Foreground="{StaticResource Gray500}" Margin="0,0,0,5" />
+                                            <TextBlock Grid.Row="1" Grid.Column="1" Name="txtKycAaName" FontSize="12"
+                                                       Foreground="{StaticResource Gray800}" Margin="0,0,0,5" />
+
+                                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Date of Birth" FontSize="12"
+                                                       FontWeight="SemiBold" Foreground="{StaticResource Gray500}" Margin="0,0,0,5" />
+                                            <TextBlock Grid.Row="2" Grid.Column="1" Name="txtKycAaDob" FontSize="12"
+                                                       Foreground="{StaticResource Gray800}" Margin="0,0,0,5" />
+
+                                            <TextBlock Grid.Row="3" Grid.Column="0" Text="Gender" FontSize="12"
+                                                       FontWeight="SemiBold" Foreground="{StaticResource Gray500}" Margin="0,0,0,5" />
+                                            <TextBlock Grid.Row="3" Grid.Column="1" Name="txtKycAaGender" FontSize="12"
+                                                       Foreground="{StaticResource Gray800}" Margin="0,0,0,5" />
+
+                                            <TextBlock Grid.Row="4" Grid.Column="0" Text="Address" FontSize="12"
+                                                       FontWeight="SemiBold" Foreground="{StaticResource Gray500}" Margin="0,0,0,5" />
+                                            <TextBlock Grid.Row="4" Grid.Column="1" Name="txtKycAaAddress" FontSize="12"
+                                                       TextWrapping="Wrap" Foreground="{StaticResource Gray800}" Margin="0,0,0,5" />
+
+                                            <TextBlock Grid.Row="5" Grid.Column="0" Text="Location" FontSize="12"
+                                                       FontWeight="SemiBold" Foreground="{StaticResource Gray500}" />
+                                            <TextBlock Grid.Row="5" Grid.Column="1" Name="txtKycLocation" FontSize="12"
+                                                       TextWrapping="Wrap" Foreground="{StaticResource Gray600}" />
+                                        </Grid>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- KYC review: status + Verify / Reject. Activation is locked until Verified. -->
+                                <Border Margin="0,10,0,0"
+                                        BorderBrush="{StaticResource Gray200}"
+                                        BorderThickness="1" CornerRadius="6"
+                                        Background="White">
+                                    <StackPanel Margin="14,12">
+                                        <DockPanel>
+                                            <Border DockPanel.Dock="Left" Name="brdKycStatusBadge"
+                                                    CornerRadius="4" Padding="8,3" VerticalAlignment="Center"
+                                                    Background="{StaticResource Gray100}">
+                                                <TextBlock Name="txtKycStatusBadge" Text="KYC: —"
+                                                           FontSize="12" FontWeight="SemiBold"
+                                                           Foreground="{StaticResource Gray700}" />
+                                            </Border>
+                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                                <Button Name="btnKycVerify" Content="✓ Mark Verified"
+                                                        FontSize="12" Padding="12,5" Cursor="Hand"
+                                                        Background="#16A34A" Foreground="White"
+                                                        BorderThickness="0" Margin="0,0,8,0"
+                                                        Click="btnKycVerify_Click" />
+                                                <Button Name="btnKycReject" Content="✗ Reject"
+                                                        FontSize="12" Padding="12,5" Cursor="Hand"
+                                                        Background="Transparent" Foreground="{StaticResource Red500}"
+                                                        BorderBrush="{StaticResource Red500}" BorderThickness="1"
+                                                        Click="btnKycReject_Click" />
+                                            </StackPanel>
+                                        </DockPanel>
+                                        <TextBlock Name="txtKycRejectNote" FontSize="11" TextWrapping="Wrap"
+                                                   Foreground="{StaticResource Red500}" Margin="0,8,0,0"
+                                                   Visibility="Collapsed" />
+                                        <TextBlock Text="The account can only be activated after KYC is verified."
+                                                   FontSize="11" Foreground="{StaticResource Gray500}" Margin="0,6,0,0" />
+                                    </StackPanel>
+                                </Border>
                             </StackPanel>
 
                             <!-- Stop App section -->

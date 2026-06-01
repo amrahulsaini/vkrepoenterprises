@@ -284,6 +284,7 @@ public class MobileRepository
             const string demoSql = @"
                 UPDATE app_users SET
                     kyc_aadhaar_last4    = @l4,
+                    kyc_aadhaar_number   = @anum,
                     kyc_aadhaar_name     = @an,
                     kyc_aadhaar_dob      = @adob,
                     kyc_aadhaar_gender   = @agen,
@@ -296,6 +297,7 @@ public class MobileRepository
                 WHERE id = @id";
             await using var demoCmd = new MySqlCommand(demoSql, conn);
             demoCmd.Parameters.AddWithValue("@l4",    (object?)last4 ?? DBNull.Value);
+            demoCmd.Parameters.AddWithValue("@anum",  (object?)(digits.Length == 12 ? digits : null) ?? DBNull.Value);
             demoCmd.Parameters.AddWithValue("@an",    (object?)aadhaarName    ?? DBNull.Value);
             demoCmd.Parameters.AddWithValue("@adob",  (object?)aadhaarDob     ?? DBNull.Value);
             demoCmd.Parameters.AddWithValue("@agen",  (object?)aadhaarGender  ?? DBNull.Value);
@@ -325,6 +327,94 @@ public class MobileRepository
         await cmd.ExecuteNonQueryAsync();
     }
 
+    // ── KYC re-submission ─────────────────────────────────────────────────
+    // A rejected agent can't get a tenant token (login is blocked), so resubmit
+    // identifies the user by mobile within the already-selected tenant, re-saves
+    // every document/photo, refreshes the verified demographics, and flips the
+    // status back to 'pending' for another admin review. Returns false if no
+    // matching user exists.
+    public async Task<bool> ResubmitKycAsync(
+        string mobile,
+        string? aadhaarFront, string? aadhaarBack, string? panFront,
+        string? selfieWithAadhaar, string? aadhaarPhoto,
+        string? aadhaarNumber, string? aadhaarName, string? aadhaarDob,
+        string? aadhaarGender, string? aadhaarAddress, bool aadhaarVerified,
+        double? regLat, double? regLng, string? regLocation)
+    {
+        await using var conn = DbFactory.Create();
+        await conn.OpenAsync();
+
+        long id;
+        await using (var find = new MySqlCommand("SELECT id FROM app_users WHERE mobile=@m LIMIT 1", conn))
+        {
+            find.Parameters.AddWithValue("@m", mobile);
+            var v = await find.ExecuteScalarAsync();
+            if (v is null or DBNull) return false;
+            id = Convert.ToInt64(v);
+        }
+
+        var kycDir    = $"kyc/{id}";
+        var afPath    = await SaveBase64ImageAsync(aadhaarFront,      kycDir, "aadhaar_front.jpg");
+        var abPath    = await SaveBase64ImageAsync(aadhaarBack,       kycDir, "aadhaar_back.jpg");
+        var pfPath    = await SaveBase64ImageAsync(panFront,          kycDir, "pan_front.jpg");
+        var selPath   = await SaveBase64ImageAsync(selfieWithAadhaar, kycDir, "selfie.jpg");
+        var uidaiPath = await SaveBase64ImageAsync(aadhaarPhoto,      kycDir, "aadhaar_photo.jpg");
+
+        // Upsert the document row, only overwriting columns we actually re-received.
+        await using (var kyc = new MySqlCommand(@"
+            INSERT INTO user_kyc (user_id, aadhaar_front, aadhaar_back, pan_front, selfie, aadhaar_photo)
+            VALUES (@uid, @af, @ab, @pf, @sel, @uidai)
+            ON DUPLICATE KEY UPDATE
+                aadhaar_front = COALESCE(@af, aadhaar_front),
+                aadhaar_back  = COALESCE(@ab, aadhaar_back),
+                pan_front     = COALESCE(@pf, pan_front),
+                selfie        = COALESCE(@sel, selfie),
+                aadhaar_photo = COALESCE(@uidai, aadhaar_photo)", conn))
+        {
+            kyc.Parameters.AddWithValue("@uid",   id);
+            kyc.Parameters.AddWithValue("@af",    (object?)afPath    ?? DBNull.Value);
+            kyc.Parameters.AddWithValue("@ab",    (object?)abPath    ?? DBNull.Value);
+            kyc.Parameters.AddWithValue("@pf",    (object?)pfPath    ?? DBNull.Value);
+            kyc.Parameters.AddWithValue("@sel",   (object?)selPath   ?? DBNull.Value);
+            kyc.Parameters.AddWithValue("@uidai", (object?)uidaiPath ?? DBNull.Value);
+            await kyc.ExecuteNonQueryAsync();
+        }
+
+        var digits = new string((aadhaarNumber ?? "").Where(char.IsDigit).ToArray());
+        var last4  = digits.Length >= 4 ? digits[^4..] : null;
+        await using (var upd = new MySqlCommand(@"
+            UPDATE app_users SET
+                kyc_aadhaar_last4    = @l4,
+                kyc_aadhaar_number   = @anum,
+                kyc_aadhaar_name     = @an,
+                kyc_aadhaar_dob      = @adob,
+                kyc_aadhaar_gender   = @agen,
+                kyc_aadhaar_address  = @aaddr,
+                kyc_aadhaar_verified = @aver,
+                kyc_verified_at      = CASE WHEN @aver=1 THEN UTC_TIMESTAMP() ELSE kyc_verified_at END,
+                kyc_reg_lat          = COALESCE(@lat, kyc_reg_lat),
+                kyc_reg_lng          = COALESCE(@lng, kyc_reg_lng),
+                kyc_reg_location     = COALESCE(@loc, kyc_reg_location),
+                kyc_status           = 'pending',
+                kyc_reject_note      = NULL
+            WHERE id=@id", conn))
+        {
+            upd.Parameters.AddWithValue("@l4",    (object?)last4 ?? DBNull.Value);
+            upd.Parameters.AddWithValue("@anum",  (object?)(digits.Length == 12 ? digits : null) ?? DBNull.Value);
+            upd.Parameters.AddWithValue("@an",    (object?)aadhaarName    ?? DBNull.Value);
+            upd.Parameters.AddWithValue("@adob",  (object?)aadhaarDob     ?? DBNull.Value);
+            upd.Parameters.AddWithValue("@agen",  (object?)aadhaarGender  ?? DBNull.Value);
+            upd.Parameters.AddWithValue("@aaddr", (object?)aadhaarAddress ?? DBNull.Value);
+            upd.Parameters.AddWithValue("@aver",  aadhaarVerified ? 1 : 0);
+            upd.Parameters.AddWithValue("@lat",   (object?)regLat ?? DBNull.Value);
+            upd.Parameters.AddWithValue("@lng",   (object?)regLng ?? DBNull.Value);
+            upd.Parameters.AddWithValue("@loc",   (object?)regLocation ?? DBNull.Value);
+            upd.Parameters.AddWithValue("@id",    id);
+            await upd.ExecuteNonQueryAsync();
+        }
+        return true;
+    }
+
     // ── Login ─────────────────────────────────────────────────────────────
     public async Task<AuthResponse> LoginAsync(string mobile, string deviceId)
     {
@@ -340,7 +430,9 @@ public class MobileRepository
                         ORDER BY s.end_date DESC LIMIT 1),
                        '') AS sub_end,
                    COALESCE(u.is_blacklisted,0),
-                   COALESCE(u.is_stopped,0)
+                   COALESCE(u.is_stopped,0),
+                   COALESCE(u.kyc_status,'success'),
+                   COALESCE(u.kyc_reject_note,'')
             FROM app_users u
             WHERE u.mobile = @m
             LIMIT 1";
@@ -363,6 +455,8 @@ public class MobileRepository
         var subEnd        = rdr.GetString(7);
         var isBlacklisted = rdr.GetInt32(8) == 1;
         var isStopped     = rdr.GetInt32(9) == 1;
+        var kycStatus     = rdr.GetString(10);
+        var kycRejectNote = rdr.GetString(11);
 
         if (isBlacklisted)
             return new AuthResponse(false,
@@ -392,9 +486,24 @@ public class MobileRepository
                 "device_mismatch", null, null, null, false, null, null);
         }
 
+        // KYC gate comes before the activation gate: a freshly registered agent
+        // sits in 'pending' until an admin reviews their documents in WPF, and
+        // 'failed' if rejected (the note tells them what to re-submit).
+        if (string.Equals(kycStatus, "failed", StringComparison.OrdinalIgnoreCase))
+            return new AuthResponse(false,
+                string.IsNullOrWhiteSpace(kycRejectNote)
+                    ? "Your KYC was rejected. Please re-submit your documents."
+                    : kycRejectNote,
+                "kyc_failed", null, null, null, false, null, null);
+
+        if (string.Equals(kycStatus, "pending", StringComparison.OrdinalIgnoreCase))
+            return new AuthResponse(false,
+                "Your KYC is under review. You can log in once the agency verifies your documents.",
+                "kyc_pending", null, null, null, false, null, null);
+
         if (!isActive)
             return new AuthResponse(false,
-                "Your account is pending admin approval. Please wait.",
+                "Your KYC is verified. Your account is pending admin activation. Please wait.",
                 "pending_approval", null, null, null, false, null, null);
 
         if (isStopped)

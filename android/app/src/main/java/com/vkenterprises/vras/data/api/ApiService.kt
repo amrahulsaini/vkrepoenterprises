@@ -83,6 +83,10 @@ interface ApiService {
     @POST("api/mobile/kyc/aadhaar/verify")
     suspend fun kycAadhaarVerifyAnon(@Body body: Map<String, String?>): Response<KycAadhaarResp>
 
+    // KYC re-submission for a rejected agent (no token — slug + mobile in body).
+    @POST("api/mobile/kyc/resubmit")
+    suspend fun kycResubmit(@Body body: com.vkenterprises.vras.data.models.ResubmitKycRequest): Response<Map<String, Any>>
+
     @POST("api/mobile/kyc/pan")
     suspend fun kycPan(@Header("X-User-Id") userId: Long, @Body body: Map<String, String?>): Response<KycPanResp>
 

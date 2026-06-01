@@ -25,6 +25,8 @@ class AuthRepository {
             resp.code() == 400 || resp.code() == 403 -> {
                 val body = resp.errorBody()?.string() ?: ""
                 val reason = when {
+                    body.contains("kyc_failed")      -> "kyc_failed"
+                    body.contains("kyc_pending")     -> "kyc_pending"
                     body.contains("app_stopped")     -> "app_stopped"
                     body.contains("blacklisted")     -> "blacklisted"
                     body.contains("\"inactive\"")    -> "inactive"
@@ -36,6 +38,8 @@ class AuthRepository {
                 }.getOrNull() ?: ""
                 AuthResult.Error(serverMsg.ifBlank {
                     when (reason) {
+                        "kyc_failed"      -> "Your KYC was rejected. Please re-submit your documents."
+                        "kyc_pending"     -> "Your KYC is under review. Please wait for verification."
                         "app_stopped"     -> "Your app has been stopped by admin. Please contact agency to start app."
                         "blacklisted"     -> "You have been blocked by the agency. Please contact the agency for assistance."
                         "inactive"        -> "Your account is inactive. Please contact agency."

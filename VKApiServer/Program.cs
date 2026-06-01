@@ -1027,8 +1027,49 @@ app.MapMethods("/api/mgr/users/{id:long}/active", new[] { "PATCH" }, async (Http
     {
         await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
+        // Activation is gated on KYC verification: an agent can only be set
+        // active once an admin has marked their KYC 'success'. (Deactivating is
+        // always allowed.) This mirrors the WPF gate as a server-side safety net.
+        if (dto.Active)
+        {
+            try
+            {
+                await using var chk = new MySqlCommand(
+                    "SELECT COALESCE(kyc_status,'success') FROM app_users WHERE id=@id", conn);
+                chk.Parameters.AddWithValue("@id", id);
+                var st = (await chk.ExecuteScalarAsync()) as string ?? "success";
+                if (!string.Equals(st, "success", StringComparison.OrdinalIgnoreCase))
+                    return Results.BadRequest(new { message = "Verify the agent's KYC before activating their account." });
+            }
+            catch { /* legacy schema without kyc_status — allow */ }
+        }
         await MgrExec("UPDATE app_users SET is_active=@v WHERE id=@id", conn, 10,
             ("@v", dto.Active ? 1 : 0), ("@id", id));
+        return Results.Ok();
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+// Admin sets KYC review outcome: 'success' (verified) or 'failed' (rejected,
+// with an optional note the agent sees on their next login). Rejecting also
+// deactivates the account so a previously-active agent can't keep working on a
+// now-rejected KYC.
+app.MapMethods("/api/mgr/users/{id:long}/kyc-status", new[] { "PATCH" }, async (HttpContext ctx, long id, MgrSetKycStatusDto dto) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    var status = (dto.Status ?? "").Trim().ToLowerInvariant();
+    if (status != "success" && status != "failed" && status != "pending")
+        return Results.BadRequest(new { message = "status must be success, failed or pending" });
+    try
+    {
+        await using var conn = new MySqlConnection(TenantContext.Conn);
+        await conn.OpenAsync();
+        if (status == "failed")
+            await MgrExec("UPDATE app_users SET kyc_status='failed', kyc_reject_note=@n, is_active=0 WHERE id=@id",
+                conn, 10, ("@n", (object?)dto.Note ?? DBNull.Value), ("@id", id));
+        else
+            await MgrExec("UPDATE app_users SET kyc_status=@s, kyc_reject_note=NULL WHERE id=@id",
+                conn, 10, ("@s", status), ("@id", id));
         return Results.Ok();
     }
     catch (Exception ex) { return Results.Problem(ex.Message); }
@@ -1268,11 +1309,12 @@ app.MapGet("/api/mgr/users/{id:long}/kyc", async (HttpContext ctx, long id) =>
         // on app_users by VKmobileapi when the agent verifies in the mobile app.
         // Admin-only read-out for the desktop Users page. Columns are nullable
         // and may not exist on very old schemas, so guard the whole block.
-        string? aaName = null, aaDob = null, aaGender = null, aaAddr = null, aaLast4 = null;
+        string? aaName = null, aaDob = null, aaGender = null, aaAddr = null, aaLast4 = null, aaNumber = null;
         bool aaVer = false; DateTime? aaVerAt = null;
         string? pan = null, panName = null; bool panVer = false;
         string? acct = null, ifsc = null, bankHolder = null; bool bankVer = false;
         double? regLat = null, regLng = null; string? regLoc = null;
+        string kycStatus = "success"; string? rejectNote = null;
         try
         {
             await using var kc = new MySqlCommand(@"
@@ -1280,7 +1322,8 @@ app.MapGet("/api/mgr/users/{id:long}/kyc", async (HttpContext ctx, long id) =>
                        kyc_aadhaar_address, kyc_aadhaar_last4, kyc_aadhaar_verified, kyc_verified_at,
                        kyc_pan, kyc_pan_name, kyc_pan_verified,
                        account_number, ifsc_code, kyc_bank_holder, kyc_bank_verified,
-                       kyc_reg_lat, kyc_reg_lng, kyc_reg_location
+                       kyc_reg_lat, kyc_reg_lng, kyc_reg_location,
+                       COALESCE(kyc_status,'success'), kyc_reject_note, kyc_aadhaar_number
                 FROM app_users WHERE id=@uid", conn);
             kc.Parameters.AddWithValue("@uid", id);
             await using var kr = await kc.ExecuteReaderAsync();
@@ -1295,6 +1338,7 @@ app.MapGet("/api/mgr/users/{id:long}/kyc", async (HttpContext ctx, long id) =>
                 regLat   = kr.IsDBNull(14) ? (double?)null : kr.GetDouble(14);
                 regLng   = kr.IsDBNull(15) ? (double?)null : kr.GetDouble(15);
                 regLoc   = S(16);
+                kycStatus = S(17) ?? "success"; rejectNote = S(18); aaNumber = S(19);
             }
         }
         catch { /* columns missing on legacy schema — return docs only */ }
@@ -1306,9 +1350,12 @@ app.MapGet("/api/mgr/users/{id:long}/kyc", async (HttpContext ctx, long id) =>
             panFront     = ToUrl(pf),
             selfie       = ToUrl(selfie),
             aadhaarPhoto = ToUrl(uidaiPhoto),
+            // KYC review state
+            kycStatus  = kycStatus,
+            rejectNote = rejectNote,
             // number-verification block
             aadhaar = new {
-                verified = aaVer, last4 = aaLast4, name = aaName, dob = aaDob,
+                verified = aaVer, last4 = aaLast4, number = aaNumber, name = aaName, dob = aaDob,
                 gender = aaGender, address = aaAddr, verifiedAt = aaVerAt
             },
             pan = new { verified = panVer, number = pan, name = panName },
@@ -3250,6 +3297,7 @@ record MgrCreateMappingDto(int ColumnTypeId, string RawName);
 record MgrCreateColumnTypeDto(string Name);
 record MgrSetStoppedDto(bool Stopped);
 record MgrSetBlacklistedDto(bool Blacklisted);
+record MgrSetKycStatusDto(string? Status, string? Note);
 record MgrSetFinanceRestrictionsDto(List<int> FinanceIds);
 record MgrSetSubsPasswordDto(string Password);
 record MgrSetAdminPassDto(string Password);
