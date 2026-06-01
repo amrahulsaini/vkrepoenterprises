@@ -16,7 +16,7 @@
 ; in Add/Remove Programs, but different slugs do NOT collide.
 
 #ifndef AppName
-  #define AppName    "CRMS"
+  #define AppName    "CRMRS"
 #endif
 #ifndef AppVersion
   #define AppVersion "1.0"
@@ -28,11 +28,15 @@
   #define PublishDir "VKdesktopapp\publish-fresh"
 #endif
 #ifndef AgencyGuid
-  ; Default GUID — used when no /DAgencyGuid is passed (generic CRMS build).
-  #define AgencyGuid "9F4A1B2C-5E3D-4F8A-B7C2-1D2E3F4A5B6C"
+  ; Default GUID — used when no /DAgencyGuid is passed (generic CRMRS build).
+  ; NOTE: this is a NEW GUID, distinct from the retired "CRMS" generic build's
+  ; GUID (9F4A1B2C-...). Using a fresh AppId means the CRMRS build installs into
+  ; its own  C:\Program Files\CRMRS  folder instead of upgrading-in-place over a
+  ; prior "CRMS" install (which is why the old one landed in \CRMS).
+  #define AgencyGuid "B7E2C4F8-1A3D-4E9B-8C6F-5A0D2E1F3B4C"
 #endif
 #ifndef OutputBaseFilename
-  #define OutputBaseFilename "CRMS_Setup"
+  #define OutputBaseFilename "CRMRS_Setup"
 #endif
 
 [Setup]
@@ -45,7 +49,7 @@
 AppId={{{#AgencyGuid}}
 AppName={#AppName}
 AppVersion={#AppVersion}
-AppPublisher=CRMS
+AppPublisher=CRMRS
 AppPublisherURL=https://crmrecoverysoftware.com
 DefaultDirName={autopf}\{#AppName}
 DefaultGroupName={#AppName}
