@@ -2,11 +2,15 @@ package com.vkenterprises.vras.ui.screens
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.graphics.BitmapFactory
 import android.location.Geocoder
 import android.net.Uri
+import android.util.Base64
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
+import androidx.compose.ui.graphics.asImageBitmap
 import com.vkenterprises.vras.utils.compressImageToBase64
 import com.vkenterprises.vras.utils.extractAadhaarNumber
 import androidx.compose.foundation.*
@@ -35,7 +39,10 @@ import androidx.compose.foundation.Image
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import coil.compose.AsyncImage
+import com.google.android.gms.common.api.ResolvableApiException
+import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.LocationSettingsRequest
 import com.google.android.gms.location.Priority
 import com.vkenterprises.vras.BuildConfig
 import com.vkenterprises.vras.R
@@ -97,6 +104,7 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
     var aaDob     by remember { mutableStateOf<String?>(null) }
     var aaGender  by remember { mutableStateOf<String?>(null) }
     var aaAddress by remember { mutableStateOf<String?>(null) }
+    var aaPhoto   by remember { mutableStateOf<String?>(null) }  // UIDAI photo (base64)
 
     // Live location
     var regLat   by remember { mutableStateOf<Double?>(null) }
@@ -159,10 +167,50 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
         }
     }
 
+    // Shows the system "Turn on location?" dialog if device location services
+    // are off; on OK we capture. Declared before ensureLocationThenCapture so
+    // there's no forward reference.
+    val settingsLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartIntentSenderForResult()
+    ) { _ -> captureLocation() }
+
+    // Assumes location PERMISSION is already granted. Checks whether device
+    // location SERVICES (GPS) are on; if not, pops the standard enable dialog,
+    // then captures. This is why nothing happened before when GPS was off —
+    // we never asked the user to switch it on.
+    fun ensureLocationThenCapture() {
+        val request = LocationSettingsRequest.Builder()
+            .addLocationRequest(
+                LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 1000L).build()
+            )
+            .setAlwaysShow(true)
+            .build()
+        LocationServices.getSettingsClient(context).checkLocationSettings(request)
+            .addOnSuccessListener { captureLocation() }
+            .addOnFailureListener { e ->
+                if (e is ResolvableApiException) {
+                    runCatching {
+                        settingsLauncher.launch(IntentSenderRequest.Builder(e.resolution).build())
+                    }.onFailure { captureLocation() }
+                } else captureLocation()
+            }
+    }
+
     val locationPermLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { granted ->
-        if (granted.values.any { it }) captureLocation()
+        if (granted.values.any { it }) ensureLocationThenCapture()
+    }
+
+    fun requestLocation() {
+        val fine = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) ==
+                PackageManager.PERMISSION_GRANTED
+        val coarse = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) ==
+                PackageManager.PERMISSION_GRANTED
+        if (fine || coarse) ensureLocationThenCapture()
+        else locationPermLauncher.launch(
+            arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
+        )
     }
 
     val pfpPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
@@ -193,15 +241,8 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
         selfieUri = uri; selfieB64 = uri?.let { uriToBase64(it) }
     }
 
-    // Ask for location as soon as the screen opens so the fix is ready by submit.
-    LaunchedEffect(Unit) {
-        val fine = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) ==
-                PackageManager.PERMISSION_GRANTED
-        if (fine) captureLocation()
-        else locationPermLauncher.launch(
-            arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
-        )
-    }
+    // Ask for permission + GPS as soon as the screen opens so the fix is ready.
+    LaunchedEffect(Unit) { requestLocation() }
 
     LaunchedEffect(state) {
         when (state) {
@@ -438,6 +479,7 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
                                         aadhaarVerified = true
                                         aaName = body.name; aaDob = body.dob
                                         aaGender = body.gender; aaAddress = body.address
+                                        aaPhoto = body.photo?.takeIf { it.isNotBlank() }
                                         kycMsg = ""
                                     } else {
                                         kycMsg = body?.message ?: "OTP verification failed. Try again."
@@ -469,6 +511,28 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
                             Icon(Icons.Default.Verified, null, tint = OK_GREEN, modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(6.dp))
                             Text("Aadhaar Verified", fontWeight = FontWeight.Bold, color = OK_GREEN)
+                        }
+                        // Photo returned by UIDAI for this Aadhaar.
+                        val uidaiBmp = remember(aaPhoto) {
+                            aaPhoto?.let {
+                                runCatching {
+                                    val b = Base64.decode(it, Base64.DEFAULT)
+                                    BitmapFactory.decodeByteArray(b, 0, b.size)?.asImageBitmap()
+                                }.getOrNull()
+                            }
+                        }
+                        if (uidaiBmp != null) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Image(
+                                    bitmap = uidaiBmp, contentDescription = "UIDAI photo",
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.size(72.dp).clip(RoundedCornerShape(8.dp))
+                                        .border(1.dp, OK_GREEN.copy(alpha = 0.4f), RoundedCornerShape(8.dp))
+                                )
+                                Spacer(Modifier.width(10.dp))
+                                Text("Photo from UIDAI", style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
                         }
                         Detail("Name", aaName)
                         Detail("Date of Birth", aaDob)
@@ -530,14 +594,9 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
                             else -> Text("Location not captured yet")
                         }
                     }
-                    if (locating) Spinner() else TextButton(onClick = {
-                        val fine = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) ==
-                                PackageManager.PERMISSION_GRANTED
-                        if (fine) captureLocation()
-                        else locationPermLauncher.launch(
-                            arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
-                        )
-                    }) { Text(if (regLat != null) "Refresh" else "Capture") }
+                    if (locating) Spinner() else TextButton(onClick = { requestLocation() }) {
+                        Text(if (regLat != null) "Refresh" else "Capture")
+                    }
                 }
             }
 
@@ -604,7 +663,8 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
                         aadhaarNumber = aadhaarNumber,
                         aadhaarName = aaName, aadhaarDob = aaDob, aadhaarGender = aaGender,
                         aadhaarAddress = aaAddress, aadhaarVerified = aadhaarVerified,
-                        regLat = regLat, regLng = regLng, regLocation = regLabel
+                        regLat = regLat, regLng = regLng, regLocation = regLabel,
+                        aadhaarPhoto = aaPhoto
                     )
                 },
                 enabled  = state !is AuthUiState.Loading,

@@ -32,7 +32,10 @@ public record RegisterRequest(
     bool    AadhaarVerified = false,
     double? RegLat = null,
     double? RegLng = null,
-    string? RegLocation = null);
+    string? RegLocation = null,
+    // The photo UIDAI returns in the OKYC verify response (base64 JPEG) — the
+    // admin compares it against the selfie in WPF.
+    string? AadhaarPhoto = null);
 
 public record LoginRequest(
     string  Mobile,

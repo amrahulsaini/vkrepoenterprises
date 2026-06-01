@@ -28,7 +28,8 @@ data class RegisterRequest(
     val aadhaarVerified: Boolean = false,
     val regLat: Double? = null,
     val regLng: Double? = null,
-    val regLocation: String? = null
+    val regLocation: String? = null,
+    val aadhaarPhoto: String? = null
 )
 
 data class LoginRequest(
