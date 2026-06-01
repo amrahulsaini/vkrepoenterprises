@@ -62,6 +62,8 @@ static bool IsTenantBoundByBody(PathString path)
         // already-logged-in user re-verifying, who will also carry a token).
         || s.Equals("/api/mobile/kyc/aadhaar/otp",    StringComparison.OrdinalIgnoreCase)
         || s.Equals("/api/mobile/kyc/aadhaar/verify", StringComparison.OrdinalIgnoreCase)
+        // Rejected agents have no token yet — resubmit binds tenant via slug+mobile.
+        || s.Equals("/api/mobile/kyc/resubmit",       StringComparison.OrdinalIgnoreCase)
         || s.StartsWith("/api/mobile/cache/", StringComparison.OrdinalIgnoreCase)
         || s.StartsWith("/uploads/",        StringComparison.OrdinalIgnoreCase)
         || s == "/";

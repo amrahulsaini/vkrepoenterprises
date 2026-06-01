@@ -259,9 +259,10 @@ internal static class DesktopApiClient
     // capture location (read-only — the admin reviews these against the photos).
     internal record KycDocsDto(
         string AadhaarFront, string AadhaarBack, string PanFront, string? Selfie,
-        string? AadhaarPhoto, KycAadhaarDto? Aadhaar, KycLocationDto? Location);
+        string? AadhaarPhoto, string? KycStatus, string? RejectNote,
+        KycAadhaarDto? Aadhaar, KycLocationDto? Location);
     internal record KycAadhaarDto(
-        bool Verified, string? Last4, string? Name, string? Dob, string? Gender,
+        bool Verified, string? Last4, string? Number, string? Name, string? Dob, string? Gender,
         string? Address, DateTime? VerifiedAt);
     internal record KycLocationDto(double? Lat, double? Lng, string? Label);
 
@@ -275,6 +276,15 @@ internal static class DesktopApiClient
     internal static async Task DeleteUserKycAsync(long userId, string docType)
     {
         var resp = await Send(HttpMethod.Delete, $"api/mgr/users/{userId}/kyc/{docType}");
+        resp.EnsureSuccessStatusCode();
+    }
+
+    // Sets the KYC review outcome. status: "success" | "failed" | "pending".
+    // note is the optional rejection reason (only meaningful for "failed").
+    internal static async Task SetUserKycStatusAsync(long userId, string status, string? note)
+    {
+        var resp = await Send(HttpMethod.Patch, $"api/mgr/users/{userId}/kyc-status",
+            new { status, note });
         resp.EnsureSuccessStatusCode();
     }
 

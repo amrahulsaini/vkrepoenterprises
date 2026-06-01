@@ -38,6 +38,26 @@ data class LoginRequest(
     val slug: String? = null
 )
 
+// KYC re-submission by a rejected agent (no token — keyed by slug + mobile).
+data class ResubmitKycRequest(
+    val slug: String,
+    val mobile: String,
+    val aadhaarFront: String?,
+    val aadhaarBack: String?,
+    val panFront: String?,
+    val selfieWithAadhaar: String?,
+    val aadhaarPhoto: String?,
+    val aadhaarNumber: String?,
+    val aadhaarName: String?,
+    val aadhaarDob: String?,
+    val aadhaarGender: String?,
+    val aadhaarAddress: String?,
+    val aadhaarVerified: Boolean = false,
+    val regLat: Double? = null,
+    val regLng: Double? = null,
+    val regLocation: String? = null
+)
+
 data class AuthResponse(
     val success: Boolean,
     val message: String,

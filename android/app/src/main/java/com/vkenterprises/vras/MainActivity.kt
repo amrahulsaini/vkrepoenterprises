@@ -126,6 +126,10 @@ fun VKNavHost() {
             }
         }
 
+        composable(Screen.KycPending.route)  { KycPendingScreen(authVm, navController) }
+        composable(Screen.KycRejected.route) { KycRejectedScreen(authVm, navController) }
+        composable(Screen.KycResubmit.route) { KycResubmitScreen(authVm, navController) }
+
         composable(Screen.ManageSubscriptions.route) {
             val manageVm: ManageSubscriptionsViewModel = hiltViewModel()
             val userId by authVm.userId.collectAsState(initial = -1L)

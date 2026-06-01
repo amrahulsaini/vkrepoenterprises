@@ -189,6 +189,14 @@ public partial class AppUsersManagerPage : Page
     {
         if (_selectedUser == null) return;
         var active = !_selectedUser.IsActive;
+        // Gate: can't activate until KYC is verified. (Deactivating is allowed.)
+        if (active && !string.Equals(_kycStatus, "success", StringComparison.OrdinalIgnoreCase))
+        {
+            MessageBox.Show(
+                "This agent's KYC is not verified yet. Review their documents and click \"Mark Verified\" first.",
+                "KYC required", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
         try { await _repo.SetActiveAsync(_selectedUser.Id, active); _selectedUser.IsActive = active; RefreshActionLabels(_selectedUser); }
         catch (Exception ex) { MessageBox.Show(ex.Message, "Active", MessageBoxButton.OK, MessageBoxImage.Error); }
     }
@@ -308,44 +316,152 @@ public partial class AppUsersManagerPage : Page
     }
 
     // Resets the read-only OKYC demographic/location text fields.
+    // Current KYC review status of the selected user ('pending'|'success'|
+    // 'failed'); drives whether activation is allowed and the badge colour.
+    private string _kycStatus = "success";
+
     private void ClearKycDetails()
     {
         txtKycAaVerified.Text   = "Aadhaar: Not verified";
         txtKycAaVerified.Foreground = (System.Windows.Media.Brush)FindResource("Gray700");
-        txtKycAaNumber.Text  = "";
-        txtKycAaName.Text    = "";
-        txtKycAaDob.Text     = "";
-        txtKycAaGender.Text  = "";
-        txtKycAaAddress.Text = "";
-        txtKycLocation.Text  = "Location: not captured";
+        txtKycAaNumber.Text  = "—";
+        txtKycAaName.Text    = "—";
+        txtKycAaDob.Text     = "—";
+        txtKycAaGender.Text  = "—";
+        txtKycAaAddress.Text = "—";
+        txtKycLocation.Text  = "—";
+        _kycStatus = "success";
+        txtKycStatusBadge.Text = "KYC: —";
+        txtKycRejectNote.Visibility = Visibility.Collapsed;
+        SetBadge((System.Windows.Media.Brush)FindResource("Gray100"),
+                 (System.Windows.Media.Brush)FindResource("Gray700"));
     }
 
-    // Fills the OKYC demographics + capture location the agent verified at
-    // registration. Read-only — the admin eyeballs these against the photos and
-    // toggles the account Active/Inactive accordingly.
+    private void SetBadge(System.Windows.Media.Brush bg, System.Windows.Media.Brush fg)
+    {
+        brdKycStatusBadge.Background = bg;
+        txtKycStatusBadge.Foreground = fg;
+    }
+
+    // Fills the OKYC demographics + capture location + review status. Read-only —
+    // the admin eyeballs the photos, marks KYC Verified/Rejected, then activates.
     private void PopulateKycDetails(DesktopApiClient.KycDocsDto docs)
     {
         var a = docs.Aadhaar;
         bool verified = a?.Verified == true;
-        txtKycAaVerified.Text = verified ? "✓ Aadhaar Verified (OKYC)" : "Aadhaar: Not verified";
+        txtKycAaVerified.Text = verified ? "✓ Aadhaar verified with UIDAI (OKYC)" : "Aadhaar not OTP-verified";
         txtKycAaVerified.Foreground = verified
-            ? new System.Windows.Media.SolidColorBrush(
-                System.Windows.Media.Color.FromRgb(0x16, 0xA3, 0x4A))
+            ? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x16, 0xA3, 0x4A))
             : (System.Windows.Media.Brush)FindResource("Gray700");
 
-        txtKycAaNumber.Text  = string.IsNullOrWhiteSpace(a?.Last4) ? "" : $"Aadhaar No: XXXX XXXX {a!.Last4}";
-        txtKycAaName.Text    = string.IsNullOrWhiteSpace(a?.Name)   ? "" : $"Name: {a!.Name}";
-        txtKycAaDob.Text     = string.IsNullOrWhiteSpace(a?.Dob)    ? "" : $"Date of Birth: {a!.Dob}";
-        txtKycAaGender.Text  = string.IsNullOrWhiteSpace(a?.Gender) ? "" : $"Gender: {a!.Gender}";
-        txtKycAaAddress.Text = string.IsNullOrWhiteSpace(a?.Address)? "" : $"Address: {a!.Address}";
+        // Prefer the full 12-digit number; fall back to masked last-4.
+        string number = !string.IsNullOrWhiteSpace(a?.Number) ? a!.Number!
+                       : !string.IsNullOrWhiteSpace(a?.Last4)  ? $"XXXX XXXX {a!.Last4}" : "—";
+        txtKycAaNumber.Text  = number;
+        txtKycAaName.Text    = string.IsNullOrWhiteSpace(a?.Name)   ? "—" : a!.Name!;
+        txtKycAaDob.Text     = string.IsNullOrWhiteSpace(a?.Dob)    ? "—" : a!.Dob!;
+        txtKycAaGender.Text  = string.IsNullOrWhiteSpace(a?.Gender) ? "—" : a!.Gender!;
+        txtKycAaAddress.Text = string.IsNullOrWhiteSpace(a?.Address)? "—" : a!.Address!;
 
         var loc = docs.Location;
         if (loc?.Lat != null && loc.Lng != null)
         {
             var label = string.IsNullOrWhiteSpace(loc.Label) ? "" : $"{loc.Label}  ";
-            txtKycLocation.Text = $"Location: {label}({loc.Lat:F5}, {loc.Lng:F5})";
+            txtKycLocation.Text = $"{label}({loc.Lat:F5}, {loc.Lng:F5})";
         }
-        else txtKycLocation.Text = "Location: not captured";
+        else txtKycLocation.Text = "—";
+
+        // ── Review status badge + reject note ──────────────────────────────
+        _kycStatus = (docs.KycStatus ?? "success").Trim().ToLowerInvariant();
+        switch (_kycStatus)
+        {
+            case "success":
+                txtKycStatusBadge.Text = "KYC: VERIFIED";
+                SetBadge(new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xDC, 0xFC, 0xE7)),
+                         new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x15, 0x80, 0x3D)));
+                txtKycRejectNote.Visibility = Visibility.Collapsed;
+                break;
+            case "failed":
+                txtKycStatusBadge.Text = "KYC: REJECTED";
+                SetBadge(new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xFE, 0xE2, 0xE2)),
+                         (System.Windows.Media.Brush)FindResource("Red500"));
+                txtKycRejectNote.Text = string.IsNullOrWhiteSpace(docs.RejectNote)
+                    ? "Rejected (no note)." : $"Note: {docs.RejectNote}";
+                txtKycRejectNote.Visibility = Visibility.Visible;
+                break;
+            default: // pending
+                txtKycStatusBadge.Text = "KYC: PENDING REVIEW";
+                SetBadge(new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xFE, 0xF9, 0xC3)),
+                         new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x85, 0x4D, 0x0E)));
+                txtKycRejectNote.Visibility = Visibility.Collapsed;
+                break;
+        }
+    }
+
+    // ── KYC review actions ───────────────────────────────────────────────
+    private async void btnKycVerify_Click(object sender, RoutedEventArgs e)
+    {
+        if (_selectedUser == null) return;
+        try
+        {
+            await _repo.SetKycStatusAsync(_selectedUser.Id, "success", null);
+            _kycStatus = "success";
+            await LoadKycAsync(_selectedUser.Id);
+            MessageBox.Show("KYC marked as verified. You can now activate this agent.",
+                "KYC Verified", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        { MessageBox.Show(ex.Message, "KYC", MessageBoxButton.OK, MessageBoxImage.Error); }
+    }
+
+    private async void btnKycReject_Click(object sender, RoutedEventArgs e)
+    {
+        if (_selectedUser == null) return;
+        // Optional rejection note the agent will see on their next login.
+        var (ok, note) = PromptForNote(
+            $"Reject {_selectedUser.Name}'s KYC",
+            "Reason (optional) — the agent sees this and re-submits. Rejecting also deactivates the account.");
+        if (!ok) return;
+        try
+        {
+            await _repo.SetKycStatusAsync(_selectedUser.Id, "failed", string.IsNullOrWhiteSpace(note) ? null : note);
+            _kycStatus = "failed";
+            _selectedUser.IsActive = false;
+            RefreshActionLabels(_selectedUser);
+            await LoadKycAsync(_selectedUser.Id);
+            MessageBox.Show("KYC rejected. The agent will be asked to re-submit.",
+                "KYC Rejected", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        { MessageBox.Show(ex.Message, "KYC", MessageBoxButton.OK, MessageBoxImage.Error); }
+    }
+
+    // Minimal modal text prompt (no Microsoft.VisualBasic dependency). Returns
+    // (true, text) on OK and (false, "") on cancel.
+    private (bool ok, string text) PromptForNote(string title, string prompt)
+    {
+        var win = new Window
+        {
+            Title = title, Width = 460, Height = 220, ResizeMode = ResizeMode.NoResize,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner, Owner = Window.GetWindow(this),
+            Background = System.Windows.Media.Brushes.White
+        };
+        var root = new StackPanel { Margin = new Thickness(18) };
+        root.Children.Add(new TextBlock { Text = prompt, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 10) });
+        var box = new TextBox { MinHeight = 60, TextWrapping = TextWrapping.Wrap, AcceptsReturn = true, Margin = new Thickness(0, 0, 0, 12) };
+        root.Children.Add(box);
+        var bar = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
+        var cancel = new Button { Content = "Cancel", MinWidth = 90, Height = 32, Margin = new Thickness(0, 0, 8, 0), IsCancel = true };
+        var okBtn  = new Button { Content = "Reject KYC", MinWidth = 110, Height = 32, IsDefault = true };
+        bool result = false;
+        okBtn.Click += (_, __) => { result = true; win.DialogResult = true; };
+        cancel.Click += (_, __) => { win.DialogResult = false; };
+        bar.Children.Add(cancel); bar.Children.Add(okBtn);
+        root.Children.Add(bar);
+        win.Content = root;
+        box.Focus();
+        win.ShowDialog();
+        return (result, box.Text ?? "");
     }
 
     // Downloads the bytes for one KYC image — runs off the UI thread. Returns

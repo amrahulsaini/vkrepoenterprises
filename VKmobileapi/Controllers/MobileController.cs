@@ -856,9 +856,45 @@ public class MobileController : ControllerBase
         }
         catch (Exception ex) { return StatusCode(500, new ApiError(false, ex.Message)); }
     }
+
+    // ── KYC re-submission ─────────────────────────────────────────────────
+    // For an agent whose KYC was rejected. They can't log in (blocked), so this
+    // is tenant-bound-by-body like register: it identifies the user by mobile +
+    // slug, re-saves the documents, and resets the status to 'pending'.
+    [HttpPost("kyc/resubmit")]
+    public async Task<IActionResult> KycResubmit([FromBody] KycResubmitReq req)
+    {
+        try
+        {
+            if (req == null || string.IsNullOrWhiteSpace(req.Slug) || string.IsNullOrWhiteSpace(req.Mobile))
+                return BadRequest(new ApiError(false, "Missing details."));
+            var agency = await _repo.GetAgencyBySlugAsync(req.Slug.Trim());
+            if (!agency.Found || agency.Status != "approved")
+                return BadRequest(new ApiError(false, "That agency is not available."));
+            TenantContext.UseAgency(req.Slug.Trim());
+            var mobile = NormalizeMobile(req.Mobile);
+            var ok = await _repo.ResubmitKycAsync(
+                mobile, req.AadhaarFront, req.AadhaarBack, req.PanFront,
+                req.SelfieWithAadhaar, req.AadhaarPhoto,
+                req.AadhaarNumber, req.AadhaarName, req.AadhaarDob,
+                req.AadhaarGender, req.AadhaarAddress, req.AadhaarVerified,
+                req.RegLat, req.RegLng, req.RegLocation);
+            if (!ok) return NotFound(new ApiError(false, "No matching account found. Please register first."));
+            return Ok(new { success = true, message = "KYC re-submitted. Please wait for the agency to verify it." });
+        }
+        catch (Exception ex) { return StatusCode(500, new ApiError(false, $"Re-submit failed: {ex.Message}")); }
+    }
 }
 
 public record UpdatePfpRequest(string? PfpBase64);
+
+public record KycResubmitReq(
+    string? Slug, string? Mobile,
+    string? AadhaarFront, string? AadhaarBack, string? PanFront,
+    string? SelfieWithAadhaar, string? AadhaarPhoto,
+    string? AadhaarNumber, string? AadhaarName, string? AadhaarDob,
+    string? AadhaarGender, string? AadhaarAddress, bool AadhaarVerified = false,
+    double? RegLat = null, double? RegLng = null, string? RegLocation = null);
 
 // ── KYC request bodies ──────────────────────────────────────────────────────
 public record KycAadhaarOtpReq(string? AadhaarNumber);
