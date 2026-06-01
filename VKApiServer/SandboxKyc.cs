@@ -100,12 +100,12 @@ internal static class SandboxKyc
                 return Results.BadRequest(new { ok = false, message = "Enter a valid 12-digit Aadhaar number." });
             try
             {
-                var r = await CallAsync(HttpMethod.Post, "/kyc/aadhaar/okyc/otp", new
+                var r = await CallAsync(HttpMethod.Post, "/kyc/aadhaar/okyc/otp", new Dictionary<string, object?>
                 {
-                    @entity = "in.co.sandbox.kyc.aadhaar.okyc.otp.request",
-                    aadhaar_number = aadhaar,
-                    consent = "y",
-                    reason = "KYC verification for recovery-agent onboarding"
+                    ["@entity"] = "in.co.sandbox.kyc.aadhaar.okyc.otp.request",
+                    ["aadhaar_number"] = aadhaar,
+                    ["consent"] = "y",
+                    ["reason"] = "KYC verification for recovery-agent onboarding"
                 }, "1.0.0");
                 if (r.TryGetProperty("data", out var d) && d.TryGetProperty("reference_id", out var refId))
                     return Results.Ok(new { ok = true, referenceId = refId.ToString() });
@@ -127,11 +127,11 @@ internal static class SandboxKyc
             try
             {
                 object refVal = long.TryParse(refId, out var ri) ? ri : refId;
-                var r = await CallAsync(HttpMethod.Post, "/kyc/aadhaar/okyc/otp/verify", new
+                var r = await CallAsync(HttpMethod.Post, "/kyc/aadhaar/okyc/otp/verify", new Dictionary<string, object?>
                 {
-                    @entity = "in.co.sandbox.kyc.aadhaar.okyc.request",
-                    reference_id = refVal,
-                    otp = otp
+                    ["@entity"] = "in.co.sandbox.kyc.aadhaar.okyc.request",
+                    ["reference_id"] = refVal,
+                    ["otp"] = otp
                 }, "1.0.0");
                 if (r.TryGetProperty("data", out var d))
                 {
@@ -171,14 +171,14 @@ internal static class SandboxKyc
                 return Results.BadRequest(new { ok = false, message = "Enter a valid 10-character PAN." });
             try
             {
-                var r = await CallAsync(HttpMethod.Post, "/kyc/pan/verify", new
+                var r = await CallAsync(HttpMethod.Post, "/kyc/pan/verify", new Dictionary<string, object?>
                 {
-                    @entity = "in.co.sandbox.kyc.pan_verification.request",
-                    pan = pan,
-                    name_as_per_pan = name,
-                    date_of_birth = dob,
-                    consent = "Y",
-                    reason = "KYC verification for recovery-agent onboarding compliance"
+                    ["@entity"] = "in.co.sandbox.kyc.pan_verification.request",
+                    ["pan"] = pan,
+                    ["name_as_per_pan"] = name,
+                    ["date_of_birth"] = dob,
+                    ["consent"] = "Y",
+                    ["reason"] = "KYC verification for recovery-agent onboarding compliance"
                 }, null);
                 if (r.TryGetProperty("data", out var d))
                 {
