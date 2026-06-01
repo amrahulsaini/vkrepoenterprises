@@ -10,26 +10,32 @@ namespace VRASDesktopApp;
 
 public partial class LoginWindow : Window
 {
-    // Local cache of the agency's branding. Populated after a successful login;
-    // the logo replaces the CRMRS default on the sign-in screen and the name
-    // replaces the "CRMS" title on every subsequent launch.
+    // Remembered branding of the LAST agency the user signed into. Written after
+    // a successful login; on the next launch the login screen shows that agency's
+    // logo + name instead of the generic CRMRS defaults.
+    //
+    // Stored under %LocalAppData%\CRMRS — deliberately NOT the legacy \CRMS dir
+    // the old per-agency installers wrote to. That keeps a FRESH generic CRMRS
+    // install starting as CRMRS (this dir is empty until the user signs in here
+    // at least once) instead of inheriting a previously-installed agency's
+    // leftover branding before any login.
     private static readonly string AgencyCacheDir = System.IO.Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "CRMS");
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "CRMRS");
     private static readonly string AgencyLogoCachePath = System.IO.Path.Combine(AgencyCacheDir, "agency-logo.png");
     private static readonly string AgencyNameCachePath = System.IO.Path.Combine(AgencyCacheDir, "agency-name.txt");
 
     public LoginWindow()
     {
         InitializeComponent();
-        // When NOT signed in, the login screen always shows the generic CRMRS
-        // brand (from XAML). Only a tenant-baked build overrides the name from
-        // its bundled branding.json. We deliberately do NOT show any cached
-        // agency branding before sign-in, so a fresh generic install never
-        // inherits a previously-installed agency's name/logo on the login
-        // screen — the agency is captured and shown only AFTER sign-in
-        // (inside MainWindow).
+        // Login-screen branding:
+        //   * tenant-baked build -> its bundled agency name (branding.json)
+        //   * generic build      -> CRMRS by default; once the user has signed
+        //     in here at least once, the remembered agency (logo + name) is
+        //     shown instead. A fresh install has no remembered agency yet, so it
+        //     starts as CRMRS (see AgencyCacheDir).
         if (Branding.IsTenantBuild)
             lblAppName.Text = Branding.Name;
+        Loaded += (_, __) => LoadCachedAgencyBranding();
     }
 
     private void LoadCachedAgencyBranding()
@@ -219,6 +225,11 @@ public partial class LoginWindow : Window
 
         App.SignedAppUser = signed;
         App.SetAuthToken(signed.Token);
+
+        // Remember this agency's logo + name so the NEXT launch's login screen
+        // shows them instead of the generic CRMRS defaults. Fire-and-forget so
+        // it never blocks sign-in.
+        _ = CacheAgencyBrandingAsync(signed.AgencyName, signed.LogoPath);
 
         // Construct the main window first to catch any initialization/XAML errors
         MainWindow window;
