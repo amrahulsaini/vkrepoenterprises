@@ -56,6 +56,12 @@ static bool IsTenantBoundByBody(PathString path)
     return s.Equals("/api/mobile/register", StringComparison.OrdinalIgnoreCase)
         || s.Equals("/api/mobile/login",    StringComparison.OrdinalIgnoreCase)
         || s.Equals("/api/mobile/agencies", StringComparison.OrdinalIgnoreCase)
+        // Aadhaar OKYC OTP send + verify run DURING registration — the agent
+        // has no tenant token yet. These don't touch the tenant DB (the OTP is
+        // stateless; verify only persists when an X-User-Id is present, i.e. an
+        // already-logged-in user re-verifying, who will also carry a token).
+        || s.Equals("/api/mobile/kyc/aadhaar/otp",    StringComparison.OrdinalIgnoreCase)
+        || s.Equals("/api/mobile/kyc/aadhaar/verify", StringComparison.OrdinalIgnoreCase)
         || s.StartsWith("/api/mobile/cache/", StringComparison.OrdinalIgnoreCase)
         || s.StartsWith("/uploads/",        StringComparison.OrdinalIgnoreCase)
         || s == "/";
