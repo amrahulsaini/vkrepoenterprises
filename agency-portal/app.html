@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CRMRS — Agency Portal</title>
+<link rel="icon" href="assets/favicon.ico">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#0e1525; --ink2:#33415c; --muted:#64748b; --line:#e6e9f0;
+    --bg:#f6f7fb; --card:#fff; --orange:#ff4d00; --orange-d:#d63e00;
+    --ok:#16a34a; --shadow:0 1px 3px rgba(16,24,40,.06),0 1px 2px rgba(16,24,40,.04);
+  }
+  *{box-sizing:border-box} html,body{margin:0;height:100%}
+  body{font-family:Inter,system-ui,sans-serif;color:var(--ink);background:var(--bg)}
+  a{color:inherit}
+  .hidden{display:none!important}
+  .btn{font:inherit;font-weight:600;border:none;border-radius:8px;padding:11px 16px;cursor:pointer}
+  .btn-primary{background:var(--orange);color:#fff} .btn-primary:hover{background:var(--orange-d)}
+  .btn-primary:disabled{opacity:.6;cursor:not-allowed}
+  .btn-ghost{background:transparent;color:var(--ink2);font-weight:600}
+  input{font:inherit;width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink)}
+  input:focus{outline:none;border-color:var(--orange)}
+  .lbl{font-size:12px;font-weight:600;color:var(--muted);margin:0 0 5px}
+  .msg{font-size:13px;margin-top:10px;min-height:18px}
+  .msg.err{color:#dc2626} .msg.ok{color:var(--ok)}
+
+  /* ── Login ── */
+  #login{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+  .login-card{width:100%;max-width:380px;background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:30px 26px;text-align:center}
+  .login-card img{width:84px;height:84px;border-radius:18px;border:1px solid var(--line);padding:8px;background:#fff}
+  .login-card h1{font-size:22px;margin:14px 0 2px} .login-card p.sub{color:var(--muted);font-size:13px;margin:0 0 18px}
+  .login-card .field{text-align:left;margin-bottom:12px}
+
+  /* ── App shell ── */
+  #app{display:grid;grid-template-columns:230px 1fr;grid-template-rows:58px 1fr;height:100vh;grid-template-areas:"side top" "side main"}
+  .topbar{grid-area:top;display:flex;align-items:center;justify-content:space-between;padding:0 20px;background:#fff;border-bottom:1px solid var(--line)}
+  .topbar .who{display:flex;align-items:center;gap:10px;font-weight:600}
+  .topbar .who img{width:30px;height:30px;border-radius:7px;border:1px solid var(--line);object-fit:contain;background:#fff}
+  .side{grid-area:side;background:#0e1525;color:#cbd5e1;display:flex;flex-direction:column;padding:16px 12px;gap:3px}
+  .side .brand{display:flex;align-items:center;gap:9px;padding:6px 8px 16px;font-weight:800;color:#fff;font-size:18px}
+  .side .brand b{color:var(--orange)}
+  .side a{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;font-size:14px;font-weight:600;color:#cbd5e1;cursor:pointer;text-decoration:none}
+  .side a:hover{background:#1b2436;color:#fff}
+  .side a.active{background:var(--orange);color:#fff}
+  .side .spacer{flex:1}
+  .main{grid-area:main;overflow:auto;padding:22px}
+  .view-title{font-size:20px;font-weight:800;margin:0 0 4px}
+  .view-sub{color:var(--muted);font-size:13px;margin:0 0 18px}
+  .soon{background:#fff;border:1px dashed var(--line);border-radius:12px;padding:40px;text-align:center;color:var(--muted)}
+
+  /* ── Search ── */
+  .searchbar{display:flex;gap:10px;align-items:center;background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px;box-shadow:var(--shadow);margin-bottom:16px}
+  .seg{display:flex;background:#eef1f6;border-radius:8px;padding:3px}
+  .seg button{font:inherit;font-weight:600;border:none;background:transparent;color:var(--ink2);padding:8px 14px;border-radius:6px;cursor:pointer}
+  .seg button.active{background:#fff;color:var(--orange);box-shadow:var(--shadow)}
+  #q{font-size:20px;font-weight:700;letter-spacing:1px;font-family:ui-monospace,Consolas,monospace}
+  .grid2{display:grid;grid-template-columns:380px 1fr;gap:16px;align-items:start}
+  @media(max-width:900px){.grid2{grid-template-columns:1fr}}
+  .panel{background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);overflow:hidden}
+  .panel h3{margin:0;padding:13px 16px;font-size:13px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between}
+  .panel h3 .cnt{background:#eef1f6;color:var(--ink2);border-radius:10px;padding:1px 9px;font-size:12px}
+  .row{padding:12px 16px;border-bottom:1px solid var(--line);cursor:pointer}
+  .row:hover{background:#f8fafc} .row.active{background:#fff4ee;border-left:3px solid var(--orange)}
+  .row .v{font-weight:800;font-family:ui-monospace,Consolas,monospace;font-size:15px}
+  .row .m{color:var(--muted);font-size:12px;margin-top:2px}
+  .detail{padding:6px 0}
+  .detail .drow{display:grid;grid-template-columns:150px 1fr;border-bottom:1px solid var(--line)}
+  .detail .drow >div{padding:9px 14px;font-size:13px}
+  .detail .drow .k{color:var(--muted);font-weight:600} .detail .drow .val{font-weight:600;word-break:break-word}
+  .empty{padding:34px;text-align:center;color:var(--muted);font-size:13px}
+  .spin{display:inline-block;width:13px;height:13px;border:2px solid #cbd5e1;border-top-color:var(--orange);border-radius:50%;animation:s .7s linear infinite;vertical-align:-2px}
+  @keyframes s{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<!-- ─────────── LOGIN / OTP ─────────── -->
+<div id="login">
+  <div class="login-card">
+    <img src="assets/crmrs-logo.webp" alt="CRMRS" onerror="this.onerror=null;this.src='assets/logo-short.webp'">
+    <h1>Agency Sign In</h1>
+    <p class="sub">CRMRS — Loan recovery software</p>
+
+    <div id="step-pass">
+      <div class="field"><div class="lbl">EMAIL ADDRESS</div><input id="li-email" type="email" autocomplete="username" placeholder="you@agency.com"></div>
+      <div class="field"><div class="lbl">PASSWORD</div><input id="li-pass" type="password" autocomplete="current-password" placeholder="••••••••"></div>
+      <button class="btn btn-primary" id="li-btn" style="width:100%">Continue</button>
+    </div>
+
+    <div id="step-otp" class="hidden">
+      <p class="sub" id="otp-to" style="margin-bottom:14px"></p>
+      <div class="field"><div class="lbl">6-DIGIT CODE</div><input id="li-otp" inputmode="numeric" maxlength="6" placeholder="------" style="text-align:center;font-size:22px;letter-spacing:8px;font-weight:700"></div>
+      <button class="btn btn-primary" id="otp-btn" style="width:100%">Verify &amp; sign in</button>
+      <button class="btn btn-ghost" id="otp-back" style="width:100%;margin-top:6px">← Use a different account</button>
+    </div>
+    <div class="msg" id="li-msg"></div>
+  </div>
+</div>
+
+<!-- ─────────── APP ─────────── -->
+<div id="app" class="hidden">
+  <aside class="side">
+    <div class="brand"><b>CRM</b>RS</div>
+    <a data-view="search" class="active">🔎 Find Vehicles</a>
+    <a data-view="dashboard">📊 Dashboard</a>
+    <a data-view="confirmations">✅ Confirmations</a>
+    <a data-view="branches">🏦 Branches &amp; Finances</a>
+    <a data-view="tickets">🎫 Support Tickets</a>
+    <a data-view="settings">⚙️ Settings</a>
+    <div class="spacer"></div>
+    <a id="nav-logout">⎋ Sign out</a>
+  </aside>
+
+  <header class="topbar">
+    <div id="bc" style="font-weight:700">Find Vehicles</div>
+    <div class="who"><img id="who-logo" src="assets/crmrs-logo.webp" alt=""><span id="who-name">Agency</span></div>
+  </header>
+
+  <main class="main">
+    <!-- Search view -->
+    <section id="view-search">
+      <h2 class="view-title">Find Vehicles</h2>
+      <p class="view-sub">Search live records by RC number (last 4 digits) or chassis number (last 5).</p>
+      <div class="searchbar">
+        <div class="seg">
+          <button id="mode-rc" class="active">RC number</button>
+          <button id="mode-ch">Chassis</button>
+        </div>
+        <input id="q" placeholder="Enter last 4 digits" maxlength="4" autocomplete="off">
+        <span id="q-spin" class="hidden"><span class="spin"></span></span>
+      </div>
+      <div class="grid2">
+        <div class="panel">
+          <h3>VEHICLE MATCHES <span class="cnt" id="res-cnt">0</span></h3>
+          <div id="res-list"><div class="empty">Type to search.</div></div>
+        </div>
+        <div class="panel">
+          <h3>RECORD DETAILS</h3>
+          <div id="detail"><div class="empty">Select a vehicle to view its full record.</div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Placeholder views (built incrementally) -->
+    <section id="view-dashboard" class="hidden"><h2 class="view-title">Dashboard</h2><div class="soon">Dashboard coming in the next update.</div></section>
+    <section id="view-confirmations" class="hidden"><h2 class="view-title">Confirmations</h2><div class="soon">Confirmations coming in the next update.</div></section>
+    <section id="view-branches" class="hidden"><h2 class="view-title">Branches &amp; Finances</h2><div class="soon">Branches &amp; Finances coming in the next update.</div></section>
+    <section id="view-tickets" class="hidden"><h2 class="view-title">Support Tickets</h2><div class="soon">Support tickets coming in the next update.</div></section>
+    <section id="view-settings" class="hidden"><h2 class="view-title">Settings</h2><div class="soon">Settings coming in the next update.</div></section>
+  </main>
+</div>
+
+<script>
+const API='https://api.crmrecoverysoftware.com/api/agency';
+const LS_TOK='crmrs_agency_token', LS_WHO='crmrs_agency_who';
+const $=s=>document.querySelector(s);
+let token=localStorage.getItem(LS_TOK)||'';
+let pendingEmail='', mode='rc', searchTimer=null, fullCache={};
+
+// ── auth ──
+async function api(path,opts={}){
+  opts.headers=Object.assign({'Content-Type':'application/json'},opts.headers||{});
+  if(token) opts.headers['Authorization']='Bearer '+token;
+  const r=await fetch(API+path,opts);
+  let body=null; try{body=await r.json()}catch{}
+  if(r.status===401){ doLogout(); throw new Error('Session expired'); }
+  if(!r.ok) throw new Error((body&&body.message)||('Error '+r.status));
+  return body;
+}
+function setMsg(t,cls){const m=$('#li-msg');m.textContent=t||'';m.className='msg '+(cls||'');}
+
+$('#li-btn').onclick=async()=>{
+  const email=$('#li-email').value.trim().toLowerCase(), pass=$('#li-pass').value;
+  if(!email||!pass){setMsg('Enter your email and password.','err');return;}
+  $('#li-btn').disabled=true; setMsg('Checking…');
+  try{
+    await api('/web/login',{method:'POST',body:JSON.stringify({email,password:pass})});
+    pendingEmail=email;
+    $('#step-pass').classList.add('hidden'); $('#step-otp').classList.remove('hidden');
+    $('#otp-to').textContent='We emailed a 6-digit code to '+email+'.';
+    setMsg(''); $('#li-otp').focus();
+  }catch(e){ setMsg(e.message,'err'); }
+  $('#li-btn').disabled=false;
+};
+$('#otp-btn').onclick=async()=>{
+  const code=$('#li-otp').value.trim();
+  if(code.length!==6){setMsg('Enter the 6-digit code.','err');return;}
+  $('#otp-btn').disabled=true; setMsg('Verifying…');
+  try{
+    const r=await api('/web/verify',{method:'POST',body:JSON.stringify({email:pendingEmail,code})});
+    token=r.token; localStorage.setItem(LS_TOK,token);
+    localStorage.setItem(LS_WHO,JSON.stringify({name:r.agencyName,logo:r.logoPath}));
+    showApp();
+  }catch(e){ setMsg(e.message,'err'); }
+  $('#otp-btn').disabled=false;
+};
+$('#otp-back').onclick=()=>{ $('#step-otp').classList.add('hidden'); $('#step-pass').classList.remove('hidden'); setMsg(''); };
+$('#nav-logout').onclick=doLogout;
+function doLogout(){ token=''; localStorage.removeItem(LS_TOK); localStorage.removeItem(LS_WHO); $('#app').classList.add('hidden'); $('#login').classList.remove('hidden'); $('#step-otp').classList.add('hidden'); $('#step-pass').classList.remove('hidden'); }
+
+function showApp(){
+  $('#login').classList.add('hidden'); $('#app').classList.remove('hidden');
+  let who={}; try{who=JSON.parse(localStorage.getItem(LS_WHO)||'{}')}catch{}
+  $('#who-name').textContent=who.name||'Agency';
+  if(who.logo){ const u=(who.logo.indexOf('http')===0)?who.logo:('https://api.crmrecoverysoftware.com/'+who.logo.replace(/^\//,'')); $('#who-logo').src=u; }
+}
+
+// ── nav ──
+document.querySelectorAll('.side a[data-view]').forEach(a=>{
+  a.onclick=()=>{
+    document.querySelectorAll('.side a[data-view]').forEach(x=>x.classList.remove('active'));
+    a.classList.add('active');
+    const v=a.dataset.view;
+    document.querySelectorAll('.main > section').forEach(s=>s.classList.add('hidden'));
+    $('#view-'+v).classList.remove('hidden');
+    $('#bc').textContent=a.textContent.trim().replace(/^[^A-Za-z]+/,'');
+  };
+});
+
+// ── search ──
+function setMode(m){
+  mode=m;
+  $('#mode-rc').classList.toggle('active',m==='rc'); $('#mode-ch').classList.toggle('active',m==='chassis');
+  $('#q').maxLength=(m==='rc')?4:5;
+  $('#q').placeholder='Enter last '+((m==='rc')?'4 digits':'5 chars');
+  $('#q').value=''; $('#res-list').innerHTML='<div class="empty">Type to search.</div>'; $('#detail').innerHTML='<div class="empty">Select a vehicle to view its full record.</div>'; $('#res-cnt').textContent='0';
+}
+$('#mode-rc').onclick=()=>setMode('rc'); $('#mode-ch').onclick=()=>setMode('chassis');
+
+$('#q').oninput=()=>{
+  let v=$('#q').value;
+  v=(mode==='rc')? v.replace(/[^0-9]/g,'') : v.replace(/[^A-Za-z0-9]/g,'').toUpperCase();
+  $('#q').value=v;
+  const need=(mode==='rc')?4:5;
+  clearTimeout(searchTimer);
+  if(v.length<need){return;}
+  $('#q-spin').classList.remove('hidden');
+  searchTimer=setTimeout(()=>runSearch(v),90);
+};
+async function runSearch(q){
+  try{
+    const rows=await api('/web/search?q='+encodeURIComponent(q)+'&mode='+mode);
+    const key=(mode==='rc')?'vehicleNo':'chassisNo';
+    // dedupe by vehicle/chassis (case-insensitive), keep first
+    const seen={}, uniq=[];
+    (rows||[]).forEach(r=>{const k=(r[key]||r[key.charAt(0).toUpperCase()+key.slice(1)]||'').toUpperCase(); if(!seen[k]){seen[k]=1;uniq.push(r);}});
+    uniq.sort((a,b)=>((a.VehicleNo||a.vehicleNo||'')+'').localeCompare((b.VehicleNo||b.vehicleNo||'')+''));
+    $('#res-cnt').textContent=uniq.length;
+    if(!uniq.length){ $('#res-list').innerHTML='<div class="empty">No matches.</div>'; }
+    else $('#res-list').innerHTML=uniq.map((r,i)=>{
+      const vno=r.VehicleNo||'', cno=r.ChassisNo||'', md=r.Model||'', fin=r.Financer||'', br=r.BranchName||'';
+      return '<div class="row" data-id="'+r.Id+'" data-i="'+i+'"><div class="v">'+( (mode==='rc')?vno:cno )+'</div><div class="m">'+[md,fin,br].filter(Boolean).join(' · ')+'</div></div>';
+    }).join('');
+    document.querySelectorAll('#res-list .row').forEach(el=>el.onclick=()=>openRecord(el.dataset.id,el));
+  }catch(e){ $('#res-list').innerHTML='<div class="empty">'+e.message+'</div>'; }
+  $('#q-spin').classList.add('hidden');
+}
+async function openRecord(id,el){
+  document.querySelectorAll('#res-list .row').forEach(x=>x.classList.remove('active')); el.classList.add('active');
+  $('#detail').innerHTML='<div class="empty"><span class="spin"></span> Loading…</div>';
+  try{
+    let r=fullCache[id]; if(!r){ r=await api('/web/record/'+id); fullCache[id]=r; }
+    const F=[['Vehicle No',r.VehicleNo],['Chassis No',r.ChassisNo],['Model/Make',r.Model],['Engine No',r.EngineNo],
+      ['Agreement No',r.AgreementNo],['Customer',r.CustomerName],['Cust. Address',r.CustomerAddress],['Cust. Contact',r.CustomerContactNos],
+      ['Bucket',r.Bucket],['OD',r.OD],['POS',r.POS],['TOSS',r.TOSS],['Area',r.Area],['Region',r.Region],
+      ['Level 1',r.Level1],['Level 1 No',r.Level1ContactNos],['Level 2',r.Level2],['Level 2 No',r.Level2ContactNos],
+      ['Level 3',r.Level3],['Level 3 No',r.Level3ContactNos],['Level 4',r.Level4],['Level 4 No',r.Level4ContactNos],
+      ['Finance',r.BranchName],['Head Office',r.Financer],['Contact 1',r.FirstContactDetails],['Contact 2',r.SecondContactDetails],
+      ['Contact 3',r.ThirdContactDetails],['Address',r.Address],['Executive',r.ExecutiveName],['Uploaded',r.CreatedOn]];
+    $('#detail').innerHTML='<div class="detail">'+F.filter(x=>x[1]&&(''+x[1]).trim()).map(x=>'<div class="drow"><div class="k">'+x[0]+'</div><div class="val">'+esc(x[1])+'</div></div>').join('')+'</div>';
+  }catch(e){ $('#detail').innerHTML='<div class="empty">'+e.message+'</div>'; }
+}
+function esc(s){return (''+s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
+
+// boot
+if(token) showApp();
+</script>
+</body>
+</html>
