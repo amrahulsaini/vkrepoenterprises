@@ -168,6 +168,14 @@ dependencies {
 
     // Location
     implementation("com.google.android.gms:play-services-location:21.3.0")
+
+    // ── KYC (on-device, free) ───────────────────────────────────────────────
+    // ML Kit text recognition → reads the Aadhaar / PAN number straight off the
+    // captured document photo (no server, no cost). Face detection → liveness
+    // (a real face present) on the selfie before it's submitted. The actual
+    // Aadhaar OTP / PAN / bank VERIFICATION is done server-side via Sandbox.
+    implementation("com.google.mlkit:text-recognition:16.0.1")
+    implementation("com.google.mlkit:face-detection:16.1.7")
 }
 
 kapt { correctErrorTypes = true }
