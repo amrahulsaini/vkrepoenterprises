@@ -138,6 +138,14 @@ internal static class SandboxKyc
                 {
                     string S(string k) => d.TryGetProperty(k, out var v)
                         ? (v.ValueKind == JsonValueKind.String ? v.GetString() ?? "" : v.ToString()) : "";
+                    // Sandbox returns 200 + data even on a wrong OTP (just a
+                    // "message", no identity). Don't report verified in that case.
+                    if (S("name").Length == 0 && S("date_of_birth").Length == 0)
+                    {
+                        var dm = S("message");
+                        return Results.BadRequest(new { ok = false,
+                            message = dm.Length > 0 ? dm : "OTP verification failed. Please check the OTP and try again." });
+                    }
                     string addr = S("full_address");
                     if (addr.Length == 0 && d.TryGetProperty("address", out var a) && a.ValueKind == JsonValueKind.Object)
                         addr = a.ToString();

@@ -487,6 +487,17 @@
                                     </ContextMenu>
                                 </Button.ContextMenu>
                             </Button>
+                            <!-- Refresh the selected user's KYC docs + details. -->
+                            <Button Name="btnRefreshUser" DockPanel.Dock="Right"
+                                    Height="32" Padding="12,0" FontSize="13" Margin="0,0,8,0"
+                                    Background="Transparent" BorderBrush="{StaticResource Gray300}"
+                                    BorderThickness="1" Cursor="Hand"
+                                    Foreground="{StaticResource Gray700}"
+                                    Click="btnRefreshUser_Click"
+                                    Visibility="Collapsed"
+                                    ToolTip="Reload this user's KYC documents and details">
+                                <TextBlock Text="↻ Refresh" VerticalAlignment="Center" />
+                            </Button>
                         </DockPanel>
                     </Border>
 

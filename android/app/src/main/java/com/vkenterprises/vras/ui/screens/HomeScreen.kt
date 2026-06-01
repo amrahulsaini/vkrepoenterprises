@@ -456,17 +456,6 @@ fun HomeScreen(
                 }
             }
 
-            // Thin indeterminate bar whenever a search is in-flight — visible
-            // even while refining an existing result set, so the user always
-            // sees the app is working.
-            if (ui.isSearching) {
-                LinearProgressIndicator(
-                    modifier   = Modifier.fillMaxWidth(),
-                    color      = MaterialTheme.colorScheme.primary,
-                    trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
-                )
-            }
-
             // ── Error ────────────────────────────────────────────────────
             if (ui.errorMsg != null) {
                 Surface(color = MaterialTheme.colorScheme.errorContainer) {

@@ -106,6 +106,7 @@ public partial class AppUsersManagerPage : Page
         pnlEmpty.Visibility   = Visibility.Collapsed;
         pnlProfile.Visibility = Visibility.Visible;
         btnUserActions.Visibility = Visibility.Visible;
+        btnRefreshUser.Visibility = Visibility.Visible;
         RefreshActionLabels(user);
 
         // Kick off all four secondary loads in parallel — previously these ran
@@ -183,6 +184,23 @@ public partial class AppUsersManagerPage : Page
         var admin = !_selectedUser.IsAdmin;
         try { await _repo.SetAdminAsync(_selectedUser.Id, admin); _selectedUser.IsAdmin = admin; RefreshActionLabels(_selectedUser); }
         catch (Exception ex) { MessageBox.Show(ex.Message, "Admin", MessageBoxButton.OK, MessageBoxImage.Error); }
+    }
+
+    // Reloads the selected user's KYC documents/photos + verified details +
+    // subscriptions/restrictions — handy right after the agent re-submits KYC.
+    private async void btnRefreshUser_Click(object sender, RoutedEventArgs e)
+    {
+        if (_selectedUser == null) return;
+        btnRefreshUser.IsEnabled = false;
+        try
+        {
+            await Task.WhenAll(
+                LoadSubscriptionsAsync(_selectedUser.Id),
+                LoadFinanceRestrictionsAsync(_selectedUser.Id),
+                LoadKycAsync(_selectedUser.Id));
+        }
+        catch (Exception ex) { MessageBox.Show(ex.Message, "Refresh", MessageBoxButton.OK, MessageBoxImage.Error); }
+        finally { btnRefreshUser.IsEnabled = true; }
     }
 
     private async void ActActive_Click(object sender, RoutedEventArgs e)

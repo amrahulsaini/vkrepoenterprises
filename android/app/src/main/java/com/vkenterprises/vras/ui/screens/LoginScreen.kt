@@ -7,7 +7,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Phone
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.*
@@ -163,46 +162,24 @@ fun LoginScreen(vm: AuthViewModel, nav: NavController) {
                 }
             }
 
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalAlignment = Alignment.CenterVertically
+            Button(
+                onClick = {
+                    error = ""
+                    if (mobile.isBlank()) { error = "Enter your mobile number."; return@Button }
+                    vm.login(mobile, agencySlug, agencyName)
+                },
+                enabled = state !is AuthUiState.Loading,
+                modifier = Modifier.fillMaxWidth().height(52.dp),
+                shape = RoundedCornerShape(12.dp)
             ) {
-                Button(
-                    onClick = {
-                        error = ""
-                        if (mobile.isBlank()) { error = "Enter your mobile number."; return@Button }
-                        vm.login(mobile, agencySlug, agencyName)
-                    },
-                    enabled = state !is AuthUiState.Loading,
-                    modifier = Modifier.weight(1f).height(52.dp),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    if (state is AuthUiState.Loading)
-                        CircularProgressIndicator(
-                            Modifier.size(20.dp),
-                            strokeWidth = 2.dp,
-                            color = MaterialTheme.colorScheme.onPrimary
-                        )
-                    else
-                        Text("LOGIN", fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                }
-                // Refresh: re-check status with the entered (or last-used) mobile —
-                // handy right after an admin approves/activates the account.
-                OutlinedButton(
-                    onClick = {
-                        error = ""
-                        val m = mobile.ifBlank { vm.lastMobile }
-                        if (m.isBlank()) { error = "Enter your mobile number to refresh."; return@OutlinedButton }
-                        vm.login(m, agencySlug, agencyName)
-                    },
-                    enabled = state !is AuthUiState.Loading,
-                    shape = RoundedCornerShape(12.dp),
-                    contentPadding = PaddingValues(0.dp),
-                    modifier = Modifier.size(52.dp)
-                ) {
-                    Icon(Icons.Default.Refresh, contentDescription = "Refresh status")
-                }
+                if (state is AuthUiState.Loading)
+                    CircularProgressIndicator(
+                        Modifier.size(20.dp),
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.onPrimary
+                    )
+                else
+                    Text("LOGIN", fontWeight = FontWeight.Bold, fontSize = 16.sp)
             }
 
             Row(

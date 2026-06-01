@@ -11,9 +11,11 @@ import androidx.compose.ui.*
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.*
+import androidx.navigation.NavController
+import com.vkenterprises.vras.viewmodel.AuthViewModel
 
 @Composable
-fun WaitingApprovalScreen(reason: String, onBackToLogin: () -> Unit) {
+fun WaitingApprovalScreen(reason: String, vm: AuthViewModel, nav: NavController) {
     val isDeviceMismatch = reason == "device_mismatch"
 
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -97,13 +99,7 @@ fun WaitingApprovalScreen(reason: String, onBackToLogin: () -> Unit) {
 
             Spacer(Modifier.height(8.dp))
 
-            Button(
-                onClick = onBackToLogin,
-                modifier = Modifier.fillMaxWidth().height(52.dp),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Text("BACK TO LOGIN", fontWeight = FontWeight.Bold)
-            }
+            StatusActions(vm, nav)
         }
     }
 }

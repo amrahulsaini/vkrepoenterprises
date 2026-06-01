@@ -210,6 +210,7 @@ class AuthViewModel @Inject constructor(
         regLat: Double? = null, regLng: Double? = null, regLocation: String? = null,
         aadhaarPhoto: String? = null
     ) = viewModelScope.launch {
+        lastMobile = mobile.trim()
         _state.value = AuthUiState.Loading
         val deviceId = DeviceIdUtil.get(context)
         val result = repo.register(
