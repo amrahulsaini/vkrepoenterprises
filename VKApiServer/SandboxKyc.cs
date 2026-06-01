@@ -126,11 +126,12 @@ internal static class SandboxKyc
                 return Results.BadRequest(new { ok = false, message = "Reference id and the 6-digit OTP are required." });
             try
             {
-                object refVal = long.TryParse(refId, out var ri) ? ri : refId;
+                // Sandbox requires reference_id as a STRING — sending a JSON
+                // number is rejected with "Invalid request body".
                 var r = await CallAsync(HttpMethod.Post, "/kyc/aadhaar/okyc/otp/verify", new Dictionary<string, object?>
                 {
                     ["@entity"] = "in.co.sandbox.kyc.aadhaar.okyc.request",
-                    ["reference_id"] = refVal,
+                    ["reference_id"] = refId,
                     ["otp"] = otp
                 }, "1.0.0");
                 if (r.TryGetProperty("data", out var d))

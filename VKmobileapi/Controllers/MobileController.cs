@@ -753,8 +753,10 @@ public class MobileController : ControllerBase
             return BadRequest(new ApiError(false, "Reference id and the 6-digit OTP are required."));
         try
         {
-            object refVal = long.TryParse(req.ReferenceId, out var ri) ? ri : req.ReferenceId!;
-            var r = await SandboxKyc.AadhaarVerifyAsync(refVal, req.Otp!);
+            // Sandbox OKYC verify requires reference_id as a STRING (sending it as
+            // a JSON number is rejected with "Invalid request body"). otp is a
+            // string too. Pass the reference id through verbatim.
+            var r = await SandboxKyc.AadhaarVerifyAsync(req.ReferenceId!, req.Otp!);
             if (!r.TryGetProperty("data", out var d))
                 return BadRequest(new { ok = false, message = SandboxKyc.Message(r) });
             string addr = JStr(d, "full_address");
