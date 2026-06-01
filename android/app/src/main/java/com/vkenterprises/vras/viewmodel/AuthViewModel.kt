@@ -205,7 +205,8 @@ class AuthViewModel @Inject constructor(
         aadhaarNumber: String? = null, aadhaarName: String? = null,
         aadhaarDob: String? = null, aadhaarGender: String? = null,
         aadhaarAddress: String? = null, aadhaarVerified: Boolean = false,
-        regLat: Double? = null, regLng: Double? = null, regLocation: String? = null
+        regLat: Double? = null, regLng: Double? = null, regLocation: String? = null,
+        aadhaarPhoto: String? = null
     ) = viewModelScope.launch {
         _state.value = AuthUiState.Loading
         val deviceId = DeviceIdUtil.get(context)
@@ -220,7 +221,8 @@ class AuthViewModel @Inject constructor(
                 selfieWithAadhaar,
                 aadhaarNumber, aadhaarName, aadhaarDob, aadhaarGender,
                 aadhaarAddress, aadhaarVerified,
-                regLat, regLng, regLocation
+                regLat, regLng, regLocation,
+                aadhaarPhoto
             )
         )
         _state.value = when (result) {

@@ -259,14 +259,17 @@ public partial class AppUsersManagerPage : Page
         imgKycAadhaarBack.Visibility  = Visibility.Collapsed;
         imgKycPanFront.Visibility     = Visibility.Collapsed;
         imgKycSelfie.Visibility       = Visibility.Collapsed;
+        imgKycUidaiPhoto.Visibility   = Visibility.Collapsed;
         txtKycAadhaarFrontEmpty.Visibility = Visibility.Visible;
         txtKycAadhaarBackEmpty.Visibility  = Visibility.Visible;
         txtKycPanFrontEmpty.Visibility     = Visibility.Visible;
         txtKycSelfieEmpty.Visibility       = Visibility.Visible;
+        txtKycUidaiPhotoEmpty.Visibility   = Visibility.Visible;
         txtKycAadhaarFrontEmpty.Text = "Loading…";
         txtKycAadhaarBackEmpty.Text  = "Loading…";
         txtKycPanFrontEmpty.Text     = "Loading…";
         txtKycSelfieEmpty.Text       = "Loading…";
+        txtKycUidaiPhotoEmpty.Text   = "Loading…";
         ClearKycDetails();
         _kycDocs = null;
 
@@ -281,24 +284,27 @@ public partial class AppUsersManagerPage : Page
         txtKycAadhaarBackEmpty.Text  = "Not uploaded";
         txtKycPanFrontEmpty.Text     = "Not uploaded";
         txtKycSelfieEmpty.Text       = "Not uploaded";
+        txtKycUidaiPhotoEmpty.Text   = "Not available";
 
         if (docs == null) return;
 
         PopulateKycDetails(docs);
 
-        // Download all four image bytes in parallel — previously sequential
-        // awaits made a single-doc load take 4× longer than necessary, and
+        // Download all five image bytes in parallel — previously sequential
+        // awaits made a single-doc load take 5× longer than necessary, and
         // the UI showed "Not uploaded" for the entire duration.
         var aFrontTask = LoadKycBytesAsync(docs.AadhaarFront);
         var aBackTask  = LoadKycBytesAsync(docs.AadhaarBack);
         var pFrontTask = LoadKycBytesAsync(docs.PanFront);
         var selfieTask = LoadKycBytesAsync(docs.Selfie ?? "");
-        await Task.WhenAll(aFrontTask, aBackTask, pFrontTask, selfieTask);
+        var uidaiTask  = LoadKycBytesAsync(docs.AadhaarPhoto ?? "");
+        await Task.WhenAll(aFrontTask, aBackTask, pFrontTask, selfieTask, uidaiTask);
 
         ApplyKycImage(imgKycAadhaarFront, txtKycAadhaarFrontEmpty, await aFrontTask);
         ApplyKycImage(imgKycAadhaarBack,  txtKycAadhaarBackEmpty,  await aBackTask);
         ApplyKycImage(imgKycPanFront,     txtKycPanFrontEmpty,     await pFrontTask);
         ApplyKycImage(imgKycSelfie,       txtKycSelfieEmpty,       await selfieTask);
+        ApplyKycImage(imgKycUidaiPhoto,   txtKycUidaiPhotoEmpty,   await uidaiTask);
     }
 
     // Resets the read-only OKYC demographic/location text fields.
@@ -385,6 +391,7 @@ public partial class AppUsersManagerPage : Page
         "aadhaar_back"  => _kycDocs?.AadhaarBack,
         "pan_front"     => _kycDocs?.PanFront,
         "selfie"        => _kycDocs?.Selfie,
+        "aadhaar_photo" => _kycDocs?.AadhaarPhoto,
         _ => null
     };
 

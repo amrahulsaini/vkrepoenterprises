@@ -1229,11 +1229,11 @@ app.MapGet("/api/mgr/users/{id:long}/kyc", async (HttpContext ctx, long id) =>
         await conn.OpenAsync();
         // selfie column was added with the registration-time KYC flow; guard
         // with COALESCE-style try so legacy schemas without it still respond.
-        string? af = null, ab = null, pf = null, selfie = null;
+        string? af = null, ab = null, pf = null, selfie = null, uidaiPhoto = null;
         try
         {
             await using var cmd = new MySqlCommand(
-                "SELECT aadhaar_front, aadhaar_back, pan_front, selfie FROM user_kyc WHERE user_id=@uid", conn);
+                "SELECT aadhaar_front, aadhaar_back, pan_front, selfie, aadhaar_photo FROM user_kyc WHERE user_id=@uid", conn);
             cmd.Parameters.AddWithValue("@uid", id);
             await using var rdr = await cmd.ExecuteReaderAsync();
             if (await rdr.ReadAsync())
@@ -1242,11 +1242,12 @@ app.MapGet("/api/mgr/users/{id:long}/kyc", async (HttpContext ctx, long id) =>
                 ab = rdr.IsDBNull(1) ? null : rdr.GetString(1);
                 pf = rdr.IsDBNull(2) ? null : rdr.GetString(2);
                 selfie = rdr.IsDBNull(3) ? null : rdr.GetString(3);
+                uidaiPhoto = rdr.IsDBNull(4) ? null : rdr.GetString(4);
             }
         }
         catch
         {
-            // No selfie column — fall back to the original 3-column read.
+            // Legacy schema without selfie/aadhaar_photo — original 3-column read.
             await using var cmd = new MySqlCommand(
                 "SELECT aadhaar_front, aadhaar_back, pan_front FROM user_kyc WHERE user_id=@uid", conn);
             cmd.Parameters.AddWithValue("@uid", id);
@@ -1304,6 +1305,7 @@ app.MapGet("/api/mgr/users/{id:long}/kyc", async (HttpContext ctx, long id) =>
             aadhaarBack  = ToUrl(ab),
             panFront     = ToUrl(pf),
             selfie       = ToUrl(selfie),
+            aadhaarPhoto = ToUrl(uidaiPhoto),
             // number-verification block
             aadhaar = new {
                 verified = aaVer, last4 = aaLast4, name = aaName, dob = aaDob,
@@ -1322,7 +1324,8 @@ app.MapGet("/api/mgr/users/{id:long}/kyc", async (HttpContext ctx, long id) =>
 app.MapDelete("/api/mgr/users/{id:long}/kyc/{docType}", async (HttpContext ctx, long id, string docType) =>
 {
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
-    if (docType != "aadhaar_front" && docType != "aadhaar_back" && docType != "pan_front" && docType != "selfie")
+    if (docType != "aadhaar_front" && docType != "aadhaar_back" && docType != "pan_front"
+        && docType != "selfie" && docType != "aadhaar_photo")
         return Results.BadRequest(new { message = "invalid docType" });
     try
     {

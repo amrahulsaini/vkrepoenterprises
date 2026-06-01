@@ -259,7 +259,7 @@ internal static class DesktopApiClient
     // capture location (read-only — the admin reviews these against the photos).
     internal record KycDocsDto(
         string AadhaarFront, string AadhaarBack, string PanFront, string? Selfie,
-        KycAadhaarDto? Aadhaar, KycLocationDto? Location);
+        string? AadhaarPhoto, KycAadhaarDto? Aadhaar, KycLocationDto? Location);
     internal record KycAadhaarDto(
         bool Verified, string? Last4, string? Name, string? Dob, string? Gender,
         string? Address, DateTime? VerifiedAt);

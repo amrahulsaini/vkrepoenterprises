@@ -155,7 +155,8 @@ public class MobileController : ControllerBase
                 req.SelfieWithAadhaar,
                 req.AadhaarNumber, req.AadhaarName, req.AadhaarDob,
                 req.AadhaarGender, req.AadhaarAddress, req.AadhaarVerified,
-                req.RegLat, req.RegLng, req.RegLocation);
+                req.RegLat, req.RegLng, req.RegLocation,
+                req.AadhaarPhoto);
 
             if (!success && reason == "mobile_exists")
                 return Conflict(new ApiError(false, "This mobile number is already registered with this agency."));

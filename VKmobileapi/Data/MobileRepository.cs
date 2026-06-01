@@ -202,7 +202,8 @@ public class MobileRepository
         string? selfieWithAadhaar = null,
         string? aadhaarNumber = null, string? aadhaarName = null, string? aadhaarDob = null,
         string? aadhaarGender = null, string? aadhaarAddress = null, bool aadhaarVerified = false,
-        double? regLat = null, double? regLng = null, string? regLocation = null)
+        double? regLat = null, double? regLng = null, string? regLocation = null,
+        string? aadhaarPhoto = null)
     {
         await using var conn = DbFactory.Create();
         await conn.OpenAsync();
@@ -248,24 +249,26 @@ public class MobileRepository
         // (agent holding their Aadhaar in hand) is part of the same set — the
         // admin eyeballs it against the Aadhaar photos in the WPF review page.
         bool hasKyc = aadhaarFront != null || aadhaarBack != null
-                      || panFront != null || selfieWithAadhaar != null;
+                      || panFront != null || selfieWithAadhaar != null || aadhaarPhoto != null;
         if (hasKyc)
         {
             var kycDir   = $"kyc/{id}";
-            var afPath   = await SaveBase64ImageAsync(aadhaarFront,     kycDir, "aadhaar_front.jpg");
-            var abPath   = await SaveBase64ImageAsync(aadhaarBack,      kycDir, "aadhaar_back.jpg");
-            var pfPath   = await SaveBase64ImageAsync(panFront,         kycDir, "pan_front.jpg");
+            var afPath   = await SaveBase64ImageAsync(aadhaarFront,      kycDir, "aadhaar_front.jpg");
+            var abPath   = await SaveBase64ImageAsync(aadhaarBack,       kycDir, "aadhaar_back.jpg");
+            var pfPath   = await SaveBase64ImageAsync(panFront,          kycDir, "pan_front.jpg");
             var selPath  = await SaveBase64ImageAsync(selfieWithAadhaar, kycDir, "selfie.jpg");
+            var uidaiPath = await SaveBase64ImageAsync(aadhaarPhoto,     kycDir, "aadhaar_photo.jpg");
 
             const string kycSql = @"
-                INSERT INTO user_kyc (user_id, aadhaar_front, aadhaar_back, pan_front, selfie)
-                VALUES (@uid, @af, @ab, @pf, @sel)";
+                INSERT INTO user_kyc (user_id, aadhaar_front, aadhaar_back, pan_front, selfie, aadhaar_photo)
+                VALUES (@uid, @af, @ab, @pf, @sel, @uidai)";
             await using var kycCmd = new MySqlCommand(kycSql, conn);
             kycCmd.Parameters.AddWithValue("@uid", id);
-            kycCmd.Parameters.AddWithValue("@af",  (object?)afPath  ?? DBNull.Value);
-            kycCmd.Parameters.AddWithValue("@ab",  (object?)abPath  ?? DBNull.Value);
-            kycCmd.Parameters.AddWithValue("@pf",  (object?)pfPath  ?? DBNull.Value);
-            kycCmd.Parameters.AddWithValue("@sel", (object?)selPath ?? DBNull.Value);
+            kycCmd.Parameters.AddWithValue("@af",    (object?)afPath    ?? DBNull.Value);
+            kycCmd.Parameters.AddWithValue("@ab",    (object?)abPath    ?? DBNull.Value);
+            kycCmd.Parameters.AddWithValue("@pf",    (object?)pfPath    ?? DBNull.Value);
+            kycCmd.Parameters.AddWithValue("@sel",   (object?)selPath   ?? DBNull.Value);
+            kycCmd.Parameters.AddWithValue("@uidai", (object?)uidaiPath ?? DBNull.Value);
             await kycCmd.ExecuteNonQueryAsync();
         }
 
