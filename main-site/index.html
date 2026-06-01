@@ -103,6 +103,26 @@
   .hero-mini b{font-family:'Archivo';font-size:30px;font-weight:900;color:var(--ink);display:block;line-height:1;margin-bottom:7px;letter-spacing:-.02em}
   .hero-mini span{font-size:12.5px;color:var(--muted);font-weight:500}
 
+  /* CRMRS brand banner at the top of the hero + global responsive images */
+  img{max-width:100%;height:auto}
+  .hero-banner-wrap{text-align:center;margin-bottom:46px}
+  .hero-banner{width:clamp(240px,48vw,600px);height:auto;max-width:100%;margin:0 auto}
+
+  /* phones / small tablets — keep everything inside the viewport */
+  @media (max-width:600px){
+    .wrap{padding:0 18px}
+    .hero{padding:44px 0 52px}
+    .hero-banner-wrap{margin-bottom:30px}
+    .hero-cta{gap:10px}
+    .hero-cta .btn{flex:1 1 auto;justify-content:center}
+    .hero-mini{flex-wrap:wrap;gap:20px 0}
+    .hero-mini div{border-right:none;margin-right:0;padding-right:26px}
+    .hero-mini b{font-size:24px}
+  }
+  @media (max-width:400px){
+    .hero-mini div{width:100%;padding-right:0}
+  }
+
   /* mock */
   .mock{position:relative}
   .mock-card{background:var(--surface);border:1.5px solid var(--ink);border-radius:16px;
@@ -339,6 +359,9 @@
 
 <span id="top-anchor"></span>
 <header class="hero">
+  <div class="wrap hero-banner-wrap">
+    <img class="hero-banner" src="assets/crmrs-banner.png" alt="CRMRS — Recovery Software" width="1244" height="216">
+  </div>
   <div class="wrap hero-grid">
     <div>
       <span class="tagline reveal">Loan Recovery Software</span>
