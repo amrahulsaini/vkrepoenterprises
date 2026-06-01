@@ -145,16 +145,56 @@
                             Style="{StaticResource SecondaryButton}"
                             Width="110" Margin="0,0,8,0" />
                 </DockPanel>
-                <!-- Developer credit -->
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,12,0,0">
-                    <TextBlock Text="Software developed &amp; designed by "
-                               FontSize="11" Foreground="{StaticResource Gray500}" VerticalAlignment="Center" />
-                    <TextBlock Text="CRMRS" FontSize="11" FontWeight="Bold"
-                               Foreground="{StaticResource Orange600}" VerticalAlignment="Center" />
-                    <TextBlock Text=" • " FontSize="11" Foreground="{StaticResource Gray400}" VerticalAlignment="Center" />
-                    <TextBlock Text="rahul@loopwar.dev" FontSize="11"
-                               Foreground="{StaticResource Gray600}" VerticalAlignment="Center" />
-                </StackPanel>
+                <!-- ── Branded footer: "Developed by CRMRS" (→ website) + purchase contact ── -->
+                <Border Margin="0,14,0,0" Padding="14,11" CornerRadius="8"
+                        Background="White" BorderBrush="{StaticResource Gray200}" BorderThickness="1">
+                    <StackPanel>
+                        <!-- Logo + "Developed by CRMRS" (clickable → main website) -->
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <Image Source="public/crmrs-logo.png" Width="22" Height="22"
+                                   RenderOptions.BitmapScalingMode="HighQuality"
+                                   VerticalAlignment="Center" Margin="0,0,8,0" />
+                            <TextBlock VerticalAlignment="Center" FontSize="12">
+                                <Run Text="Developed by " Foreground="{StaticResource Gray600}" />
+                                <Hyperlink NavigateUri="https://crmrecoverysoftware.com/"
+                                           RequestNavigate="Link_RequestNavigate"
+                                           TextDecorations="None" FontWeight="Bold"
+                                           Foreground="{StaticResource Orange600}">CRMRS</Hyperlink>
+                            </TextBlock>
+                        </StackPanel>
+                        <TextBlock HorizontalAlignment="Center" Margin="0,2,0,0" FontSize="11">
+                            <Hyperlink NavigateUri="https://crmrecoverysoftware.com/"
+                                       RequestNavigate="Link_RequestNavigate"
+                                       Foreground="{StaticResource Gray600}">crmrecoverysoftware.com</Hyperlink>
+                        </TextBlock>
+
+                        <Border Height="1" Background="{StaticResource Gray200}" Margin="0,9,0,8" />
+
+                        <!-- Purchase / enquiries -->
+                        <TextBlock Text="For purchase &amp; enquiries"
+                                   HorizontalAlignment="Center" FontSize="11" FontWeight="SemiBold"
+                                   Foreground="{StaticResource Gray700}" Margin="0,0,0,5" />
+                        <WrapPanel HorizontalAlignment="Center">
+                            <TextBlock FontSize="11" VerticalAlignment="Center">
+                                <Hyperlink NavigateUri="mailto:team@crmrecoverysoftware.com"
+                                           RequestNavigate="Link_RequestNavigate"
+                                           Foreground="{StaticResource Orange600}">team@crmrecoverysoftware.com</Hyperlink>
+                            </TextBlock>
+                            <TextBlock Text="•" FontSize="11" Foreground="{StaticResource Gray400}" VerticalAlignment="Center" Margin="6,0" />
+                            <TextBlock FontSize="11" VerticalAlignment="Center">
+                                <Hyperlink NavigateUri="mailto:rahul@loopwar.dev"
+                                           RequestNavigate="Link_RequestNavigate"
+                                           Foreground="{StaticResource Orange600}">rahul@loopwar.dev</Hyperlink>
+                            </TextBlock>
+                            <TextBlock Text="•" FontSize="11" Foreground="{StaticResource Gray400}" VerticalAlignment="Center" Margin="6,0" />
+                            <TextBlock FontSize="11" VerticalAlignment="Center">
+                                <Hyperlink NavigateUri="tel:+916377362603"
+                                           RequestNavigate="Link_RequestNavigate"
+                                           Foreground="{StaticResource Orange600}">+91 6377362603</Hyperlink>
+                            </TextBlock>
+                        </WrapPanel>
+                    </StackPanel>
+                </Border>
             </StackPanel>
         </Border>
     </Grid>

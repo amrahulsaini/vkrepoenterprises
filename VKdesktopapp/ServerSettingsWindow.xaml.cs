@@ -82,6 +82,15 @@ public partial class ServerSettingsWindow : Window
     private void btnClose_Click(object sender, RoutedEventArgs e)  => Close();
     private void btnCancel_Click(object sender, RoutedEventArgs e) => Close();
 
+    // Opens the footer's "Developed by CRMRS" website link + the purchase-contact
+    // mailto:/tel: links via the OS default handler (browser, mail client, dialer).
+    private void Link_RequestNavigate(object sender, System.Windows.Navigation.RequestNavigateEventArgs e)
+    {
+        try { Process.Start(new ProcessStartInfo(e.Uri.AbsoluteUri) { UseShellExecute = true }); }
+        catch { }
+        e.Handled = true;
+    }
+
     // ── Extra-number rows ──────────────────────────────────────────────────
     private void btnAddExtra_Click(object sender, RoutedEventArgs e)
     {
