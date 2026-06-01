@@ -131,6 +131,29 @@ else
     info "Skipping agency portal ($AGENCY_DOCROOT not present — create the child domain first)"
 fi
 
+# ── CRMRS Manage (admin) portal — manage.crmrecoverysoftware.com ─────────────
+# Created as a CyberPanel child domain. Its docRoot is public_html/<child>
+# UNDER the master domain home (not the agency-style sibling layout), so the
+# manage page is served at clean URLs (index.html at /). Syncs the
+# self-contained manage-portal/ tree (its own copy of css/js/assets).
+MANAGE_DOCROOT="/home/crmrecoverysoftware.com/public_html/manage.crmrecoverysoftware.com"
+if [ -d "$MANAGE_DOCROOT" ]; then
+    chmod o+x /home/crmrecoverysoftware.com "$MANAGE_DOCROOT" 2>/dev/null || true
+    MANAGE_OWNER=$(stat -c '%U:%G' "$MANAGE_DOCROOT" 2>/dev/null)
+    for item in index.html css js assets; do
+        rm -rf "$MANAGE_DOCROOT/$item"
+        if [ -e "$REPO_DIR/manage-portal/$item" ]; then
+            cp -r "$REPO_DIR/manage-portal/$item" "$MANAGE_DOCROOT/$item"
+        fi
+    done
+    find "$MANAGE_DOCROOT" -type d -exec chmod 755 {} \;
+    find "$MANAGE_DOCROOT" -type f -exec chmod 644 {} \;
+    [ -n "$MANAGE_OWNER" ] && chown -R "$MANAGE_OWNER" "$MANAGE_DOCROOT" 2>/dev/null || true
+    info "Manage portal ready → $MANAGE_DOCROOT"
+else
+    info "Skipping manage portal ($MANAGE_DOCROOT not present — create the child domain first)"
+fi
+
 # ── Main site (landing page) + privacy policy on crmrecoverysoftware.com ────
 # The main domain serves the marketing landing page (main-site/) and the
 # privacy policy (required by Play Console). CyberPanel-OLS uses
