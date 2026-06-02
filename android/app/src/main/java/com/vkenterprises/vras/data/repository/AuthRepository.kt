@@ -31,6 +31,7 @@ class AuthRepository {
                     body.contains("blacklisted")     -> "blacklisted"
                     body.contains("\"inactive\"")    -> "inactive"
                     body.contains("device_mismatch") -> "device_mismatch"
+                    body.contains("otp_required")    -> "otp_required"
                     else                             -> "pending_approval"
                 }
                 val serverMsg = runCatching {
@@ -44,6 +45,7 @@ class AuthRepository {
                         "blacklisted"     -> "You have been blocked by the agency. Please contact the agency for assistance."
                         "inactive"        -> "Your account is inactive. Please contact agency."
                         "device_mismatch" -> "This account is registered on another device.\nAsk admin to reset your device ID."
+                        "otp_required"    -> "Please verify your mobile number with the OTP first."
                         else              -> "Your account is pending admin approval.\nPlease wait."
                     }
                 }, reason)

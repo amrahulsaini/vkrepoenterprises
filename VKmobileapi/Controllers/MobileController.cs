@@ -206,15 +206,17 @@ public class MobileController : ControllerBase
             if (!agency.Found || agency.Status != "approved")
                 return BadRequest(new ApiError(false, "That agency is not available."));
 
-            // Mobile must be SMS-OTP verified first (the app does /otp/send +
-            // /otp/verify before calling login). Soft-disable via OTP_REQUIRED=0.
-            if (Msg91Otp.Required && !Msg91Otp.IsRecentlyVerified(req.Mobile))
-                return StatusCode(403, new ApiError(false, "otp_required"));
-
+            // NOTE: OTP at login is enforced by the LOGIN SCREEN UI (send +
+            // verify before it ever calls this endpoint). We deliberately do NOT
+            // gate the login endpoint on OTP: the status screens (App Stopped /
+            // Awaiting Approval / KYC) all "Check again" by calling login WITHOUT
+            // a fresh OTP, and gating here returned otp_required which the client
+            // mis-rendered as "Awaiting Approval" for already-approved agents.
+            // (Register still enforces OTP server-side — it's the account-creation
+            // step and is only ever reached from the register screen's OTP flow.)
             TenantContext.UseAgency(req.Slug.Trim());
 
             var result = await _repo.LoginAsync(NormalizeMobile(req.Mobile), req.DeviceId.Trim());
-            if (result.Reason == "ok") Msg91Otp.ClearVerified(req.Mobile);
             if (result.Reason == "ok")
                 result = result with
                 {
