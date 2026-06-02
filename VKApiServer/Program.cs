@@ -853,6 +853,13 @@ app.MapPost("/api/mgr/branches/{id:int}/clear", async (HttpContext ctx, int id) 
             LEFT JOIN rc_info rc ON rc.vehicle_record_id = vr.id
             LEFT JOIN chassis_info ci ON ci.vehicle_record_id = vr.id
             WHERE vr.branch_id = @id", conn, 300, ("@id", id));
+        // Reset the branch's stored counter + upload time. The Finances list and
+        // dashboard read branches.total_records (a maintained counter, NOT a live
+        // COUNT), and mobile sync keys off uploaded_at — so without this the
+        // branch keeps showing its old record count after a clear ("nothing
+        // happened"). uploaded_at=NULL = nothing left to sync.
+        await MgrExec("UPDATE branches SET total_records=0, uploaded_at=NULL WHERE id=@id",
+            conn, 30, ("@id", id));
         await MgrExec("SET foreign_key_checks=1", conn);
         return Results.Ok(new { deletedCount });
     }
