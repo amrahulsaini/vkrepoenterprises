@@ -502,7 +502,10 @@ fun VehicleDetailScreen(
                         onShowBranchSheet = { showBranchSheet = true }
                     )
                 } else {
-                    BasicDetailView(item = item, agentName = agentName, agentPhone = agentPhone)
+                    // Feed the FULL fetched record (not the skinny search row) so
+                    // Customer Name + Engine No actually populate — the skinny row
+                    // leaves them blank, which made those rows silently vanish.
+                    BasicDetailView(item = detailRecord ?: item, agentName = agentName, agentPhone = agentPhone)
                 }
                 Spacer(Modifier.height(8.dp))
             }
@@ -927,6 +930,9 @@ private fun buildQuickWaMessage(
 ): String = buildString {
     appendLine("*Respected sir,*")
     appendLine("Customer Name: *${item.customerName.orEmpty().ifBlank { "-" }}*")
+    // OK-for-repo messages also carry the Loan / Agreement No (per request).
+    if (status.contains("repo", ignoreCase = true))
+        appendLine("Loan No: *${item.agreementNo.orEmpty().ifBlank { "-" }}*")
     appendLine("Vehicle No: *${item.vehicleNo.orEmpty()}*")
     appendLine("Model/Maker: *${item.model.orEmpty().ifBlank { "-" }}*")
     appendLine("Chassis No: *${item.chassisNo.orEmpty()}*")

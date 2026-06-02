@@ -64,6 +64,8 @@ static bool IsTenantBoundByBody(PathString path)
         || s.Equals("/api/mobile/kyc/aadhaar/verify", StringComparison.OrdinalIgnoreCase)
         // Rejected agents have no token yet — resubmit binds tenant via slug+mobile.
         || s.Equals("/api/mobile/kyc/resubmit",       StringComparison.OrdinalIgnoreCase)
+        // Mobile SMS-OTP runs BEFORE login (no token yet); stateless, no tenant DB.
+        || s.StartsWith("/api/mobile/otp/", StringComparison.OrdinalIgnoreCase)
         || s.StartsWith("/api/mobile/cache/", StringComparison.OrdinalIgnoreCase)
         || s.StartsWith("/uploads/",        StringComparison.OrdinalIgnoreCase)
         || s == "/";

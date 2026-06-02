@@ -75,7 +75,32 @@ fun ConfirmScreen(
     // body with a different opening + closing line. Body fields are plain text
     // (admins see "null" for blanks so missing data is obvious); Level lines are
     // *bold* as "name - contact -". Closing names the agency + the contact person.
-    fun buildMessage(): String = buildString {
+    // USER side: the simple, agent-friendly template (no internal fields like
+    // Loan No / BKT / OD / Levels). Admin keeps the detailed format below.
+    fun buildUserMessage(): String = buildString {
+        val status = when (actionType) {
+            "okrepo" -> "Ok for repo."
+            "cancel" -> "Cancel"
+            else     -> "Please confirm this vehicle."
+        }
+        appendLine("*Respected sir,*")
+        appendLine("Customer Name: *${item?.customerName?.trim().orEmpty().ifBlank { "-" }}*")
+        appendLine("Vehicle No: *${item?.vehicleNo?.trim().orEmpty()}*")
+        appendLine("Model/Maker: *${item?.model?.trim().orEmpty().ifBlank { "-" }}*")
+        appendLine("Chassis No: *${item?.chassisNo?.trim().orEmpty()}*")
+        appendLine("Engine No: *${item?.engineNo?.trim().orEmpty().ifBlank { "-" }}*")
+        appendLine("Vehicle location: *${vehicleAddress.trim().ifBlank { "-" }}*")
+        appendLine("Load details: *${carriesGoods.trim().ifBlank { "-" }}*")
+        appendLine()
+        appendLine("Status: *$status*")
+        val person = listOf(agentName.trim(), agentPhone.trim()).filter { it.isNotBlank() }.joinToString(" - ")
+        if (person.isNotBlank()) appendLine(person)
+        append("Agency Name: *${BuildConfig.AGENCY_NAME}*")
+    }
+
+    fun buildMessage(): String {
+        if (!isAdmin) return buildUserMessage()
+        return buildString {
         appendLine("*Respected sir,*")
         when (actionType) {
             "okrepo" -> appendLine("This vehicle is confirmed OK for repo. The details of the vehicle and customer are as below.")
@@ -131,6 +156,7 @@ fun ConfirmScreen(
         append(" *${BuildConfig.AGENCY_NAME}*")
         val person = listOf(agentName.trim(), agentPhone.trim()).filter { it.isNotBlank() }.joinToString(" - ")
         if (person.isNotBlank()) append(" $person")
+        }
     }
 
     fun checkedNumbers(): List<String> = buildList {

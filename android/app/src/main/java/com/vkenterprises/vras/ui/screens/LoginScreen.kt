@@ -6,7 +6,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.*
@@ -29,8 +29,12 @@ import com.vkenterprises.vras.viewmodel.AuthViewModel
 fun LoginScreen(vm: AuthViewModel, nav: NavController) {
     val state by vm.state.collectAsState()
 
-    var mobile by remember { mutableStateOf("") }
-    var error  by remember { mutableStateOf("") }
+    var mobile  by remember { mutableStateOf("") }
+    var error   by remember { mutableStateOf("") }
+    // OTP step state: once the SMS goes out we swap the button to "Verify & Login".
+    var otpSent by remember { mutableStateOf(false) }
+    var otp     by remember { mutableStateOf("") }
+    var busy    by remember { mutableStateOf(false) }
     // White-label build — agency is baked into BuildConfig at compile time.
     val agencySlug = BuildConfig.AGENCY_SLUG
     val agencyName = BuildConfig.AGENCY_NAME
@@ -137,14 +141,33 @@ fun LoginScreen(vm: AuthViewModel, nav: NavController) {
 
             OutlinedTextField(
                 value = mobile,
-                onValueChange = { mobile = it.take(15) },
+                onValueChange = { if (!otpSent) mobile = it.take(15) },
                 label = { Text("Mobile Number") },
                 leadingIcon = { Icon(Icons.Default.Phone, null) },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                 singleLine = true,
+                enabled = !otpSent && !busy,
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp)
             )
+
+            if (otpSent) {
+                OutlinedTextField(
+                    value = otp,
+                    onValueChange = { otp = it.filter { c -> c.isDigit() }.take(6) },
+                    label = { Text("Enter OTP") },
+                    leadingIcon = { Icon(Icons.Default.Sms, null) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                )
+                Text(
+                    "We sent a 6-digit code to $mobile",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
 
             if (error.isNotEmpty()) {
                 Card(
@@ -165,21 +188,52 @@ fun LoginScreen(vm: AuthViewModel, nav: NavController) {
             Button(
                 onClick = {
                     error = ""
-                    if (mobile.isBlank()) { error = "Enter your mobile number."; return@Button }
-                    vm.login(mobile, agencySlug, agencyName)
+                    if (!otpSent) {
+                        if (mobile.isBlank()) { error = "Enter your mobile number."; return@Button }
+                        busy = true
+                        vm.sendOtp(mobile) { ok, msg ->
+                            busy = false
+                            if (ok) otpSent = true else error = msg
+                        }
+                    } else {
+                        if (otp.length < 4) { error = "Enter the OTP sent to your phone."; return@Button }
+                        busy = true
+                        vm.verifyOtp(mobile, otp) { ok, msg ->
+                            busy = false
+                            if (ok) vm.login(mobile, agencySlug, agencyName) else error = msg
+                        }
+                    }
                 },
-                enabled = state !is AuthUiState.Loading,
+                enabled = !busy && state !is AuthUiState.Loading,
                 modifier = Modifier.fillMaxWidth().height(52.dp),
                 shape = RoundedCornerShape(12.dp)
             ) {
-                if (state is AuthUiState.Loading)
+                if (busy || state is AuthUiState.Loading)
                     CircularProgressIndicator(
                         Modifier.size(20.dp),
                         strokeWidth = 2.dp,
                         color = MaterialTheme.colorScheme.onPrimary
                     )
                 else
-                    Text("LOGIN", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    Text(if (otpSent) "VERIFY & LOGIN" else "SEND OTP",
+                        fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            }
+
+            if (otpSent) {
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    TextButton(onClick = { otpSent = false; otp = ""; error = "" }, enabled = !busy) {
+                        Text("Change number")
+                    }
+                    TextButton(onClick = {
+                        error = ""; busy = true
+                        vm.sendOtp(mobile) { ok, msg -> busy = false; if (!ok) error = msg }
+                    }, enabled = !busy) {
+                        Text("Resend OTP")
+                    }
+                }
             }
 
             Row(

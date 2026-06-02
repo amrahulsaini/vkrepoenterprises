@@ -114,6 +114,13 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
 
     var error by remember { mutableStateOf("") }
 
+    // Mobile-number SMS OTP (MSG91) — separate from the Aadhaar OKYC OTP below.
+    var mobileOtpSent  by remember { mutableStateOf(false) }
+    var mobileOtp      by remember { mutableStateOf("") }
+    var mobileVerified by remember { mutableStateOf(false) }
+    var mobileOtpBusy  by remember { mutableStateOf(false) }
+    var mobileOtpMsg   by remember { mutableStateOf("") }
+
     val agencySlug = BuildConfig.AGENCY_SLUG
     val agencyName = BuildConfig.AGENCY_NAME
 
@@ -350,13 +357,71 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
 
             FocusedField(scrollState) {
                 OutlinedTextField(
-                    value = mobile, onValueChange = { mobile = it },
+                    value = mobile,
+                    onValueChange = {
+                        // Editing the number invalidates any prior verification.
+                        if (!mobileVerified) { mobile = it; mobileOtpSent = false; mobileOtp = "" }
+                    },
                     label = { Text("Mobile Number *") },
                     leadingIcon = { Icon(Icons.Default.Phone, null) },
+                    trailingIcon = { if (mobileVerified) Icon(Icons.Default.CheckCircle, null, tint = OK_GREEN) },
+                    enabled = !mobileVerified,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone, imeAction = ImeAction.Next),
                     singleLine = true, modifier = Modifier.fillMaxWidth().then(it)
                 )
             }
+
+            // ── Mobile number verification (SMS OTP) ───────────────────
+            if (!mobileVerified) {
+                if (!mobileOtpSent) {
+                    Button(
+                        onClick = {
+                            focusManager.clearFocus(); mobileOtpMsg = ""
+                            if (mobile.isBlank()) { mobileOtpMsg = "Enter your mobile number first."; return@Button }
+                            mobileOtpBusy = true
+                            vm.sendOtp(mobile) { ok, msg ->
+                                mobileOtpBusy = false
+                                if (ok) { mobileOtpSent = true; mobileOtpMsg = "OTP sent to $mobile." }
+                                else mobileOtpMsg = msg
+                            }
+                        },
+                        enabled = !mobileOtpBusy,
+                        modifier = Modifier.fillMaxWidth()
+                    ) { if (mobileOtpBusy) Spinner(onPrimary = true) else Text("VERIFY MOBILE — SEND OTP") }
+                } else {
+                    OutlinedTextField(
+                        value = mobileOtp,
+                        onValueChange = { mobileOtp = it.filter { c -> c.isDigit() }.take(6) },
+                        label = { Text("Enter mobile OTP *") },
+                        leadingIcon = { Icon(Icons.Default.Sms, null) },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true, modifier = Modifier.fillMaxWidth()
+                    )
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        OutlinedButton(
+                            onClick = {
+                                mobileOtpMsg = ""; mobileOtpBusy = true
+                                vm.sendOtp(mobile) { ok, msg -> mobileOtpBusy = false; mobileOtpMsg = if (ok) "OTP resent." else msg }
+                            },
+                            enabled = !mobileOtpBusy, modifier = Modifier.weight(1f)
+                        ) { Text("Resend") }
+                        Button(
+                            onClick = {
+                                focusManager.clearFocus(); mobileOtpMsg = ""; mobileOtpBusy = true
+                                vm.verifyOtp(mobile, mobileOtp) { ok, msg ->
+                                    mobileOtpBusy = false
+                                    if (ok) { mobileVerified = true; mobileOtpMsg = "" } else mobileOtpMsg = msg
+                                }
+                            },
+                            enabled = mobileOtp.length >= 4 && !mobileOtpBusy, modifier = Modifier.weight(1f)
+                        ) { if (mobileOtpBusy) Spinner(onPrimary = true) else Text("VERIFY OTP") }
+                    }
+                }
+                if (mobileOtpMsg.isNotEmpty())
+                    Text(mobileOtpMsg, style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary)
+            }
+
             FocusedField(scrollState) {
                 OutlinedTextField(
                     value = name, onValueChange = { name = it },
@@ -637,6 +702,7 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
                     focusManager.clearFocus()
                     error = when {
                         mobile.isBlank() || name.isBlank() -> "Mobile and name are required."
+                        !mobileVerified                    -> "Please verify your mobile number with the OTP."
                         address.isBlank()                  -> "Address is required."
                         pincode.isBlank()                  -> "Pincode is required."
                         pfpB64 == null                     -> "Profile photo is required."

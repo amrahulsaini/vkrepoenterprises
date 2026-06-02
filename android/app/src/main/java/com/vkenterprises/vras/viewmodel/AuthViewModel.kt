@@ -83,6 +83,23 @@ class AuthViewModel @Inject constructor(
     private val _agencies = MutableStateFlow<List<AgencyListItem>>(emptyList())
     val agencies: StateFlow<List<AgencyListItem>> = _agencies.asStateFlow()
 
+    // ── Mobile SMS OTP (MSG91) ──────────────────────────────────────────────
+    // Used by Login + Register to verify the phone number before proceeding.
+    // onResult(success, message) is posted back on the main thread.
+    fun sendOtp(mobile: String, onResult: (Boolean, String) -> Unit) = viewModelScope.launch {
+        when (val r = repo.sendOtp(mobile.trim())) {
+            is AuthResult.Success -> onResult(true, r.data)
+            is AuthResult.Error   -> onResult(false, r.message)
+        }
+    }
+
+    fun verifyOtp(mobile: String, otp: String, onResult: (Boolean, String) -> Unit) = viewModelScope.launch {
+        when (val r = repo.verifyOtp(mobile.trim(), otp.trim())) {
+            is AuthResult.Success -> onResult(true, r.data)
+            is AuthResult.Error   -> onResult(false, r.message)
+        }
+    }
+
     fun loadAgencies() = viewModelScope.launch {
         when (val r = repo.getAgencies()) {
             is AuthResult.Success -> _agencies.value = r.data
@@ -111,14 +128,20 @@ class AuthViewModel @Inject constructor(
     fun startStatusPolling(userId: Long) {
         if (pollingJob?.isActive == true) return
         pollingJob = viewModelScope.launch(Dispatchers.IO) {
-            var tick = 0
             while (true) {
-                delay(2_000)
-                // Refresh the cached fix every 5th tick (~10s). lastLocation is
-                // the OS-cached position — cheap, no GPS spin-up — so this is
-                // negligible cost while keeping the pin current.
-                if (tick % 5 == 0) refreshCachedLocation()
-                tick++
+                // 15s, NOT 2s. A 2s heartbeat had every online agent firing
+                // /heartbeat 30×/min, and each call does an UPDATE + a status
+                // SELECT on the tenant DB (pool capped at 10). As agents
+                // accumulated over a day or two, that constant write-storm
+                // saturated the DB pool + the OpenLiteSpeed connection budget,
+                // and user searches queued behind it and timed out — the
+                // "online search lags / shows nothing after 1-2 days" bug.
+                // 15s keeps stop/blacklist detection and the live-map pin
+                // current (the map's "online" window is 15 min) at ~1/7th the
+                // server load. lastLocation is the OS-cached fix — cheap, no GPS
+                // spin-up — so refreshing it each tick is negligible.
+                delay(15_000)
+                refreshCachedLocation()
                 runCatching {
                     val resp = ApiClient.api.heartbeat(HeartbeatRequest(userId, lastLat, lastLng))
                     if (resp.isSuccessful) {

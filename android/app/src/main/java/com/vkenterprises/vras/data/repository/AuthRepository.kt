@@ -53,6 +53,19 @@ class AuthRepository {
         }
     }.getOrElse { AuthResult.Error(it.message ?: "Network error") }
 
+    // ── Mobile SMS OTP ──────────────────────────────────────────────────────
+    suspend fun sendOtp(mobile: String): AuthResult<String> = runCatching {
+        val resp = api.otpSend(mapOf("mobile" to mobile))
+        if (resp.isSuccessful) AuthResult.Success("OTP sent.")
+        else AuthResult.Error(parseError(resp))
+    }.getOrElse { AuthResult.Error(it.message ?: "Network error") }
+
+    suspend fun verifyOtp(mobile: String, otp: String): AuthResult<String> = runCatching {
+        val resp = api.otpVerify(mapOf("mobile" to mobile, "otp" to otp))
+        if (resp.isSuccessful) AuthResult.Success("Verified.")
+        else AuthResult.Error(parseError(resp))
+    }.getOrElse { AuthResult.Error(it.message ?: "Network error") }
+
     suspend fun getAgencies(): AuthResult<List<AgencyListItem>> = runCatching {
         val resp = api.getAgencies()
         if (resp.isSuccessful && resp.body() != null) AuthResult.Success(resp.body()!!)
