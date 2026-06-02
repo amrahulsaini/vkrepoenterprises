@@ -10,6 +10,7 @@
 /*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
+DROP TABLE IF EXISTS `_branch_ids`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `_branch_ids` (
@@ -18,12 +19,14 @@ CREATE TABLE `_branch_ids` (
   PRIMARY KEY (`pos`)
 ) ENGINE=MEMORY DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `_num10`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `_num10` (
   `n` tinyint(3) unsigned NOT NULL
 ) ENGINE=MEMORY DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `app_settings`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `app_settings` (
@@ -33,6 +36,7 @@ CREATE TABLE `app_settings` (
   PRIMARY KEY (`key`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `app_users`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `app_users` (
@@ -56,11 +60,30 @@ CREATE TABLE `app_users` (
   `is_stopped` tinyint(1) NOT NULL DEFAULT 0,
   `is_blacklisted` tinyint(1) NOT NULL DEFAULT 0,
   `admin_pass` varchar(100) DEFAULT NULL,
+  `kyc_aadhaar_last4` varchar(8) DEFAULT NULL,
+  `kyc_aadhaar_name` varchar(190) DEFAULT NULL,
+  `kyc_aadhaar_dob` varchar(20) DEFAULT NULL,
+  `kyc_aadhaar_gender` varchar(20) DEFAULT NULL,
+  `kyc_aadhaar_address` text DEFAULT NULL,
+  `kyc_aadhaar_verified` tinyint(1) NOT NULL DEFAULT 0,
+  `kyc_pan` varchar(12) DEFAULT NULL,
+  `kyc_pan_name` varchar(190) DEFAULT NULL,
+  `kyc_pan_verified` tinyint(1) NOT NULL DEFAULT 0,
+  `kyc_bank_holder` varchar(190) DEFAULT NULL,
+  `kyc_bank_verified` tinyint(1) NOT NULL DEFAULT 0,
+  `kyc_reg_lat` double DEFAULT NULL,
+  `kyc_reg_lng` double DEFAULT NULL,
+  `kyc_reg_location` varchar(255) DEFAULT NULL,
+  `kyc_verified_at` datetime DEFAULT NULL,
+  `kyc_status` varchar(20) NOT NULL DEFAULT 'pending',
+  `kyc_reject_note` text DEFAULT NULL,
+  `kyc_aadhaar_number` varchar(12) DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_mobile` (`mobile`),
   KEY `idx_device` (`device_id`(100))
-) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `branches`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `branches` (
@@ -91,8 +114,9 @@ CREATE TABLE `branches` (
   KEY `idx_branches_city` (`city`(50)),
   FULLTEXT KEY `ft_branches_name` (`name`),
   CONSTRAINT `fk_branches_finances` FOREIGN KEY (`finance_id`) REFERENCES `finances` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=156 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `chassis_info`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `chassis_info` (
@@ -106,8 +130,9 @@ CREATE TABLE `chassis_info` (
   KEY `idx_chassis` (`chassis_number`),
   KEY `idx_vr` (`vehicle_record_id`),
   CONSTRAINT `fk_ch_vr` FOREIGN KEY (`vehicle_record_id`) REFERENCES `vehicle_records` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=2426578 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `column_mappings`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `column_mappings` (
@@ -118,8 +143,9 @@ CREATE TABLE `column_mappings` (
   UNIQUE KEY `uq_name` (`name`),
   KEY `idx_type` (`column_type_id`),
   CONSTRAINT `column_mappings_ibfk_1` FOREIGN KEY (`column_type_id`) REFERENCES `column_types` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=1470 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `column_types`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `column_types` (
@@ -128,8 +154,9 @@ CREATE TABLE `column_types` (
   `sort_order` int(11) DEFAULT 0,
   PRIMARY KEY (`id`),
   UNIQUE KEY `name` (`name`)
-) ENGINE=InnoDB AUTO_INCREMENT=35 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `device_change_requests`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `device_change_requests` (
@@ -140,9 +167,11 @@ CREATE TABLE `device_change_requests` (
   `new_device_id` varchar(500) NOT NULL DEFAULT '',
   `requested_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uq_user` (`user_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+  UNIQUE KEY `uq_user` (`user_id`),
+  CONSTRAINT `fk_dcr_user` FOREIGN KEY (`user_id`) REFERENCES `app_users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `finances`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `finances` (
@@ -157,8 +186,9 @@ CREATE TABLE `finances` (
   UNIQUE KEY `uq_finances_name` (`name`),
   KEY `idx_finances_created_at` (`created_at`),
   FULLTEXT KEY `ft_finances_name` (`name`)
-) ENGINE=InnoDB AUTO_INCREMENT=87 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `rc_info`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `rc_info` (
@@ -172,8 +202,9 @@ CREATE TABLE `rc_info` (
   KEY `idx_rc` (`rc_number`),
   KEY `idx_vr` (`vehicle_record_id`),
   CONSTRAINT `fk_rc_vr` FOREIGN KEY (`vehicle_record_id`) REFERENCES `vehicle_records` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=2431820 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `search_logs`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `search_logs` (
@@ -192,8 +223,9 @@ CREATE TABLE `search_logs` (
   KEY `idx_sl_vehicle` (`vehicle_no`),
   KEY `idx_sl_server_time` (`server_time`),
   CONSTRAINT `fk_sl_user` FOREIGN KEY (`user_id`) REFERENCES `app_users` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=328 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `subscriptions`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `subscriptions` (
@@ -207,8 +239,9 @@ CREATE TABLE `subscriptions` (
   PRIMARY KEY (`id`),
   KEY `idx_user` (`user_id`),
   CONSTRAINT `fk_sub_user` FOREIGN KEY (`user_id`) REFERENCES `app_users` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `user_finance_restrictions`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `user_finance_restrictions` (
@@ -218,9 +251,11 @@ CREATE TABLE `user_finance_restrictions` (
   `created_at` datetime DEFAULT current_timestamp(),
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_user_finance` (`user_id`,`finance_id`),
-  KEY `idx_ufr_user` (`user_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_general_ci;
+  KEY `idx_ufr_user` (`user_id`),
+  CONSTRAINT `fk_ufr_user` FOREIGN KEY (`user_id`) REFERENCES `app_users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `user_kyc`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `user_kyc` (
@@ -231,21 +266,26 @@ CREATE TABLE `user_kyc` (
   `pan_front` longtext DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `selfie` varchar(255) DEFAULT NULL,
+  `aadhaar_photo` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_user` (`user_id`),
   CONSTRAINT `fk_kyc_user` FOREIGN KEY (`user_id`) REFERENCES `app_users` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `v_finance_summary`;
+/*!50001 DROP VIEW IF EXISTS `v_finance_summary`*/;
 SET @saved_cs_client     = @@character_set_client;
 SET character_set_client = utf8mb4;
 /*!50001 CREATE VIEW `v_finance_summary` AS SELECT
- 1 AS `finance_id`,
-  1 AS `finance_name`,
-  1 AS `description`,
-  1 AS `created_at`,
-  1 AS `branch_count`,
-  1 AS `total_records` */;
+ NULL AS `finance_id`,
+ NULL AS `finance_name`,
+ NULL AS `description`,
+ NULL AS `created_at`,
+ NULL AS `branch_count`,
+ NULL AS `total_records` */;
 SET character_set_client = @saved_cs_client;
+DROP TABLE IF EXISTS `vehicle_records`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `vehicle_records` (
@@ -292,10 +332,54 @@ CREATE TABLE `vehicle_records` (
   KEY `idx_chassis_no` (`chassis_no`),
   KEY `idx_vr_branch_id` (`branch_id`),
   CONSTRAINT `fk_vehicle_branch` FOREIGN KEY (`branch_id`) REFERENCES `branches` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=2431820 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `webhook_banks`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `webhook_banks` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `bank_name` varchar(255) NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_bank_name` (`bank_name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `webhook_files`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `webhook_files` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `bank_id` int(11) NOT NULL,
+  `file_name` varchar(500) NOT NULL,
+  `file_path` varchar(1000) DEFAULT NULL,
+  `vehicle_type` varchar(100) DEFAULT NULL,
+  `uploaded_by` varchar(255) DEFAULT NULL,
+  `uploaded_date` varchar(100) DEFAULT NULL,
+  `file_guid` varchar(255) DEFAULT NULL,
+  `total_records` int(11) NOT NULL DEFAULT 0,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `idx_wf_bank` (`bank_id`),
+  KEY `idx_wf_created` (`created_at`),
+  CONSTRAINT `fk_wf_bank` FOREIGN KEY (`bank_id`) REFERENCES `webhook_banks` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `webhook_users`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `webhook_users` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `username` varchar(255) NOT NULL,
+  `password_hash` varchar(64) NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_username` (`username`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
+/*!50003 DROP PROCEDURE IF EXISTS `sp_create_branch` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
 /*!50003 SET @saved_col_connection = @@collation_connection */ ;
@@ -303,7 +387,7 @@ CREATE TABLE `vehicle_records` (
 /*!50003 SET character_set_results = utf8mb4 */ ;
 /*!50003 SET collation_connection  = utf8mb4_unicode_ci */ ;
 DELIMITER ;;
-CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_create_branch`(
+CREATE DEFINER=`tu_v_k_enterprises`@`localhost` PROCEDURE `sp_create_branch`(
   IN p_finance_id INT,
   IN p_name VARCHAR(255),
   IN p_address TEXT,
@@ -315,7 +399,8 @@ BEGIN
   INSERT INTO `branches` (`finance_id`, `name`, `address`, `contact`) VALUES (p_finance_id, p_name, p_address, p_contact);
   SET p_id = LAST_INSERT_ID();
   COMMIT;
-END ;;
+END
+;;
 DELIMITER ;
 /*!50003 SET sql_mode              = @saved_sql_mode */ ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
@@ -323,6 +408,7 @@ DELIMITER ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
+/*!50003 DROP PROCEDURE IF EXISTS `sp_create_finance` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
 /*!50003 SET @saved_col_connection = @@collation_connection */ ;
@@ -330,7 +416,7 @@ DELIMITER ;
 /*!50003 SET character_set_results = utf8mb4 */ ;
 /*!50003 SET collation_connection  = utf8mb4_unicode_ci */ ;
 DELIMITER ;;
-CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_create_finance`(
+CREATE DEFINER=`tu_v_k_enterprises`@`localhost` PROCEDURE `sp_create_finance`(
   IN p_name VARCHAR(255),
   IN p_description TEXT,
   OUT p_id INT
@@ -338,7 +424,8 @@ CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_create_finance`(
 BEGIN
   INSERT INTO `finances` (`name`, `description`) VALUES (p_name, p_description);
   SET p_id = LAST_INSERT_ID();
-END ;;
+END
+;;
 DELIMITER ;
 /*!50003 SET sql_mode              = @saved_sql_mode */ ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
@@ -346,6 +433,7 @@ DELIMITER ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
+/*!50003 DROP PROCEDURE IF EXISTS `sp_seed_vehicles` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
 /*!50003 SET @saved_col_connection = @@collation_connection */ ;
@@ -353,7 +441,7 @@ DELIMITER ;
 /*!50003 SET character_set_results = utf8mb4 */ ;
 /*!50003 SET collation_connection  = utf8mb4_general_ci */ ;
 DELIMITER ;;
-CREATE DEFINER=`vkre_db1`@`localhost` PROCEDURE `sp_seed_vehicles`(
+CREATE DEFINER=`tu_v_k_enterprises`@`localhost` PROCEDURE `sp_seed_vehicles`(
     IN p_offset       BIGINT UNSIGNED,
     IN p_count        BIGINT UNSIGNED,
     IN p_branch_count INT UNSIGNED
@@ -430,7 +518,8 @@ BEGIN
         LIMIT 10000000
     ) n
     WHERE n.rownum < p_count;
-END ;;
+END
+;;
 DELIMITER ;
 /*!50003 SET sql_mode              = @saved_sql_mode */ ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
@@ -444,7 +533,7 @@ DELIMITER ;
 /*!50001 SET character_set_results     = utf8mb4 */;
 /*!50001 SET collation_connection      = utf8mb4_unicode_ci */;
 /*!50001 CREATE ALGORITHM=UNDEFINED */
-/*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */
+/*!50013 DEFINER=`tu_v_k_enterprises`@`localhost` SQL SECURITY DEFINER */
 /*!50001 VIEW `v_finance_summary` AS select `f`.`id` AS `finance_id`,`f`.`name` AS `finance_name`,`f`.`description` AS `description`,`f`.`created_at` AS `created_at`,coalesce(`b`.`branch_count`,0) AS `branch_count`,coalesce(`b`.`total_records_sum`,0) AS `total_records` from (`finances` `f` left join (select `branches`.`finance_id` AS `finance_id`,count(0) AS `branch_count`,sum(`branches`.`total_records`) AS `total_records_sum` from `branches` where `branches`.`is_active` = 1 group by `branches`.`finance_id`) `b` on(`b`.`finance_id` = `f`.`id`)) */;
 /*!50001 SET character_set_client      = @saved_cs_client */;
 /*!50001 SET character_set_results     = @saved_cs_results */;

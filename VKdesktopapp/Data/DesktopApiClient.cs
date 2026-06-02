@@ -881,29 +881,69 @@ internal static class DesktopApiClient
 
     // ── HTTP helper ─────────────────────────────────────────────────────────
 
+    // A transient blip — DNS "no such host", connection reset, TLS hiccup,
+    // timeout, or a 5xx/408/429 — should NOT surface as a hard error dialog on
+    // the flaky field networks our agencies use. These are safe to retry; a
+    // genuine 4xx (bad request / auth / not found) is not.
+    private static bool IsTransientNet(Exception ex)
+    {
+        if (ex is IOException or TaskCanceledException or System.Net.Sockets.SocketException)
+            return true;
+        if (ex is HttpRequestException hre)
+            return hre.StatusCode is null
+                || (int)hre.StatusCode.Value is 408 or 429 or >= 500;
+        return false;
+    }
+
     private static async Task<HttpResponseMessage> Send(
         HttpMethod method, string relativeUrl, object? body = null)
     {
         var base_ = App.ApiBaseUrl.TrimEnd('/');
-        var req = new HttpRequestMessage(method, $"{base_}/{relativeUrl}");
-        req.Headers.Add("X-Api-Key", App.ApiKey);
-        if (body != null)
-            req.Content = JsonContent.Create(body);
-        var resp = await App.HttpClient.SendAsync(req);
-        // EnsureSuccessStatusCode throws without the response body, so the WPF
-        // catch sees only "500 Internal Server Error" with zero context. Read
-        // the body up-front and bake it into the exception message so the user
-        // sees what actually went wrong (duplicate name, FK violation, etc.).
-        if (!resp.IsSuccessStatusCode)
+        // Serialize once so the request can be rebuilt on each retry (an
+        // HttpRequestMessage / its content can only be sent a single time).
+        string? bodyJson = body != null ? JsonSerializer.Serialize(body) : null;
+
+        const int MAX_ATTEMPTS = 3;
+        for (int attempt = 1; ; attempt++)
         {
+            var req = new HttpRequestMessage(method, $"{base_}/{relativeUrl}");
+            req.Headers.Add("X-Api-Key", App.ApiKey);
+            if (bodyJson != null)
+                req.Content = new StringContent(bodyJson, Encoding.UTF8, "application/json");
+
+            HttpResponseMessage resp;
+            try
+            {
+                resp = await App.HttpClient.SendAsync(req);
+            }
+            catch (Exception ex) when (attempt < MAX_ATTEMPTS && IsTransientNet(ex))
+            {
+                // DNS/reset/timeout on a weak network — wait briefly and retry
+                // instead of throwing "No such host is known" in the user's face.
+                await Task.Delay(TimeSpan.FromMilliseconds(400 * attempt));
+                continue;
+            }
+
+            if (resp.IsSuccessStatusCode) return resp;
+
+            // Retry transient server statuses; surface real 4xx immediately.
+            if (attempt < MAX_ATTEMPTS && (int)resp.StatusCode is 408 or 429 or >= 500)
+            {
+                resp.Dispose();
+                await Task.Delay(TimeSpan.FromMilliseconds(400 * attempt));
+                continue;
+            }
+
+            // EnsureSuccessStatusCode throws without the response body, so the WPF
+            // catch sees only "500 Internal Server Error" with zero context. Read
+            // the body up-front and bake it into the exception message so the user
+            // sees what actually went wrong (duplicate name, FK violation, etc.).
             string body_ = "";
             try { body_ = await resp.Content.ReadAsStringAsync(); } catch { }
-            // Trim trailing newlines / massive HTML pages so the MessageBox is readable.
             if (body_.Length > 1500) body_ = body_.Substring(0, 1500) + "…";
             throw new HttpRequestException(
                 $"{(int)resp.StatusCode} {resp.ReasonPhrase} — {method} {relativeUrl}\n\n{body_}",
                 null, resp.StatusCode);
         }
-        return resp;
     }
 }
