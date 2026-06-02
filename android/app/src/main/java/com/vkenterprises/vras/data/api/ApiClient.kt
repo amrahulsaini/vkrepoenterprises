@@ -42,6 +42,18 @@ object ApiClient {
         // Keep up to 10 alive connections for 3 min so every search after the first
         // skips the TCP+TLS handshake entirely.
         .connectionPool(ConnectionPool(10, 3, TimeUnit.MINUTES))
+        // OkHttp's Dispatcher defaults to maxRequestsPerHost = 5. EVERY call
+        // (search, heartbeat, sync, status) goes to the SAME API host, so the
+        // background traffic — a heartbeat every few seconds plus the 60s sync
+        // poll — could occupy all 5 slots and QUEUE a user's search behind them.
+        // A queued search just spins showing nothing: the "fast search lags /
+        // shows no result after a day or two" bug. Raising the per-host cap
+        // guarantees a user-initiated search always gets its own slot instead of
+        // waiting behind chatter.
+        .dispatcher(okhttp3.Dispatcher().apply {
+            maxRequests = 64
+            maxRequestsPerHost = 24
+        })
         .retryOnConnectionFailure(true)
         // Bumped to cover the register call, which uploads up to ~1 MB of
         // compressed JPEGs (PFP + 3 KYC docs). A 20s ceiling timed out on
@@ -60,7 +72,20 @@ object ApiClient {
                         .header("X-Tenant-Token", token)
                         .build()
                 else chain.request()
-            chain.proceed(request)
+            // The heartbeat is a tiny, frequent, fire-and-forget call. Never let
+            // a stalled one squat on a per-host connection slot (and a server DB
+            // connection) for the full 120s callTimeout — bound its connect/read
+            // tightly so a flaky network fails it fast and frees the slot for the
+            // next search. Other calls keep the generous timeouts (register
+            // uploads ~1 MB of JPEGs).
+            if (request.url.encodedPath.endsWith("/heartbeat")) {
+                chain.withConnectTimeout(8, TimeUnit.SECONDS)
+                    .withReadTimeout(8, TimeUnit.SECONDS)
+                    .withWriteTimeout(8, TimeUnit.SECONDS)
+                    .proceed(request)
+            } else {
+                chain.proceed(request)
+            }
         }
         .addInterceptor(HttpLoggingInterceptor().apply {
             // CRITICAL: never log full bodies in a release build. BODY logging

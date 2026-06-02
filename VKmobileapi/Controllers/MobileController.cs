@@ -100,6 +100,11 @@ public class MobileController : ControllerBase
             var agency = await _repo.GetAgencyBySlugAsync(req.Slug.Trim());
             if (!agency.Found || agency.Status != "approved")
                 return BadRequest(new ApiError(false, "That agency is not available. Please pick another."));
+
+            // Mobile must be SMS-OTP verified first (the app does /otp/send +
+            // /otp/verify before calling register). Soft-disable via OTP_REQUIRED=0.
+            if (Msg91Otp.Required && !Msg91Otp.IsRecentlyVerified(req.Mobile))
+                return StatusCode(403, new ApiError(false, "otp_required"));
             // Agency-mobile verification removed per UX request — the
             // white-label per-flavor build already pins the slug at compile
             // time, so the user can't pick the wrong agency. If a value is
@@ -176,6 +181,7 @@ public class MobileController : ControllerBase
                     "This mobile number or device was just registered with another agency. Please try again."));
             }
 
+            Msg91Otp.ClearVerified(req.Mobile);  // consume the OTP verification
             return Ok(new { success = true, message = "Registered! Waiting for admin approval.", userId });
         }
         catch (Exception ex)
@@ -199,9 +205,16 @@ public class MobileController : ControllerBase
             var agency = await _repo.GetAgencyBySlugAsync(req.Slug.Trim());
             if (!agency.Found || agency.Status != "approved")
                 return BadRequest(new ApiError(false, "That agency is not available."));
+
+            // Mobile must be SMS-OTP verified first (the app does /otp/send +
+            // /otp/verify before calling login). Soft-disable via OTP_REQUIRED=0.
+            if (Msg91Otp.Required && !Msg91Otp.IsRecentlyVerified(req.Mobile))
+                return StatusCode(403, new ApiError(false, "otp_required"));
+
             TenantContext.UseAgency(req.Slug.Trim());
 
             var result = await _repo.LoginAsync(NormalizeMobile(req.Mobile), req.DeviceId.Trim());
+            if (result.Reason == "ok") Msg91Otp.ClearVerified(req.Mobile);
             if (result.Reason == "ok")
                 result = result with
                 {
@@ -724,6 +737,25 @@ public class MobileController : ControllerBase
             ? (v.ValueKind == System.Text.Json.JsonValueKind.String ? v.GetString() ?? "" : v.ToString())
             : "";
 
+    // ── Mobile SMS OTP (MSG91) — verify the phone number at register / login ──
+    // No tenant token: these run before login. Stateless OTP store is in-process.
+    [HttpPost("otp/send")]
+    public async Task<IActionResult> OtpSend([FromBody] OtpSendReq req)
+    {
+        if (!Msg91Otp.Configured) return StatusCode(503, new ApiError(false, "OTP service is not configured on the server."));
+        var (ok, msg) = await Msg91Otp.SendAsync(req?.Mobile);
+        return ok ? Ok(new { ok = true, message = msg })
+                  : BadRequest(new { ok = false, message = msg });
+    }
+
+    [HttpPost("otp/verify")]
+    public IActionResult OtpVerify([FromBody] OtpVerifyReq req)
+    {
+        var (ok, msg) = Msg91Otp.Verify(req?.Mobile, req?.Otp);
+        return ok ? Ok(new { ok = true, verified = true, message = msg })
+                  : BadRequest(new { ok = false, verified = false, message = msg });
+    }
+
     [HttpPost("kyc/aadhaar/otp")]
     public async Task<IActionResult> KycAadhaarOtp([FromBody] KycAadhaarOtpReq req)
     {
@@ -907,6 +939,10 @@ public record KycResubmitReq(
     string? AadhaarNumber, string? AadhaarName, string? AadhaarDob,
     string? AadhaarGender, string? AadhaarAddress, bool AadhaarVerified = false,
     double? RegLat = null, double? RegLng = null, string? RegLocation = null);
+
+// ── Mobile SMS-OTP request bodies ────────────────────────────────────────────
+public record OtpSendReq(string? Mobile);
+public record OtpVerifyReq(string? Mobile, string? Otp);
 
 // ── KYC request bodies ──────────────────────────────────────────────────────
 public record KycAadhaarOtpReq(string? AadhaarNumber);

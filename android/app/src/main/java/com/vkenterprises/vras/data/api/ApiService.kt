@@ -15,6 +15,13 @@ interface ApiService {
     @GET("api/mobile/agency")
     suspend fun getAgencyInfo(): Response<AgencyInfo>
 
+    // ── Mobile SMS OTP (MSG91) — phone-number verification before reg/login ──
+    @POST("api/mobile/otp/send")
+    suspend fun otpSend(@Body body: Map<String, String?>): Response<Map<String, Any>>
+
+    @POST("api/mobile/otp/verify")
+    suspend fun otpVerify(@Body body: Map<String, String?>): Response<Map<String, Any>>
+
     @POST("api/mobile/register")
     suspend fun register(@Body request: RegisterRequest): Response<Map<String, Any>>
 
