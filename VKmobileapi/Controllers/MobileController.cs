@@ -749,9 +749,9 @@ public class MobileController : ControllerBase
     }
 
     [HttpPost("otp/verify")]
-    public async Task<IActionResult> OtpVerify([FromBody] OtpVerifyReq req)
+    public IActionResult OtpVerify([FromBody] OtpVerifyReq req)
     {
-        var (ok, msg) = await Msg91Otp.VerifyAsync(req?.Mobile, req?.Otp);
+        var (ok, msg) = Msg91Otp.Verify(req?.Mobile, req?.Otp);
         return ok ? Ok(new { ok = true, verified = true, message = msg })
                   : BadRequest(new { ok = false, verified = false, message = msg });
     }
