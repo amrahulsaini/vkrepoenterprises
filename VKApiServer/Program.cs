@@ -1407,6 +1407,55 @@ app.MapDelete("/api/mgr/users/{id:long}/kyc/{docType}", async (HttpContext ctx, 
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
 
+// Deletes the UIDAI photo AND the verified Aadhaar demographics in one shot.
+// Used by the desktop "Delete UIDAI photo & details" action (which gates the
+// call behind the admin's login password client-side). Clears the aadhaar_photo
+// file + column and wipes the OKYC name/dob/gender/address/number + verified flag.
+app.MapMethods("/api/mgr/users/{id:long}/kyc-uidai", new[] { "DELETE" }, async (HttpContext ctx, long id) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        await using var conn = new MySqlConnection(TenantContext.Conn);
+        await conn.OpenAsync();
+
+        // Best-effort: remove the UIDAI photo file from disk, then clear the column.
+        try
+        {
+            await using var sel = new MySqlCommand("SELECT aadhaar_photo FROM user_kyc WHERE user_id=@uid", conn);
+            sel.Parameters.AddWithValue("@uid", id);
+            var rel = (await sel.ExecuteScalarAsync()) as string;
+            await MgrExec("UPDATE user_kyc SET aadhaar_photo=NULL WHERE user_id=@uid", conn, 10, ("@uid", id));
+            if (!string.IsNullOrEmpty(rel))
+            {
+                try
+                {
+                    var fullPath = Path.Combine("/opt/vkmobileapi/uploads", rel.TrimStart('/'));
+                    if (File.Exists(fullPath)) File.Delete(fullPath);
+                }
+                catch { /* file may be locked/unwritable — DB cleared, that's enough */ }
+            }
+        }
+        catch { /* user_kyc / aadhaar_photo column may not exist on legacy schema */ }
+
+        // Wipe the verified Aadhaar demographics on the user row.
+        await MgrExec(@"
+            UPDATE app_users SET
+                kyc_aadhaar_number   = NULL,
+                kyc_aadhaar_last4    = NULL,
+                kyc_aadhaar_name     = NULL,
+                kyc_aadhaar_dob      = NULL,
+                kyc_aadhaar_gender   = NULL,
+                kyc_aadhaar_address  = NULL,
+                kyc_aadhaar_verified = 0,
+                kyc_verified_at      = NULL
+            WHERE id=@uid", conn, 10, ("@uid", id));
+
+        return Results.Ok(new { success = true });
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
 app.MapGet("/api/mgr/blacklist", async (HttpContext ctx) =>
 {
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();

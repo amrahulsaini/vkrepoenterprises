@@ -65,3 +65,6 @@ android/keystore/
 
 # Windows SDK BuildTools fetched for MSIX packaging (large, machine-local)
 tools/_sdk/
+
+# Operations runbook — contains live SSH/DB credentials. LOCAL ONLY, never push.
+RUNBOOK.md

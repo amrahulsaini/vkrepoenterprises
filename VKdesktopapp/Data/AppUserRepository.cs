@@ -88,6 +88,12 @@ public class AppUserRepository
     internal async Task SetKycStatusAsync(long userId, string status, string? note)
         => await DesktopApiClient.SetUserKycStatusAsync(userId, status, note);
 
+    internal async Task DeleteKycUidaiAsync(long userId)
+        => await DesktopApiClient.DeleteUserKycUidaiAsync(userId);
+
+    internal async Task<bool> VerifyLoginPasswordAsync(string email, string password)
+        => await DesktopApiClient.VerifyLoginPasswordAsync(email, password);
+
     internal async Task SetAdminPassAsync(long userId, string password)
         => await DesktopApiClient.SetUserAdminPassAsync(userId, password);
 

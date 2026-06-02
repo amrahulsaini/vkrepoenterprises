@@ -288,6 +288,31 @@ internal static class DesktopApiClient
         resp.EnsureSuccessStatusCode();
     }
 
+    // Deletes the UIDAI photo + verified Aadhaar demographics for a user.
+    internal static async Task DeleteUserKycUidaiAsync(long userId)
+    {
+        var resp = await Send(HttpMethod.Delete, $"api/mgr/users/{userId}/kyc-uidai");
+        resp.EnsureSuccessStatusCode();
+    }
+
+    // Re-verifies the signed-in admin's login password (agency desktop login)
+    // without disturbing the current session token. Returns true if correct.
+    internal static async Task<bool> VerifyLoginPasswordAsync(string email, string password)
+    {
+        try
+        {
+            var req = new HttpRequestMessage(HttpMethod.Post, $"{App.ApiBaseUrl.TrimEnd('/')}/api/agency/desktop/login")
+            {
+                Content = JsonContent.Create(new { email = (email ?? "").Trim().ToLowerInvariant(), password })
+            };
+            // Don't send the current Bearer token — this is a standalone check.
+            req.Headers.Authorization = null;
+            using var resp = await App.HttpClient.SendAsync(req);
+            return resp.IsSuccessStatusCode;
+        }
+        catch { return false; }
+    }
+
     // ── Admin / Control Panel password ──────────────────────────────────────
     internal static async Task SetUserAdminPassAsync(long userId, string password)
     {
