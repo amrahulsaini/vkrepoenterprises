@@ -76,11 +76,7 @@ fun VKNavHost() {
         }
 
         composable(Screen.SubscriptionExpired.route) {
-            SubscriptionExpiredScreen {
-                navController.navigate(Screen.Login.route) {
-                    popUpTo(0) { inclusive = true }
-                }
-            }
+            SubscriptionExpiredScreen(authVm, navController)
         }
 
         composable(Screen.AppStopped.route) {
