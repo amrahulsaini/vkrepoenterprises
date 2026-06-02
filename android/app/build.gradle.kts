@@ -119,6 +119,13 @@ android {
         buildConfig  = true
     }
     composeOptions { kotlinCompilerExtensionVersion = "1.5.14" }
+
+    // Release builds otherwise run lintVital, which isn't needed to produce the
+    // signed APK and has intermittently locked its cache on Windows. Skip it.
+    lint {
+        checkReleaseBuilds = false
+        abortOnError       = false
+    }
 }
 
 dependencies {
