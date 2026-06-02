@@ -10,9 +10,11 @@ import androidx.compose.ui.*
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.*
+import androidx.navigation.NavController
+import com.vkenterprises.vras.viewmodel.AuthViewModel
 
 @Composable
-fun SubscriptionExpiredScreen(onBackToLogin: () -> Unit) {
+fun SubscriptionExpiredScreen(vm: AuthViewModel, nav: NavController) {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(
             Modifier
@@ -77,16 +79,10 @@ fun SubscriptionExpiredScreen(onBackToLogin: () -> Unit) {
 
             Spacer(Modifier.height(8.dp))
 
-            Button(
-                onClick = onBackToLogin,
-                modifier = Modifier.fillMaxWidth().height(52.dp),
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.error
-                )
-            ) {
-                Text("BACK TO LOGIN", fontWeight = FontWeight.Bold)
-            }
+            // CHECK AGAIN (re-checks subscription with the server → Home the
+            // moment it's renewed) + Back to login. Shared with the other
+            // status screens.
+            StatusActions(vm, nav)
         }
     }
 }

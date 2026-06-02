@@ -291,11 +291,11 @@ public class MobileRepository
                     kyc_aadhaar_address  = @aaddr,
                     kyc_aadhaar_verified = @aver,
                     kyc_verified_at      = CASE WHEN @aver=1 THEN UTC_TIMESTAMP() ELSE kyc_verified_at END,
-                    -- Aadhaar OKYC is completed during registration, so KYC is
-                    -- already done: mark it success so the agent lands on the
-                    -- awaiting-approval (admin activation) screen at login, NOT
-                    -- the KYC-under-review screen.
-                    kyc_status           = CASE WHEN @aver=1 THEN 'success' ELSE kyc_status END,
+                    -- New registrants go into the KYC REVIEW QUEUE first: the
+                    -- admin verifies their Aadhaar/selfie (kyc_status -> success),
+                    -- and only then does the activation gate show awaiting
+                    -- approval. So a fresh registration is always pending here.
+                    kyc_status           = 'pending',
                     kyc_reg_lat          = @lat,
                     kyc_reg_lng          = @lng,
                     kyc_reg_location     = @loc

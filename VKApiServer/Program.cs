@@ -1159,6 +1159,12 @@ app.MapDelete("/api/mgr/users/{id:long}", async (HttpContext ctx, long id) =>
         }
         if (mobile == null) return Results.NotFound(new { message = "User not found" });
 
+        // Explicitly drop the KYC row first so it's gone even on older tenant
+        // DBs whose user_kyc FK predates ON DELETE CASCADE — otherwise a deleted
+        // user's KYC could linger and a re-registration look "already verified".
+        try { await MgrExec("DELETE FROM user_kyc WHERE user_id=@id", conn, 10, ("@id", id)); }
+        catch { /* table may not exist on legacy schema */ }
+
         // Drop the tenant row — FK CASCADE wipes subscriptions, kyc, finance
         // restrictions, device-change requests, etc. in one shot.
         await MgrExec("DELETE FROM app_users WHERE id=@id", conn, 15, ("@id", id));
