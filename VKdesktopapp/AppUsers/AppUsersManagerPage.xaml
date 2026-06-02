@@ -795,15 +795,24 @@
                                                                VerticalAlignment="Center" />
                                                 </Grid>
                                             </Border>
+                                    <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
                                             <Button Name="btnKycDownloadUidai" Content="↓ Download"
-                                                    FontSize="10" Padding="6,3" Margin="0,4,0,0"
-                                                    HorizontalAlignment="Left"
+                                                    FontSize="10" Padding="6,3" Margin="0,0,4,0"
                                                     Background="Transparent"
                                                     BorderBrush="{StaticResource Gray300}"
                                                     BorderThickness="1" Cursor="Hand"
                                                     Foreground="{StaticResource Gray700}"
                                                     Tag="aadhaar_photo"
                                                     Click="btnKycDownload_Click" />
+                                            <Button Name="btnKycDeleteUidai" Content="✕ Delete"
+                                                    FontSize="10" Padding="6,3"
+                                                    Background="Transparent"
+                                                    BorderBrush="{StaticResource Red500}"
+                                                    BorderThickness="1" Cursor="Hand"
+                                                    Foreground="{StaticResource Red500}"
+                                                    ToolTip="Delete the UIDAI photo and verified Aadhaar details (asks for your login password)"
+                                                    Click="btnKycDeleteUidai_Click" />
+                                            </StackPanel>
                                         </StackPanel>
                                     </Border>
 

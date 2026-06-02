@@ -454,6 +454,74 @@ public partial class AppUsersManagerPage : Page
         { MessageBox.Show(ex.Message, "KYC", MessageBoxButton.OK, MessageBoxImage.Error); }
     }
 
+    // Delete the UIDAI photo + verified Aadhaar details — gated by the admin's
+    // login password (re-verified against the server). Irreversible.
+    private async void btnKycDeleteUidai_Click(object sender, RoutedEventArgs e)
+    {
+        if (_selectedUser == null) return;
+        var confirm = MessageBox.Show(
+            $"Delete the UIDAI photo and verified Aadhaar details for {_selectedUser.Name}?\n\n" +
+            "This removes the UIDAI photo and the name / DOB / gender / address / Aadhaar number " +
+            "fetched from UIDAI. This cannot be undone.",
+            "Delete UIDAI data", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+        if (confirm != MessageBoxResult.Yes) return;
+
+        var (ok, pwd) = PromptForPassword(
+            "Confirm with your password",
+            "Enter your login password to delete the UIDAI photo and details.");
+        if (!ok) return;
+        if (string.IsNullOrEmpty(pwd))
+        {
+            MessageBox.Show("Password is required.", "Delete UIDAI data", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        try
+        {
+            var email = App.SignedAppUser?.Email ?? "";
+            var valid = await _repo.VerifyLoginPasswordAsync(email, pwd);
+            if (!valid)
+            {
+                MessageBox.Show("Incorrect password. UIDAI data was not deleted.",
+                    "Delete UIDAI data", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+            await _repo.DeleteKycUidaiAsync(_selectedUser.Id);
+            await LoadKycAsync(_selectedUser.Id);
+            MessageBox.Show("UIDAI photo and verified Aadhaar details deleted.",
+                "Done", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        { MessageBox.Show(ex.Message, "Delete UIDAI data", MessageBoxButton.OK, MessageBoxImage.Error); }
+    }
+
+    // Minimal modal password prompt. Returns (true, password) on OK, (false, "") on cancel.
+    private (bool ok, string pwd) PromptForPassword(string title, string prompt)
+    {
+        var win = new Window
+        {
+            Title = title, Width = 420, Height = 200, ResizeMode = ResizeMode.NoResize,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner, Owner = Window.GetWindow(this),
+            Background = System.Windows.Media.Brushes.White
+        };
+        var root = new StackPanel { Margin = new Thickness(18) };
+        root.Children.Add(new TextBlock { Text = prompt, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 12) });
+        var box = new PasswordBox { Height = 32, Margin = new Thickness(0, 0, 0, 14) };
+        root.Children.Add(box);
+        var bar = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
+        var cancel = new Button { Content = "Cancel", MinWidth = 90, Height = 32, Margin = new Thickness(0, 0, 8, 0), IsCancel = true };
+        var okBtn  = new Button { Content = "Confirm delete", MinWidth = 120, Height = 32, IsDefault = true };
+        bool result = false;
+        okBtn.Click += (_, __) => { result = true; win.DialogResult = true; };
+        cancel.Click += (_, __) => { win.DialogResult = false; };
+        bar.Children.Add(cancel); bar.Children.Add(okBtn);
+        root.Children.Add(bar);
+        win.Content = root;
+        box.Loaded += (_, __) => box.Focus();
+        win.ShowDialog();
+        return (result, box.Password ?? "");
+    }
+
     // Minimal modal text prompt (no Microsoft.VisualBasic dependency). Returns
     // (true, text) on OK and (false, "") on cancel.
     private (bool ok, string text) PromptForNote(string title, string prompt)
