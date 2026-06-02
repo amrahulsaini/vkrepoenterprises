@@ -32,9 +32,16 @@ fun LoginScreen(vm: AuthViewModel, nav: NavController) {
     var mobile  by remember { mutableStateOf("") }
     var error   by remember { mutableStateOf("") }
     // OTP step state: once the SMS goes out we swap the button to "Verify & Login".
-    var otpSent by remember { mutableStateOf(false) }
-    var otp     by remember { mutableStateOf("") }
-    var busy    by remember { mutableStateOf(false) }
+    var otpSent  by remember { mutableStateOf(false) }
+    var otp      by remember { mutableStateOf("") }
+    var busy     by remember { mutableStateOf(false) }
+    // Resend cooldown — seconds remaining before "Resend" is allowed again.
+    var cooldown by remember { mutableStateOf(0) }
+
+    // Ticks the resend cooldown down to zero, one second at a time.
+    LaunchedEffect(cooldown) {
+        if (cooldown > 0) { kotlinx.coroutines.delay(1000); cooldown-- }
+    }
     // White-label build — agency is baked into BuildConfig at compile time.
     val agencySlug = BuildConfig.AGENCY_SLUG
     val agencyName = BuildConfig.AGENCY_NAME
@@ -193,7 +200,7 @@ fun LoginScreen(vm: AuthViewModel, nav: NavController) {
                         busy = true
                         vm.sendOtp(mobile) { ok, msg ->
                             busy = false
-                            if (ok) otpSent = true else error = msg
+                            if (ok) { otpSent = true; cooldown = 30 } else error = msg
                         }
                     } else {
                         if (otp.length < 4) { error = "Enter the OTP sent to your phone."; return@Button }
@@ -224,14 +231,17 @@ fun LoginScreen(vm: AuthViewModel, nav: NavController) {
                     Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    TextButton(onClick = { otpSent = false; otp = ""; error = "" }, enabled = !busy) {
+                    TextButton(onClick = { otpSent = false; otp = ""; error = ""; cooldown = 0 }, enabled = !busy) {
                         Text("Change number")
                     }
-                    TextButton(onClick = {
-                        error = ""; busy = true
-                        vm.sendOtp(mobile) { ok, msg -> busy = false; if (!ok) error = msg }
-                    }, enabled = !busy) {
-                        Text("Resend OTP")
+                    TextButton(
+                        onClick = {
+                            error = ""; busy = true
+                            vm.sendOtp(mobile) { ok, msg -> busy = false; if (ok) cooldown = 30 else error = msg }
+                        },
+                        enabled = !busy && cooldown == 0
+                    ) {
+                        Text(if (cooldown > 0) "Resend in ${cooldown}s" else "Resend OTP")
                     }
                 }
             }

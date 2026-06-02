@@ -120,6 +120,10 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
     var mobileVerified by remember { mutableStateOf(false) }
     var mobileOtpBusy  by remember { mutableStateOf(false) }
     var mobileOtpMsg   by remember { mutableStateOf("") }
+    var mobileCooldown by remember { mutableStateOf(0) }   // resend cooldown (s)
+    LaunchedEffect(mobileCooldown) {
+        if (mobileCooldown > 0) { kotlinx.coroutines.delay(1000); mobileCooldown-- }
+    }
 
     val agencySlug = BuildConfig.AGENCY_SLUG
     val agencyName = BuildConfig.AGENCY_NAME
@@ -381,7 +385,7 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
                             mobileOtpBusy = true
                             vm.sendOtp(mobile) { ok, msg ->
                                 mobileOtpBusy = false
-                                if (ok) { mobileOtpSent = true; mobileOtpMsg = "OTP sent to $mobile." }
+                                if (ok) { mobileOtpSent = true; mobileCooldown = 30; mobileOtpMsg = "OTP sent to $mobile." }
                                 else mobileOtpMsg = msg
                             }
                         },
@@ -401,10 +405,13 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
                         OutlinedButton(
                             onClick = {
                                 mobileOtpMsg = ""; mobileOtpBusy = true
-                                vm.sendOtp(mobile) { ok, msg -> mobileOtpBusy = false; mobileOtpMsg = if (ok) "OTP resent." else msg }
+                                vm.sendOtp(mobile) { ok, msg ->
+                                    mobileOtpBusy = false
+                                    if (ok) { mobileCooldown = 30; mobileOtpMsg = "OTP resent." } else mobileOtpMsg = msg
+                                }
                             },
-                            enabled = !mobileOtpBusy, modifier = Modifier.weight(1f)
-                        ) { Text("Resend") }
+                            enabled = !mobileOtpBusy && mobileCooldown == 0, modifier = Modifier.weight(1f)
+                        ) { Text(if (mobileCooldown > 0) "Resend in ${mobileCooldown}s" else "Resend") }
                         Button(
                             onClick = {
                                 focusManager.clearFocus(); mobileOtpMsg = ""; mobileOtpBusy = true
