@@ -52,7 +52,7 @@ public static class Msg91Otp
 
     private static readonly TimeSpan OtpTtl       = TimeSpan.FromMinutes(10);  // matches the template wording
     private static readonly TimeSpan VerifiedTtl  = TimeSpan.FromMinutes(15);
-    private static readonly TimeSpan ResendWindow = TimeSpan.FromSeconds(20);
+    private static readonly TimeSpan ResendWindow = TimeSpan.FromSeconds(30);
 
     // The OTP value is sent under all of these so whichever the template was
     // built with gets filled. MSG91 ignores keys not present in the template.
