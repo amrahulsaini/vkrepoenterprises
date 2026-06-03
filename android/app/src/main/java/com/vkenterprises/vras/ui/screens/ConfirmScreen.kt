@@ -159,7 +159,9 @@ fun ConfirmScreen(
         }
     }
 
-    fun checkedNumbers(): List<String> = buildList {
+    fun checkedNumbers(): List<String> = if (!isAdmin) emptyList() else buildList {
+        // Agents never auto-send to the financer's confidential contacts — they
+        // pick the recipient themselves in their SMS/WhatsApp app.
         if (chkL1 && item?.level1Contact?.isNotBlank() == true) add(item.level1Contact)
         if (chkL2 && item?.level2Contact?.isNotBlank() == true) add(item.level2Contact)
         if (chkL3 && item?.level3Contact?.isNotBlank() == true) add(item.level3Contact)
@@ -234,20 +236,29 @@ fun ConfirmScreen(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    SummaryRow("Agreement", item.agreementNo, mono = true)
+                    // Agents see only the basic vehicle fields. Internal data
+                    // (agreement/loan, bucket, OD, branch, financer) is admin-only.
                     SummaryRow("Customer",  item.customerName)
                     SummaryRow("Vehicle No",item.vehicleNo,   mono = true)
                     SummaryRow("Chassis",   item.chassisNo,   mono = true)
                     SummaryRow("Engine",    item.engineNo,    mono = true)
                     SummaryRow("Model",     item.model)
-                    SummaryRow("BKT",       item.bucket)
-                    SummaryRow("OD",        item.od)
-                    SummaryRow("Branch",    item.branchName)
-                    SummaryRow("Financer",  item.financer)
+                    if (isAdmin) {
+                        SummaryRow("Agreement", item.agreementNo, mono = true)
+                        SummaryRow("BKT",       item.bucket)
+                        SummaryRow("OD",        item.od)
+                        SummaryRow("Branch",    item.branchName)
+                        SummaryRow("Financer",  item.financer)
+                    }
                 }
             }
 
-            // ── SMS recipients ────────────────────────────────────────────
+            // ── SMS recipients (ADMIN ONLY) ───────────────────────────────
+            // The Level 1-4 and branch contact numbers are the financer's
+            // confidential contacts — agents must NOT see them. Only admins pick
+            // SMS recipients here; agents just compose the message and choose a
+            // recipient themselves in their SMS/WhatsApp app.
+            if (isAdmin) {
             val hasAnyContact = listOf(
                 item.level1Contact, item.level2Contact,
                 item.level3Contact, item.level4Contact,
@@ -289,6 +300,7 @@ fun ConfirmScreen(
                             ContactCheckRow("Contact 2 (Finance/Branch)", item.financer.orEmpty(), item.secondContact, chkC2) { chkC2 = it }
                     }
                 }
+            }
             }
 
             // ── Inputs ────────────────────────────────────────────────────
