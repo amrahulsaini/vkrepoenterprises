@@ -345,9 +345,13 @@ fun VehicleDetailScreen(
         }
     }
 
+    // Agents get an all-white detail screen (per request); admin keeps the theme.
+    val pageBg = if (isAdmin) MaterialTheme.colorScheme.background else Color.White
     Scaffold(
+        containerColor = pageBg,
         topBar = {
             TopAppBar(
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = pageBg),
                 title = { Text(item?.vehicleNo ?: "Vehicle Detail", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = { nav.popBackStack() }) {
@@ -471,6 +475,7 @@ fun VehicleDetailScreen(
             QuickSearchBar(
                 searchVm = searchVm,
                 authVm   = authVm,
+                surfaceColor = pageBg,
                 onSubmit = { nav.popBackStack() }
             )
 
@@ -524,6 +529,7 @@ fun VehicleDetailScreen(
 private fun QuickSearchBar(
     searchVm: SearchViewModel,
     authVm: AuthViewModel,
+    surfaceColor: Color = Color.Unspecified,
     onSubmit: () -> Unit
 ) {
     val ui     by searchVm.ui.collectAsState()
@@ -553,7 +559,7 @@ private fun QuickSearchBar(
     }
 
     Surface(
-        color = MaterialTheme.colorScheme.surfaceVariant,
+        color = if (surfaceColor == Color.Unspecified) MaterialTheme.colorScheme.surfaceVariant else surfaceColor,
         modifier = Modifier.fillMaxWidth()
     ) {
         OutlinedTextField(
@@ -756,8 +762,9 @@ private fun AdminDetailView(
 private fun BasicDetailView(item: SearchResult, agentName: String, agentPhone: String) {
     Card(
         shape  = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(2.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(1.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         modifier  = Modifier.fillMaxWidth()
     ) {
         Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -789,8 +796,9 @@ private fun BasicDetailView(item: SearchResult, agentName: String, agentPhone: S
 
     Card(
         shape  = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(2.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(1.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
