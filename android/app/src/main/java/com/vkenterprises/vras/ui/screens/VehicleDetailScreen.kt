@@ -764,12 +764,23 @@ private fun BasicDetailView(item: SearchResult, agentName: String, agentPhone: S
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary)
             HorizontalDivider(color = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f))
-            DetailRow("Vehicle No",   item.vehicleNo,
+            // Every field is always shown (label + dash if empty) and the value
+            // is in CAPITALS — per request, so agents see the full record shape.
+            DetailRow("Vehicle No",     item.vehicleNo, alwaysShow = true, upper = true,
                 invalid = item.vehicleNo.isNotBlank() && !item.vehicleNo.isValidRc())
-            DetailRow("Chassis No",   item.chassisNo)
-            DetailRow("Engine No",    item.engineNo)
-            DetailRow("Model / Make", item.model)
-            DetailRow("Customer",     item.customerName)
+            DetailRow("Chassis No",     item.chassisNo,        alwaysShow = true, upper = true)
+            DetailRow("Engine No",      item.engineNo,         alwaysShow = true, upper = true)
+            DetailRow("Model / Make",   item.model,            alwaysShow = true, upper = true)
+            DetailRow("Loan No",        item.agreementNo,      alwaysShow = true, upper = true)
+            DetailRow("Customer Name",  item.customerName,     alwaysShow = true, upper = true)
+            DetailRow("Customer Contact", item.customerContact, alwaysShow = true, upper = true)
+            DetailRow("Customer Address", item.customerAddress, alwaysShow = true, upper = true)
+            DetailRow("Bucket",         item.bucket,           alwaysShow = true, upper = true)
+            DetailRow("OD",             item.od,               alwaysShow = true, upper = true)
+            DetailRow("Region",         item.region,           alwaysShow = true, upper = true)
+            DetailRow("Area",           item.area,             alwaysShow = true, upper = true)
+            DetailRow("Finance",        item.financer,         alwaysShow = true, upper = true)
+            DetailRow("Branch",         item.branchName,       alwaysShow = true, upper = true)
         }
     }
     // Live agency profile — fetched once per screen. The build-time
@@ -1162,12 +1173,22 @@ private fun DetailRow(
     label: String, value: String?,
     valueColor: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.onSurface,
     invalid: Boolean = false,
-    isPhone: Boolean = false
+    isPhone: Boolean = false,
+    // alwaysShow: render the row even when the value is empty (label + dash) so
+    // the agent sees every field exists. upper: show the value in CAPITALS.
+    alwaysShow: Boolean = false,
+    upper: Boolean = false
 ) {
-    if (value.isNullOrBlank()) return
+    if (value.isNullOrBlank() && !alwaysShow) return
     val context = LocalContext.current
     val primary = MaterialTheme.colorScheme.primary
     val baseColor = if (invalid) MaterialTheme.colorScheme.error else valueColor
+    // What actually renders: dash when empty; CAPITALS for record values.
+    val shown = when {
+        value.isNullOrBlank() -> "—"
+        upper                 -> value.uppercase()
+        else                  -> value
+    }
 
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically) {
@@ -1180,13 +1201,13 @@ private fun DetailRow(
             modifier = Modifier
                 .weight(0.62f)
                 .then(
-                    if (isPhone) Modifier.clickable {
+                    if (isPhone && !value.isNullOrBlank()) Modifier.clickable {
                         // Tap-to-dial: opens the phone dialer pre-filled with
                         // the number. No CALL_PHONE permission needed — ACTION_DIAL
                         // shows the dialer and the user taps the green button.
                         runCatching {
                             context.startActivity(
-                                Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + value.replace(" ", "")))
+                                Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + (value ?: "").replace(" ", "")))
                             )
                         }
                     } else Modifier
@@ -1196,13 +1217,13 @@ private fun DetailRow(
         ) {
             // FontWeight.Black + FontFamily.Default forces a heavy bold that
             // renders on every device regardless of the user's system font.
-            Text(value,
+            Text(shown,
                 style      = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Black,
                 fontFamily = FontFamily.Default,
-                color      = if (isPhone) primary else baseColor,
-                textDecoration = if (isPhone) TextDecoration.Underline else null)
-            if (isPhone) {
+                color      = if (isPhone && !value.isNullOrBlank()) primary else baseColor,
+                textDecoration = if (isPhone && !value.isNullOrBlank()) TextDecoration.Underline else null)
+            if (isPhone && !value.isNullOrBlank()) {
                 Icon(Icons.Default.Call, "Call",
                     tint = primary,
                     modifier = Modifier.size(14.dp))

@@ -31,17 +31,7 @@ fun LoginScreen(vm: AuthViewModel, nav: NavController) {
 
     var mobile  by remember { mutableStateOf("") }
     var error   by remember { mutableStateOf("") }
-    // OTP step state: once the SMS goes out we swap the button to "Verify & Login".
-    var otpSent  by remember { mutableStateOf(false) }
-    var otp      by remember { mutableStateOf("") }
-    var busy     by remember { mutableStateOf(false) }
-    // Resend cooldown — seconds remaining before "Resend" is allowed again.
-    var cooldown by remember { mutableStateOf(0) }
-
-    // Ticks the resend cooldown down to zero, one second at a time.
-    LaunchedEffect(cooldown) {
-        if (cooldown > 0) { kotlinx.coroutines.delay(1000); cooldown-- }
-    }
+    // Login is direct (no OTP) — agents log in with just their registered mobile.
     // White-label build — agency is baked into BuildConfig at compile time.
     val agencySlug = BuildConfig.AGENCY_SLUG
     val agencyName = BuildConfig.AGENCY_NAME
@@ -148,33 +138,14 @@ fun LoginScreen(vm: AuthViewModel, nav: NavController) {
 
             OutlinedTextField(
                 value = mobile,
-                onValueChange = { if (!otpSent) mobile = it.take(15) },
+                onValueChange = { mobile = it.take(15) },
                 label = { Text("Mobile Number") },
                 leadingIcon = { Icon(Icons.Default.Phone, null) },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                 singleLine = true,
-                enabled = !otpSent && !busy,
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp)
             )
-
-            if (otpSent) {
-                OutlinedTextField(
-                    value = otp,
-                    onValueChange = { otp = it.filter { c -> c.isDigit() }.take(6) },
-                    label = { Text("Enter OTP") },
-                    leadingIcon = { Icon(Icons.Default.Sms, null) },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp)
-                )
-                Text(
-                    "We sent a 6-digit code to $mobile",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
 
             if (error.isNotEmpty()) {
                 Card(
@@ -195,55 +166,21 @@ fun LoginScreen(vm: AuthViewModel, nav: NavController) {
             Button(
                 onClick = {
                     error = ""
-                    if (!otpSent) {
-                        if (mobile.isBlank()) { error = "Enter your mobile number."; return@Button }
-                        busy = true
-                        vm.sendOtp(mobile) { ok, msg ->
-                            busy = false
-                            if (ok) { otpSent = true; cooldown = 30 } else error = msg
-                        }
-                    } else {
-                        if (otp.length < 4) { error = "Enter the OTP sent to your phone."; return@Button }
-                        busy = true
-                        vm.verifyOtp(mobile, otp) { ok, msg ->
-                            busy = false
-                            if (ok) vm.login(mobile, agencySlug, agencyName) else error = msg
-                        }
-                    }
+                    if (mobile.isBlank()) { error = "Enter your mobile number."; return@Button }
+                    vm.login(mobile, agencySlug, agencyName)
                 },
-                enabled = !busy && state !is AuthUiState.Loading,
+                enabled = state !is AuthUiState.Loading,
                 modifier = Modifier.fillMaxWidth().height(52.dp),
                 shape = RoundedCornerShape(12.dp)
             ) {
-                if (busy || state is AuthUiState.Loading)
+                if (state is AuthUiState.Loading)
                     CircularProgressIndicator(
                         Modifier.size(20.dp),
                         strokeWidth = 2.dp,
                         color = MaterialTheme.colorScheme.onPrimary
                     )
                 else
-                    Text(if (otpSent) "VERIFY & LOGIN" else "SEND OTP",
-                        fontWeight = FontWeight.Bold, fontSize = 16.sp)
-            }
-
-            if (otpSent) {
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    TextButton(onClick = { otpSent = false; otp = ""; error = ""; cooldown = 0 }, enabled = !busy) {
-                        Text("Change number")
-                    }
-                    TextButton(
-                        onClick = {
-                            error = ""; busy = true
-                            vm.sendOtp(mobile) { ok, msg -> busy = false; if (ok) cooldown = 30 else error = msg }
-                        },
-                        enabled = !busy && cooldown == 0
-                    ) {
-                        Text(if (cooldown > 0) "Resend in ${cooldown}s" else "Resend OTP")
-                    }
-                }
+                    Text("LOGIN", fontWeight = FontWeight.Bold, fontSize = 16.sp)
             }
 
             Row(

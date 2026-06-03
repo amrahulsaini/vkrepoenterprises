@@ -66,6 +66,8 @@ static bool IsTenantBoundByBody(PathString path)
         || s.Equals("/api/mobile/kyc/resubmit",       StringComparison.OrdinalIgnoreCase)
         // Mobile SMS-OTP runs BEFORE login (no token yet); stateless, no tenant DB.
         || s.StartsWith("/api/mobile/otp/", StringComparison.OrdinalIgnoreCase)
+        // Pre-registration "is this number registered?" check — runs before login.
+        || s.Equals("/api/mobile/check-mobile", StringComparison.OrdinalIgnoreCase)
         || s.StartsWith("/api/mobile/cache/", StringComparison.OrdinalIgnoreCase)
         || s.StartsWith("/uploads/",        StringComparison.OrdinalIgnoreCase)
         || s == "/";

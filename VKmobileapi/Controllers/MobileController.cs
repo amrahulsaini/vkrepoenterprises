@@ -739,6 +739,25 @@ public class MobileController : ControllerBase
             ? (v.ValueKind == System.Text.Json.JsonValueKind.String ? v.GetString() ?? "" : v.ToString())
             : "";
 
+    // POST /api/mobile/check-mobile — is this number already registered with the
+    // agency? The app calls this the moment the number is entered, BEFORE sending
+    // an OTP, so an already-registered agent is told to log in instead.
+    [HttpPost("check-mobile")]
+    public async Task<IActionResult> CheckMobile([FromBody] CheckMobileReq req)
+    {
+        if (string.IsNullOrWhiteSpace(req?.Slug))
+            return BadRequest(new ApiError(false, "Please select your agency."));
+        var mobile = NormalizeMobile(req.Mobile);
+        if (mobile.Length < 10)
+            return BadRequest(new ApiError(false, "Enter a valid 10-digit mobile number."));
+        var agency = await _repo.GetAgencyBySlugAsync(req.Slug.Trim());
+        if (!agency.Found || agency.Status != "approved")
+            return BadRequest(new ApiError(false, "That agency is not available."));
+        TenantContext.UseAgency(req.Slug.Trim());
+        var registered = await _repo.IsMobileRegisteredAsync(mobile);
+        return Ok(new { registered });
+    }
+
     // ── Mobile SMS OTP (MSG91) — verify the phone number at register / login ──
     // No tenant token: these run before login. Stateless OTP store is in-process.
     [HttpPost("otp/send")]
@@ -943,6 +962,7 @@ public record KycResubmitReq(
     double? RegLat = null, double? RegLng = null, string? RegLocation = null);
 
 // ── Mobile SMS-OTP request bodies ────────────────────────────────────────────
+public record CheckMobileReq(string? Mobile, string? Slug);
 public record OtpSendReq(string? Mobile);
 public record OtpVerifyReq(string? Mobile, string? Otp);
 
