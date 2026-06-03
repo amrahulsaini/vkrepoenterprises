@@ -34,8 +34,16 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.core.content.ContextCompat
+import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+
+// Bundled Roboto (same TTFs the reference app uses) so the plate list looks
+// identical on every device — not the OEM system font (e.g. Oppo Sans).
+private val RobotoFamily = FontFamily(
+    Font(R.font.roboto_bold,  FontWeight.Bold),
+    Font(R.font.roboto_black, FontWeight.Black)
+)
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -766,10 +774,9 @@ private fun VehicleGridCell(item: SearchResult, mode: SearchMode, onClick: () ->
     ) {
         Text(
             display,
-            // Heaviest weight (Black/900) at 16sp — the largest that still fits a
-            // full plate in a half-screen column without truncating.
-            fontWeight = FontWeight.Black,
-            fontFamily = FontFamily.Default,
+            // Exact reference style: bundled Roboto Bold (700) typeface, 16sp.
+            fontWeight = FontWeight.Bold,
+            fontFamily = RobotoFamily,
             fontSize = 16.sp,
             lineHeight = 18.sp,
             maxLines = 1,
