@@ -766,12 +766,12 @@ private fun VehicleGridCell(item: SearchResult, mode: SearchMode, onClick: () ->
     ) {
         Text(
             display,
-            // Big + bold (≈ reference's Headline6 + roboto_bold). Default family
-            // because Android's monospace has no true bold face.
-            fontWeight = FontWeight.Black,
+            // Match the reference exactly: roboto_bold = FontWeight.Bold (700),
+            // big and clean (not ultra-black). Default sans family.
+            fontWeight = FontWeight.Bold,
             fontFamily = FontFamily.Default,
-            fontSize = 17.sp,
-            lineHeight = 19.sp,
+            fontSize = 16.sp,
+            lineHeight = 18.sp,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
