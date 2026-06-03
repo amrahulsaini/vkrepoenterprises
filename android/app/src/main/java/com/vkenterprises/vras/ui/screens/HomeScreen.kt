@@ -37,13 +37,6 @@ import androidx.core.content.ContextCompat
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-
-// Bundled Roboto (same TTFs the reference app uses) so the plate list looks
-// identical on every device — not the OEM system font (e.g. Oppo Sans).
-private val RobotoFamily = FontFamily(
-    Font(R.font.roboto_bold,  FontWeight.Bold),
-    Font(R.font.roboto_black, FontWeight.Black)
-)
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -59,6 +52,13 @@ import com.vkenterprises.vras.viewmodel.SearchMode
 import com.vkenterprises.vras.viewmodel.SearchViewModel
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
+
+// Bundled Roboto (same TTFs the reference app uses) so the plate list looks
+// identical on every device — not the OEM system font (e.g. Oppo Sans).
+private val RobotoFamily = FontFamily(
+    Font(R.font.roboto_bold,  FontWeight.Bold),
+    Font(R.font.roboto_black, FontWeight.Black)
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
