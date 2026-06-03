@@ -152,10 +152,12 @@ fun VehicleDetailScreen(
          .sortedByDescending { it.createdOn }
     }
 
-    // Auto-show the "FOUND IN FINANCES" bottom sheet for admins whenever the
-    // vehicle has at least one finance — shown for single finance too.
-    LaunchedEffect(isAdmin, uniqueBranches.size) {
-        if (isAdmin && uniqueBranches.isNotEmpty()) showBranchSheet = true
+    // Auto-show the "FOUND IN FINANCES" sheet for admins ONCE when a vehicle's
+    // detail opens. Keyed on the selected vehicle's id — NOT on uniqueBranches —
+    // so re-searching from the top quick-search bar (which changes the result
+    // set) doesn't make the sheet flash open for a second on the way out.
+    LaunchedEffect(isAdmin, item?.id) {
+        if (isAdmin && item != null && uniqueBranches.isNotEmpty()) showBranchSheet = true
     }
 
     val branchRecord: SearchResult? = uniqueBranches.getOrNull(selectedBranchIdx)?.record ?: item

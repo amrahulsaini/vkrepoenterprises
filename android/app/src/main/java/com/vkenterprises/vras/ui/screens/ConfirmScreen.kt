@@ -202,9 +202,13 @@ fun ConfirmScreen(
         context.startActivity(intent)
     }
 
+    // Agents get a clean all-white screen (per request). Admin keeps the themed look.
+    val pageBg = if (isAdmin) MaterialTheme.colorScheme.background else Color.White
     Scaffold(
+        containerColor = pageBg,
         topBar = {
             TopAppBar(
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = pageBg),
                 title = { Text(screenTitle, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = { nav.popBackStack() }) {
@@ -232,7 +236,8 @@ fun ConfirmScreen(
             // ── Vehicle summary card ──────────────────────────────────────
             Card(
                 shape  = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                colors = CardDefaults.cardColors(containerColor = if (isAdmin) MaterialTheme.colorScheme.surfaceVariant else Color.White),
+                border = if (isAdmin) null else androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -327,7 +332,8 @@ fun ConfirmScreen(
             // ── Message preview ───────────────────────────────────────────
             Card(
                 shape  = RoundedCornerShape(10.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                colors = CardDefaults.cardColors(containerColor = if (isAdmin) MaterialTheme.colorScheme.surface else Color.White),
+                border = if (isAdmin) null else androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(Modifier.padding(14.dp)) {
