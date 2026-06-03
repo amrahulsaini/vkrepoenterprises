@@ -446,6 +446,7 @@ fun HomeScreen(
                         shape = RoundedCornerShape(8.dp),
                         textStyle = MaterialTheme.typography.bodyMedium.copy(
                             fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold,
                             letterSpacing = 3.sp
                         ),
                         colors = OutlinedTextFieldDefaults.colors(
@@ -751,22 +752,25 @@ private fun VehicleGridCell(item: SearchResult, mode: SearchMode, onClick: () ->
         SearchMode.CHASSIS -> item.chassisNo.ifBlank { "—" }
     }
     val isInvalidRc = mode == SearchMode.RC && item.vehicleNo.isNotBlank() && !item.vehicleNo.isValidRc()
+    // Compact rows so ~21 fit per column in a single look (matches the
+    // reference's tight 2-column list).
     Row(
         Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(horizontal = 10.dp, vertical = 9.dp),
+            .padding(horizontal = 12.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Text(
             display,
-            style = MaterialTheme.typography.bodyLarge,
+            style = MaterialTheme.typography.bodyMedium,
             // Default family (not Monospace) — Android's monospace face has no
             // real bold weight, so Monospace + Black still rendered thin. Roboto
             // Black is a true heavy weight that shows clearly on every device.
             fontWeight = FontWeight.Black,
             fontFamily = FontFamily.Default,
+            fontSize = 14.sp,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
@@ -780,7 +784,7 @@ private fun VehicleGridCell(item: SearchResult, mode: SearchMode, onClick: () ->
                 modifier = Modifier.padding(end = 4.dp))
         } else {
             Icon(Icons.Default.ChevronRight, null,
-                Modifier.size(14.dp),
+                Modifier.size(13.dp),
                 tint = MaterialTheme.colorScheme.outlineVariant)
         }
     }
