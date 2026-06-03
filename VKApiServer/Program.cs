@@ -780,6 +780,13 @@ app.MapGet("/api/mgr/branches/{id:int}", async (HttpContext ctx, int id) =>
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
 
+// Truncate a value to its column's max width so an over-long contact / name
+// can NEVER throw "Data too long for column" (the Add-Branch 500). The bulk
+// upload path already truncates every field; these direct INSERT/UPDATE
+// endpoints did not — this closes that gap. (address/notes are TEXT = no cap.)
+static string Cap(string? v, int max) =>
+    string.IsNullOrEmpty(v) ? "" : (v.Length > max ? v[..max] : v);
+
 app.MapPost("/api/mgr/branches", async (HttpContext ctx, MgrCreateBranchDto dto) =>
 {
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
@@ -792,15 +799,15 @@ app.MapPost("/api/mgr/branches", async (HttpContext ctx, MgrCreateBranchDto dto)
             VALUES (@fid,@n,@c1,@c2,@c3,@addr,@bcode,@city,@state,@postal,@notes);
             SELECT LAST_INSERT_ID();", conn);
         cmd.Parameters.AddWithValue("@fid",   dto.FinanceId);
-        cmd.Parameters.AddWithValue("@n",     dto.Name);
-        cmd.Parameters.AddWithValue("@c1",    dto.Contact1  ?? "");
-        cmd.Parameters.AddWithValue("@c2",    dto.Contact2  ?? "");
-        cmd.Parameters.AddWithValue("@c3",    dto.Contact3  ?? "");
+        cmd.Parameters.AddWithValue("@n",     Cap(dto.Name, 255));
+        cmd.Parameters.AddWithValue("@c1",    Cap(dto.Contact1, 255));
+        cmd.Parameters.AddWithValue("@c2",    Cap(dto.Contact2, 255));
+        cmd.Parameters.AddWithValue("@c3",    Cap(dto.Contact3, 255));
         cmd.Parameters.AddWithValue("@addr",  dto.Address   ?? "");
-        cmd.Parameters.AddWithValue("@bcode", dto.BranchCode ?? "");
-        cmd.Parameters.AddWithValue("@city",  dto.City  ?? "");
-        cmd.Parameters.AddWithValue("@state", dto.State ?? "");
-        cmd.Parameters.AddWithValue("@postal",dto.Postal ?? "");
+        cmd.Parameters.AddWithValue("@bcode", Cap(dto.BranchCode, 64));
+        cmd.Parameters.AddWithValue("@city",  Cap(dto.City, 128));
+        cmd.Parameters.AddWithValue("@state", Cap(dto.State, 128));
+        cmd.Parameters.AddWithValue("@postal",Cap(dto.Postal, 32));
         cmd.Parameters.AddWithValue("@notes", dto.Notes  ?? "");
         var id = Convert.ToInt32(await cmd.ExecuteScalarAsync());
         return Results.Ok(new { id });
@@ -817,12 +824,12 @@ app.MapPut("/api/mgr/branches/{id:int}", async (HttpContext ctx, int id, MgrUpda
         await conn.OpenAsync();
         await using var cmd = new MySqlCommand(
             "UPDATE branches SET name=@n,contact1=@c1,contact2=@c2,contact3=@c3,address=@addr,branch_code=@bcode WHERE id=@id", conn);
-        cmd.Parameters.AddWithValue("@n",    dto.Name);
-        cmd.Parameters.AddWithValue("@c1",   dto.Contact1   ?? "");
-        cmd.Parameters.AddWithValue("@c2",   dto.Contact2   ?? "");
-        cmd.Parameters.AddWithValue("@c3",   dto.Contact3   ?? "");
+        cmd.Parameters.AddWithValue("@n",    Cap(dto.Name, 255));
+        cmd.Parameters.AddWithValue("@c1",   Cap(dto.Contact1, 255));
+        cmd.Parameters.AddWithValue("@c2",   Cap(dto.Contact2, 255));
+        cmd.Parameters.AddWithValue("@c3",   Cap(dto.Contact3, 255));
         cmd.Parameters.AddWithValue("@addr", dto.Address    ?? "");
-        cmd.Parameters.AddWithValue("@bcode",dto.BranchCode ?? "");
+        cmd.Parameters.AddWithValue("@bcode",Cap(dto.BranchCode, 64));
         cmd.Parameters.AddWithValue("@id",   id);
         await cmd.ExecuteNonQueryAsync();
         return Results.Ok();
@@ -2022,7 +2029,7 @@ app.MapGet("/api/mgr/search-logs", async (HttpContext ctx,
             JOIN app_users u ON u.id = sl.user_id
             WHERE 1=1";
 
-        var cmd = new MySqlCommand();
+        await using var cmd = new MySqlCommand();
         if (!string.IsNullOrWhiteSpace(fromDate))
         {
             sql += " AND DATE(sl.server_time) >= @fd";
@@ -2043,9 +2050,7 @@ app.MapGet("/api/mgr/search-logs", async (HttpContext ctx,
             sql += " AND (sl.vehicle_no LIKE @q OR sl.chassis_no LIKE @q)";
             cmd.Parameters.AddWithValue("@q", $"%{q.Trim()}%");
         }
-        sql += export == true
-            ? " ORDER BY sl.server_time DESC"
-            : " ORDER BY sl.server_time DESC";
+        sql += " ORDER BY sl.server_time DESC";
 
         cmd.CommandText    = sql;
         cmd.Connection     = conn;
