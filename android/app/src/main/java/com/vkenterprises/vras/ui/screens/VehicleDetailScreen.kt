@@ -577,11 +577,12 @@ private fun QuickSearchBar(
             singleLine = true,
             shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedContainerColor   = MaterialTheme.colorScheme.surface,
-                unfocusedContainerColor = MaterialTheme.colorScheme.surface
+                focusedContainerColor   = if (surfaceColor == Color.Unspecified) MaterialTheme.colorScheme.surface else Color.White,
+                unfocusedContainerColor = if (surfaceColor == Color.Unspecified) MaterialTheme.colorScheme.surface else Color.White
             ),
             textStyle = MaterialTheme.typography.bodyMedium.copy(
                 fontFamily    = FontFamily.Monospace,
+                fontWeight    = FontWeight.Bold,
                 letterSpacing = 3.sp
             ),
             modifier = Modifier
@@ -763,7 +764,7 @@ private fun BasicDetailView(item: SearchResult, agentName: String, agentPhone: S
     Card(
         shape  = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(1.dp),
+        elevation = CardDefaults.cardElevation(0.dp),  // 0 = no tonal tint = pure white
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         modifier  = Modifier.fillMaxWidth()
     ) {
@@ -797,7 +798,7 @@ private fun BasicDetailView(item: SearchResult, agentName: String, agentPhone: S
     Card(
         shape  = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(1.dp),
+        elevation = CardDefaults.cardElevation(0.dp),  // 0 = no tonal tint = pure white
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         modifier = Modifier.fillMaxWidth()
     ) {
