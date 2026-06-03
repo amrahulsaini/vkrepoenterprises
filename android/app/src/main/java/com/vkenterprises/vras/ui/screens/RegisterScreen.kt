@@ -77,19 +77,13 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
     var pfpUri   by remember { mutableStateOf<Uri?>(null) }
     var pfpB64   by remember { mutableStateOf<String?>(null) }
 
-    // Bank
-    var accountNumber by remember { mutableStateOf("") }
-    var ifscCode      by remember { mutableStateOf("") }
-
-    // KYC photos
+    // KYC photos (selfie-with-Aadhaar and bank details removed per request)
     var aadhaarFrontUri by remember { mutableStateOf<Uri?>(null) }
     var aadhaarFrontB64 by remember { mutableStateOf<String?>(null) }
     var aadhaarBackUri  by remember { mutableStateOf<Uri?>(null) }
     var aadhaarBackB64  by remember { mutableStateOf<String?>(null) }
     var panFrontUri     by remember { mutableStateOf<Uri?>(null) }
     var panFrontB64     by remember { mutableStateOf<String?>(null) }
-    var selfieUri       by remember { mutableStateOf<Uri?>(null) }
-    var selfieB64       by remember { mutableStateOf<String?>(null) }
 
     // Aadhaar OKYC state
     var aadhaarNumber by remember { mutableStateOf("") }
@@ -248,9 +242,6 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
     val panFrontPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         panFrontUri = uri; panFrontB64 = uri?.let { uriToBase64(it) }
     }
-    val selfiePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        selfieUri = uri; selfieB64 = uri?.let { uriToBase64(it) }
-    }
 
     // Ask for permission + GPS as soon as the screen opens so the fix is ready.
     LaunchedEffect(Unit) { requestLocation() }
@@ -270,7 +261,7 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
 
     if (state is AuthUiState.Loading) {
         UploadingDialog(
-            hasImages = listOf(pfpB64, aadhaarFrontB64, aadhaarBackB64, panFrontB64, selfieB64).any { it != null },
+            hasImages = listOf(pfpB64, aadhaarFrontB64, aadhaarBackB64, panFrontB64).any { it != null },
         )
     }
 
@@ -383,10 +374,21 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
                             focusManager.clearFocus(); mobileOtpMsg = ""
                             if (mobile.isBlank()) { mobileOtpMsg = "Enter your mobile number first."; return@Button }
                             mobileOtpBusy = true
-                            vm.sendOtp(mobile) { ok, msg ->
-                                mobileOtpBusy = false
-                                if (ok) { mobileOtpSent = true; mobileCooldown = 30; mobileOtpMsg = "OTP sent to $mobile." }
-                                else mobileOtpMsg = msg
+                            // FIRST check the number isn't already registered — don't
+                            // waste an OTP on someone who should just log in.
+                            vm.checkMobile(mobile, agencySlug) { registered, checkErr ->
+                                when {
+                                    checkErr != null -> { mobileOtpBusy = false; mobileOtpMsg = checkErr }
+                                    registered == true -> {
+                                        mobileOtpBusy = false
+                                        mobileOtpMsg = "This mobile number is already registered. Please log in instead."
+                                    }
+                                    else -> vm.sendOtp(mobile) { ok, msg ->
+                                        mobileOtpBusy = false
+                                        if (ok) { mobileOtpSent = true; mobileCooldown = 30; mobileOtpMsg = "OTP sent to $mobile." }
+                                        else mobileOtpMsg = msg
+                                    }
+                                }
                             }
                         },
                         enabled = !mobileOtpBusy,
@@ -441,7 +443,7 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
             FocusedField(scrollState) {
                 OutlinedTextField(
                     value = address, onValueChange = { address = it },
-                    label = { Text("Address") },
+                    label = { Text("Address *") },
                     leadingIcon = { Icon(Icons.Default.Home, null) },
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
                     maxLines = 3, modifier = Modifier.fillMaxWidth().then(it)
@@ -450,7 +452,7 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
             FocusedField(scrollState) {
                 OutlinedTextField(
                     value = pincode, onValueChange = { pincode = it.take(6) },
-                    label = { Text("Pincode") },
+                    label = { Text("Pincode *") },
                     leadingIcon = { Icon(Icons.Default.LocationOn, null) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
                     singleLine = true, modifier = Modifier.fillMaxWidth().then(it)
@@ -614,28 +616,13 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
                 }
             }
 
-            // ── PAN card ───────────────────────────────────────────────
-            SectionHeader("PAN Card")
+            // ── PAN card (optional) ────────────────────────────────────
+            SectionHeader("PAN Card (optional)")
             KycImageCard(
                 label = "PAN Card Front",
                 uri = panFrontUri,
                 modifier = Modifier.fillMaxWidth().height(120.dp),
                 onClick = { panFrontPicker.launch("image/*") }
-            )
-
-            // ── Selfie holding Aadhaar ─────────────────────────────────
-            SectionHeader("Selfie with Aadhaar")
-            Text(
-                "Take a clear photo of yourself holding your Aadhaar card in hand — " +
-                    "your face and the Aadhaar must both be visible. The agency will verify this.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            KycImageCard(
-                label = "Selfie holding Aadhaar",
-                uri = selfieUri,
-                modifier = Modifier.fillMaxWidth().height(160.dp),
-                onClick = { selfiePicker.launch("image/*") }
             )
 
             // ── Live location ──────────────────────────────────────────
@@ -672,28 +659,6 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
                 }
             }
 
-            // ── Bank details ───────────────────────────────────────────
-            SectionHeader("Bank Details")
-            FocusedField(scrollState) {
-                OutlinedTextField(
-                    value = accountNumber, onValueChange = { accountNumber = it },
-                    label = { Text("Account Number *") },
-                    leadingIcon = { Icon(Icons.Default.AccountBalance, null) },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
-                    singleLine = true, modifier = Modifier.fillMaxWidth().then(it)
-                )
-            }
-            FocusedField(scrollState) {
-                OutlinedTextField(
-                    value = ifscCode, onValueChange = { ifscCode = it.uppercase().take(11) },
-                    label = { Text("IFSC Code *") },
-                    leadingIcon = { Icon(Icons.Default.Code, null) },
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                    keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
-                    singleLine = true, modifier = Modifier.fillMaxWidth().then(it)
-                )
-            }
-
             // ── Error ──────────────────────────────────────────────────
             if (error.isNotEmpty()) {
                 Card(colors = CardDefaults.cardColors(
@@ -717,11 +682,7 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
                         aadhaarBackB64 == null             -> "Aadhaar back photo is required."
                         aadhaarNumber.length != 12         -> "Enter your 12-digit Aadhaar number."
                         !aadhaarVerified                   -> "Please verify your Aadhaar with the OTP."
-                        panFrontB64 == null                -> "PAN card photo is required."
-                        selfieB64 == null                  -> "Selfie holding your Aadhaar is required."
                         regLat == null || regLng == null   -> "Please capture your current location."
-                        accountNumber.isBlank()            -> "Bank account number is required."
-                        ifscCode.isBlank()                 -> "IFSC code is required."
                         else                               -> ""
                     }
                     if (error.isNotEmpty()) return@Button
@@ -730,9 +691,9 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
                         address, pincode,
                         pfpB64,
                         aadhaarFrontB64, aadhaarBackB64, panFrontB64,
-                        accountNumber, ifscCode,
-                        agencySlug, agencyName, "",
-                        selfieWithAadhaar = selfieB64,
+                        accountNumber = null, ifscCode = null,
+                        slug = agencySlug, agencyName = agencyName, agencyMobile = "",
+                        selfieWithAadhaar = null,
                         aadhaarNumber = aadhaarNumber,
                         aadhaarName = aaName, aadhaarDob = aaDob, aadhaarGender = aaGender,
                         aadhaarAddress = aaAddress, aadhaarVerified = aadhaarVerified,

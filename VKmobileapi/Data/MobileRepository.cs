@@ -420,6 +420,19 @@ public class MobileRepository
         return true;
     }
 
+    // ── Pre-registration check: is this mobile already a user here? ─────────
+    // Lets the app tell the agent "already registered, please log in" BEFORE it
+    // spends an SMS OTP. Caller must have set the tenant (UseAgency) first.
+    public async Task<bool> IsMobileRegisteredAsync(string mobile)
+    {
+        await using var conn = DbFactory.Create();
+        await conn.OpenAsync();
+        await using var cmd = new MySqlCommand(
+            "SELECT EXISTS(SELECT 1 FROM app_users WHERE mobile=@m LIMIT 1)", conn) { CommandTimeout = 5 };
+        cmd.Parameters.AddWithValue("@m", mobile);
+        return Convert.ToInt64(await cmd.ExecuteScalarAsync()) == 1;
+    }
+
     // ── Login ─────────────────────────────────────────────────────────────
     public async Task<AuthResponse> LoginAsync(string mobile, string deviceId)
     {

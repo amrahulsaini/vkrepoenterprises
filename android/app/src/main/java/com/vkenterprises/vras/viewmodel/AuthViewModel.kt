@@ -83,6 +83,15 @@ class AuthViewModel @Inject constructor(
     private val _agencies = MutableStateFlow<List<AgencyListItem>>(emptyList())
     val agencies: StateFlow<List<AgencyListItem>> = _agencies.asStateFlow()
 
+    // Pre-registration check — onResult(registered?, error?). registered is null
+    // only when the check itself failed (error carries a friendly message).
+    fun checkMobile(mobile: String, slug: String, onResult: (Boolean?, String?) -> Unit) = viewModelScope.launch {
+        when (val r = repo.checkMobileRegistered(mobile.trim(), slug.trim())) {
+            is AuthResult.Success -> onResult(r.data, null)
+            is AuthResult.Error   -> onResult(null, r.message)
+        }
+    }
+
     // ── Mobile SMS OTP (MSG91) ──────────────────────────────────────────────
     // Used by Login + Register to verify the phone number before proceeding.
     // onResult(success, message) is posted back on the main thread.
