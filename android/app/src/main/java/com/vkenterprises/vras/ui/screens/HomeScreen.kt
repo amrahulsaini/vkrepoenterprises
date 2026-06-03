@@ -758,34 +758,36 @@ private fun VehicleGridCell(item: SearchResult, mode: SearchMode, onClick: () ->
         Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            // Big bold RC, but almost no row padding so ~21 fit per column —
-            // the height comes from the text itself, not whitespace.
-            .padding(start = 12.dp, end = 6.dp, top = 3.dp, bottom = 3.dp),
+            // Tight side padding so the FULL RC always fits (no ellipsis) and the
+            // chevron still shows; comfortable row height so it's not cramped.
+            .padding(start = 10.dp, end = 2.dp, top = 6.dp, bottom = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Text(
             display,
-            // Match the reference exactly: roboto_bold = FontWeight.Bold (700),
-            // big and clean (not ultra-black). Default sans family.
+            // 16sp bold = the largest that fits a full RC in a half-screen column
+            // without truncating (18sp ellipsized long plates). roboto_bold (700).
             fontWeight = FontWeight.Bold,
             fontFamily = FontFamily.Default,
-            fontSize = 18.sp,
-            lineHeight = 20.sp,
+            fontSize = 16.sp,
+            lineHeight = 18.sp,
             maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
+            softWrap = false,
+            overflow = TextOverflow.Clip,
             modifier = Modifier.weight(1f),
             color = if (isInvalidRc) MaterialTheme.colorScheme.error
                     else MaterialTheme.colorScheme.onSurface
         )
         if (isInvalidRc) {
-            Text("Invalid",
-                style = MaterialTheme.typography.labelSmall,
+            Text("!",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.error,
-                modifier = Modifier.padding(end = 4.dp))
+                modifier = Modifier.padding(horizontal = 2.dp))
         } else {
             Icon(Icons.Default.ChevronRight, null,
-                Modifier.size(12.dp),
+                Modifier.size(14.dp),
                 tint = MaterialTheme.colorScheme.outlineVariant)
         }
     }
