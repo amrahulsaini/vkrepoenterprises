@@ -468,10 +468,10 @@ fun HomeScreen(
 
             // ── Results ──────────────────────────────────────────────────
             if (ui.results.isNotEmpty()) {
-                // Count bar — thin strip (kept small to give the list more room)
+                // Count bar — minimal strip (kept tiny to give the list more room)
                 Surface(color = MaterialTheme.colorScheme.primaryContainer) {
                     Row(
-                        Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 2.dp),
+                        Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 1.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -770,8 +770,8 @@ private fun VehicleGridCell(item: SearchResult, mode: SearchMode, onClick: () ->
             // big and clean (not ultra-black). Default sans family.
             fontWeight = FontWeight.Bold,
             fontFamily = FontFamily.Default,
-            fontSize = 16.sp,
-            lineHeight = 18.sp,
+            fontSize = 18.sp,
+            lineHeight = 20.sp,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),

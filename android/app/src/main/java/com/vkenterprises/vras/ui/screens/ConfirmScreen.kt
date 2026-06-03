@@ -46,6 +46,17 @@ fun ConfirmScreen(
     val isAdmin    by authVm.isAdmin.collectAsState(initial = false)
     val userId     by authVm.userId.collectAsState(initial = -1L)
 
+    // Agency name for the message = the LIVE name from the server (the one set
+    // in WPF → Server Settings), not the build-time value. Falls back to the
+    // baked-in name until the fetch lands so the preview is never blank.
+    var agencyName by remember { mutableStateOf(BuildConfig.AGENCY_NAME) }
+    LaunchedEffect(Unit) {
+        runCatching {
+            val r = com.vkenterprises.vras.data.api.ApiClient.api.getAgencyInfo()
+            if (r.isSuccessful) r.body()?.name?.takeIf { it.isNotBlank() }?.let { agencyName = it }
+        }
+    }
+
     // Safety net: if we somehow arrived without the full record (e.g. the detail
     // fetch hadn't finished), fetch it now so the preview isn't all "null".
     LaunchedEffect(skinny?.id, full?.id, userId) {
@@ -95,7 +106,7 @@ fun ConfirmScreen(
         appendLine("Status: *$status*")
         val person = listOf(agentName.trim(), agentPhone.trim()).filter { it.isNotBlank() }.joinToString(" - ")
         if (person.isNotBlank()) appendLine(person)
-        append("Agency Name: *${BuildConfig.AGENCY_NAME}*")
+        append("Agency Name: *${agencyName}*")
     }
 
     fun buildMessage(): String {
@@ -153,7 +164,7 @@ fun ConfirmScreen(
         append(closing)
         // Tight asterisks (no inner space) so the agency name renders bold; the
         // separating spaces go OUTSIDE the asterisks.
-        append(" *${BuildConfig.AGENCY_NAME}*")
+        append(" *${agencyName}*")
         val person = listOf(agentName.trim(), agentPhone.trim()).filter { it.isNotBlank() }.joinToString(" - ")
         if (person.isNotBlank()) append(" $person")
         }

@@ -121,6 +121,16 @@ fun VehicleDetailScreen(
     val isAdmin    by authVm.isAdmin.collectAsState(initial = false)
     val context    = LocalContext.current
 
+    // Live agency name (set in WPF → Server Settings) for the WhatsApp/SMS
+    // message — falls back to the build-time name until the fetch lands.
+    var waAgencyName by remember { mutableStateOf(BuildConfig.AGENCY_NAME) }
+    LaunchedEffect(Unit) {
+        runCatching {
+            val r = ApiClient.api.getAgencyInfo()
+            if (r.isSuccessful) r.body()?.name?.takeIf { it.isNotBlank() }?.let { waAgencyName = it }
+        }
+    }
+
     var showWaSheet      by remember { mutableStateOf(false) }
     var showCopyDialog   by remember { mutableStateOf(false) }
     var showMoreMenu     by remember { mutableStateOf(false) }
@@ -249,17 +259,17 @@ fun VehicleDetailScreen(
                 Spacer(Modifier.height(2.dp))
                 WaOptionButton("Banker for Confirmation", Color(0xFF1565C0)) {
                     openWhatsApp(context, buildQuickWaMessage(detailRecord ?: item,"Please confirm this vehicle.",
-                        agentName, agentPhone, vehicleLocation, loadDetails))
+                        agentName, agentPhone, vehicleLocation, loadDetails, waAgencyName))
                     showWaSheet = false
                 }
                 WaOptionButton("OK for Repo", Color(0xFF2E7D32)) {
                     openWhatsApp(context, buildQuickWaMessage(detailRecord ?: item,"Ok for repo.",
-                        agentName, agentPhone, vehicleLocation, loadDetails))
+                        agentName, agentPhone, vehicleLocation, loadDetails, waAgencyName))
                     showWaSheet = false
                 }
                 WaOptionButton("Not Confirmed", Color(0xFFC62828)) {
                     openWhatsApp(context, buildQuickWaMessage(detailRecord ?: item,"Cancel",
-                        agentName, agentPhone, vehicleLocation, loadDetails))
+                        agentName, agentPhone, vehicleLocation, loadDetails, waAgencyName))
                     showWaSheet = false
                 }
             }
@@ -939,7 +949,8 @@ private fun buildQuickWaMessage(
     item: SearchResult, status: String,
     agentName: String, agentPhone: String,
     vehicleLocation: String = "",
-    loadDetails: String = ""
+    loadDetails: String = "",
+    agencyName: String = BuildConfig.AGENCY_NAME
 ): String = buildString {
     appendLine("*Respected sir,*")
     appendLine("Customer Name: *${item.customerName.orEmpty().ifBlank { "-" }}*")
@@ -956,8 +967,9 @@ private fun buildQuickWaMessage(
     appendLine("Status: *$status*")
     if (agentName.isNotBlank() && agentPhone.isNotBlank())
         appendLine("$agentName - $agentPhone")
-    // Agency name is baked in per-flavor — no more hardcoded "V K Enterprises".
-    append("Agency Name: *${BuildConfig.AGENCY_NAME}*")
+    // Agency name = live name from WPF → Server Settings (passed in), with the
+    // build-time name as the fallback default.
+    append("Agency Name: *${agencyName}*")
 }
 
 // Share the message into WhatsApp. Prefer regular WhatsApp Messenger
