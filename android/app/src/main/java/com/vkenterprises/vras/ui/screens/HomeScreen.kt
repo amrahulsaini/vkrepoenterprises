@@ -390,7 +390,7 @@ fun HomeScreen(
                 color = MaterialTheme.colorScheme.surfaceVariant,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Column(Modifier.padding(10.dp)) {
+                Column(Modifier.padding(horizontal = 10.dp, vertical = 6.dp)) {
                     val maxLen = if (ui.mode == SearchMode.RC) 4 else 5
                     val focusRequester = remember { FocusRequester() }
                     LaunchedEffect(Unit) {
@@ -468,10 +468,10 @@ fun HomeScreen(
 
             // ── Results ──────────────────────────────────────────────────
             if (ui.results.isNotEmpty()) {
-                // Count bar — shows query + result count
+                // Count bar — thin strip (kept small to give the list more room)
                 Surface(color = MaterialTheme.colorScheme.primaryContainer) {
                     Row(
-                        Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 5.dp),
+                        Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 2.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -758,19 +758,20 @@ private fun VehicleGridCell(item: SearchResult, mode: SearchMode, onClick: () ->
         Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 6.dp),
+            // Big bold RC, but almost no row padding so ~21 fit per column —
+            // the height comes from the text itself, not whitespace.
+            .padding(start = 12.dp, end = 6.dp, top = 3.dp, bottom = 3.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Text(
             display,
-            style = MaterialTheme.typography.bodyMedium,
-            // Default family (not Monospace) — Android's monospace face has no
-            // real bold weight, so Monospace + Black still rendered thin. Roboto
-            // Black is a true heavy weight that shows clearly on every device.
+            // Big + bold (≈ reference's Headline6 + roboto_bold). Default family
+            // because Android's monospace has no true bold face.
             fontWeight = FontWeight.Black,
             fontFamily = FontFamily.Default,
-            fontSize = 14.sp,
+            fontSize = 17.sp,
+            lineHeight = 19.sp,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
@@ -784,7 +785,7 @@ private fun VehicleGridCell(item: SearchResult, mode: SearchMode, onClick: () ->
                 modifier = Modifier.padding(end = 4.dp))
         } else {
             Icon(Icons.Default.ChevronRight, null,
-                Modifier.size(13.dp),
+                Modifier.size(12.dp),
                 tint = MaterialTheme.colorScheme.outlineVariant)
         }
     }
