@@ -41,7 +41,7 @@ class ProfileViewModel @Inject constructor(
             else
                 _state.value = ProfileUiState.Error("Failed to load profile (${resp.code()})")
         }.onFailure {
-            _state.value = ProfileUiState.Error(it.message ?: "Network error")
+            _state.value = ProfileUiState.Error(com.vkenterprises.vras.utils.NetworkError.friendly(it))
         }
     }
 
@@ -57,7 +57,7 @@ class ProfileViewModel @Inject constructor(
                 _state.value = ProfileUiState.Error("Failed to update photo")
             }
         }.onFailure {
-            _state.value = ProfileUiState.Error(it.message ?: "Network error")
+            _state.value = ProfileUiState.Error(com.vkenterprises.vras.utils.NetworkError.friendly(it))
         }
         _pfpUpdating.value = false
     }
