@@ -87,7 +87,7 @@ fun LiveUsersScreen(
                 } else {
                     error = "Failed to load live users (${resp.code()})"
                 }
-            }.onFailure { e -> error = e.message }
+            }.onFailure { e -> error = com.vkenterprises.vras.utils.NetworkError.friendly(e) }
             loading = false
             delay(30_000)
         }

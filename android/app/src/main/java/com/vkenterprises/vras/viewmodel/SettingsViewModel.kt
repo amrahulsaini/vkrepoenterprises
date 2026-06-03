@@ -84,7 +84,7 @@ class SettingsViewModel @Inject constructor(
                 }
                 success = true
             }.onFailure { e ->
-                _ui.update { it.copy(syncProgress = "Error: ${e.message}") }
+                _ui.update { it.copy(syncProgress = com.vkenterprises.vras.utils.NetworkError.friendly(e)) }
             }
             _ui.update { it.copy(isSyncing = false, syncCompleted = success, syncHasUpdates = false) }
             loadAll()
@@ -108,7 +108,7 @@ class SettingsViewModel @Inject constructor(
                 }
                 success = true
             }.onFailure { e ->
-                _ui.update { it.copy(syncProgress = "Error: ${e.message}") }
+                _ui.update { it.copy(syncProgress = com.vkenterprises.vras.utils.NetworkError.friendly(e)) }
             }
             _ui.update { it.copy(isSyncing = false, syncCompleted = success, syncHasUpdates = false) }
             loadAll()

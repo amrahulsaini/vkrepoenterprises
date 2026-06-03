@@ -16,7 +16,7 @@ class AuthRepository {
         val resp = api.register(request)
         if (resp.isSuccessful) AuthResult.Success("Registered! Waiting for admin approval.")
         else AuthResult.Error(parseError(resp))
-    }.getOrElse { AuthResult.Error(it.message ?: "Network error") }
+    }.getOrElse { AuthResult.Error(com.vkenterprises.vras.utils.NetworkError.friendly(it)) }
 
     suspend fun login(request: LoginRequest): AuthResult<AuthResponse> = runCatching {
         val resp = api.login(request)
@@ -53,26 +53,26 @@ class AuthRepository {
             resp.code() == 404 -> AuthResult.Error("Mobile number not registered.", "not_found")
             else -> AuthResult.Error("Login failed. Please try again.")
         }
-    }.getOrElse { AuthResult.Error(it.message ?: "Network error") }
+    }.getOrElse { AuthResult.Error(com.vkenterprises.vras.utils.NetworkError.friendly(it)) }
 
     // ── Mobile SMS OTP ──────────────────────────────────────────────────────
     suspend fun sendOtp(mobile: String): AuthResult<String> = runCatching {
         val resp = api.otpSend(mapOf("mobile" to mobile))
         if (resp.isSuccessful) AuthResult.Success("OTP sent.")
         else AuthResult.Error(parseError(resp))
-    }.getOrElse { AuthResult.Error(it.message ?: "Network error") }
+    }.getOrElse { AuthResult.Error(com.vkenterprises.vras.utils.NetworkError.friendly(it)) }
 
     suspend fun verifyOtp(mobile: String, otp: String): AuthResult<String> = runCatching {
         val resp = api.otpVerify(mapOf("mobile" to mobile, "otp" to otp))
         if (resp.isSuccessful) AuthResult.Success("Verified.")
         else AuthResult.Error(parseError(resp))
-    }.getOrElse { AuthResult.Error(it.message ?: "Network error") }
+    }.getOrElse { AuthResult.Error(com.vkenterprises.vras.utils.NetworkError.friendly(it)) }
 
     suspend fun getAgencies(): AuthResult<List<AgencyListItem>> = runCatching {
         val resp = api.getAgencies()
         if (resp.isSuccessful && resp.body() != null) AuthResult.Success(resp.body()!!)
         else AuthResult.Error(parseError(resp))
-    }.getOrElse { AuthResult.Error(it.message ?: "Network error") }
+    }.getOrElse { AuthResult.Error(com.vkenterprises.vras.utils.NetworkError.friendly(it)) }
 
     private fun <T> parseError(resp: Response<T>): String =
         resp.errorBody()?.string()?.let {

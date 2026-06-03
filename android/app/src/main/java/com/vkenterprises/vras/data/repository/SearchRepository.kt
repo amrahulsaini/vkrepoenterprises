@@ -28,7 +28,7 @@ class SearchRepository {
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (e: Exception) {
-            SearchResult2.Error(e.message ?: "Network error")
+            SearchResult2.Error(com.vkenterprises.vras.utils.NetworkError.friendly(e))
         }
 
     suspend fun searchChassis(last5: String, userId: Long): SearchResult2 =
@@ -37,7 +37,7 @@ class SearchRepository {
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (e: Exception) {
-            SearchResult2.Error(e.message ?: "Network error")
+            SearchResult2.Error(com.vkenterprises.vras.utils.NetworkError.friendly(e))
         }
 
     // Full record for one search result, fetched on tap (search itself is skinny).

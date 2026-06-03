@@ -22,17 +22,41 @@ object SessionTokens {
     @Volatile var agencySlug:  String? = null
 }
 
-// Simple in-process DNS cache — avoids a system DNS round-trip on every search.
-// Entries live for 5 minutes; after that the next request re-resolves naturally.
+// In-process DNS cache + resilient fallback. Two jobs:
+//  1) Cache successful lookups for 5 min — skips a system DNS round-trip per call.
+//  2) Survive a flaky PHONE resolver. Carrier / Wi-Fi DNS on field phones
+//     intermittently returns "No address associated with hostname" even though
+//     the server + DNS record are perfectly fine (browsers dodge this via their
+//     own encrypted DNS). When the system resolver throws, we fall back to the
+//     last IP we successfully resolved this session, then to a stale cache
+//     entry, then to a pinned seed IP for the API host — so a momentary DNS
+//     blip can NEVER brick the app with "Unable to resolve host".
 private object CachingDns : Dns {
     private data class Entry(val addrs: List<InetAddress>, val expiry: Long)
-    private val cache = ConcurrentHashMap<String, Entry>()
+    private val cache    = ConcurrentHashMap<String, Entry>()
+    private val lastGood = ConcurrentHashMap<String, List<InetAddress>>()
+
+    // Last-resort seed for the API host (stable dedicated server IP). Normal
+    // operation ALWAYS uses real DNS; this only applies when system resolution
+    // throws AND we have no cached / last-good answer (e.g. cold start on a
+    // phone whose DNS is already broken). Connecting by IP still uses the
+    // hostname for TLS SNI + cert validation, so HTTPS stays valid.
+    private val seed = mapOf("api.crmrecoverysoftware.com" to "103.67.239.102")
+
     override fun lookup(hostname: String): List<InetAddress> {
         val now = System.currentTimeMillis()
         cache[hostname]?.let { if (it.expiry > now) return it.addrs }
-        val addrs = Dns.SYSTEM.lookup(hostname)
-        cache[hostname] = Entry(addrs, now + 5 * 60 * 1000L)
-        return addrs
+        return try {
+            val addrs = Dns.SYSTEM.lookup(hostname)
+            cache[hostname]    = Entry(addrs, now + 5 * 60 * 1000L)
+            lastGood[hostname] = addrs
+            addrs
+        } catch (e: java.net.UnknownHostException) {
+            lastGood[hostname]?.let { return it }          // resolved fine earlier this session
+            cache[hostname]?.addrs?.let { return it }       // stale but usable
+            seed[hostname]?.let { ip -> return listOf(InetAddress.getByName(ip)) }
+            throw e
+        }
     }
 }
 
