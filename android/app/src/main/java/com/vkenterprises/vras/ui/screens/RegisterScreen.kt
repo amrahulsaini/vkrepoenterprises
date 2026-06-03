@@ -677,7 +677,7 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
                         !mobileVerified                    -> "Please verify your mobile number with the OTP."
                         address.isBlank()                  -> "Address is required."
                         pincode.isBlank()                  -> "Pincode is required."
-                        pfpB64 == null                     -> "Profile photo is required."
+                        // Profile photo is OPTIONAL — no check here.
                         aadhaarFrontB64 == null            -> "Aadhaar front photo is required."
                         aadhaarBackB64 == null             -> "Aadhaar back photo is required."
                         aadhaarNumber.length != 12         -> "Enter your 12-digit Aadhaar number."

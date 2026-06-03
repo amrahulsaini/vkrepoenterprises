@@ -764,23 +764,14 @@ private fun BasicDetailView(item: SearchResult, agentName: String, agentPhone: S
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary)
             HorizontalDivider(color = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f))
-            // Every field is always shown (label + dash if empty) and the value
-            // is in CAPITALS — per request, so agents see the full record shape.
-            DetailRow("Vehicle No",     item.vehicleNo, alwaysShow = true, upper = true,
+            // ONLY these 5 fields on the user side — always shown (label + dash
+            // if empty), values in CAPITALS.
+            DetailRow("Vehicle No",    item.vehicleNo, alwaysShow = true, upper = true,
                 invalid = item.vehicleNo.isNotBlank() && !item.vehicleNo.isValidRc())
-            DetailRow("Chassis No",     item.chassisNo,        alwaysShow = true, upper = true)
-            DetailRow("Engine No",      item.engineNo,         alwaysShow = true, upper = true)
-            DetailRow("Model / Make",   item.model,            alwaysShow = true, upper = true)
-            DetailRow("Loan No",        item.agreementNo,      alwaysShow = true, upper = true)
-            DetailRow("Customer Name",  item.customerName,     alwaysShow = true, upper = true)
-            DetailRow("Customer Contact", item.customerContact, alwaysShow = true, upper = true)
-            DetailRow("Customer Address", item.customerAddress, alwaysShow = true, upper = true)
-            DetailRow("Bucket",         item.bucket,           alwaysShow = true, upper = true)
-            DetailRow("OD",             item.od,               alwaysShow = true, upper = true)
-            DetailRow("Region",         item.region,           alwaysShow = true, upper = true)
-            DetailRow("Area",           item.area,             alwaysShow = true, upper = true)
-            DetailRow("Finance",        item.financer,         alwaysShow = true, upper = true)
-            DetailRow("Branch",         item.branchName,       alwaysShow = true, upper = true)
+            DetailRow("Chassis No",    item.chassisNo,    alwaysShow = true, upper = true)
+            DetailRow("Engine No",     item.engineNo,     alwaysShow = true, upper = true)
+            DetailRow("Model / Make",  item.model,        alwaysShow = true, upper = true)
+            DetailRow("Customer Name", item.customerName, alwaysShow = true, upper = true)
         }
     }
     // Live agency profile — fetched once per screen. The build-time
