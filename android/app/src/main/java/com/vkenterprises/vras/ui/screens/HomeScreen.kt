@@ -759,8 +759,8 @@ private fun VehicleGridCell(item: SearchResult, mode: SearchMode, onClick: () ->
             .fillMaxWidth()
             .clickable(onClick = onClick)
             // Tight side padding so the FULL RC always fits (no ellipsis) and the
-            // chevron still shows; comfortable row height so it's not cramped.
-            .padding(start = 10.dp, end = 2.dp, top = 6.dp, bottom = 6.dp),
+            // chevron still shows; more top/bottom space so rows aren't cramped.
+            .padding(start = 10.dp, end = 2.dp, top = 11.dp, bottom = 11.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
