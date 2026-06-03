@@ -237,6 +237,7 @@ fun ConfirmScreen(
             Card(
                 shape  = RoundedCornerShape(12.dp),
                 colors = CardDefaults.cardColors(containerColor = if (isAdmin) MaterialTheme.colorScheme.surfaceVariant else Color.White),
+                elevation = CardDefaults.cardElevation(if (isAdmin) 1.dp else 0.dp),
                 border = if (isAdmin) null else androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -333,6 +334,7 @@ fun ConfirmScreen(
             Card(
                 shape  = RoundedCornerShape(10.dp),
                 colors = CardDefaults.cardColors(containerColor = if (isAdmin) MaterialTheme.colorScheme.surface else Color.White),
+                elevation = CardDefaults.cardElevation(if (isAdmin) 1.dp else 0.dp),
                 border = if (isAdmin) null else androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                 modifier = Modifier.fillMaxWidth()
             ) {
