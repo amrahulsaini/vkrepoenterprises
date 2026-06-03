@@ -759,16 +759,16 @@ private fun VehicleGridCell(item: SearchResult, mode: SearchMode, onClick: () ->
             .fillMaxWidth()
             .clickable(onClick = onClick)
             // Tight side padding so the FULL RC always fits (no ellipsis) and the
-            // chevron still shows; more top/bottom space so rows aren't cramped.
-            .padding(start = 10.dp, end = 2.dp, top = 11.dp, bottom = 11.dp),
+            // chevron still shows; balanced top/bottom space.
+            .padding(start = 10.dp, end = 2.dp, top = 8.dp, bottom = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Text(
             display,
-            // 16sp bold = the largest that fits a full RC in a half-screen column
-            // without truncating (18sp ellipsized long plates). roboto_bold (700).
-            fontWeight = FontWeight.Bold,
+            // Heaviest weight (Black/900) at 16sp — the largest that still fits a
+            // full plate in a half-screen column without truncating.
+            fontWeight = FontWeight.Black,
             fontFamily = FontFamily.Default,
             fontSize = 16.sp,
             lineHeight = 18.sp,
