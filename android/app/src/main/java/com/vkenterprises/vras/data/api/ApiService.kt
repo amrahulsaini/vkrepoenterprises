@@ -179,4 +179,12 @@ interface ApiService {
         @Path("userId") userId: Long,
         @Body request: SetUserFlagRequest
     ): Response<Map<String, Any>>
+
+    // KYC review outcome — mirrors the desktop "Mark Verified" / "Reject".
+    @PATCH("api/mobile/admin/users/{userId}/kyc-status")
+    suspend fun adminSetKycStatus(
+        @Header("X-User-Id") adminId: Long,
+        @Path("userId") userId: Long,
+        @Body request: SetKycStatusRequest
+    ): Response<Map<String, Any>>
 }

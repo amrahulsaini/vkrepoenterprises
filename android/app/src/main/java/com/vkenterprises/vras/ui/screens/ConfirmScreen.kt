@@ -255,11 +255,11 @@ fun ConfirmScreen(
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     // Agents see only the basic vehicle fields. Internal data
                     // (agreement/loan, bucket, OD, branch, financer) is admin-only.
-                    SummaryRow("Customer",  item.customerName)
-                    SummaryRow("Vehicle No",item.vehicleNo,   mono = true)
-                    SummaryRow("Chassis",   item.chassisNo,   mono = true)
-                    SummaryRow("Engine",    item.engineNo,    mono = true)
-                    SummaryRow("Model",     item.model)
+                    SummaryRow("Customer",  item.customerName,            alwaysShow = !isAdmin)
+                    SummaryRow("Vehicle No",item.vehicleNo,   mono = true, alwaysShow = !isAdmin)
+                    SummaryRow("Chassis",   item.chassisNo,   mono = true, alwaysShow = !isAdmin)
+                    SummaryRow("Engine",    item.engineNo,    mono = true, alwaysShow = !isAdmin)
+                    SummaryRow("Model",     item.model,                    alwaysShow = !isAdmin)
                     if (isAdmin) {
                         SummaryRow("Agreement", item.agreementNo, mono = true)
                         SummaryRow("BKT",       item.bucket)
@@ -430,8 +430,18 @@ private fun ContactCheckRow(
 }
 
 @Composable
-private fun SummaryRow(label: String, value: String?, mono: Boolean = false) {
-    if (value.isNullOrBlank()) return
+private fun SummaryRow(
+    label: String,
+    value: String?,
+    mono: Boolean = false,
+    alwaysShow: Boolean = false
+) {
+    val blank = value.isNullOrBlank()
+    // Admin keeps the compact "hide empties" look; the user-side summary
+    // (alwaysShow) mirrors the detail view — every column is shown, blanks
+    // render as a dash so the agent can see exactly what's missing.
+    if (blank && !alwaysShow) return
+    val shown = if (blank) "—" else value!!
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
         Text(
             label,
@@ -440,7 +450,7 @@ private fun SummaryRow(label: String, value: String?, mono: Boolean = false) {
             modifier = Modifier.weight(0.35f)
         )
         Text(
-            value,
+            shown,
             style      = MaterialTheme.typography.bodySmall,
             fontWeight = FontWeight.Medium,
             fontFamily = if (mono) FontFamily.Monospace else FontFamily.Default,

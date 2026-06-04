@@ -510,6 +510,30 @@ public class MobileController : ControllerBase
         catch (Exception ex) { return StatusCode(500, new ApiError(false, $"Failed: {ex.Message}")); }
     }
 
+    // PATCH /api/mobile/admin/users/{targetUserId}/kyc-status — KYC review
+    // outcome from the mobile Control Panel. Mirrors the desktop "Mark Verified"
+    // / "Reject" actions. status: success | failed | pending. Rejecting also
+    // deactivates the account (handled in the repo).
+    [HttpPatch("admin/users/{targetUserId:long}/kyc-status")]
+    public async Task<IActionResult> AdminSetKycStatus(
+        long targetUserId,
+        [FromHeader(Name = "X-User-Id")] long userId,
+        [FromBody] SetKycStatusRequest req)
+    {
+        try
+        {
+            if (!await _repo.IsAdminAsync(userId))
+                return StatusCode(403, new ApiError(false, "Admin access required."));
+            var status = (req.Status ?? "").Trim().ToLowerInvariant();
+            if (status != "success" && status != "failed" && status != "pending")
+                return BadRequest(new ApiError(false, "status must be success, failed or pending."));
+            await _repo.SetUserKycStatusAsync(targetUserId, status,
+                string.IsNullOrWhiteSpace(req.Note) ? null : req.Note);
+            return Ok(new { success = true });
+        }
+        catch (Exception ex) { return StatusCode(500, new ApiError(false, $"Failed: {ex.Message}")); }
+    }
+
     // GET /api/mobile/profile/{userId}
     [HttpGet("profile/{userId:long}")]
     public async Task<IActionResult> GetProfile(long userId)
@@ -530,6 +554,8 @@ public class MobileController : ControllerBase
                     AadhaarFront = AbsUrl(profile.Kyc.AadhaarFront),
                     AadhaarBack  = AbsUrl(profile.Kyc.AadhaarBack),
                     PanFront     = AbsUrl(profile.Kyc.PanFront),
+                    Selfie       = AbsUrl(profile.Kyc.Selfie),
+                    AadhaarPhoto = AbsUrl(profile.Kyc.AadhaarPhoto),
                 }
             });
         }

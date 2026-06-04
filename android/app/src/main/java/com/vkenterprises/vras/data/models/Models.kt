@@ -154,7 +154,22 @@ data class KycInfo(
     val kycSubmitted: Boolean,
     val aadhaarFront: String?,
     val aadhaarBack: String?,
-    val panFront: String?
+    val panFront: String?,
+    // Admin review surface — mirrors the desktop WPF KYC page.
+    val selfie: String? = null,
+    val aadhaarPhoto: String? = null,        // UIDAI photo
+    val kycStatus: String? = null,           // "pending" | "success" | "failed"
+    val rejectNote: String? = null,
+    val aadhaarVerified: Boolean = false,
+    val aadhaarNumber: String? = null,
+    val aadhaarLast4: String? = null,
+    val aadhaarName: String? = null,
+    val aadhaarDob: String? = null,
+    val aadhaarGender: String? = null,
+    val aadhaarAddress: String? = null,
+    val lat: Double? = null,
+    val lng: Double? = null,
+    val locationLabel: String? = null
 )
 
 data class SubscriptionRecord(
@@ -257,3 +272,5 @@ data class AdminAddSubRequest(
 // Control Panel
 data class VerifyAdminPassRequest(val password: String)
 data class SetUserFlagRequest(val value: Boolean)
+// KYC review outcome. status: "success" | "failed" | "pending".
+data class SetKycStatusRequest(val status: String, val note: String?)

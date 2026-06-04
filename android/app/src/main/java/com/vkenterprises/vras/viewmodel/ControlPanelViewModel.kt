@@ -6,6 +6,7 @@ import com.vkenterprises.vras.data.api.ApiService
 import com.vkenterprises.vras.data.models.AdminAddSubRequest
 import com.vkenterprises.vras.data.models.AdminUserItem
 import com.vkenterprises.vras.data.models.ProfileResponse
+import com.vkenterprises.vras.data.models.SetKycStatusRequest
 import com.vkenterprises.vras.data.models.SetUserFlagRequest
 import com.vkenterprises.vras.data.models.SubscriptionRecord
 import com.vkenterprises.vras.data.models.VerifyAdminPassRequest
@@ -152,6 +153,16 @@ class ControlPanelViewModel @Inject constructor(
 
     fun setActive(active: Boolean) {
         val user = _ui.value.selectedUser ?: return
+        // Gate activation on a verified KYC — mirrors the desktop manager.
+        // Deactivating is always allowed.
+        if (active) {
+            val status = _ui.value.selectedProfile?.kyc?.kycStatus
+            if (status != null && !status.equals("success", ignoreCase = true)) {
+                _ui.update { it.copy(errorMsg =
+                    "This agent's KYC isn't verified yet. Review their documents and tap \"Mark Verified\" first.") }
+                return
+            }
+        }
         viewModelScope.launch {
             _ui.update { it.copy(busy = true) }
             runCatching {
@@ -160,6 +171,31 @@ class ControlPanelViewModel @Inject constructor(
                 else _ui.update { it.copy(errorMsg = "Failed to update active state") }
             }.onFailure { _ui.update { it.copy(errorMsg = "Network error. Try again.") } }
             _ui.update { it.copy(busy = false) }
+        }
+    }
+
+    // ── KYC review (Mark Verified / Reject) ────────────────────────────────
+    // status: "success" | "failed". Reloads the user afterwards so the badge,
+    // OKYC details and (on reject) the now-inactive state all refresh.
+    fun setKycStatus(status: String, note: String?) {
+        val user = _ui.value.selectedUser ?: return
+        viewModelScope.launch {
+            _ui.update { it.copy(busy = true) }
+            runCatching {
+                val resp = api.adminSetKycStatus(
+                    adminUserId, user.id,
+                    SetKycStatusRequest(status, note?.takeIf { n -> n.isNotBlank() })
+                )
+                if (resp.isSuccessful) {
+                    _ui.update { it.copy(busy = false) }
+                    // Re-pull profile + subs (reject also deactivates the user).
+                    selectUser(user)
+                } else {
+                    _ui.update { it.copy(busy = false, errorMsg = "Failed to update KYC status") }
+                }
+            }.onFailure {
+                _ui.update { it.copy(busy = false, errorMsg = "Network error. Try again.") }
+            }
         }
     }
 
