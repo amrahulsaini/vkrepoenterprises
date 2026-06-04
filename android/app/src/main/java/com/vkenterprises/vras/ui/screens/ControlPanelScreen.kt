@@ -1,6 +1,9 @@
 package com.vkenterprises.vras.ui.screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.rememberTransformableState
+import androidx.compose.foundation.gestures.transformable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -14,6 +17,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -192,6 +196,11 @@ private fun StatusDot(label: String, on: Boolean, color: Color) {
 private fun UserDetail(vm: ControlPanelViewModel, ui: com.vkenterprises.vras.viewmodel.ControlPanelUiState) {
     val user = ui.selectedUser ?: return
     val profile = ui.selectedProfile
+    // Reset per-user so a stale preview/reject dialog never carries over.
+    var previewUrl  by remember(user.id) { mutableStateOf<String?>(null) }
+    var rejectDialog by remember(user.id) { mutableStateOf(false) }
+    val onPreview: (String?) -> Unit = { url -> if (!url.isNullOrBlank()) previewUrl = url }
+    val onRejectKyc: () -> Unit = { rejectDialog = true }
     LazyColumn(
         Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
@@ -260,40 +269,99 @@ private fun UserDetail(vm: ControlPanelViewModel, ui: com.vkenterprises.vras.vie
                 }
             }
         }
-        // ── Bank details ────────────────────────────────────────────────
-        item {
-            Card(shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    SectionTitle("Bank Details")
-                    if (ui.profileLoading && profile == null) {
-                        CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
-                    } else if (profile?.accountNumber.isNullOrBlank() && profile?.ifscCode.isNullOrBlank()) {
-                        Text("User has not added bank details.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    } else {
-                        InfoRow("Account No.", profile?.accountNumber, mono = true)
-                        InfoRow("IFSC Code",   profile?.ifscCode,      mono = true)
-                    }
-                }
-            }
-        }
-        // ── KYC documents ───────────────────────────────────────────────
+        // ── KYC verification (documents + OKYC details + review actions) ─
         item {
             Card(shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    SectionTitle("KYC Documents")
+                    val kyc = profile?.kyc
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        SectionTitle("KYC Verification", padBottom = false)
+                        KycStatusBadge(kyc?.kycStatus)
+                    }
                     if (ui.profileLoading && profile == null) {
                         CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
-                    } else if (profile?.kyc?.kycSubmitted != true) {
+                    } else if (kyc?.kycSubmitted != true) {
                         Text("User has not uploaded KYC documents.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                     } else {
+                        // Rejection note (shown to the agent on next login).
+                        if (kyc.kycStatus.equals("failed", true) && !kyc.rejectNote.isNullOrBlank()) {
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = MaterialTheme.colorScheme.errorContainer,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text("Reject note: ${kyc.rejectNote}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onErrorContainer,
+                                    modifier = Modifier.padding(8.dp))
+                            }
+                        }
+                        // Documents — tap any to preview full-screen.
+                        Text("Documents (tap to preview)",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            KycTile("Aadhaar Front", profile?.kyc?.aadhaarFront, Modifier.weight(1f))
-                            KycTile("Aadhaar Back",  profile?.kyc?.aadhaarBack,  Modifier.weight(1f))
-                            KycTile("PAN Front",     profile?.kyc?.panFront,     Modifier.weight(1f))
+                            KycTile("Aadhaar Front", kyc.aadhaarFront, Modifier.weight(1f)) { onPreview(kyc.aadhaarFront) }
+                            KycTile("Aadhaar Back",  kyc.aadhaarBack,  Modifier.weight(1f)) { onPreview(kyc.aadhaarBack) }
+                            KycTile("PAN Front",     kyc.panFront,     Modifier.weight(1f)) { onPreview(kyc.panFront) }
+                        }
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            KycTile("Selfie",      kyc.selfie,       Modifier.weight(1f)) { onPreview(kyc.selfie) }
+                            KycTile("UIDAI Photo", kyc.aadhaarPhoto, Modifier.weight(1f)) { onPreview(kyc.aadhaarPhoto) }
+                            Spacer(Modifier.weight(1f))
+                        }
+                        // Aadhaar OKYC demographics fetched at registration.
+                        Spacer(Modifier.height(2.dp))
+                        Text(
+                            if (kyc.aadhaarVerified) "✓ Aadhaar verified with UIDAI (OKYC)"
+                            else "Aadhaar not OTP-verified",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = if (kyc.aadhaarVerified) Color(0xFF16A34A)
+                                    else MaterialTheme.colorScheme.onSurfaceVariant)
+                        InfoRow("Aadhaar No.",
+                            kyc.aadhaarNumber ?: kyc.aadhaarLast4?.let { "XXXX XXXX $it" }, mono = true)
+                        InfoRow("Name",     kyc.aadhaarName)
+                        InfoRow("DOB",      kyc.aadhaarDob)
+                        InfoRow("Gender",   kyc.aadhaarGender)
+                        InfoRow("Address",  kyc.aadhaarAddress)
+                        InfoRow("Location",
+                            if (kyc.lat != null && kyc.lng != null)
+                                (kyc.locationLabel?.let { "$it  " } ?: "") +
+                                    "(%.5f, %.5f)".format(kyc.lat, kyc.lng)
+                            else null)
+
+                        // ── Review actions (Mark Verified / Reject) ──────────
+                        Spacer(Modifier.height(4.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.fillMaxWidth()) {
+                            Button(
+                                onClick = { vm.setKycStatus("success", null) },
+                                enabled = !ui.busy && !kyc.kycStatus.equals("success", true),
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF16A34A)),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(Icons.Default.VerifiedUser, null, Modifier.size(16.dp))
+                                Spacer(Modifier.width(4.dp))
+                                Text("Mark Verified")
+                            }
+                            OutlinedButton(
+                                onClick = onRejectKyc,
+                                enabled = !ui.busy,
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    contentColor = MaterialTheme.colorScheme.error),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(Icons.Default.Block, null, Modifier.size(16.dp))
+                                Spacer(Modifier.width(4.dp))
+                                Text("Reject")
+                            }
                         }
                     }
                 }
@@ -360,6 +428,13 @@ private fun UserDetail(vm: ControlPanelViewModel, ui: com.vkenterprises.vras.vie
     }
 
     if (ui.showAddDialog) AddPlanDialog(vm, ui)
+    previewUrl?.let { url -> ImagePreviewDialog(url) { previewUrl = null } }
+    if (rejectDialog) RejectKycDialog(
+        userName  = user.name,
+        busy      = ui.busy,
+        onConfirm = { note -> rejectDialog = false; vm.setKycStatus("failed", note) },
+        onDismiss = { rejectDialog = false }
+    )
 }
 
 @Composable
@@ -396,7 +471,12 @@ private fun InfoRow(label: String, value: String?, mono: Boolean = false) {
 }
 
 @Composable
-private fun KycTile(label: String, url: String?, modifier: Modifier = Modifier) {
+private fun KycTile(
+    label: String,
+    url: String?,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit = {}
+) {
     Column(
         modifier
             .clip(RoundedCornerShape(8.dp)),
@@ -423,9 +503,105 @@ private fun KycTile(label: String, url: String?, modifier: Modifier = Modifier) 
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxWidth().height(80.dp)
                     .clip(RoundedCornerShape(6.dp))
+                    .clickable { onClick() }
             )
         }
     }
+}
+
+// Coloured KYC status pill — PENDING REVIEW / VERIFIED / REJECTED.
+@Composable
+private fun KycStatusBadge(status: String?) {
+    val (label, bg, fg) = when (status?.lowercase()) {
+        "success" -> Triple("VERIFIED",       Color(0xFFDCFCE7), Color(0xFF15803D))
+        "failed"  -> Triple("REJECTED",       Color(0xFFFEE2E2), Color(0xFFB91C1C))
+        "pending" -> Triple("PENDING REVIEW", Color(0xFFFEF9C3), Color(0xFF854D0E))
+        else      -> Triple("—",              MaterialTheme.colorScheme.surfaceVariant,
+                                              MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+    Surface(shape = RoundedCornerShape(6.dp), color = bg) {
+        Text("KYC: $label",
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Bold,
+            color = fg,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp))
+    }
+}
+
+// Full-screen, pinch-to-zoom KYC document preview. Tap outside / back to close.
+@Composable
+private fun ImagePreviewDialog(url: String, onDismiss: () -> Unit) {
+    androidx.compose.ui.window.Dialog(
+        onDismissRequest = onDismiss,
+        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        var scale by remember { mutableStateOf(1f) }
+        var offsetX by remember { mutableStateOf(0f) }
+        var offsetY by remember { mutableStateOf(0f) }
+        val tState = rememberTransformableState { zoom, pan, _ ->
+            scale = (scale * zoom).coerceIn(1f, 5f)
+            offsetX += pan.x; offsetY += pan.y
+        }
+        Box(
+            Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.92f))
+                .clickable { onDismiss() },
+            contentAlignment = Alignment.Center
+        ) {
+            AsyncImage(
+                model = url,
+                contentDescription = "KYC document",
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.fillMaxSize().padding(12.dp)
+                    .graphicsLayer(
+                        scaleX = scale, scaleY = scale,
+                        translationX = offsetX, translationY = offsetY)
+                    .transformable(tState)
+            )
+            Surface(
+                shape = RoundedCornerShape(50),
+                color = Color.White.copy(alpha = 0.15f),
+                modifier = Modifier.align(Alignment.TopEnd).padding(16.dp)
+            ) {
+                IconButton(onClick = onDismiss) {
+                    Icon(Icons.Default.Close, "Close", tint = Color.White)
+                }
+            }
+        }
+    }
+}
+
+// Reject dialog with an optional note the agent sees on next login.
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun RejectKycDialog(
+    userName: String,
+    busy: Boolean,
+    onConfirm: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var note by remember { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Reject KYC", fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Reject $userName's KYC? They'll be asked to re-submit and the account is deactivated.",
+                    style = MaterialTheme.typography.bodySmall)
+                OutlinedTextField(
+                    value = note, onValueChange = { note = it },
+                    label = { Text("Reason (optional)") },
+                    modifier = Modifier.fillMaxWidth())
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onConfirm(note) },
+                enabled = !busy,
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+            ) { Text("Reject") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+    )
 }
 
 @Composable

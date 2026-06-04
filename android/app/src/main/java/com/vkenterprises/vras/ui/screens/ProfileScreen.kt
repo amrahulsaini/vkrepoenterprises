@@ -5,6 +5,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import com.vkenterprises.vras.utils.compressImageToBase64
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.*
+import androidx.compose.foundation.gestures.rememberTransformableState
+import androidx.compose.foundation.gestures.transformable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.*
 import androidx.compose.material.icons.Icons
@@ -14,6 +16,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.*
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -93,6 +96,8 @@ private fun ProfileContent(
     pad: PaddingValues,
     onChangePfp: () -> Unit
 ) {
+    var previewUrl by remember { mutableStateOf<String?>(null) }
+    val onPreview: (String?) -> Unit = { url -> if (!url.isNullOrBlank()) previewUrl = url }
     Column(
         Modifier
             .padding(pad)
@@ -166,14 +171,6 @@ private fun ProfileContent(
                 InfoRow(Icons.Default.AccountBalance, "Balance", "₹${profile.balance}")
             }
 
-            // ── Bank details ──────────────────────────────────────────────
-            ProfileSection(title = "Bank Details") {
-                InfoRow(Icons.Default.AccountBalance, "Account Number",
-                    if (profile.accountNumber.isNullOrBlank()) "Not provided" else profile.accountNumber)
-                InfoRow(Icons.Default.Code, "IFSC Code",
-                    if (profile.ifscCode.isNullOrBlank()) "Not provided" else profile.ifscCode)
-            }
-
             // ── KYC ───────────────────────────────────────────────────────
             ProfileSection(title = "KYC Documents") {
                 val kyc = profile.kyc
@@ -187,10 +184,21 @@ private fun ProfileContent(
                             style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
                     }
                     Spacer(Modifier.height(8.dp))
+                    Text("Tap a document to preview",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        KycDocThumb("Aadhaar Front", kyc.aadhaarFront, Modifier.weight(1f))
-                        KycDocThumb("Aadhaar Back",  kyc.aadhaarBack,  Modifier.weight(1f))
-                        KycDocThumb("PAN Front",     kyc.panFront,     Modifier.weight(1f))
+                        KycDocThumb("Aadhaar Front", kyc.aadhaarFront, Modifier.weight(1f)) { onPreview(kyc.aadhaarFront) }
+                        KycDocThumb("Aadhaar Back",  kyc.aadhaarBack,  Modifier.weight(1f)) { onPreview(kyc.aadhaarBack) }
+                        KycDocThumb("PAN Front",     kyc.panFront,     Modifier.weight(1f)) { onPreview(kyc.panFront) }
+                    }
+                    if (!kyc.selfie.isNullOrBlank() || !kyc.aadhaarPhoto.isNullOrBlank()) {
+                        Spacer(Modifier.height(8.dp))
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            KycDocThumb("Selfie",      kyc.selfie,       Modifier.weight(1f)) { onPreview(kyc.selfie) }
+                            KycDocThumb("UIDAI Photo", kyc.aadhaarPhoto, Modifier.weight(1f)) { onPreview(kyc.aadhaarPhoto) }
+                            Spacer(Modifier.weight(1f))
+                        }
                     }
                 } else {
                     Row(verticalAlignment = Alignment.CenterVertically,
@@ -220,6 +228,8 @@ private fun ProfileContent(
             Spacer(Modifier.height(16.dp))
         }
     }
+
+    previewUrl?.let { url -> KycImagePreviewDialog(url) { previewUrl = null } }
 }
 
 @Composable
@@ -256,14 +266,19 @@ private fun InfoRow(icon: androidx.compose.ui.graphics.vector.ImageVector, label
 // base64 string and silently fell through to "Not provided" because the
 // server actually returns paths/URLs — broken thumbnails on every device.
 @Composable
-private fun KycDocThumb(label: String, url: String?, modifier: Modifier = Modifier) {
+private fun KycDocThumb(
+    label: String,
+    url: String?,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit = {}
+) {
     OutlinedCard(modifier = modifier.height(80.dp)) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             if (!url.isNullOrBlank()) {
                 AsyncImage(
                     model = url, contentDescription = label,
                     contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize()
+                    modifier = Modifier.fillMaxSize().clickable { onClick() }
                 )
                 Box(
                     Modifier.fillMaxWidth().align(Alignment.BottomCenter)
@@ -311,5 +326,46 @@ private fun SubRow(sub: SubscriptionRecord) {
         Text("₹${sub.amount}", style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.primary)
+    }
+}
+
+// Full-screen, pinch-to-zoom document preview. Tap anywhere / back to close.
+@Composable
+private fun KycImagePreviewDialog(url: String, onDismiss: () -> Unit) {
+    androidx.compose.ui.window.Dialog(
+        onDismissRequest = onDismiss,
+        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        var scale by remember { mutableStateOf(1f) }
+        var offsetX by remember { mutableStateOf(0f) }
+        var offsetY by remember { mutableStateOf(0f) }
+        val tState = rememberTransformableState { zoom, pan, _ ->
+            scale = (scale * zoom).coerceIn(1f, 5f)
+            offsetX += pan.x; offsetY += pan.y
+        }
+        Box(
+            Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.92f))
+                .clickable { onDismiss() },
+            contentAlignment = Alignment.Center
+        ) {
+            AsyncImage(
+                model = url, contentDescription = "KYC document",
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.fillMaxSize().padding(12.dp)
+                    .graphicsLayer(
+                        scaleX = scale, scaleY = scale,
+                        translationX = offsetX, translationY = offsetY)
+                    .transformable(tState)
+            )
+            Surface(
+                shape = CircleShape,
+                color = Color.White.copy(alpha = 0.15f),
+                modifier = Modifier.align(Alignment.TopEnd).padding(16.dp)
+            ) {
+                IconButton(onClick = onDismiss) {
+                    Icon(Icons.Default.Close, "Close", tint = Color.White)
+                }
+            }
+        }
     }
 }

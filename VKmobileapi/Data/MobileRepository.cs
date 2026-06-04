@@ -650,6 +650,73 @@ public class MobileRepository
 
         await rdr.CloseAsync();
 
+        // ── Enrich KYC for the admin review surface ─────────────────────────
+        // selfie + UIDAI photo (user_kyc), and the registration-time Aadhaar
+        // OKYC demographics + capture location + review status (app_users).
+        // Both blocks are guarded so a legacy tenant without these columns still
+        // returns the basic profile. Mirrors VKApiServer's /api/mgr/.../kyc.
+        string? selfie = null, uidaiPhoto = null;
+        try
+        {
+            await using var kc = new MySqlCommand(
+                "SELECT selfie, aadhaar_photo FROM user_kyc WHERE user_id=@id LIMIT 1", conn);
+            kc.Parameters.AddWithValue("@id", userId);
+            await using var kr = await kc.ExecuteReaderAsync();
+            if (await kr.ReadAsync())
+            {
+                selfie     = kr.IsDBNull(0) ? null : kr.GetString(0);
+                uidaiPhoto = kr.IsDBNull(1) ? null : kr.GetString(1);
+            }
+        }
+        catch { /* legacy user_kyc without selfie/aadhaar_photo */ }
+
+        string  kycStatus = "success"; string? rejectNote = null;
+        bool    aaVer = false;
+        string? aaNum = null, aaLast4 = null, aaName = null, aaDob = null, aaGen = null, aaAddr = null;
+        double? lat = null, lng = null; string? loc = null;
+        try
+        {
+            await using var dc = new MySqlCommand(@"
+                SELECT COALESCE(kyc_status,'success'), kyc_reject_note,
+                       kyc_aadhaar_verified, kyc_aadhaar_number, kyc_aadhaar_last4,
+                       kyc_aadhaar_name, kyc_aadhaar_dob, kyc_aadhaar_gender, kyc_aadhaar_address,
+                       kyc_reg_lat, kyc_reg_lng, kyc_reg_location
+                FROM app_users WHERE id=@id LIMIT 1", conn);
+            dc.Parameters.AddWithValue("@id", userId);
+            await using var dr = await dc.ExecuteReaderAsync();
+            if (await dr.ReadAsync())
+            {
+                string? DS(int i) => dr.IsDBNull(i) ? null : dr.GetString(i);
+                kycStatus  = DS(0) ?? "success"; rejectNote = DS(1);
+                aaVer      = !dr.IsDBNull(2) && dr.GetInt32(2) != 0;
+                aaNum      = DS(3); aaLast4 = DS(4); aaName = DS(5); aaDob = DS(6);
+                aaGen      = DS(7); aaAddr  = DS(8);
+                lat        = dr.IsDBNull(9)  ? (double?)null : dr.GetDouble(9);
+                lng        = dr.IsDBNull(10) ? (double?)null : dr.GetDouble(10);
+                loc        = DS(11);
+            }
+        }
+        catch { /* legacy schema without OKYC columns — basic profile only */ }
+
+        profile = profile with {
+            Kyc = profile.Kyc with {
+                Selfie          = selfie,
+                AadhaarPhoto    = uidaiPhoto,
+                KycStatus       = kycStatus,
+                RejectNote      = rejectNote,
+                AadhaarVerified = aaVer,
+                AadhaarNumber   = aaNum,
+                AadhaarLast4    = aaLast4,
+                AadhaarName     = aaName,
+                AadhaarDob      = aaDob,
+                AadhaarGender   = aaGen,
+                AadhaarAddress  = aaAddr,
+                Lat             = lat,
+                Lng             = lng,
+                LocationLabel   = loc
+            }
+        };
+
         // Load subscriptions
         const string subSql = @"
             SELECT id, DATE_FORMAT(start_date,'%Y-%m-%d'), DATE_FORMAT(end_date,'%Y-%m-%d'),
@@ -934,6 +1001,34 @@ public class MobileRepository
         cmd.Parameters.AddWithValue("@v", blacklisted ? 1 : 0);
         cmd.Parameters.AddWithValue("@id", userId);
         await cmd.ExecuteNonQueryAsync();
+    }
+
+    // ── Admin: KYC review outcome ──────────────────────────────────────────
+    // Mirrors VKApiServer's /api/mgr/.../kyc-status. status: success|failed|pending.
+    // Rejecting ("failed") also deactivates the account and records the note the
+    // agent sees on next login; verifying clears any prior reject note.
+    public async Task SetUserKycStatusAsync(long userId, string status, string? note)
+    {
+        await using var conn = DbFactory.Create();
+        await conn.OpenAsync();
+        if (status == "failed")
+        {
+            await using var cmd = new MySqlCommand(
+                "UPDATE app_users SET kyc_status='failed', kyc_reject_note=@n, is_active=0 WHERE id=@id",
+                conn) { CommandTimeout = 10 };
+            cmd.Parameters.AddWithValue("@n", (object?)note ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@id", userId);
+            await cmd.ExecuteNonQueryAsync();
+        }
+        else
+        {
+            await using var cmd = new MySqlCommand(
+                "UPDATE app_users SET kyc_status=@s, kyc_reject_note=NULL WHERE id=@id",
+                conn) { CommandTimeout = 10 };
+            cmd.Parameters.AddWithValue("@s", status);
+            cmd.Parameters.AddWithValue("@id", userId);
+            await cmd.ExecuteNonQueryAsync();
+        }
     }
 
     // col is an internal constant ("is_active"/"is_stopped") — never user input.

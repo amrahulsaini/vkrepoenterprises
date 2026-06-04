@@ -129,11 +129,29 @@ public record SearchResponse(
     List<SearchResult> Results);
 
 // ── Profile ─────────────────────────────────────────────
+// Mirrors the desktop (WPF) KYC review payload so the mobile Control Panel can
+// show the same review surface: document/photo URLs, the registration-time
+// Aadhaar OKYC demographics, capture location, and the review status + reject
+// note. The trailing fields are optional so older callers/clients still work.
 public record KycInfo(
     bool    KycSubmitted,
     string? AadhaarFront,
     string? AadhaarBack,
-    string? PanFront);
+    string? PanFront,
+    string? Selfie          = null,
+    string? AadhaarPhoto    = null,
+    string  KycStatus       = "success",
+    string? RejectNote      = null,
+    bool    AadhaarVerified = false,
+    string? AadhaarNumber   = null,
+    string? AadhaarLast4    = null,
+    string? AadhaarName     = null,
+    string? AadhaarDob      = null,
+    string? AadhaarGender   = null,
+    string? AadhaarAddress  = null,
+    double? Lat             = null,
+    double? Lng             = null,
+    string? LocationLabel   = null);
 
 public record SubscriptionRecord(
     long    Id,
@@ -168,6 +186,8 @@ public record AdminUserItem(long Id, string Name, string Mobile, string? Address
     bool IsActive = false, bool IsAdmin = false, bool IsStopped = false, bool IsBlacklisted = false);
 public record VerifyAdminPassRequest(string Password);
 public record SetUserFlagRequest(bool Value);
+// KYC review outcome set from the mobile Control Panel. Status: success | failed | pending.
+public record SetKycStatusRequest(string Status, string? Note);
 
 public record SyncBranch(
     int     BranchId,
