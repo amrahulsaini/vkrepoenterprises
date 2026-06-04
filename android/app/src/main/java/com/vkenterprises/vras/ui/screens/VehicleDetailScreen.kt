@@ -771,6 +771,21 @@ private fun AdminDetailView(
 
 @Composable
 private fun BasicDetailView(item: SearchResult, agentName: String, agentPhone: String) {
+    // Live agency profile — fetched once per screen. The build-time BuildConfig
+    // values are the fallback when offline / the call fails.
+    var agencyInfo by remember { mutableStateOf<AgencyInfo?>(null) }
+    LaunchedEffect(Unit) {
+        runCatching {
+            val resp = ApiClient.api.getAgencyInfo()
+            if (resp.isSuccessful) agencyInfo = resp.body()
+        }
+    }
+    val name    = agencyInfo?.name?.ifBlank { BuildConfig.AGENCY_NAME }   ?: BuildConfig.AGENCY_NAME
+    val address = agencyInfo?.address?.ifBlank { BuildConfig.AGENCY_ADDRESS } ?: BuildConfig.AGENCY_ADDRESS
+    val mobiles = agencyInfo?.mobiles?.takeIf { it.isNotEmpty() }
+                  ?: listOfNotNull(BuildConfig.AGENCY_MOBILE.ifBlank { null })
+
+    // Everything in ONE white box: Vehicle Information then Agency.
     Card(
         shape  = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -792,41 +807,14 @@ private fun BasicDetailView(item: SearchResult, agentName: String, agentPhone: S
             DetailRow("Engine No",     item.engineNo,     alwaysShow = true, upper = true)
             DetailRow("Model / Make",  item.model,        alwaysShow = true, upper = true)
             DetailRow("Customer Name", item.customerName, alwaysShow = true, upper = true)
-        }
-    }
-    // Live agency profile — fetched once per screen. The build-time
-    // BuildConfig values are the fallback when offline / the call fails so
-    // the user always sees at least the primary number.
-    var agencyInfo by remember { mutableStateOf<AgencyInfo?>(null) }
-    LaunchedEffect(Unit) {
-        runCatching {
-            val resp = ApiClient.api.getAgencyInfo()
-            if (resp.isSuccessful) agencyInfo = resp.body()
-        }
-    }
 
-    Card(
-        shape  = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(0.dp),  // 0 = no tonal tint = pure white
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Spacer(Modifier.height(6.dp))
             Text("Agency",
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary)
             HorizontalDivider(color = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f))
-
-            val name    = agencyInfo?.name?.ifBlank { BuildConfig.AGENCY_NAME }   ?: BuildConfig.AGENCY_NAME
-            val address = agencyInfo?.address?.ifBlank { BuildConfig.AGENCY_ADDRESS } ?: BuildConfig.AGENCY_ADDRESS
-            // Live list, falling back to the baked-in single number if the
-            // fetch hasn't returned yet.
-            val mobiles = agencyInfo?.mobiles?.takeIf { it.isNotEmpty() }
-                          ?: listOfNotNull(BuildConfig.AGENCY_MOBILE.ifBlank { null })
-
-            DetailRow("Name", name)
+            DetailRow("Agency Name", name)
             mobiles.forEachIndexed { i, m ->
                 DetailRow(if (i == 0) "Agency Mobile" else "Agency Mobile ${i + 1}", m, isPhone = true)
             }
