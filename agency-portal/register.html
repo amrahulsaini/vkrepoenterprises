@@ -42,15 +42,22 @@
                         <input class="input" type="text" id="name" maxlength="200" required>
                     </div>
 
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label class="label" for="mobile1">Mobile number 1 *</label>
-                            <input class="input" type="tel" id="mobile1" maxlength="20" required>
+                    <div class="form-group">
+                        <label class="label" for="mobile1">Mobile number 1 *</label>
+                        <div class="email-row">
+                            <input class="input" type="tel" id="mobile1" maxlength="20" inputmode="numeric" required>
+                            <button type="button" class="btn btn-outline" id="verify-mobile1">Verify</button>
                         </div>
-                        <div class="form-group">
-                            <label class="label" for="mobile2">Mobile number 2</label>
-                            <input class="input" type="tel" id="mobile2" maxlength="20">
+                        <div class="help" id="mobile1-help">A 6-digit code will be sent by SMS.</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="label" for="mobile2">Mobile number 2</label>
+                        <div class="email-row">
+                            <input class="input" type="tel" id="mobile2" maxlength="20" inputmode="numeric">
+                            <button type="button" class="btn btn-outline" id="verify-mobile2" disabled>Verify</button>
                         </div>
+                        <div class="help" id="mobile2-help">Optional. If provided, must also be verified.</div>
                     </div>
 
                     <div class="form-group">
@@ -159,6 +166,6 @@
 
 <script>document.getElementById('year').textContent = new Date().getFullYear();</script>
 <script src="js/api.js?v=2"></script>
-<script src="js/register.js?v=2"></script>
+<script src="js/register.js?v=3"></script>
 </body>
 </html>
