@@ -140,8 +140,8 @@ public partial class FindVehiclePage : Page
             _fullResults = results;
             txtSearch.Text = string.Empty;
 
-            lblResults.Text     = results.Count.ToString("N0");
-            lblBranchCount.Text = results.Select(r => r.BranchName).Distinct().Count().ToString("N0");
+            // Counts are set in RebindResultsGrid (VEHICLE MATCHES = distinct
+            // vehicles) and on vehicle selection (per-vehicle finance count).
 
             if (chassis)
             {
@@ -181,8 +181,13 @@ public partial class FindVehiclePage : Page
                      StringComparer.OrdinalIgnoreCase)
             .ToList();
         dgResults.ItemsSource = grouped;
-        lblResults.Text     = _fullResults.Count.ToString("N0");
-        lblBranchCount.Text = _fullResults.Select(r => r.BranchName).Distinct().Count().ToString("N0");
+        // VEHICLE MATCHES = how many distinct vehicles (RC/chassis) matched the
+        // query — one per grid row — NOT the summed count of every finance copy.
+        lblResults.Text = grouped.Count.ToString("N0");
+        // The Head Offices/Finances count is per-selected-vehicle and is set when
+        // a vehicle is clicked (see dgResults_SelectionChanged). Reset it here
+        // because changing the grid's items clears the selection.
+        lblBranchCount.Text = "0";
     }
 
     private void dgResults_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -200,6 +205,9 @@ public partial class FindVehiclePage : Page
                 .ToList();
 
             lstBranches.ItemsSource = branches;
+            // Count = how many head-office/finance copies THIS vehicle appears in,
+            // not the total across every matched vehicle.
+            lblBranchCount.Text     = branches.Count.ToString("N0");
             brdBranches.Visibility  = Visibility.Visible;
             brdDetails.Visibility   = Visibility.Collapsed;
 
@@ -208,6 +216,7 @@ public partial class FindVehiclePage : Page
         }
         else
         {
+            lblBranchCount.Text    = "0";
             brdBranches.Visibility = Visibility.Collapsed;
             brdDetails.Visibility  = Visibility.Collapsed;
         }
@@ -415,8 +424,10 @@ public partial class FindVehiclePage : Page
                 .ToList();
             if (remaining.Any())
             {
-                // Vehicle still exists in other finances — refresh its panel.
+                // Vehicle still exists in other finances — refresh its panel
+                // and its per-vehicle finance count.
                 lstBranches.ItemsSource   = remaining;
+                lblBranchCount.Text       = remaining.Count.ToString("N0");
                 lstBranches.SelectedIndex = 0;
             }
             else
