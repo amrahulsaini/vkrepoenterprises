@@ -42,12 +42,12 @@
     background: #fbfaf7;
   }
   ::-webkit-scrollbar-thumb {
-    background: rgba(255, 85, 0, 0.25);
+    background: rgba(16, 15, 12, 0.18);
     border-radius: 6px;
     transition: background 0.3s ease;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 85, 0, 0.5);
+    background: rgba(16, 15, 12, 0.32);
   }
 
   body{
@@ -194,11 +194,11 @@
   @media (max-width:880px){.nav-links a:not(.btn){display:none}}
 
   /* hero */
-  .hero{position:relative;padding:120px 0 120px;border-bottom:1px solid var(--line)}
+  .hero{position:relative;padding:72px 0 96px;border-bottom:1px solid var(--line)}
   .hero::before{
     content:'';position:absolute;top:-10%;left:50%;transform:translateX(-50%);
     width:100%;height:120%;pointer-events:none;z-index:0;
-    background:radial-gradient(circle at 50% 30%, rgba(255,85,0,0.06) 0%, transparent 60%);
+    background:radial-gradient(circle at 50% 25%, rgba(16,15,12,0.035) 0%, transparent 58%);
   }
   .hero > .wrap{position:relative;z-index:1}
   .hero-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:62px;align-items:center;position:relative;z-index:1}
@@ -240,8 +240,8 @@
 
   /* CRMRS brand banner at the top of the hero + global responsive images */
   img{max-width:100%;height:auto}
-  .hero-banner-wrap{text-align:center;margin-bottom:54px;position:relative;z-index:1}
-  .hero-banner{width:clamp(240px,48vw,600px);height:auto;max-width:100%;margin:0 auto}
+  .hero-banner-wrap{text-align:center;margin-bottom:40px;position:relative;z-index:1}
+  .hero-banner{width:clamp(150px,22vw,260px);height:auto;max-width:100%;margin:0 auto}
 
   /* phones / small tablets — keep everything inside the viewport */
   @media (max-width:600px){
@@ -702,7 +702,7 @@
     border-top:1px solid var(--line);
   }
   .foot{
-    display:grid;grid-template-columns:2.2fr 1fr 1fr 1.1fr;gap:44px;
+    display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1.1fr;gap:40px;
   }
   .foot-brand{
     display:flex;align-items:center;gap:12px;margin-bottom:18px;
@@ -763,31 +763,13 @@
   .top.show{opacity:1;pointer-events:auto;transform:none}
 
   /* ───── premium upgrades ───── */
-  /* banner now sits on a classy floating card */
+  /* Brand wordmark sits as a clean, understated mark — no glow, no racing
+     underline. Kept subtle so the headline below carries the hero. */
   .banner-card{
-    position:relative;max-width:780px;margin:0 auto;
-    background:rgba(255, 255, 255, 0.65);
-    backdrop-filter:blur(24px);
-    -webkit-backdrop-filter:blur(24px);
-    border:1px solid rgba(255, 85, 0, 0.15);
-    border-radius:24px;padding:clamp(20px,4vw,40px) clamp(22px,5vw,48px);
-    box-shadow:0 30px 60px -20px rgba(16, 15, 12, 0.08), 0 0 40px rgba(255, 85, 0, 0.04);
-    overflow:hidden;
-    transition:transform .5s cubic-bezier(.16, 1, 0.3, 1), box-shadow .5s, border-color .5s;
-  }
-  .banner-card:hover{
-    transform:translateY(-4px) scale(1.01);
-    border-color:rgba(255, 85, 0, 0.25);
-    box-shadow:0 40px 80px -25px rgba(16, 15, 12, 0.12), 0 0 60px rgba(255, 85, 0, 0.1);
-  }
-  .banner-card::before{
-    content:'';position:absolute;left:50%;top:-60%;transform:translateX(-50%);
-    width:120%;height:150%;pointer-events:none;
-    background:radial-gradient(50% 50% at 50% 50%,rgba(255,85,0,0.06),transparent 66%);
-  }
-  .banner-card::after{
-    content:'';position:absolute;left:0;right:0;bottom:0;height:3px;
-    background:linear-gradient(90deg,transparent,var(--orange) 50%,transparent);
+    position:relative;max-width:340px;margin:0 auto;
+    background:transparent;
+    border:none;border-radius:0;padding:0;
+    box-shadow:none;overflow:visible;
   }
   .banner-card .hero-banner{position:relative;z-index:1;margin:0 auto;display:block}
 
@@ -858,7 +840,6 @@
   </div>
   <div class="wrap hero-grid">
     <div>
-      <span class="tagline reveal">Loan Recovery Software</span>
       <h1 class="reveal" data-d="1">Loan recovery operations,<br>built for <span class="o">serious agencies.</span></h1>
       <p class="lead reveal" data-d="2">
         CRMRS is the end-to-end loan-recovery platform — from head-office command
@@ -1207,11 +1188,15 @@
         <a href="mailto:team@crmrecoverysoftware.com?subject=Request%20Desktop%20Installer">Get the installer</a>
       </div>
       <div class="fcol">
+        <h4>Company</h4>
+        <a href="/careers.html">Careers</a>
+        <a href="/privacy-policy.html">Privacy policy</a>
+      </div>
+      <div class="fcol">
         <h4>Contact</h4>
         <a href="tel:+916377362603">+91 63773 62603</a>
         <a href="mailto:team@crmrecoverysoftware.com">team@crmrecoverysoftware.com</a>
         <a href="mailto:rahul@loopwar.dev">rahul@loopwar.dev</a>
-        <a href="/privacy-policy.html">Privacy policy</a>
       </div>
     </div>
     <div class="foot-bottom">

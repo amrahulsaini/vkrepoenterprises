@@ -166,8 +166,9 @@ if [ -d "$MAIN_DOCROOT" ]; then
     chmod o+x /home/crmrecoverysoftware.com "$MAIN_DOCROOT" 2>/dev/null || true
     MAIN_OWNER=$(stat -c '%U:%G' "$MAIN_DOCROOT" 2>/dev/null)
 
-    # Landing page index.html + assets/
-    cp "$REPO_DIR/main-site/index.html" "$MAIN_DOCROOT/index.html"
+    # Landing page index.html + careers.html + assets/
+    cp "$REPO_DIR/main-site/index.html"   "$MAIN_DOCROOT/index.html"
+    cp "$REPO_DIR/main-site/careers.html" "$MAIN_DOCROOT/careers.html"
     rm -rf "$MAIN_DOCROOT/assets"
     cp -r "$REPO_DIR/main-site/assets" "$MAIN_DOCROOT/assets"
     # Privacy policy
@@ -177,6 +178,7 @@ if [ -d "$MAIN_DOCROOT" ]; then
     find "$MAIN_DOCROOT" -type f -exec chmod 644 {} \;
     [ -n "$MAIN_OWNER" ] && chown -R "$MAIN_OWNER" \
         "$MAIN_DOCROOT/index.html" \
+        "$MAIN_DOCROOT/careers.html" \
         "$MAIN_DOCROOT/assets" \
         "$MAIN_DOCROOT/privacy-policy.html" 2>/dev/null || true
     info "Main site + privacy policy deployed → $MAIN_DOCROOT"
