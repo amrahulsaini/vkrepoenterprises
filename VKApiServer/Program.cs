@@ -2817,6 +2817,7 @@ const string XLSX_FIELDS = @"
     vr.vehicle_no, vr.chassis_no, vr.engine_no, vr.model, vr.agreement_no,
     vr.customer_name, vr.customer_contact, vr.customer_address,
     COALESCE(f.name,'') AS financer, COALESCE(b.name,'') AS branch_name,
+    COALESCE(vr.branch_name_raw,'') AS branch_name_raw,
     vr.bucket, vr.gv, vr.od, vr.seasoning, vr.tbr_flag,
     vr.sec9_available, vr.sec17_available,
     vr.level1, vr.level1_contact, vr.level2, vr.level2_contact,
@@ -2828,7 +2829,7 @@ const string XLSX_FIELDS = @"
 string[] XLSX_HEADERS = {
     "Vehicle No","Chassis No","Engine No","Model","Agreement No",
     "Customer Name","Customer Contact","Customer Address",
-    "Finance Name","Branch Name","Bucket","GV","OD","Seasoning",
+    "Finance Name","Branch Name","Branch Name (Raw)","Bucket","GV","OD","Seasoning",
     "TBR Flag","Sec9 Available","Sec17 Available",
     "Level1","Level1 Contact","Level2","Level2 Contact",
     "Level3","Level3 Contact","Level4","Level4 Contact",
@@ -2931,8 +2932,8 @@ async Task StreamSelectXlsx(HttpContext ctx, string sql, string sheetName,
 foreach (var spec in new[]
 {
     ("vehicle-records", "Vehicle Records", $"SELECT {XLSX_FIELDS} FROM vehicle_records vr INNER JOIN branches b ON b.id=vr.branch_id LEFT JOIN finances f ON f.id=b.finance_id ORDER BY vr.id"),
-    ("rc-records",      "RC Records",      $"SELECT ri.rc_number AS vehicle_no, vr.chassis_no, vr.engine_no, ri.model, vr.agreement_no, vr.customer_name, vr.customer_contact, vr.customer_address, COALESCE(f.name,'') AS financer, COALESCE(b.name,'') AS branch_name, vr.bucket, vr.gv, vr.od, vr.seasoning, vr.tbr_flag, vr.sec9_available, vr.sec17_available, vr.level1, vr.level1_contact, vr.level2, vr.level2_contact, vr.level3, vr.level3_contact, vr.level4, vr.level4_contact, vr.sender_mail1, vr.sender_mail2, vr.executive_name, vr.pos, vr.toss, vr.remark, vr.region, vr.area, COALESCE(DATE_FORMAT(vr.created_at,'%d %b %Y'),'') AS created_on FROM rc_info ri INNER JOIN vehicle_records vr ON vr.id=ri.vehicle_record_id INNER JOIN branches b ON b.id=vr.branch_id LEFT JOIN finances f ON f.id=b.finance_id ORDER BY ri.id"),
-    ("chassis-records", "Chassis Records", $"SELECT vr.vehicle_no, ci.chassis_number AS chassis_no, vr.engine_no, ci.model, vr.agreement_no, vr.customer_name, vr.customer_contact, vr.customer_address, COALESCE(f.name,'') AS financer, COALESCE(b.name,'') AS branch_name, vr.bucket, vr.gv, vr.od, vr.seasoning, vr.tbr_flag, vr.sec9_available, vr.sec17_available, vr.level1, vr.level1_contact, vr.level2, vr.level2_contact, vr.level3, vr.level3_contact, vr.level4, vr.level4_contact, vr.sender_mail1, vr.sender_mail2, vr.executive_name, vr.pos, vr.toss, vr.remark, vr.region, vr.area, COALESCE(DATE_FORMAT(vr.created_at,'%d %b %Y'),'') AS created_on FROM chassis_info ci INNER JOIN vehicle_records vr ON vr.id=ci.vehicle_record_id INNER JOIN branches b ON b.id=vr.branch_id LEFT JOIN finances f ON f.id=b.finance_id ORDER BY ci.id"),
+    ("rc-records",      "RC Records",      $"SELECT ri.rc_number AS vehicle_no, vr.chassis_no, vr.engine_no, ri.model, vr.agreement_no, vr.customer_name, vr.customer_contact, vr.customer_address, COALESCE(f.name,'') AS financer, COALESCE(b.name,'') AS branch_name, COALESCE(vr.branch_name_raw,'') AS branch_name_raw, vr.bucket, vr.gv, vr.od, vr.seasoning, vr.tbr_flag, vr.sec9_available, vr.sec17_available, vr.level1, vr.level1_contact, vr.level2, vr.level2_contact, vr.level3, vr.level3_contact, vr.level4, vr.level4_contact, vr.sender_mail1, vr.sender_mail2, vr.executive_name, vr.pos, vr.toss, vr.remark, vr.region, vr.area, COALESCE(DATE_FORMAT(vr.created_at,'%d %b %Y'),'') AS created_on FROM rc_info ri INNER JOIN vehicle_records vr ON vr.id=ri.vehicle_record_id INNER JOIN branches b ON b.id=vr.branch_id LEFT JOIN finances f ON f.id=b.finance_id ORDER BY ri.id"),
+    ("chassis-records", "Chassis Records", $"SELECT vr.vehicle_no, ci.chassis_number AS chassis_no, vr.engine_no, ci.model, vr.agreement_no, vr.customer_name, vr.customer_contact, vr.customer_address, COALESCE(f.name,'') AS financer, COALESCE(b.name,'') AS branch_name, COALESCE(vr.branch_name_raw,'') AS branch_name_raw, vr.bucket, vr.gv, vr.od, vr.seasoning, vr.tbr_flag, vr.sec9_available, vr.sec17_available, vr.level1, vr.level1_contact, vr.level2, vr.level2_contact, vr.level3, vr.level3_contact, vr.level4, vr.level4_contact, vr.sender_mail1, vr.sender_mail2, vr.executive_name, vr.pos, vr.toss, vr.remark, vr.region, vr.area, COALESCE(DATE_FORMAT(vr.created_at,'%d %b %Y'),'') AS created_on FROM chassis_info ci INNER JOIN vehicle_records vr ON vr.id=ci.vehicle_record_id INNER JOIN branches b ON b.id=vr.branch_id LEFT JOIN finances f ON f.id=b.finance_id ORDER BY ci.id"),
 })
 {
     var (route, sheet, baseSql) = spec;
