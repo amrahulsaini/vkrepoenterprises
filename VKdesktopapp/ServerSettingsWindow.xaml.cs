@@ -34,6 +34,11 @@ public partial class ServerSettingsWindow : Window
         InitializeComponent();
         icExtras.ItemsSource = _extras;
 
+        // Show the running app's version (Major.Minor.Build) so it always
+        // reflects the actual build — driven by <Version> in the csproj.
+        var v = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
+        if (v != null) txtVersion.Text = $"Version {v.Major}.{v.Minor}.{v.Build}";
+
         Loaded += async (_, __) =>
         {
             // Agency profile (name / address / mobiles) from crm_master.
