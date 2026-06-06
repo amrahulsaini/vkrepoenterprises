@@ -167,6 +167,9 @@
                                        RequestNavigate="Link_RequestNavigate"
                                        Foreground="{StaticResource Gray600}">crmrecoverysoftware.com</Hyperlink>
                         </TextBlock>
+                        <TextBlock Name="txtVersion" HorizontalAlignment="Center" Margin="0,4,0,0"
+                                   FontSize="10.5" FontWeight="SemiBold"
+                                   Foreground="{StaticResource Gray500}" Text="Version 1.0.1" />
 
                         <Border Height="1" Background="{StaticResource Gray200}" Margin="0,9,0,8" />
 
