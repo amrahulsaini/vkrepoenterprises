@@ -18,7 +18,7 @@
   <Identity
     Name="CRMRS"
     Publisher="CN=CRMRS"
-    Version="1.0.1.0"
+    Version="1.0.7.0"
     ProcessorArchitecture="x64" />
 
   <Properties>
