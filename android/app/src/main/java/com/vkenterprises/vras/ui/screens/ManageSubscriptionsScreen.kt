@@ -226,7 +226,6 @@ private fun UserSubsSection(
     onDelete: (Long) -> Unit
 ) {
     Column(Modifier.fillMaxSize()) {
-        // User header
         Surface(color = MaterialTheme.colorScheme.primaryContainer) {
             Row(
                 Modifier.fillMaxWidth().padding(12.dp),

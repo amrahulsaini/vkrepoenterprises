@@ -17,10 +17,8 @@ public partial class ReportsPage : Page
 {
     private const int PdfRowCap = 50_000;
 
-    // Path of the most-recently exported file — used by the Open File button.
     private string? _lastExportPath;
 
-    // All export buttons, collected after InitializeComponent so we can bulk-disable/enable.
     private Button[]? _allExportButtons;
 
     public ReportsPage()
@@ -40,7 +38,6 @@ public partial class ReportsPage : Page
         };
     }
 
-    // ── Export button dispatcher ─────────────────────────────────────────────
 
     private async void btnExport_Click(object sender, RoutedEventArgs e)
     {
@@ -49,22 +46,17 @@ public partial class ReportsPage : Page
         var parts = tag.Split('_');
         if (parts.Length != 2) return;
 
-        var report = parts[0];  // e.g. "Users", "VehicleRecords"
-        var format = parts[1];  // "Excel" or "Pdf"
+        var report = parts[0];
+        var format = parts[1];
 
         bool isExcel = format == "Excel";
 
-        // Vehicle / RC / Chassis Excel exports can each be 20L+ rows. Route
-        // those through the new chunked dialog so the admin can split the
-        // output into Excel-friendly slices (1L–10L per file). PDFs stay on
-        // the old in-page flow because they're capped at 50k rows anyway.
         if (isExcel && IsVehicleExportReport(report))
         {
             await LaunchChunkedExportAsync(report);
             return;
         }
 
-        // SaveFileDialog
         var dlg = new SaveFileDialog
         {
             Title = $"Save {report} Export",
@@ -98,16 +90,12 @@ public partial class ReportsPage : Page
         }
     }
 
-    // ── Chunked Excel export for vehicle-style reports ──────────────────────
 
     private static bool IsVehicleExportReport(string report) =>
         report is "VehicleRecords" or "RcRecords" or "ChassisRecords";
 
     private async Task LaunchChunkedExportAsync(string report)
     {
-        // Map report → (record-type route, pretty name). The count is probed
-        // via the existing paginated endpoint; the actual download uses the
-        // INSTANT server-streamed .xlsx (one part per file), same as Finances.
         Func<int, int, Task<DesktopApiClient.ExportPage<DesktopApiClient.ExportVehicleRow>>> probe;
         string recordType, sheet, baseName;
         switch (report)
@@ -156,7 +144,6 @@ public partial class ReportsPage : Page
         win.ShowDialog();
     }
 
-    // ── UI state helpers ────────────────────────────────────────────────────
 
     private void BeginExport(string reportName, bool isExcel)
     {
@@ -198,7 +185,6 @@ public partial class ReportsPage : Page
         txtLog.ScrollToEnd();
     }
 
-    // ── Open File handler ────────────────────────────────────────────────────
 
     private void btnOpenFile_Click(object sender, RoutedEventArgs e)
     {
@@ -206,9 +192,6 @@ public partial class ReportsPage : Page
         System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{_lastExportPath}\"");
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    //  EXCEL EXPORT
-    // ═══════════════════════════════════════════════════════════════════════
 
     private async Task RunExcelExportAsync(string report, string filePath)
     {
@@ -324,7 +307,6 @@ public partial class ReportsPage : Page
             "POS","TOSS","Remark","Region","Area","Created On"
         };
 
-        // Phase 1 — fetch all pages
         Log("Fetching page 1…");
         var firstPage = await fetchPage(0, 5000);
         long total     = firstPage.Total;
@@ -407,7 +389,6 @@ public partial class ReportsPage : Page
         Log("Excel file written successfully.");
     }
 
-    // Shared helper: write a bold dark-background header row
     private static void WriteExcelHeader(IWorksheet ws, string[] headers)
     {
         int colCount = headers.Length;
@@ -420,9 +401,6 @@ public partial class ReportsPage : Page
         }
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    //  PDF EXPORT
-    // ═══════════════════════════════════════════════════════════════════════
 
     private async Task RunPdfExportAsync(string report, string filePath)
     {
@@ -588,7 +566,6 @@ public partial class ReportsPage : Page
         string reportTitle,
         Func<int, int, Task<DesktopApiClient.ExportPage<DesktopApiClient.ExportVehicleRow>>> fetchPage)
     {
-        // Phase 1 — fetch pages (0–80%)
         Log("Fetching page 1…");
         var firstPage = await fetchPage(0, 5000);
         long total      = firstPage.Total;

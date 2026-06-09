@@ -30,11 +30,6 @@ fun ConfirmScreen(
 ) {
     val context    = LocalContext.current
     val ui         by searchVm.ui.collectAsState()
-    // Search returns SKINNY rows (vehicle / chassis / model / finance only) — the
-    // tapped row has every other field blank, so the admin message preview printed
-    // "null" for Customer / Engine / Loan No / BKT / OD / Levels etc. The detail
-    // screen fetches the FULL record for the selected finance into ui.fullRecord;
-    // use that here (matched to the same vehicle) so the preview shows real data.
     val skinny     = ui.selectedResult
     val full       = ui.fullRecord
     val item       = full?.takeIf {
@@ -46,9 +41,6 @@ fun ConfirmScreen(
     val isAdmin    by authVm.isAdmin.collectAsState(initial = false)
     val userId     by authVm.userId.collectAsState(initial = -1L)
 
-    // Agency name for the message = the LIVE name from the server (the one set
-    // in WPF → Server Settings), not the build-time value. Falls back to the
-    // baked-in name until the fetch lands so the preview is never blank.
     var agencyName by remember { mutableStateOf(BuildConfig.AGENCY_NAME) }
     LaunchedEffect(Unit) {
         runCatching {
@@ -57,15 +49,12 @@ fun ConfirmScreen(
         }
     }
 
-    // Safety net: if we somehow arrived without the full record (e.g. the detail
-    // fetch hadn't finished), fetch it now so the preview isn't all "null".
     LaunchedEffect(skinny?.id, full?.id, userId) {
         val s = skinny ?: return@LaunchedEffect
         val haveFull = full != null && (full.vehicleNo == s.vehicleNo || full.chassisNo == s.chassisNo)
         if (!haveFull && userId > 0L) searchVm.fetchFullRecord(s.id, userId)
     }
 
-    // SMS recipient checkboxes — pre-tick any contact that has a number
     var chkL1 by remember(item?.id) { mutableStateOf(item?.level1Contact?.isNotBlank() == true) }
     var chkL2 by remember(item?.id) { mutableStateOf(item?.level2Contact?.isNotBlank() == true) }
     var chkL3 by remember(item?.id) { mutableStateOf(item?.level3Contact?.isNotBlank() == true) }
@@ -82,12 +71,6 @@ fun ConfirmScreen(
         else     -> "Send Confirmation"
     }
 
-    // Message layout requested for CNF (Confirm); OK-Repo / Cancel reuse the same
-    // body with a different opening + closing line. Body fields are plain text
-    // (admins see "null" for blanks so missing data is obvious); Level lines are
-    // *bold* as "name - contact -". Closing names the agency + the contact person.
-    // USER side: the simple, agent-friendly template (no internal fields like
-    // Loan No / BKT / OD / Levels). Admin keeps the detailed format below.
     fun buildUserMessage(): String = buildString {
         val status = when (actionType) {
             "okrepo" -> "Ok for repo."
@@ -120,9 +103,6 @@ fun ConfirmScreen(
         }
         appendLine()
 
-        // Bold the VALUES (*...*) so every record stands out in WhatsApp. SMS
-        // strips the asterisks (see sendSms) so it stays clean there. Admin sees
-        // "null" for empties; users skip blanks.
         fun line(label: String, value: String?) {
             val v = value?.trim().orEmpty()
             if (v.isNotBlank()) appendLine("$label: *$v*")
@@ -138,13 +118,9 @@ fun ConfirmScreen(
         line("Engine No",     item?.engineNo)
         line("BKT",           item?.bucket)
         line("OD",            item?.od)
-        // Always printed — "-" if left blank so the recipient knows it was empty.
         appendLine("Vehicle location: *${vehicleAddress.trim().ifBlank { "-" }}*")
         appendLine("Load details: *${carriesGoods.trim().ifBlank { "-" }}*")
 
-        // Levels: bold "name - contact". CRITICAL — no space immediately inside
-        // the asterisks, or WhatsApp shows the literal "*". The old "*n - c*" left
-        // a trailing " - " (space before the closing *) so it never rendered bold.
         fun levelLine(label: String, name: String?, contact: String?) {
             val n = name?.trim().orEmpty(); val c = contact?.trim().orEmpty()
             val content = listOf(n, c).filter { it.isNotBlank() }.joinToString(" - ")
@@ -162,8 +138,6 @@ fun ConfirmScreen(
             else     -> "We urgently need you to confirm the status of this vehicle, whether it is to be Repo released."
         }
         append(closing)
-        // Tight asterisks (no inner space) so the agency name renders bold; the
-        // separating spaces go OUTSIDE the asterisks.
         append(" *${agencyName}*")
         val person = listOf(agentName.trim(), agentPhone.trim()).filter { it.isNotBlank() }.joinToString(" - ")
         if (person.isNotBlank()) append(" $person")
@@ -171,8 +145,6 @@ fun ConfirmScreen(
     }
 
     fun checkedNumbers(): List<String> = if (!isAdmin) emptyList() else buildList {
-        // Agents never auto-send to the financer's confidential contacts — they
-        // pick the recipient themselves in their SMS/WhatsApp app.
         if (chkL1 && item?.level1Contact?.isNotBlank() == true) add(item.level1Contact)
         if (chkL2 && item?.level2Contact?.isNotBlank() == true) add(item.level2Contact)
         if (chkL3 && item?.level3Contact?.isNotBlank() == true) add(item.level3Contact)
@@ -187,9 +159,6 @@ fun ConfirmScreen(
             type = "text/plain"
             putExtra(Intent.EXTRA_TEXT, msg)
         }
-        // Prefer regular WhatsApp Messenger; else WhatsApp Business; else chooser.
-        // ACTION_SEND avoids the wa.me deep link that WhatsApp Business hijacks
-        // with "your number is not registered to WhatsApp Business".
         val pm = context.packageManager
         val target = listOf("com.whatsapp", "com.whatsapp.w4b").firstOrNull { p ->
             runCatching { pm.getPackageInfo(p, 0); true }.getOrDefault(false)
@@ -213,7 +182,6 @@ fun ConfirmScreen(
         context.startActivity(intent)
     }
 
-    // Agents get a clean all-white screen (per request). Admin keeps the themed look.
     val pageBg = if (isAdmin) MaterialTheme.colorScheme.background else Color.White
     Scaffold(
         containerColor = pageBg,
@@ -244,7 +212,6 @@ fun ConfirmScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            // ── Vehicle summary card ──────────────────────────────────────
             Card(
                 shape  = RoundedCornerShape(12.dp),
                 colors = CardDefaults.cardColors(containerColor = if (isAdmin) MaterialTheme.colorScheme.surfaceVariant else Color.White),
@@ -253,8 +220,6 @@ fun ConfirmScreen(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    // Agents see only the basic vehicle fields. Internal data
-                    // (agreement/loan, bucket, OD, branch, financer) is admin-only.
                     SummaryRow("Customer",  item.customerName,            alwaysShow = !isAdmin)
                     SummaryRow("Vehicle No",item.vehicleNo,   mono = true, alwaysShow = !isAdmin)
                     SummaryRow("Chassis",   item.chassisNo,   mono = true, alwaysShow = !isAdmin)
@@ -270,11 +235,6 @@ fun ConfirmScreen(
                 }
             }
 
-            // ── SMS recipients (ADMIN ONLY) ───────────────────────────────
-            // The Level 1-4 and branch contact numbers are the financer's
-            // confidential contacts — agents must NOT see them. Only admins pick
-            // SMS recipients here; agents just compose the message and choose a
-            // recipient themselves in their SMS/WhatsApp app.
             if (isAdmin) {
             val hasAnyContact = listOf(
                 item.level1Contact, item.level2Contact,
@@ -320,7 +280,6 @@ fun ConfirmScreen(
             }
             }
 
-            // ── Inputs ────────────────────────────────────────────────────
             OutlinedTextField(
                 value = vehicleAddress,
                 onValueChange = { vehicleAddress = it },
@@ -341,7 +300,6 @@ fun ConfirmScreen(
                 maxLines      = 2
             )
 
-            // ── Message preview ───────────────────────────────────────────
             Card(
                 shape  = RoundedCornerShape(10.dp),
                 colors = CardDefaults.cardColors(containerColor = if (isAdmin) MaterialTheme.colorScheme.surface else Color.White),
@@ -366,7 +324,6 @@ fun ConfirmScreen(
                 }
             }
 
-            // ── Send buttons ──────────────────────────────────────────────
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Button(
                     onClick  = { sendWhatsApp() },
@@ -437,9 +394,6 @@ private fun SummaryRow(
     alwaysShow: Boolean = false
 ) {
     val blank = value.isNullOrBlank()
-    // Admin keeps the compact "hide empties" look; the user-side summary
-    // (alwaysShow) mirrors the detail view — every column is shown, blanks
-    // render as a dash so the agent can see exactly what's missing.
     if (blank && !alwaysShow) return
     val shown = if (blank) "—" else value!!
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {

@@ -16,7 +16,6 @@
             <RowDefinition Height="36" />
         </Grid.RowDefinitions>
 
-        <!-- Header -->
         <Border Grid.Row="0" Background="White"
                 BorderBrush="{StaticResource Gray200}" BorderThickness="0,0,0,1">
             <Grid Margin="20,0">
@@ -45,7 +44,6 @@
             </Grid>
         </Border>
 
-        <!-- Filter bar -->
         <Border Grid.Row="1" Background="White" Padding="20,10"
                 BorderBrush="{StaticResource Gray200}" BorderThickness="0,0,0,1">
             <StackPanel Orientation="Horizontal">
@@ -60,7 +58,6 @@
             </StackPanel>
         </Border>
 
-        <!-- Files DataGrid -->
         <Border Grid.Row="2" Name="panelFiles" Margin="16" Background="White" CornerRadius="6">
             <DataGrid Name="dgFiles"
                       AutoGenerateColumns="False"
@@ -97,7 +94,6 @@
             </DataGrid>
         </Border>
 
-        <!-- Credentials DataGrid -->
         <Border Grid.Row="2" Name="panelCreds" Margin="16" Background="White" CornerRadius="6"
                 Visibility="Collapsed">
             <DataGrid Name="dgCreds"
@@ -130,7 +126,6 @@
             </DataGrid>
         </Border>
 
-        <!-- Status bar -->
         <Border Grid.Row="3" Background="{StaticResource Gray900}" Padding="16,0">
             <TextBlock Name="lblStatus" Text="Ready" FontSize="12"
                        Foreground="{StaticResource Gray400}" VerticalAlignment="Center" />

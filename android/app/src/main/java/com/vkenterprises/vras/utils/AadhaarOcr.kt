@@ -8,17 +8,6 @@ import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import kotlin.coroutines.resume
 import kotlinx.coroutines.suspendCancellableCoroutine
 
-/**
- * On-device OCR for the Aadhaar front photo. Runs ML Kit Latin text recognition
- * (models bundled in the APK — fully offline, no network) and pulls the first
- * 12-digit Aadhaar-shaped number out of the recognised text.
- *
- * Aadhaar numbers are printed as three groups of four digits ("1234 5678 9012").
- * We tolerate optional spaces and validate with the official Verhoeff checksum
- * so a stray 12-digit string (a phone number split oddly, a VID, etc.) doesn't
- * get mistaken for the Aadhaar. Returns the 12 raw digits, or null if nothing
- * plausible was found — the screen then lets the agent type it manually.
- */
 suspend fun extractAadhaarNumber(context: Context, uri: Uri): String? {
     val image = runCatching { InputImage.fromFilePath(context, uri) }.getOrNull() ?: return null
     val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
@@ -30,19 +19,15 @@ suspend fun extractAadhaarNumber(context: Context, uri: Uri): String? {
     }
     if (text.isBlank()) return null
 
-    // Collapse whitespace so a number wrapped across lines still matches.
     val flat = text.replace("\n", " ")
     val regex = Regex("(?<!\\d)(\\d{4})\\s?(\\d{4})\\s?(\\d{4})(?!\\d)")
     for (m in regex.findAll(flat)) {
         val digits = m.groupValues.drop(1).joinToString("")
         if (digits.length == 12 && isVerhoeffValid(digits)) return digits
     }
-    // Fallback: if no candidate passed the checksum, return the first 12-digit
-    // group anyway — OCR can misread a digit; the agent confirms it on screen.
     return regex.find(flat)?.let { it.groupValues.drop(1).joinToString("") }
 }
 
-// Verhoeff checksum — the algorithm UIDAI uses for the Aadhaar number.
 private val d = arrayOf(
     intArrayOf(0, 1, 2, 3, 4, 5, 6, 7, 8, 9),
     intArrayOf(1, 2, 3, 4, 0, 6, 7, 8, 9, 5),

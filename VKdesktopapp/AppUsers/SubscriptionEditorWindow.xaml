@@ -76,30 +76,25 @@
 
     <StackPanel Margin="28,24,28,24" >
 
-        <!-- Title -->
         <TextBlock Text="Add Subscription Plan"
                    FontSize="17" FontWeight="Bold"
                    Foreground="{StaticResource Gray900}"
                    Margin="0,0,0,20" />
 
-        <!-- Start Date -->
         <TextBlock Text="START DATE *" Style="{StaticResource FieldLabel}" />
         <DatePicker Name="dpStart" Style="{StaticResource DateField}"
                     Margin="0,0,0,14"
                     SelectedDateChanged="dpStart_SelectedDateChanged" />
 
-        <!-- End Date -->
         <TextBlock Text="END DATE *" Style="{StaticResource FieldLabel}" />
         <DatePicker Name="dpEnd" Style="{StaticResource DateField}"
                     Margin="0,0,0,14" />
 
-        <!-- Amount -->
         <TextBlock Text="AMOUNT (₹)" Style="{StaticResource FieldLabel}" />
         <TextBox Name="txtAmount" Style="{StaticResource Field}"
                  Margin="0,0,0,14"
                  PreviewTextInput="NumericOnly" />
 
-        <!-- Notes -->
         <TextBlock Text="NOTES" Style="{StaticResource FieldLabel}" />
         <TextBox Name="txtNotes"
                  FontSize="14" Padding="10,8"
@@ -111,7 +106,6 @@
                  AcceptsReturn="True"
                  Margin="0,0,0,20" />
 
-        <!-- Error message -->
         <Border Name="brdError" Visibility="Collapsed"
                 Background="#FFEEEE" BorderBrush="#FFCCCC"
                 BorderThickness="1" CornerRadius="6"
@@ -120,7 +114,6 @@
                        Foreground="#C0392B" TextWrapping="Wrap" />
         </Border>
 
-        <!-- Buttons -->
         <Grid>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />

@@ -23,7 +23,6 @@ public partial class ManageConfirmationWindow : Window
 
     private async void Window_Loaded(object sender, RoutedEventArgs e)
     {
-        // Populate Vehicle Details
         txtVehicleNo.Text = _record.VehicleNo;
         txtChassisNo.Text = _record.ChassisNo;
         txtModel.Text = _record.Model;
@@ -66,7 +65,6 @@ public partial class ManageConfirmationWindow : Window
             return;
         }
 
-        // selectedUser is anonymous type, so we use dynamic
         var selectedUser = (SeizerDisplayItem)cmbSeizer.SelectedItem;
         var status = (cmbStatus.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Content?.ToString() ?? "Pending";
 

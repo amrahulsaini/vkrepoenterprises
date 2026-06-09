@@ -11,8 +11,6 @@ namespace VRASDesktopApp;
 
 public partial class ServerSettingsWindow : Window
 {
-    // One row in the "Additional Contact Numbers" list. Two-way bound so the
-    // user's edits flow straight back into the collection.
     public class ExtraNumber : INotifyPropertyChanged
     {
         private string _number = "";
@@ -34,14 +32,11 @@ public partial class ServerSettingsWindow : Window
         InitializeComponent();
         icExtras.ItemsSource = _extras;
 
-        // Show the running app's version (Major.Minor.Build) so it always
-        // reflects the actual build — driven by <Version> in the csproj.
         var v = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
         if (v != null) txtVersion.Text = $"Version {v.Major}.{v.Minor}.{v.Build}";
 
         Loaded += async (_, __) =>
         {
-            // Agency profile (name / address / mobiles) from crm_master.
             try
             {
                 var p = await DesktopApiClient.GetAgencyProfileAsync();
@@ -58,7 +53,6 @@ public partial class ServerSettingsWindow : Window
             }
             catch
             {
-                // Fall back to whatever the login response gave us.
                 var u = App.SignedAppUser;
                 if (u != null)
                 {
@@ -68,13 +62,11 @@ public partial class ServerSettingsWindow : Window
                 }
             }
 
-            // Common Control Panel password (agency-wide).
             try { pwdControlPass.Password = await DesktopApiClient.GetControlPasswordAsync(); }
-            catch { /* silent */ }
+            catch { }
 
-            // Subscription-management password.
             try { pwdSubsPass.Password = await DesktopApiClient.GetSubsPasswordAsync(); }
-            catch { /* silent — server may not have the table yet */ }
+            catch { }
         };
     }
 
@@ -87,8 +79,6 @@ public partial class ServerSettingsWindow : Window
     private void btnClose_Click(object sender, RoutedEventArgs e)  => Close();
     private void btnCancel_Click(object sender, RoutedEventArgs e) => Close();
 
-    // Opens the footer's "Developed by CRMRS" website link + the purchase-contact
-    // mailto:/tel: links via the OS default handler (browser, mail client, dialer).
     private void Link_RequestNavigate(object sender, System.Windows.Navigation.RequestNavigateEventArgs e)
     {
         try { Process.Start(new ProcessStartInfo(e.Uri.AbsoluteUri) { UseShellExecute = true }); }
@@ -96,7 +86,6 @@ public partial class ServerSettingsWindow : Window
         e.Handled = true;
     }
 
-    // ── Extra-number rows ──────────────────────────────────────────────────
     private void btnAddExtra_Click(object sender, RoutedEventArgs e)
     {
         if (_extras.Count >= MaxExtras)
@@ -124,7 +113,6 @@ public partial class ServerSettingsWindow : Window
         txtExtraHint.Text = $"{_extras.Count}/{MaxExtras} extra numbers. All appear on the mobile app's Agency panel.";
     }
 
-    // ── Save ───────────────────────────────────────────────────────────────
     private async void btnSave_Click(object sender, RoutedEventArgs e)
     {
         var name    = txtAgencyName.Text.Trim();
@@ -155,8 +143,6 @@ public partial class ServerSettingsWindow : Window
             await DesktopApiClient.SaveAgencyProfileAsync(
                 name, txtAddress.Text.Trim(), mobile1, txtMobile2.Text.Trim(), extras);
 
-            // Keep the in-memory session label in sync so the dashboard
-            // top-bar updates without a re-login.
             if (App.SignedAppUser != null)
             {
                 App.SignedAppUser.AgencyName = name;
@@ -164,20 +150,18 @@ public partial class ServerSettingsWindow : Window
                 App.SignedAppUser.Mobile1    = mobile1;
             }
 
-            // Common Control Panel password (agency-wide, stored server-side).
             var ctrlPass = pwdControlPass.Password.Trim();
             if (!string.IsNullOrEmpty(ctrlPass))
             {
                 try { await DesktopApiClient.SetControlPasswordAsync(ctrlPass); }
-                catch { /* non-fatal */ }
+                catch { }
             }
 
-            // Subscription-management password (stored server-side, per-tenant).
             var subsPass = pwdSubsPass.Password.Trim();
             if (!string.IsNullOrEmpty(subsPass))
             {
                 try { await DesktopApiClient.SetSubsPasswordAsync(subsPass); }
-                catch { /* non-fatal */ }
+                catch { }
             }
 
             MessageBox.Show(
@@ -193,7 +177,6 @@ public partial class ServerSettingsWindow : Window
         finally { btnSave.IsEnabled = true; }
     }
 
-    // ── Session actions ────────────────────────────────────────────────────
     private void btnLogout_Click(object sender, RoutedEventArgs e)
     {
         var confirm = MessageBox.Show(
@@ -201,9 +184,6 @@ public partial class ServerSettingsWindow : Window
             "Log Out", MessageBoxButton.YesNo, MessageBoxImage.Question);
         if (confirm != MessageBoxResult.Yes) return;
 
-        // Clear the session and relaunch the app fresh at the login screen.
-        // Restarting the process is the clean way back to LoginWindow given
-        // the app launches MainWindow via LoginWindow.ShowDialog().
         App.SignedAppUser = null;
         App.HttpClient.DefaultRequestHeaders.Authorization = null;
         try

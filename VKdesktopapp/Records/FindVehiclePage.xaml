@@ -25,7 +25,6 @@
                                Margin="0,6,0,0"
                                Style="{StaticResource Caption}" />
                 </StackPanel>
-                <!-- Search box — large, bold, monospace, with a big placeholder -->
                 <Grid Grid.Column="1" VerticalAlignment="Center">
                     <TextBox Name="txtSearch"
                              Style="{StaticResource MaterialTextBox}"
@@ -75,7 +74,6 @@
                 <ColumnDefinition Width="1.4*" />
             </Grid.ColumnDefinitions>
 
-            <!-- Column 1: Unique Vehicles -->
             <Border Grid.Column="0" Style="{StaticResource DashboardCard}" Margin="0,0,12,0">
                 <Grid>
                     <Grid.RowDefinitions>
@@ -101,8 +99,6 @@
                               HorizontalScrollBarVisibility="Auto"
                               Style="{StaticResource MaterialDataGrid}">
                         <DataGrid.Resources>
-                            <!-- Big, bold, monospace cells for RC / Chassis so the
-                                 numbers are easy to read at a glance. -->
                             <Style x:Key="BigBoldCell" TargetType="TextBlock">
                                 <Setter Property="FontSize" Value="16" />
                                 <Setter Property="FontWeight" Value="Bold" />
@@ -120,9 +116,6 @@
                                                 ElementStyle="{StaticResource BigBoldCell}" />
                             <DataGridTextColumn x:Name="colChassis" Header="Chassis no" Binding="{Binding ChassisNo}" Width="170" Visibility="Collapsed"
                                                 ElementStyle="{StaticResource BigBoldCell}" />
-                            <!-- Auto width + a sensible minimum so long model names
-                                 push past the panel edge and the horizontal
-                                 scrollbar lets you read them in full. -->
                             <DataGridTextColumn x:Name="colModel" Header="Model" Binding="{Binding Model}" Width="Auto" MinWidth="220"
                                                 ElementStyle="{StaticResource BoldCell}" />
                         </DataGrid.Columns>
@@ -132,7 +125,6 @@
                 </Grid>
             </Border>
 
-            <!-- Column 2: Head Offices/Finances -->
             <Border Name="brdBranches" Grid.Column="1" Style="{StaticResource DashboardCard}" Margin="0,0,12,0" Visibility="Collapsed">
                 <Grid>
                     <Grid.RowDefinitions>
@@ -185,7 +177,6 @@
                 </Grid>
             </Border>
 
-            <!-- Column 3: Full Details Panel -->
             <Border Name="brdDetails" Grid.Column="2" Style="{StaticResource DashboardCard}" Visibility="Collapsed" Padding="0">
                 <Grid>
                     <Grid.RowDefinitions>
@@ -217,7 +208,6 @@
                                     <Setter Property="BorderThickness" Value="0,0,0,1" />
                                     <Setter Property="Padding" Value="10,6" />
                                 </Style>
-                                <!-- TextBox styled as a TextBlock so labels are drag-selectable too. -->
                                 <Style x:Key="LabelText" TargetType="TextBox">
                                     <Setter Property="Foreground"      Value="{StaticResource Gray700}" />
                                     <Setter Property="VerticalAlignment" Value="Center" />
@@ -230,8 +220,6 @@
                                     <Setter Property="IsReadOnlyCaretVisible" Value="False" />
                                     <Setter Property="Cursor"          Value="IBeam" />
                                 </Style>
-                                <!-- TextBox styled to look like a TextBlock â€” so the user can
-                                     drag-select text from each value cell and Ctrl+C copy it. -->
                                 <Style x:Key="ValueText" TargetType="TextBox">
                                     <Setter Property="Foreground"      Value="{StaticResource Gray900}" />
                                     <Setter Property="VerticalAlignment" Value="Center" />
@@ -243,7 +231,6 @@
                                     <Setter Property="Padding"         Value="0" />
                                     <Setter Property="Background"      Value="Transparent" />
                                     <Setter Property="IsReadOnlyCaretVisible" Value="False" />
-                                    <!-- Standard mouse caret instead of the I-beam-only one. -->
                                     <Setter Property="Cursor"          Value="IBeam" />
                                 </Style>
                                 <Style x:Key="SectionDivider" TargetType="Border">

@@ -39,9 +39,6 @@ public partial class MappingExplorerWindow : Window
             Mappings.Add(item);
     }
 
-    // ─────────────────────────────────────────────────────
-    //  Delete mapping (alias)
-    // ─────────────────────────────────────────────────────
 
     private async void btnMappingDelete_Click(object sender, RoutedEventArgs e)
     {
@@ -61,9 +58,6 @@ public partial class MappingExplorerWindow : Window
         }
     }
 
-    // ─────────────────────────────────────────────────────
-    //  Add column type (left panel)
-    // ─────────────────────────────────────────────────────
 
     private void btnAddColumnType_Click(object sender, RoutedEventArgs e)
     {
@@ -96,7 +90,6 @@ public partial class MappingExplorerWindow : Window
         {
             var newType = await _repo.CreateColumnTypeAsync(name);
             MappingDetails.ColumnTypes.Add(newType);
-            // Refresh the DataGrid (it's bound to a sorted query, not ObservableCollection)
             gvColumns.ItemsSource = MappingDetails.ColumnTypes.OrderBy(d => d.ColumnTypeId).ToList();
             brdNewColumnType.Visibility = Visibility.Collapsed;
             txtNewColumnType.Text       = string.Empty;
@@ -108,9 +101,6 @@ public partial class MappingExplorerWindow : Window
         }
     }
 
-    // ─────────────────────────────────────────────────────
-    //  Add alias (right panel)
-    // ─────────────────────────────────────────────────────
 
     private void btnAddAlias_Click(object sender, RoutedEventArgs e)
     {

@@ -6,8 +6,6 @@ public static class DbFactory
 {
     private static string _masterConn = "";
 
-    // Called once at startup — captures env config into TenantContext and
-    // builds the crm_master connection string.
     public static void Init()
     {
         var host = Environment.GetEnvironmentVariable("MYSQL_HOST")     ?? "127.0.0.1";
@@ -32,7 +30,6 @@ public static class DbFactory
             DefaultCommandTimeout = 30,
         }.ConnectionString;
 
-        // crm_master registry — agency list + registration verification gate.
         _masterConn = new MySqlConnectionStringBuilder
         {
             Server   = host,
@@ -47,9 +44,7 @@ public static class DbFactory
         }.ConnectionString;
     }
 
-    /// <summary>Connection to the current request's tenant DB (vkre_db1 by default).</summary>
     public static MySqlConnection Create() => new(TenantContext.Conn);
 
-    /// <summary>Connection to the crm_master agency registry.</summary>
     public static MySqlConnection CreateMaster() => new(_masterConn);
 }

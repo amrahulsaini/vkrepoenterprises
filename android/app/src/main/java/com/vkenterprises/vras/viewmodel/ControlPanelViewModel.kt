@@ -29,13 +29,11 @@ data class ControlPanelUiState(
     val selectedUser: AdminUserItem?   = null,
     val subs: List<SubscriptionRecord> = emptyList(),
     val subsLoading: Boolean           = false,
-    // Full profile of the selected user — KYC, bank details, address, pincode,
-    // balance, joined date. Loaded in parallel with subs when a user is opened.
     val selectedProfile: ProfileResponse? = null,
     val profileLoading: Boolean        = false,
     val showAddDialog: Boolean         = false,
-    val addStartDate: String           = "",   // YYYY-MM-DD
-    val addEndDate: String             = "",   // YYYY-MM-DD
+    val addStartDate: String           = "",
+    val addEndDate: String             = "",
     val addAmount: String              = "",
     val addNotes: String               = "",
     val addError: String?              = null,
@@ -108,8 +106,6 @@ class ControlPanelViewModel @Inject constructor(
                 profileLoading  = true
             )
         }
-        // Subscriptions + full profile (KYC + bank) loaded in parallel so the
-        // detail screen paints quickly with everything an admin needs.
         viewModelScope.launch {
             runCatching {
                 val resp = api.getUserSubscriptions(adminUserId, user.id)
@@ -139,7 +135,6 @@ class ControlPanelViewModel @Inject constructor(
         it.copy(selectedUser = null, subs = emptyList(), selectedProfile = null)
     }
 
-    // ── User state toggles ─────────────────────────────────────────────────
     private fun mutateSelected(transform: (AdminUserItem) -> AdminUserItem) {
         val cur = _ui.value.selectedUser ?: return
         val updated = transform(cur)
@@ -153,8 +148,6 @@ class ControlPanelViewModel @Inject constructor(
 
     fun setActive(active: Boolean) {
         val user = _ui.value.selectedUser ?: return
-        // Gate activation on a verified KYC — mirrors the desktop manager.
-        // Deactivating is always allowed.
         if (active) {
             val status = _ui.value.selectedProfile?.kyc?.kycStatus
             if (status != null && !status.equals("success", ignoreCase = true)) {
@@ -174,9 +167,6 @@ class ControlPanelViewModel @Inject constructor(
         }
     }
 
-    // ── KYC review (Mark Verified / Reject) ────────────────────────────────
-    // status: "success" | "failed". Reloads the user afterwards so the badge,
-    // OKYC details and (on reject) the now-inactive state all refresh.
     fun setKycStatus(status: String, note: String?) {
         val user = _ui.value.selectedUser ?: return
         viewModelScope.launch {
@@ -188,7 +178,6 @@ class ControlPanelViewModel @Inject constructor(
                 )
                 if (resp.isSuccessful) {
                     _ui.update { it.copy(busy = false) }
-                    // Re-pull profile + subs (reject also deactivates the user).
                     selectUser(user)
                 } else {
                     _ui.update { it.copy(busy = false, errorMsg = "Failed to update KYC status") }
@@ -226,7 +215,6 @@ class ControlPanelViewModel @Inject constructor(
         }
     }
 
-    // Promote/demote the selected user to/from admin.
     fun setAdmin(admin: Boolean) {
         val user = _ui.value.selectedUser ?: return
         viewModelScope.launch {
@@ -240,7 +228,6 @@ class ControlPanelViewModel @Inject constructor(
         }
     }
 
-    // ── Subscriptions ──────────────────────────────────────────────────────
     fun showAddDialog() = _ui.update {
         it.copy(showAddDialog = true, addStartDate = "", addEndDate = "",
             addAmount = "", addNotes = "", addError = null)

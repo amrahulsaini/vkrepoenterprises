@@ -50,7 +50,6 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlin.coroutines.resume
 
-// Standard / legacy-long / Bharat-series — see SearchViewModel for full notes.
 private val RC_REGEX = Regex(
     "^([A-Z]{2}[0-9]{2}[A-Z]{1,3}[0-9]{4}|[A-Z]{2}[0-9]{5,7}|[0-9]{2}BH[0-9]{4}[A-Z]{1,2})$"
 )
@@ -121,8 +120,6 @@ fun VehicleDetailScreen(
     val isAdmin    by authVm.isAdmin.collectAsState(initial = false)
     val context    = LocalContext.current
 
-    // Live agency name (set in WPF → Server Settings) for the WhatsApp/SMS
-    // message — falls back to the build-time name until the fetch lands.
     var waAgencyName by remember { mutableStateOf(BuildConfig.AGENCY_NAME) }
     LaunchedEffect(Unit) {
         runCatching {
@@ -139,8 +136,6 @@ fun VehicleDetailScreen(
     var selectedBranchIdx by remember { mutableStateOf(0) }
     val selChecked = remember { mutableStateMapOf<String, Boolean>() }
 
-    // Use the un-deduplicated allResults so a vehicle found in multiple
-    // finances shows every finance row in "FOUND IN FINANCES".
     val vehicleRecords = remember(item?.vehicleNo, item?.chassisNo, ui.allResults) {
         if (item == null) emptyList()
         else ui.allResults.filter { r ->
@@ -162,20 +157,12 @@ fun VehicleDetailScreen(
          .sortedByDescending { it.createdOn }
     }
 
-    // Auto-show the "FOUND IN FINANCES" sheet for admins ONCE when a vehicle's
-    // detail opens. Keyed on the selected vehicle's id — NOT on uniqueBranches —
-    // so re-searching from the top quick-search bar (which changes the result
-    // set) doesn't make the sheet flash open for a second on the way out.
     LaunchedEffect(isAdmin, item?.id) {
         if (isAdmin && item != null && uniqueBranches.isNotEmpty()) showBranchSheet = true
     }
 
     val branchRecord: SearchResult? = uniqueBranches.getOrNull(selectedBranchIdx)?.record ?: item
 
-    // Search now returns SKINNY rows, so fetch the FULL record for whichever
-    // finance is selected, on demand. `detailRecord` uses the fetched full
-    // record once its id matches the selection; until then the skinny row shows
-    // (vehicle no, model, finance) so nothing looks blank while it loads.
     val selectedId = branchRecord?.id
     LaunchedEffect(selectedId) {
         if (selectedId != null) {
@@ -183,10 +170,6 @@ fun VehicleDetailScreen(
             if (uid != 0L) searchVm.fetchFullRecord(selectedId, uid)
         }
     }
-    // Prefer the full record for the SELECTED finance. If that exact fetch isn't
-    // back yet, still prefer ANY full record already loaded for this same vehicle
-    // over the skinny branch row — so WhatsApp / OK-Repo / Copy / Confirm never
-    // emit blank ("null") fields just because the detail fetch is mid-flight.
     val detailRecord: SearchResult? = when {
         selectedId != null && ui.fullRecord?.id == selectedId -> ui.fullRecord
         ui.fullRecord != null && branchRecord != null &&
@@ -223,8 +206,6 @@ fun VehicleDetailScreen(
     }
 
     if (showWaSheet && item != null) {
-        // Local input state — vehicle location + load details. Kept inside
-        // the sheet so values don't survive once it's dismissed.
         var vehicleLocation by remember(showWaSheet) { mutableStateOf("") }
         var loadDetails     by remember(showWaSheet) { mutableStateOf("") }
         ModalBottomSheet(onDismissRequest = { showWaSheet = false }) {
@@ -280,9 +261,6 @@ fun VehicleDetailScreen(
         CopyDialog(item = detailRecord ?: item, onDismiss = { showCopyDialog = false }, context = context)
     }
 
-    // ── FOUND IN BRANCHES bottom sheet ────────────────────────────────────────
-    // Slides up from the bottom on entry (and on demand via the chip in the
-    // header). Tap a card → details panel updates with that finance's data.
     if (showBranchSheet && uniqueBranches.isNotEmpty()) {
         ModalBottomSheet(onDismissRequest = { showBranchSheet = false }) {
             Column(
@@ -324,7 +302,6 @@ fun VehicleDetailScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                // Finance = the DB branch name (the displayed "Finance")
                                 Text(
                                     entry.branch.ifBlank { "—" },
                                     style      = MaterialTheme.typography.bodyMedium,
@@ -339,7 +316,6 @@ fun VehicleDetailScreen(
                                     color = Color(0xFFF57F17)
                                 )
                             }
-                            // Head Office = the DB finance name (financer)
                             if (entry.financer.isNotBlank()) {
                                 Text(
                                     "Head Office: ${entry.financer}",
@@ -355,7 +331,6 @@ fun VehicleDetailScreen(
         }
     }
 
-    // Agents get an all-white detail screen (per request); admin keeps the theme.
     val pageBg = if (isAdmin) MaterialTheme.colorScheme.background else Color.White
     Scaffold(
         containerColor = pageBg,
@@ -410,8 +385,6 @@ fun VehicleDetailScreen(
                             color = if (showSelection) Color(0xFF4A148C) else Color(0xFF6A1B9A),
                             modifier = Modifier.weight(1f)
                         ) {
-                            // Copy the SELECTED finance's record (vehicle + branch
-                            // fields), so what you copy matches what's on screen.
                             val currentBr   = detailRecord ?: item
                             val currentItem = currentBr
                             if (showSelection) {
@@ -480,8 +453,6 @@ fun VehicleDetailScreen(
         }
 
         Column(Modifier.padding(pad).fillMaxSize()) {
-            // Sticky quick-search bar so the user can search another vehicle
-            // without having to back out of this screen first.
             QuickSearchBar(
                 searchVm = searchVm,
                 authVm   = authVm,
@@ -494,20 +465,11 @@ fun VehicleDetailScreen(
                     .fillMaxWidth()
                     .weight(1f)
                     .verticalScroll(rememberScrollState())
-                    // Minimal side margin so admin detail rows use the full width.
                     .padding(horizontal = 8.dp, vertical = 10.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 if (isAdmin) {
                     AdminDetailView(
-                        // Show the SELECTED finance's full record for BOTH the
-                        // vehicle fields and the branch fields. The same RC can
-                        // exist under several finances with DIFFERENT data (one
-                        // finance's copy may have bucket/region/level filled, the
-                        // next blank), so the vehicle fields must follow the chosen
-                        // finance — not the first-tapped (deduped) copy. This makes
-                        // the Android detail match the desktop, which opens the
-                        // selected row in full.
                         item              = detailRecord ?: item,
                         branchRecord      = detailRecord ?: item,
                         uniqueBranches    = uniqueBranches,
@@ -519,9 +481,6 @@ fun VehicleDetailScreen(
                         onShowBranchSheet = { showBranchSheet = true }
                     )
                 } else {
-                    // Feed the FULL fetched record (not the skinny search row) so
-                    // Customer Name + Engine No actually populate — the skinny row
-                    // leaves them blank, which made those rows silently vanish.
                     BasicDetailView(item = detailRecord ?: item, agentName = agentName, agentPhone = agentPhone)
                 }
                 Spacer(Modifier.height(8.dp))
@@ -530,10 +489,6 @@ fun VehicleDetailScreen(
     }
 }
 
-// Compact search input pinned at the top of the detail screen. Mirrors the
-// home-screen behaviour: digits-only, capped at 4 (RC) or 5 (Chassis). When
-// the input fills to the required length it kicks off a fresh search via the
-// shared SearchViewModel and pops back to the results list.
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun QuickSearchBar(
@@ -551,10 +506,6 @@ private fun QuickSearchBar(
     else
         "Search by last 5 digits of Chassis"
 
-    // Auto-focus the field (and pop the numeric keyboard) as soon as a
-    // vehicle's records are shown, so the next search needs no extra tap.
-    // requestFocus() throws until the field is actually laid out, so we
-    // retry for up to ~1.5 s instead of relying on a single fixed delay.
     val focusRequester = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
     LaunchedEffect(Unit) {
@@ -603,7 +554,6 @@ private fun QuickSearchBar(
     }
 }
 
-// ── Admin full detail view ─────────────────────────────────────────────────
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -618,7 +568,6 @@ private fun AdminDetailView(
     selChecked: SnapshotStateMap<String, Boolean>,
     onShowBranchSheet: () -> Unit
 ) {
-    // Top row: "Found in N branches" chip (left) + Select-fields toggle (right)
     Row(
         Modifier.fillMaxWidth().padding(bottom = 2.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -657,9 +606,6 @@ private fun AdminDetailView(
         }
     }
 
-    // No box / card — the detail entries span the full width, edge-to-edge,
-    // with no surrounding margin (per request). The double Column keeps the
-    // brace structure unchanged while removing the Card + its inner padding.
     Column(Modifier.fillMaxWidth()) {
         Column(Modifier.fillMaxWidth()) {
 
@@ -713,9 +659,6 @@ private fun AdminDetailView(
 
             CSep()
 
-            // One row per level: the name on the first line and, if present, its
-            // contact number on the next line (blue, tap-to-dial, long-press to
-            // copy). No separate "Level N Contact" label rows.
             SLevelRow("Level 1", item.level1, item.level1Contact,
                 sel = showSelection, chk = selChecked["Level 1"] == true) { selChecked["Level 1"] = it }
             SLevelRow("Level 2", item.level2, item.level2Contact,
@@ -763,16 +706,11 @@ private fun AdminDetailView(
         }
     }
 
-    // The "FOUND IN BRANCHES" list lives in a bottom sheet now — it auto-opens
-    // on entry and the chip in the header re-opens it on demand. See parent.
 }
 
-// ── Non-admin basic view ───────────────────────────────────────────────────
 
 @Composable
 private fun BasicDetailView(item: SearchResult, agentName: String, agentPhone: String) {
-    // Live agency profile — fetched once per screen. The build-time BuildConfig
-    // values are the fallback when offline / the call fails.
     var agencyInfo by remember { mutableStateOf<AgencyInfo?>(null) }
     LaunchedEffect(Unit) {
         runCatching {
@@ -785,11 +723,10 @@ private fun BasicDetailView(item: SearchResult, agentName: String, agentPhone: S
     val mobiles = agencyInfo?.mobiles?.takeIf { it.isNotEmpty() }
                   ?: listOfNotNull(BuildConfig.AGENCY_MOBILE.ifBlank { null })
 
-    // Everything in ONE white box: Vehicle Information then Agency.
     Card(
         shape  = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(0.dp),  // 0 = no tonal tint = pure white
+        elevation = CardDefaults.cardElevation(0.dp),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         modifier  = Modifier.fillMaxWidth()
     ) {
@@ -799,8 +736,6 @@ private fun BasicDetailView(item: SearchResult, agentName: String, agentPhone: S
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary)
             HorizontalDivider(color = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f))
-            // ONLY these 5 fields on the user side — always shown (label + dash
-            // if empty), values in CAPITALS.
             DetailRow("Vehicle No",    item.vehicleNo, alwaysShow = true, upper = true,
                 invalid = item.vehicleNo.isNotBlank() && !item.vehicleNo.isValidRc())
             DetailRow("Chassis No",    item.chassisNo,    alwaysShow = true, upper = true)
@@ -828,7 +763,6 @@ private fun BasicDetailView(item: SearchResult, agentName: String, agentPhone: S
     }
 }
 
-// ── Copy dialog ────────────────────────────────────────────────────────────
 
 @Composable
 private fun CopyDialog(item: SearchResult, onDismiss: () -> Unit, context: Context) {
@@ -920,7 +854,6 @@ private fun CopyDialog(item: SearchResult, onDismiss: () -> Unit, context: Conte
     )
 }
 
-// ── Helpers ────────────────────────────────────────────────────────────────
 
 private fun buildLevelStr(name: String?, contact: String?): String {
     val n = name.orEmpty().trim()
@@ -942,7 +875,6 @@ private fun buildQuickWaMessage(
 ): String = buildString {
     appendLine("*Respected sir,*")
     appendLine("Customer Name: *${item.customerName.orEmpty().ifBlank { "-" }}*")
-    // OK-for-repo messages also carry the Loan / Agreement No (per request).
     if (status.contains("repo", ignoreCase = true))
         appendLine("Loan No: *${item.agreementNo.orEmpty().ifBlank { "-" }}*")
     appendLine("Vehicle No: *${item.vehicleNo.orEmpty()}*")
@@ -955,16 +887,9 @@ private fun buildQuickWaMessage(
     appendLine("Status: *$status*")
     if (agentName.isNotBlank() && agentPhone.isNotBlank())
         appendLine("$agentName - $agentPhone")
-    // Agency name = live name from WPF → Server Settings (passed in), with the
-    // build-time name as the fallback default.
     append("Agency Name: *${agencyName}*")
 }
 
-// Share the message into WhatsApp. Prefer regular WhatsApp Messenger
-// (com.whatsapp); if only WhatsApp Business (com.whatsapp.w4b) is present, use
-// that; otherwise fall back to a chooser. Using ACTION_SEND (not the wa.me
-// deep link) avoids WhatsApp Business hijacking the link and failing with
-// "your number is not registered to WhatsApp Business".
 private fun openWhatsApp(context: Context, message: String) {
     val base = Intent(Intent.ACTION_SEND).apply {
         type = "text/plain"
@@ -981,10 +906,7 @@ private fun openWhatsApp(context: Context, message: String) {
     }
 }
 
-// ── Compact row with optional selection checkbox ───────────────────────────
 
-// Any run of 6+ digits is treated as a dialable number (mobile, landline,
-// etc.). Per request, ALL numbers are tappable — not just 10-digit mobiles.
 private val PHONE_REGEX = Regex("\\d{6,}")
 
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
@@ -994,14 +916,12 @@ private fun SRow(
     value: String?,
     mono: Boolean = false,
     invalid: Boolean = false,
-    dialable: Boolean = false,   // only Level-contact rows: numbers shown blue + tap-to-dial
+    dialable: Boolean = false,
     sel: Boolean = false,
     chk: Boolean = false,
     onChk: (Boolean) -> Unit = {}
 ) {
     val context = LocalContext.current
-    // Admin detail values are shown in CAPITALS — per request, every field on
-    // the admin side reads in uppercase, always.
     val display = value.orEmpty().let { if (it.isBlank()) it else it.uppercase() }
 
     val baseColor = if (invalid) MaterialTheme.colorScheme.error
@@ -1009,9 +929,6 @@ private fun SRow(
                     else MaterialTheme.colorScheme.onSurface
     val phoneColor = MaterialTheme.colorScheme.primary
 
-    // Only "dialable" rows (the Level contacts) highlight numbers in blue and
-    // make them tap-to-dial. Every other field — customer/branch contacts,
-    // agreement no, chassis, etc. — is plain text, no blue, no keypad.
     val phoneMatches = if (dialable) PHONE_REGEX.findAll(display).toList() else emptyList()
     val firstNumber  = phoneMatches.firstOrNull()?.value
     val annotated = remember(display, phoneColor, baseColor, dialable) {
@@ -1052,16 +969,10 @@ private fun SRow(
             color      = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier   = Modifier.padding(end = 8.dp)
         )
-        // Value cell: tap dials the first number in the value; long-press copies
-        // the whole value. FontWeight.Black + FontFamily.Default forces a heavy
-        // bold that renders even on phones with a custom system font.
         Text(
             text = annotated,
             style = MaterialTheme.typography.bodyLarge.copy(
                 color      = baseColor,
-                // Always Default family — Monospace has no real bold face on
-                // Android, so Vehicle/Chassis/Eng/Agreement rendered thin. Roboto
-                // Black is a true heavy weight that shows bold on every device.
                 fontWeight = if (display.isBlank()) FontWeight.Normal else FontWeight.Black,
                 fontFamily = FontFamily.Default
             ),
@@ -1100,12 +1011,6 @@ private fun CRow(label: String, value: String?, mono: Boolean = false, invalid: 
     SRow(label, value, mono, invalid)
 }
 
-// Level row: the level NAME and its CONTACT shown together as one value, with
-// any phone number in it highlighted blue + tap-to-dial (long-press copies the
-// whole value). The data frequently stores the number INSIDE the name field
-// (e.g. "ANOOP SINGH TOMAR - 9301108659", contact column blank), so we must
-// detect numbers across the whole combined string — that's exactly what
-// SRow(dialable = true) already does, so we delegate to it.
 @Composable
 private fun SLevelRow(
     label: String,
@@ -1168,7 +1073,6 @@ private fun WaOptionButton(label: String, color: Color, onClick: () -> Unit) {
     }
 }
 
-// ── Old DetailRow (kept for BasicDetailView) ───────────────────────────────
 
 @Composable
 private fun DetailRow(
@@ -1176,8 +1080,6 @@ private fun DetailRow(
     valueColor: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.onSurface,
     invalid: Boolean = false,
     isPhone: Boolean = false,
-    // alwaysShow: render the row even when the value is empty (label + dash) so
-    // the agent sees every field exists. upper: show the value in CAPITALS.
     alwaysShow: Boolean = false,
     upper: Boolean = false
 ) {
@@ -1185,7 +1087,6 @@ private fun DetailRow(
     val context = LocalContext.current
     val primary = MaterialTheme.colorScheme.primary
     val baseColor = if (invalid) MaterialTheme.colorScheme.error else valueColor
-    // What actually renders: dash when empty; CAPITALS for record values.
     val shown = when {
         value.isNullOrBlank() -> "—"
         upper                 -> value.uppercase()
@@ -1204,9 +1105,6 @@ private fun DetailRow(
                 .weight(0.62f)
                 .then(
                     if (isPhone && !value.isNullOrBlank()) Modifier.clickable {
-                        // Tap-to-dial: opens the phone dialer pre-filled with
-                        // the number. No CALL_PHONE permission needed — ACTION_DIAL
-                        // shows the dialer and the user taps the green button.
                         runCatching {
                             context.startActivity(
                                 Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + (value ?: "").replace(" ", "")))
@@ -1217,8 +1115,6 @@ private fun DetailRow(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            // FontWeight.Black + FontFamily.Default forces a heavy bold that
-            // renders on every device regardless of the user's system font.
             Text(shown,
                 style      = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Black,
@@ -1243,7 +1139,6 @@ private fun DetailRow(
     }
 }
 
-// ── Location helpers ───────────────────────────────────────────────────────
 
 private suspend fun reverseGeocode(context: Context, lat: Double?, lng: Double?): String? {
     if (lat == null || lng == null) return null

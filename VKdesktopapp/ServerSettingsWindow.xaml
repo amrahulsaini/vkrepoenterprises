@@ -15,7 +15,6 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <!-- ── Custom title bar with drag + close ── -->
         <Grid Grid.Row="0" Background="{StaticResource Gray900}"
               MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
             <Grid.ColumnDefinitions>
@@ -48,7 +47,6 @@
             </Button>
         </Grid>
 
-        <!-- ── Scrollable form ── -->
         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto"
                       HorizontalScrollBarVisibility="Disabled">
             <StackPanel Margin="24,18,24,8">
@@ -69,7 +67,6 @@
                 <TextBlock Text="Secondary Mobile Number" Style="{StaticResource FormHeading}" />
                 <TextBox Name="txtMobile2" Style="{StaticResource MaterialTextBox}" Margin="0,4,0,12" />
 
-                <!-- Extra contacts (up to 20) -->
                 <DockPanel Margin="0,4,0,6">
                     <TextBlock Text="Additional Contact Numbers" Style="{StaticResource FormHeading}"
                                VerticalAlignment="Center" DockPanel.Dock="Left" />
@@ -121,12 +118,10 @@
             </StackPanel>
         </ScrollViewer>
 
-        <!-- ── Action buttons (always pinned, never scroll) ── -->
         <Border Grid.Row="2" Background="{StaticResource Gray50}"
                 BorderBrush="{StaticResource Gray200}" BorderThickness="0,1,0,0">
             <StackPanel Margin="24,12,24,12">
                 <DockPanel LastChildFill="False">
-                    <!-- Left: session actions -->
                     <Button Name="btnLogout" DockPanel.Dock="Left" Click="btnLogout_Click"
                             Content="LOG OUT"
                             Style="{StaticResource SecondaryButton}"
@@ -135,7 +130,6 @@
                             Content="EXIT APP"
                             Style="{StaticResource OutlineButton}"
                             Width="110" />
-                    <!-- Right: save / cancel -->
                     <Button Name="btnSave" DockPanel.Dock="Right" Click="btnSave_Click"
                             Content="SAVE"
                             Style="{StaticResource PrimaryButton}"
@@ -145,11 +139,9 @@
                             Style="{StaticResource SecondaryButton}"
                             Width="110" Margin="0,0,8,0" />
                 </DockPanel>
-                <!-- ── Branded footer: "Developed by CRMRS" (→ website) + purchase contact ── -->
                 <Border Margin="0,14,0,0" Padding="14,11" CornerRadius="8"
                         Background="White" BorderBrush="{StaticResource Gray200}" BorderThickness="1">
                     <StackPanel>
-                        <!-- Logo + "Developed by CRMRS" (clickable → main website) -->
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                             <Image Source="public/crmrs-logo.png" Width="22" Height="22"
                                    RenderOptions.BitmapScalingMode="HighQuality"
@@ -173,7 +165,6 @@
 
                         <Border Height="1" Background="{StaticResource Gray200}" Margin="0,9,0,8" />
 
-                        <!-- Purchase / enquiries -->
                         <TextBlock Text="For purchase &amp; enquiries"
                                    HorizontalAlignment="Center" FontSize="11" FontWeight="SemiBold"
                                    Foreground="{StaticResource Gray700}" Margin="0,0,0,5" />

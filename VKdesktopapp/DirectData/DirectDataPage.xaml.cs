@@ -24,7 +24,6 @@ public partial class DirectDataPage : Page
         await LoadFilesAsync();
     }
 
-    // ── View toggle ────────────────────────────────────────────────────────
 
     private async void btnShowFiles_Click(object sender, RoutedEventArgs e)
     {
@@ -56,7 +55,6 @@ public partial class DirectDataPage : Page
         else               await LoadCredsAsync();
     }
 
-    // ── Load files ─────────────────────────────────────────────────────────
 
     private async Task LoadFilesAsync()
     {
@@ -104,7 +102,6 @@ public partial class DirectDataPage : Page
         dgFiles.ItemsSource = result.ToList();
     }
 
-    // ── Load credentials ───────────────────────────────────────────────────
 
     private async Task LoadCredsAsync()
     {
@@ -126,7 +123,6 @@ public partial class DirectDataPage : Page
         }
     }
 
-    // ── Filter events ──────────────────────────────────────────────────────
 
     private void cmbBank_SelectionChanged(object sender, SelectionChangedEventArgs e)
         => ApplyFilesFilter();
@@ -134,7 +130,6 @@ public partial class DirectDataPage : Page
     private void txtSearch_TextChanged(object sender, TextChangedEventArgs e)
         => ApplyFilesFilter();
 
-    // ── Download CSV ───────────────────────────────────────────────────────
 
     private async void btnDownload_Click(object sender, RoutedEventArgs e)
     {
@@ -172,7 +167,6 @@ public partial class DirectDataPage : Page
         }
     }
 
-    // ── Add credential ─────────────────────────────────────────────────────
 
     private async void btnAddCred_Click(object sender, RoutedEventArgs e)
     {
@@ -204,7 +198,6 @@ public partial class DirectDataPage : Page
         }
     }
 
-    // ── Delete credential ──────────────────────────────────────────────────
 
     private async void btnDeleteCred_Click(object sender, RoutedEventArgs e)
     {
@@ -231,7 +224,6 @@ public partial class DirectDataPage : Page
         }
     }
 
-    // ── DTOs ───────────────────────────────────────────────────────────────
 
     private record WebhookFileItem(
         int Id, string BankName, string FileName, string VehicleType,

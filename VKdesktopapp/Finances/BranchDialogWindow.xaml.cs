@@ -54,9 +54,6 @@ public partial class BranchDialogWindow : Window
         }
     }
 
-    // Re-pull the latest branches from the server — for when a branch/finance was
-    // created (or records uploaded) after this window opened, so the picker isn't
-    // stuck on a stale snapshot. Keeps the current search term applied.
     private async void btnRefresh_Click(object sender, RoutedEventArgs e)
     {
         btnRefresh.IsEnabled = false;
@@ -87,11 +84,6 @@ public partial class BranchDialogWindow : Window
         }
     }
 
-    // Every whitespace-separated word in the query must appear (case-insensitive)
-    // somewhere in the name. Tolerant of double/extra spaces in the stored names
-    // (e.g. "TATA MOTORS FINANCE LTD  KISHOR NON TBR 2" has two spaces) and of
-    // word order — a plain Contains failed because "ltd kishor" (one space) does
-    // not match "ltd  kishor" (two spaces).
     private static bool MatchesAllWords(string? target, string? query)
     {
         if (string.IsNullOrWhiteSpace(query)) return true;

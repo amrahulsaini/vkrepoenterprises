@@ -23,10 +23,6 @@ class SyncWorker @AssistedInject constructor(
             if (runAttemptCount < 2) Result.retry() else Result.failure()
         }
 
-        // Self-chain: schedule the next run 60 seconds from now.
-        // This gives ~60s background sync even when the app process is alive but
-        // the ViewModel polling loop isn't running. The periodic 15-min work in
-        // VKApp is a safety net for when this chain breaks (process killed, reboot).
         if (result == Result.success()) {
             val next = OneTimeWorkRequestBuilder<SyncWorker>()
                 .setInitialDelay(60, TimeUnit.SECONDS)

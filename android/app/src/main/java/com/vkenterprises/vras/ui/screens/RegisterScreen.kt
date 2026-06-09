@@ -69,7 +69,6 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
     val scope        = rememberCoroutineScope()
     val scrollState  = rememberScrollState()
 
-    // Basic fields
     var mobile   by remember { mutableStateOf("") }
     var name     by remember { mutableStateOf("") }
     var address  by remember { mutableStateOf("") }
@@ -77,7 +76,6 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
     var pfpUri   by remember { mutableStateOf<Uri?>(null) }
     var pfpB64   by remember { mutableStateOf<String?>(null) }
 
-    // KYC photos (selfie-with-Aadhaar and bank details removed per request)
     var aadhaarFrontUri by remember { mutableStateOf<Uri?>(null) }
     var aadhaarFrontB64 by remember { mutableStateOf<String?>(null) }
     var aadhaarBackUri  by remember { mutableStateOf<Uri?>(null) }
@@ -85,7 +83,6 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
     var panFrontUri     by remember { mutableStateOf<Uri?>(null) }
     var panFrontB64     by remember { mutableStateOf<String?>(null) }
 
-    // Aadhaar OKYC state
     var aadhaarNumber by remember { mutableStateOf("") }
     var ocrRunning    by remember { mutableStateOf(false) }
     var otpRefId      by remember { mutableStateOf<String?>(null) }
@@ -98,9 +95,8 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
     var aaDob     by remember { mutableStateOf<String?>(null) }
     var aaGender  by remember { mutableStateOf<String?>(null) }
     var aaAddress by remember { mutableStateOf<String?>(null) }
-    var aaPhoto   by remember { mutableStateOf<String?>(null) }  // UIDAI photo (base64)
+    var aaPhoto   by remember { mutableStateOf<String?>(null) }
 
-    // Live location
     var regLat   by remember { mutableStateOf<Double?>(null) }
     var regLng   by remember { mutableStateOf<Double?>(null) }
     var regLabel by remember { mutableStateOf<String?>(null) }
@@ -108,13 +104,12 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
 
     var error by remember { mutableStateOf("") }
 
-    // Mobile-number SMS OTP (MSG91) — separate from the Aadhaar OKYC OTP below.
     var mobileOtpSent  by remember { mutableStateOf(false) }
     var mobileOtp      by remember { mutableStateOf("") }
     var mobileVerified by remember { mutableStateOf(false) }
     var mobileOtpBusy  by remember { mutableStateOf(false) }
     var mobileOtpMsg   by remember { mutableStateOf("") }
-    var mobileCooldown by remember { mutableStateOf(0) }   // resend cooldown (s)
+    var mobileCooldown by remember { mutableStateOf(0) }
     LaunchedEffect(mobileCooldown) {
         if (mobileCooldown > 0) { kotlinx.coroutines.delay(1000); mobileCooldown-- }
     }
@@ -124,8 +119,6 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
 
     fun uriToBase64(uri: Uri): String? = runCatching { compressImageToBase64(context, uri) }.getOrNull()
 
-    // Captures the device's current fix + reverse-geocodes a human label. Called
-    // after location permission is granted and from the "Capture again" button.
     fun captureLocation() {
         scope.launch {
             val fine = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) ==
@@ -137,9 +130,6 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
             @android.annotation.SuppressLint("MissingPermission")
             val loc = runCatching {
                 val client = LocationServices.getFusedLocationProviderClient(context)
-                // Fresh high-accuracy fix; if the GPS is cold and returns null,
-                // fall back to the OS-cached last position so we still capture
-                // *something* rather than leaving the field empty.
                 val fresh = suspendCancellableCoroutine<android.location.Location?> { cont ->
                     client.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
                         .addOnSuccessListener { cont.resume(it) }
@@ -172,17 +162,10 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
         }
     }
 
-    // Shows the system "Turn on location?" dialog if device location services
-    // are off; on OK we capture. Declared before ensureLocationThenCapture so
-    // there's no forward reference.
     val settingsLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartIntentSenderForResult()
     ) { _ -> captureLocation() }
 
-    // Assumes location PERMISSION is already granted. Checks whether device
-    // location SERVICES (GPS) are on; if not, pops the standard enable dialog,
-    // then captures. This is why nothing happened before when GPS was off —
-    // we never asked the user to switch it on.
     fun ensureLocationThenCapture() {
         val request = LocationSettingsRequest.Builder()
             .addLocationRequest(
@@ -225,12 +208,10 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
         aadhaarFrontUri = uri
         if (uri != null) scope.launch {
             aadhaarFrontB64 = uriToBase64(uri)
-            // Auto-read the Aadhaar number off the front photo (on-device OCR).
             ocrRunning = true
             val num = runCatching { extractAadhaarNumber(context, uri) }.getOrNull()
             if (!num.isNullOrBlank()) {
                 aadhaarNumber = num
-                // A new number invalidates any previous OTP verification.
                 aadhaarVerified = false; otpRefId = null; otp = ""
             }
             ocrRunning = false
@@ -243,7 +224,6 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
         panFrontUri = uri; panFrontB64 = uri?.let { uriToBase64(it) }
     }
 
-    // Ask for permission + GPS as soon as the screen opens so the fix is ready.
     LaunchedEffect(Unit) { requestLocation() }
 
     LaunchedEffect(state) {
@@ -287,7 +267,6 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
 
-            // ── Profile photo ──────────────────────────────────────────
             Box(Modifier.align(Alignment.CenterHorizontally), contentAlignment = Alignment.BottomEnd) {
                 if (pfpUri != null) {
                     AsyncImage(
@@ -322,7 +301,6 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            // ── Agency identity card ───────────────────────────────────
             Surface(
                 shape = RoundedCornerShape(14.dp),
                 color = Color.White,
@@ -347,14 +325,12 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
                 }
             }
 
-            // ── Basic info ─────────────────────────────────────────────
             SectionHeader("Basic Information")
 
             FocusedField(scrollState) {
                 OutlinedTextField(
                     value = mobile,
                     onValueChange = {
-                        // Editing the number invalidates any prior verification.
                         if (!mobileVerified) { mobile = it; mobileOtpSent = false; mobileOtp = "" }
                     },
                     label = { Text("Mobile Number *") },
@@ -366,7 +342,6 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
                 )
             }
 
-            // ── Mobile number verification (SMS OTP) ───────────────────
             if (!mobileVerified) {
                 if (!mobileOtpSent) {
                     Button(
@@ -374,8 +349,6 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
                             focusManager.clearFocus(); mobileOtpMsg = ""
                             if (mobile.isBlank()) { mobileOtpMsg = "Enter your mobile number first."; return@Button }
                             mobileOtpBusy = true
-                            // FIRST check the number isn't already registered — don't
-                            // waste an OTP on someone who should just log in.
                             vm.checkMobile(mobile, agencySlug) { registered, checkErr ->
                                 when {
                                     checkErr != null -> { mobileOtpBusy = false; mobileOtpMsg = checkErr }
@@ -459,7 +432,6 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
                 )
             }
 
-            // ── Aadhaar verification (OKYC) ────────────────────────────
             SectionHeader("Aadhaar Verification")
             Text(
                 "Upload your Aadhaar front photo — we read the number automatically — " +
@@ -572,7 +544,6 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
                 Text(kycMsg, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
             }
 
-            // Verified demographics — read straight from UIDAI via Sandbox OKYC.
             if (aadhaarVerified) {
                 Surface(
                     shape = RoundedCornerShape(12.dp),
@@ -586,7 +557,6 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
                             Spacer(Modifier.width(6.dp))
                             Text("Aadhaar Verified", fontWeight = FontWeight.Bold, color = OK_GREEN)
                         }
-                        // Photo returned by UIDAI for this Aadhaar.
                         val uidaiBmp = remember(aaPhoto) {
                             aaPhoto?.let {
                                 runCatching {
@@ -616,7 +586,6 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
                 }
             }
 
-            // ── PAN card (optional) ────────────────────────────────────
             SectionHeader("PAN Card (optional)")
             KycImageCard(
                 label = "PAN Card Front",
@@ -625,7 +594,6 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
                 onClick = { panFrontPicker.launch("image/*") }
             )
 
-            // ── Live location ──────────────────────────────────────────
             SectionHeader("Current Location")
             Surface(
                 shape = RoundedCornerShape(12.dp),
@@ -659,7 +627,6 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
                 }
             }
 
-            // ── Error ──────────────────────────────────────────────────
             if (error.isNotEmpty()) {
                 Card(colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.errorContainer)) {
@@ -668,7 +635,6 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
                 }
             }
 
-            // ── Submit ─────────────────────────────────────────────────
             Button(
                 onClick = {
                     focusManager.clearFocus()
@@ -677,7 +643,6 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
                         !mobileVerified                    -> "Please verify your mobile number with the OTP."
                         address.isBlank()                  -> "Address is required."
                         pincode.isBlank()                  -> "Pincode is required."
-                        // Profile photo is OPTIONAL — no check here.
                         aadhaarFrontB64 == null            -> "Aadhaar front photo is required."
                         aadhaarBackB64 == null             -> "Aadhaar back photo is required."
                         aadhaarNumber.length != 12         -> "Enter your 12-digit Aadhaar number."

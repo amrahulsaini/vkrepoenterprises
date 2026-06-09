@@ -11,15 +11,6 @@ public class MobileController : ControllerBase
 {
     private readonly MobileRepository _repo = new();
 
-    // Builds a full URL for a relative uploads path stored in the DB
-    // (e.g. "pfp/user_1.jpg" → "https://api.crmrecoverysoftware.com/uploads/pfp/user_1.jpg").
-    //
-    // The PUBLIC_BASE_URL env var lets ops switch hosts without a rebuild
-    // (e.g. characterverse.tech for the old install). We do NOT use
-    // Request.Scheme/Request.Host: this controller is invoked by the
-    // VKApiServer reverse-proxy at http://localhost:5001 — those values
-    // would yield "http://localhost:5001/uploads/..." URLs that the
-    // mobile client cannot resolve.
     private static readonly string _publicBase =
         (Environment.GetEnvironmentVariable("PUBLIC_BASE_URL")
          ?? "https://api.crmrecoverysoftware.com").TrimEnd('/');
@@ -29,14 +20,9 @@ public class MobileController : ControllerBase
             ? null
             : $"{_publicBase}/uploads/{relativePath.TrimStart('/')}";
 
-    // Keeps only digits — tolerant compare of mobile numbers regardless of
-    // spaces, +91 prefixes or punctuation.
     private static string Digits(string? s) =>
         string.IsNullOrEmpty(s) ? "" : new string(s.Where(char.IsDigit).ToArray());
 
-    // Strips digit-only mobile of a leading "0" (Indian STD prefix) or "91"
-    // country code so "09850637363", "+919850637363" and "9850637363" all
-    // compare equal. Indian mobiles are 10 digits — anything else is left alone.
     private static string NormalizeMobile(string? s)
     {
         var d = Digits(s);
@@ -45,7 +31,6 @@ public class MobileController : ControllerBase
         return d;
     }
 
-    // GET /api/mobile/agencies — approved agencies for the register / login picker
     [HttpGet("agencies")]
     public async Task<IActionResult> GetAgencies()
     {
@@ -59,10 +44,6 @@ public class MobileController : ControllerBase
         }
     }
 
-    // GET /api/mobile/agency — full agency profile (name, address, all
-    // mobile numbers). Slug comes from the X-Tenant-Token, so the response
-    // is always for the agency this app is signed into. Used by the in-app
-    // "Agency" panel on the vehicle detail screen.
     [HttpGet("agency")]
     public async Task<IActionResult> GetAgencyInfo()
     {
@@ -81,7 +62,6 @@ public class MobileController : ControllerBase
         }
     }
 
-    // POST /api/mobile/register
     [HttpPost("register")]
     public async Task<IActionResult> Register([FromBody] RegisterRequest req)
     {
@@ -94,32 +74,17 @@ public class MobileController : ControllerBase
             if (string.IsNullOrWhiteSpace(req.Slug))
                 return BadRequest(new ApiError(false, "Please select your agency."));
 
-            // Verify the agency exists & is approved, and that the entered
-            // agency mobile number matches the agency's registered one. This
-            // gate stops anyone registering under an agency they don't belong to.
             var agency = await _repo.GetAgencyBySlugAsync(req.Slug.Trim());
             if (!agency.Found || agency.Status != "approved")
                 return BadRequest(new ApiError(false, "That agency is not available. Please pick another."));
 
-            // Mobile must be SMS-OTP verified first (the app does /otp/send +
-            // /otp/verify before calling register). Soft-disable via OTP_REQUIRED=0.
             if (Msg91Otp.Required && !Msg91Otp.IsRecentlyVerified(req.Mobile))
                 return StatusCode(403, new ApiError(false, "otp_required"));
-            // Agency-mobile verification removed per UX request — the
-            // white-label per-flavor build already pins the slug at compile
-            // time, so the user can't pick the wrong agency. If a value is
-            // sent and it's non-blank, we still match it as a soft check.
             var enteredAgencyMobile = NormalizeMobile(req.AgencyMobile);
             if (enteredAgencyMobile.Length > 0
                 && enteredAgencyMobile != NormalizeMobile(agency.Mobile1))
                 return BadRequest(new ApiError(false, "The agency's mobile number does not match. Please confirm it with your agency."));
 
-            // ── Cross-agency uniqueness gate ─────────────────────────────
-            // crm_master.app_user_registry keeps a (mobile, device) → slug
-            // record for every approved agency user. A given mobile or device
-            // may only belong to ONE agency. We normalize the user's mobile
-            // (strip leading 0 / +91) so the same person can't slip past the
-            // UNIQUE(mobile) check by varying the format.
             var clean = new {
                 Mobile = NormalizeMobile(req.Mobile),
                 Device = req.DeviceId.Trim(),
@@ -131,12 +96,6 @@ public class MobileController : ControllerBase
                 clean.Mobile, clean.Device, clean.Slug);
             if (existingSlug != null)
             {
-                // Auto-heal stale registry rows. If an admin removed the user
-                // directly from the previous agency's app_users (without going
-                // through the desktop DELETE endpoint), the registry row is
-                // orphaned and would block every future re-registration. Open
-                // the previous agency's DB; if no app_users row matches, drop
-                // the orphan and let registration proceed.
                 var stillLive = await _repo.IsMobileOrDeviceLiveInAgencyAsync(
                     clean.Mobile, clean.Device, existingSlug);
                 if (stillLive)
@@ -148,7 +107,6 @@ public class MobileController : ControllerBase
                     clean.Mobile, clean.Device, existingSlug);
             }
 
-            // All checks passed → register into that agency's own database.
             TenantContext.UseAgency(clean.Slug);
 
             var (success, reason, userId) = await _repo.RegisterAsync(
@@ -166,11 +124,6 @@ public class MobileController : ControllerBase
             if (!success && reason == "mobile_exists")
                 return Conflict(new ApiError(false, "This mobile number is already registered with this agency."));
 
-            // Record in the cross-agency registry. If a concurrent registration
-            // sneaks in first, this throws on the UNIQUE(mobile) and we report
-            // the conflict — the tenant row is harmless (login will fail until
-            // an admin approves, and the registry row prevents this device from
-            // registering elsewhere too).
             try
             {
                 await _repo.RegisterInMasterAsync(clean.Mobile, clean.Device, clean.Slug);
@@ -181,7 +134,7 @@ public class MobileController : ControllerBase
                     "This mobile number or device was just registered with another agency. Please try again."));
             }
 
-            Msg91Otp.ClearVerified(req.Mobile);  // consume the OTP verification
+            Msg91Otp.ClearVerified(req.Mobile);
             return Ok(new { success = true, message = "Registered! Waiting for admin approval.", userId });
         }
         catch (Exception ex)
@@ -190,7 +143,6 @@ public class MobileController : ControllerBase
         }
     }
 
-    // POST /api/mobile/login
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginRequest req)
     {
@@ -201,19 +153,10 @@ public class MobileController : ControllerBase
             if (string.IsNullOrWhiteSpace(req.Slug))
                 return BadRequest(new ApiError(false, "Please select your agency."));
 
-            // Validate the agency, then route this login to its database.
             var agency = await _repo.GetAgencyBySlugAsync(req.Slug.Trim());
             if (!agency.Found || agency.Status != "approved")
                 return BadRequest(new ApiError(false, "That agency is not available."));
 
-            // NOTE: OTP at login is enforced by the LOGIN SCREEN UI (send +
-            // verify before it ever calls this endpoint). We deliberately do NOT
-            // gate the login endpoint on OTP: the status screens (App Stopped /
-            // Awaiting Approval / KYC) all "Check again" by calling login WITHOUT
-            // a fresh OTP, and gating here returned otp_required which the client
-            // mis-rendered as "Awaiting Approval" for already-approved agents.
-            // (Register still enforces OTP server-side — it's the account-creation
-            // step and is only ever reached from the register screen's OTP flow.)
             TenantContext.UseAgency(req.Slug.Trim());
 
             var result = await _repo.LoginAsync(NormalizeMobile(req.Mobile), req.DeviceId.Trim());
@@ -239,7 +182,6 @@ public class MobileController : ControllerBase
         }
     }
 
-    // GET /api/mobile/search/rc/{last4}
     [HttpGet("search/rc/{last4}")]
     public async Task<IActionResult> SearchRc(
         string last4,
@@ -258,7 +200,6 @@ public class MobileController : ControllerBase
             if (!await _repo.HasActiveSubscriptionAsync(userId))
                 return StatusCode(402, new ApiError(false, "subscription_expired"));
 
-            // lite=true → skinny list (instant); full detail fetched per-record via record/{id}.
             var results = lite ? await _repo.SearchByRcLiteAsync(last4, userId)
                                : await _repo.SearchByRcAsync(last4, userId);
             return Ok(new SearchResponse(true, "rc", last4.ToUpper(), results.Count, results));
@@ -269,7 +210,6 @@ public class MobileController : ControllerBase
         }
     }
 
-    // GET /api/mobile/search/chassis/{last5}
     [HttpGet("search/chassis/{last5}")]
     public async Task<IActionResult> SearchChassis(
         string last5,
@@ -298,8 +238,6 @@ public class MobileController : ControllerBase
         }
     }
 
-    // GET /api/mobile/record/{id} — full detail for one record, fetched only
-    // when a (skinny) search result is opened.
     [HttpGet("record/{id:long}")]
     public async Task<IActionResult> GetRecord(
         long id,
@@ -324,7 +262,6 @@ public class MobileController : ControllerBase
         }
     }
 
-    // POST /api/mobile/admin/verify-subs-pass
     [HttpPost("admin/verify-subs-pass")]
     public async Task<IActionResult> VerifySubsPass(
         [FromHeader(Name = "X-User-Id")] long userId,
@@ -344,7 +281,6 @@ public class MobileController : ControllerBase
         }
     }
 
-    // GET /api/mobile/profile/{userId}/subscriptions
     [HttpGet("profile/{userId:long}/subscriptions")]
     public async Task<IActionResult> GetUserSubscriptions(
         long userId,
@@ -363,7 +299,6 @@ public class MobileController : ControllerBase
         }
     }
 
-    // GET /api/mobile/admin/users
     [HttpGet("admin/users")]
     public async Task<IActionResult> GetAdminUsers(
         [FromHeader(Name = "X-User-Id")] long userId)
@@ -381,7 +316,6 @@ public class MobileController : ControllerBase
         }
     }
 
-    // POST /api/mobile/admin/users/{targetUserId}/subscriptions
     [HttpPost("admin/users/{targetUserId:long}/subscriptions")]
     public async Task<IActionResult> AdminAddSubscription(
         long targetUserId,
@@ -401,7 +335,6 @@ public class MobileController : ControllerBase
         }
     }
 
-    // DELETE /api/mobile/admin/subscriptions/{subId}
     [HttpDelete("admin/subscriptions/{subId:long}")]
     public async Task<IActionResult> AdminDeleteSubscription(
         long subId,
@@ -420,8 +353,6 @@ public class MobileController : ControllerBase
         }
     }
 
-    // ── Control Panel ──────────────────────────────────────────────────────
-    // POST /api/mobile/admin/verify-admin-pass — checks the caller's own admin_pass
     [HttpPost("admin/verify-admin-pass")]
     public async Task<IActionResult> VerifyAdminPass(
         [FromHeader(Name = "X-User-Id")] long userId,
@@ -441,7 +372,6 @@ public class MobileController : ControllerBase
         }
     }
 
-    // PATCH /api/mobile/admin/users/{targetUserId}/active
     [HttpPatch("admin/users/{targetUserId:long}/active")]
     public async Task<IActionResult> AdminSetActive(
         long targetUserId,
@@ -458,7 +388,6 @@ public class MobileController : ControllerBase
         catch (Exception ex) { return StatusCode(500, new ApiError(false, $"Failed: {ex.Message}")); }
     }
 
-    // PATCH /api/mobile/admin/users/{targetUserId}/stopped
     [HttpPatch("admin/users/{targetUserId:long}/stopped")]
     public async Task<IActionResult> AdminSetStopped(
         long targetUserId,
@@ -475,7 +404,6 @@ public class MobileController : ControllerBase
         catch (Exception ex) { return StatusCode(500, new ApiError(false, $"Failed: {ex.Message}")); }
     }
 
-    // PATCH /api/mobile/admin/users/{targetUserId}/blacklisted
     [HttpPatch("admin/users/{targetUserId:long}/blacklisted")]
     public async Task<IActionResult> AdminSetBlacklisted(
         long targetUserId,
@@ -492,8 +420,6 @@ public class MobileController : ControllerBase
         catch (Exception ex) { return StatusCode(500, new ApiError(false, $"Failed: {ex.Message}")); }
     }
 
-    // PATCH /api/mobile/admin/users/{targetUserId}/admin — promote/demote a
-    // user to/from admin from inside the mobile Control Panel.
     [HttpPatch("admin/users/{targetUserId:long}/admin")]
     public async Task<IActionResult> AdminSetAdmin(
         long targetUserId,
@@ -510,10 +436,6 @@ public class MobileController : ControllerBase
         catch (Exception ex) { return StatusCode(500, new ApiError(false, $"Failed: {ex.Message}")); }
     }
 
-    // PATCH /api/mobile/admin/users/{targetUserId}/kyc-status — KYC review
-    // outcome from the mobile Control Panel. Mirrors the desktop "Mark Verified"
-    // / "Reject" actions. status: success | failed | pending. Rejecting also
-    // deactivates the account (handled in the repo).
     [HttpPatch("admin/users/{targetUserId:long}/kyc-status")]
     public async Task<IActionResult> AdminSetKycStatus(
         long targetUserId,
@@ -534,7 +456,6 @@ public class MobileController : ControllerBase
         catch (Exception ex) { return StatusCode(500, new ApiError(false, $"Failed: {ex.Message}")); }
     }
 
-    // GET /api/mobile/profile/{userId}
     [HttpGet("profile/{userId:long}")]
     public async Task<IActionResult> GetProfile(long userId)
     {
@@ -542,12 +463,6 @@ public class MobileController : ControllerBase
         {
             var profile = await _repo.GetProfileAsync(userId);
             if (profile == null) return NotFound(new ApiError(false, "User not found."));
-            // Convert every stored path (relative — e.g. "pfp/user_10.jpg")
-            // into a full https URL the mobile app can hand straight to
-            // AsyncImage. Previously only PfpUrl was AbsUrl()'d, so the KYC
-            // image fields shipped as raw paths and the Android client
-            // silently tried to Base64.decode them as if they were image
-            // bytes → broken thumbnails on the "My Account" screen.
             return Ok(profile with {
                 PfpUrl = AbsUrl(profile.PfpUrl),
                 Kyc    = profile.Kyc with {
@@ -565,7 +480,6 @@ public class MobileController : ControllerBase
         }
     }
 
-    // PUT /api/mobile/profile/{userId}/pfp
     [HttpPut("profile/{userId:long}/pfp")]
     public async Task<IActionResult> UpdatePfp(long userId, [FromBody] UpdatePfpRequest req)
     {
@@ -580,7 +494,6 @@ public class MobileController : ControllerBase
         }
     }
 
-    // POST /api/mobile/cache/invalidate  — call after desktop uploads records
     [HttpPost("cache/invalidate")]
     public IActionResult InvalidateCache()
     {
@@ -588,7 +501,6 @@ public class MobileController : ControllerBase
         return Ok(new { success = true, message = "Search cache cleared." });
     }
 
-    // POST /api/mobile/cache/invalidate-sub/{userId}  — call after admin grants/revokes subscription
     [HttpPost("cache/invalidate-sub/{userId:long}")]
     public IActionResult InvalidateSubCache(long userId)
     {
@@ -596,7 +508,6 @@ public class MobileController : ControllerBase
         return Ok(new { success = true, message = "Subscription cache cleared." });
     }
 
-    // GET /api/mobile/pfp/{userId}
     [HttpGet("pfp/{userId:long}")]
     public async Task<IActionResult> GetPfp(long userId)
     {
@@ -605,7 +516,6 @@ public class MobileController : ControllerBase
         return Ok(new { pfpBase64 = pfp });
     }
 
-    // GET /api/mobile/sync/branches
     [HttpGet("sync/branches")]
     public async Task<IActionResult> GetSyncBranches()
     {
@@ -621,7 +531,6 @@ public class MobileController : ControllerBase
         }
     }
 
-    // GET /api/mobile/stats
     [HttpGet("stats")]
     public async Task<IActionResult> GetStats()
     {
@@ -636,7 +545,6 @@ public class MobileController : ControllerBase
         }
     }
 
-    // GET /api/mobile/me/status  — lightweight foreground poll; no last_seen update
     [HttpGet("me/status")]
     public async Task<IActionResult> GetMyStatus([FromHeader(Name = "X-User-Id")] long userId)
     {
@@ -651,7 +559,6 @@ public class MobileController : ControllerBase
         }
     }
 
-    // POST /api/mobile/heartbeat  — updates last_seen + GPS; returns stopped/blacklisted flags
     [HttpPost("heartbeat")]
     public async Task<IActionResult> Heartbeat([FromBody] HeartbeatRequest req)
     {
@@ -671,7 +578,6 @@ public class MobileController : ControllerBase
         }
     }
 
-    // GET /api/mobile/live-users  — admin only; users active in last 15 min
     [HttpGet("live-users")]
     public async Task<IActionResult> GetLiveUsers(
         [FromHeader(Name = "X-User-Id")] long userId)
@@ -689,15 +595,11 @@ public class MobileController : ControllerBase
         }
     }
 
-    // POST /api/mobile/search-log  — fire-and-forget from mobile when a vehicle detail is viewed
     [HttpPost("search-log")]
     public async Task<IActionResult> LogSearch([FromBody] SearchLogRequest req)
     {
         try
         {
-            // Parse the device's ISO timestamp AS UTC regardless of this server's
-            // local timezone, so search_logs.device_time is always stored in UTC.
-            // The read side (CONVERT_TZ +00:00 -> +05:30) then shows it in IST.
             if (!DateTime.TryParse(req.DeviceTimeIso,
                     System.Globalization.CultureInfo.InvariantCulture,
                     System.Globalization.DateTimeStyles.AssumeUniversal |
@@ -738,7 +640,6 @@ public class MobileController : ControllerBase
         catch { return null; }
     }
 
-    // GET /api/mobile/sync/records/{branchId}?page=0&size=500
     [HttpGet("sync/records/{branchId}")]
     public async Task<IActionResult> GetSyncRecords(
         int branchId, [FromQuery] int page = 0, [FromQuery] int size = 500)
@@ -755,19 +656,11 @@ public class MobileController : ControllerBase
         }
     }
 
-    // ═══════════════════════ KYC verification (Sandbox) ═══════════════════════
-    // Agents verify Aadhaar (OTP), PAN and bank during registration; each
-    // verified result is stored on the agent's app_users row so the desktop
-    // (WPF) can display it read-only. Sandbox credentials live only in the
-    // service env (never in the app).
     private static string JStr(System.Text.Json.JsonElement d, string k) =>
         d.TryGetProperty(k, out var v)
             ? (v.ValueKind == System.Text.Json.JsonValueKind.String ? v.GetString() ?? "" : v.ToString())
             : "";
 
-    // POST /api/mobile/check-mobile — is this number already registered with the
-    // agency? The app calls this the moment the number is entered, BEFORE sending
-    // an OTP, so an already-registered agent is told to log in instead.
     [HttpPost("check-mobile")]
     public async Task<IActionResult> CheckMobile([FromBody] CheckMobileReq req)
     {
@@ -784,8 +677,6 @@ public class MobileController : ControllerBase
         return Ok(new { registered });
     }
 
-    // ── Mobile SMS OTP (MSG91) — verify the phone number at register / login ──
-    // No tenant token: these run before login. Stateless OTP store is in-process.
     [HttpPost("otp/send")]
     public async Task<IActionResult> OtpSend([FromBody] OtpSendReq req)
     {
@@ -819,11 +710,6 @@ public class MobileController : ControllerBase
         catch (Exception ex) { return StatusCode(500, new ApiError(false, ex.Message)); }
     }
 
-    // Verifies the Aadhaar OKYC OTP. X-User-Id is OPTIONAL: during NEW-agent
-    // registration there is no user row yet, so the header is absent — we then
-    // just return the verified demographics and the register call persists them.
-    // For an existing user (re-verify from inside the app) the header is sent and
-    // we store the result directly onto their row.
     [HttpPost("kyc/aadhaar/verify")]
     public async Task<IActionResult> KycAadhaarVerify(
         [FromHeader(Name = "X-User-Id")] long? userId, [FromBody] KycAadhaarVerifyReq req)
@@ -833,16 +719,9 @@ public class MobileController : ControllerBase
             return BadRequest(new ApiError(false, "Reference id and the 6-digit OTP are required."));
         try
         {
-            // Sandbox OKYC verify requires reference_id as a STRING (sending it as
-            // a JSON number is rejected with "Invalid request body"). otp is a
-            // string too. Pass the reference id through verbatim.
             var r = await SandboxKyc.AadhaarVerifyAsync(req.ReferenceId!, req.Otp!);
             if (!r.TryGetProperty("data", out var d))
                 return BadRequest(new { ok = false, message = SandboxKyc.Message(r) });
-            // Sandbox returns HTTP 200 with data even on a WRONG OTP — the body is
-            // then just { "message": "Invalid OTP..." } with no identity fields.
-            // Treat the absence of name AND date_of_birth as a failure so we don't
-            // report "verified" for a bad OTP.
             string vName = JStr(d, "name");
             string vDob  = JStr(d, "date_of_birth");
             if (vName.Length == 0 && vDob.Length == 0)
@@ -854,8 +733,6 @@ public class MobileController : ControllerBase
             string addr = JStr(d, "full_address");
             if (addr.Length == 0 && d.TryGetProperty("address", out var a) && a.ValueKind == System.Text.Json.JsonValueKind.Object)
                 addr = a.ToString();
-            // Only persist if this is an existing user re-verifying. During
-            // registration (no user yet) the data rides along in the register call.
             if (userId is long uid && uid > 0)
             {
                 var digits = Digits(req.AadhaarNumber);
@@ -948,10 +825,6 @@ public class MobileController : ControllerBase
         catch (Exception ex) { return StatusCode(500, new ApiError(false, ex.Message)); }
     }
 
-    // ── KYC re-submission ─────────────────────────────────────────────────
-    // For an agent whose KYC was rejected. They can't log in (blocked), so this
-    // is tenant-bound-by-body like register: it identifies the user by mobile +
-    // slug, re-saves the documents, and resets the status to 'pending'.
     [HttpPost("kyc/resubmit")]
     public async Task<IActionResult> KycResubmit([FromBody] KycResubmitReq req)
     {
@@ -987,12 +860,10 @@ public record KycResubmitReq(
     string? AadhaarGender, string? AadhaarAddress, bool AadhaarVerified = false,
     double? RegLat = null, double? RegLng = null, string? RegLocation = null);
 
-// ── Mobile SMS-OTP request bodies ────────────────────────────────────────────
 public record CheckMobileReq(string? Mobile, string? Slug);
 public record OtpSendReq(string? Mobile);
 public record OtpVerifyReq(string? Mobile, string? Otp);
 
-// ── KYC request bodies ──────────────────────────────────────────────────────
 public record KycAadhaarOtpReq(string? AadhaarNumber);
 public record KycAadhaarVerifyReq(string? ReferenceId, string? Otp, string? AadhaarNumber);
 public record KycPanReq(string? Pan, string? Name, string? Dob);

@@ -37,7 +37,6 @@ public partial class HomePage : Page
 
     private async void Page_Loaded(object sender, RoutedEventArgs e)
     {
-        // Populate time pickers
         for (int h = 1; h <= 12; h++)
             cmbHour.Items.Add(h.ToString("D2"));
         for (int m = 0; m < 60; m += 5)
@@ -45,10 +44,6 @@ public partial class HomePage : Page
         cmbAmPm.Items.Add("AM");
         cmbAmPm.Items.Add("PM");
 
-        // Default: the CURRENT time in IST, floored to the picker's 5-minute
-        // slot. With frequent heartbeats (every ~2s while the app is open),
-        // "seen since now" surfaces exactly the agents who are online right
-        // now. Works even if the PC clock is on a different time zone.
         var istZone = TimeZoneInfo.FindSystemTimeZoneById(
             OperatingSystem.IsWindows() ? "India Standard Time" : "Asia/Kolkata");
         var istNow  = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, istZone);
@@ -71,14 +66,10 @@ public partial class HomePage : Page
 
     private async Task InitMapAsync()
     {
-        // WebView2 can only be initialized once per control. Page_Loaded fires
-        // again every time the user navigates back to Home — guard against it.
         if (_mapInitStarted) return;
         _mapInitStarted = true;
         try
         {
-            // Custom user data folder under LocalAppData so installs in
-            // Program Files don't hit permission errors creating the WebView2 cache.
             var userDataFolder = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                 "VKEnterprises", "WebView2");
@@ -87,22 +78,13 @@ public partial class HomePage : Page
                 .CreateAsync(null, userDataFolder);
             await mapView.EnsureCoreWebView2Async(env);
 
-            // Belt-and-braces: also clear the WebView2 HTTP cache on startup so a
-            // previously-cached map_live.html can never shadow a freshly deployed
-            // one. (The ?v= cache-buster below already forces a fresh fetch, but
-            // clearing the disk cache guarantees no stale leaflet assets linger.)
             try
             {
                 await mapView.CoreWebView2.Profile.ClearBrowsingDataAsync(
                     Microsoft.Web.WebView2.Core.CoreWebView2BrowsingDataKinds.DiskCache);
             }
-            catch { /* older runtimes may not expose Profile — the ?v= buster still works */ }
+            catch { }
 
-            // Map HTML is hosted on the server so fixes don't require an installer
-            // update — BUT WebView2 caches it aggressively. A per-launch cache-buster
-            // query makes every launch fetch the latest deployed map (the file is
-            // ~9 KB, so re-fetching is negligible). Without this, an updated map
-            // (satellite/fullscreen/PFP) would stay invisible behind the cached copy.
             var bust = DateTime.UtcNow.Ticks;
             _mapUrl = $"{App.ApiBaseUrl.TrimEnd('/')}/public/map_live.html?v={bust}";
 
@@ -133,14 +115,11 @@ public partial class HomePage : Page
         }
         else
         {
-            // CoreWebView2 never initialized — allow a fresh attempt.
             _mapInitStarted = false;
             _ = InitMapAsync();
         }
     }
 
-    // Surfaces a map failure both on screen (so a blank panel is never a
-    // silent mystery) and in the diagnostic log file.
     private void ShowMapError(string detail)
     {
         LogMapError(detail);
@@ -161,8 +140,6 @@ public partial class HomePage : Page
         catch { }
     }
 
-    // Writes map failures to %LOCALAPPDATA%\VKEnterprises\map-errors.log so we
-    // can diagnose blank-map issues on a client's machine.
     private static void LogMapError(string msg)
     {
         try
@@ -177,11 +154,9 @@ public partial class HomePage : Page
         catch { }
     }
 
-    // Polls every 250 ms until Leaflet has finished loading and updateMarkers is callable.
-    // Needed because window.load postMessage is unreliable when the CDN script is slow.
     private async Task PollForMapReadyAsync()
     {
-        for (int i = 0; i < 80; i++)   // up to 20 s
+        for (int i = 0; i < 80; i++)
         {
             await Task.Delay(250);
             try
@@ -204,8 +179,6 @@ public partial class HomePage : Page
 
     private async Task LoadDashboardAsync()
     {
-        // Each call is individually wrapped — a 404 or network error shows 0/empty
-        // instead of crashing the whole dashboard.
         var stats    = new DesktopApiClient.DashboardStatsDto(0, 0, 0);
         var uStats   = new DesktopApiClient.MgrStatsDto(0, 0, 0, 0);
         var requests = new List<DesktopApiClient.DeviceRequestDto>();
@@ -219,18 +192,15 @@ public partial class HomePage : Page
             Safe(async () => live     = await DesktopApiClient.GetLiveUsersAsync(since))
         );
 
-        // Records / Finances / Branches
         lblRecords.Text  = stats.TotalRecords.ToString("N0");
         lblFinances.Text = stats.TotalFinances.ToString("N0");
         lblBranches.Text = stats.TotalBranches.ToString("N0");
 
-        // App users
         var seizers = Math.Max(0, uStats.Total - uStats.Admins);
         lblSeizers.Text     = seizers.ToString("N0");
         lblActiveUsers.Text = uStats.Active.ToString("N0");
         lblAdmins.Text      = uStats.Admins.ToString("N0");
 
-        // Device requests
         var reqRows = requests
             .Select(r => new DeviceRequestRow(r.Id, r.UserId, r.UserName, r.UserMobile, r.NewDeviceId, r.RequestedAt))
             .ToList();
@@ -239,13 +209,7 @@ public partial class HomePage : Page
         txtNoRequests.Visibility     = reqRows.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         lvDeviceRequests.Visibility  = reqRows.Count > 0  ? Visibility.Visible : Visibility.Collapsed;
 
-        // Live users
         _lastLiveUsers = live;
-        // A user is "pinnable" only if they have a REAL location. The previous
-        // count used Lat.HasValue/Lng.HasValue, which is true even for a stored
-        // 0.0/0.0 (a user who's online but never sent GPS). The map's JS drops
-        // 0,0 (it's in the ocean off Africa), so the header said "4 pinned"
-        // while only 2 markers appeared. Count exactly what the map can plot.
         var pinned = live.Count(HasRealLocation);
         var noLoc  = live.Count - pinned;
         var period = since == "00:00" || string.IsNullOrWhiteSpace(since) ? "today" : $"since {since}";
@@ -255,8 +219,6 @@ public partial class HomePage : Page
         PushMarkersToMap(live);
     }
 
-    // True only when the user has a usable GPS fix — non-null AND non-zero.
-    // 0,0 means "no location reported", not a real position.
     private static bool HasRealLocation(DesktopApiClient.LiveUserDto u) =>
         u.Lat.HasValue && u.Lng.HasValue && u.Lat.Value != 0 && u.Lng.Value != 0;
 
@@ -288,18 +250,13 @@ public partial class HomePage : Page
         _ = mapView.CoreWebView2.ExecuteScriptAsync($"updateMarkers({json})");
     }
 
-    // Turns the stored pfp value into something the map's <img> can load:
-    //   - empty            → "" (popup shows initials instead)
-    //   - already http(s)  → as-is
-    //   - data: / base64   → as-is (legacy base64 pfps)
-    //   - relative path    → prefixed with the API host's /uploads/ mount
     private static string ResolvePfpUrl(string? pfp)
     {
         if (string.IsNullOrWhiteSpace(pfp)) return "";
         var p = pfp.Trim();
         if (p.StartsWith("http://") || p.StartsWith("https://") || p.StartsWith("data:"))
             return p;
-        if (p.Length > 200 && !p.Contains('/'))   // bare base64 blob
+        if (p.Length > 200 && !p.Contains('/'))
             return "data:image/jpeg;base64," + p;
         var baseUrl = App.ApiBaseUrl.TrimEnd('/');
         return $"{baseUrl}/uploads/{p.TrimStart('/')}";

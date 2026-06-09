@@ -12,7 +12,6 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <!-- Page header -->
         <Border Grid.Row="0" Style="{StaticResource DashboardCard}" Margin="0,0,0,16">
             <StackPanel>
                 <TextBlock Text="REPORTS &amp; EXPORT" Style="{StaticResource Heading4}" />
@@ -21,21 +20,16 @@
             </StackPanel>
         </Border>
 
-        <!-- Main two-column layout -->
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
-                <!-- Left: export cards (35%) -->
                 <ColumnDefinition Width="35*" />
                 <ColumnDefinition Width="16" />
-                <!-- Right: progress panel (65%) -->
                 <ColumnDefinition Width="65*" />
             </Grid.ColumnDefinitions>
 
-            <!-- ── Left: export card list ── -->
             <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto">
                 <StackPanel>
 
-                    <!-- Card 1: Users -->
                     <Border Style="{StaticResource DashboardCard}" Margin="0,0,0,12">
                         <StackPanel>
                             <TextBlock Text="Users" Style="{StaticResource Heading6}" />
@@ -58,7 +52,6 @@
                         </StackPanel>
                     </Border>
 
-                    <!-- Card 2: Subscriptions -->
                     <Border Style="{StaticResource DashboardCard}" Margin="0,0,0,12">
                         <StackPanel>
                             <TextBlock Text="Subscriptions" Style="{StaticResource Heading6}" />
@@ -81,7 +74,6 @@
                         </StackPanel>
                     </Border>
 
-                    <!-- Card 3: Vehicle Records -->
                     <Border Style="{StaticResource DashboardCard}" Margin="0,0,0,12">
                         <StackPanel>
                             <TextBlock Text="Vehicle Records" Style="{StaticResource Heading6}" />
@@ -104,7 +96,6 @@
                         </StackPanel>
                     </Border>
 
-                    <!-- Card 4: RC Records -->
                     <Border Style="{StaticResource DashboardCard}" Margin="0,0,0,12">
                         <StackPanel>
                             <TextBlock Text="RC Records" Style="{StaticResource Heading6}" />
@@ -127,7 +118,6 @@
                         </StackPanel>
                     </Border>
 
-                    <!-- Card 5: Chassis Records -->
                     <Border Style="{StaticResource DashboardCard}" Margin="0,0,0,0">
                         <StackPanel>
                             <TextBlock Text="Chassis Records" Style="{StaticResource Heading6}" />
@@ -153,7 +143,6 @@
                 </StackPanel>
             </ScrollViewer>
 
-            <!-- ── Right: progress panel ── -->
             <Border Grid.Column="2" Style="{StaticResource DashboardCard}">
                 <Grid>
                     <Grid.RowDefinitions>
@@ -163,7 +152,6 @@
 
                     <TextBlock Text="Export Status" Style="{StaticResource Heading5}" Margin="0,0,0,16" />
 
-                    <!-- Idle placeholder -->
                     <Border Grid.Row="1" x:Name="panelIdle"
                             HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
                         <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
@@ -174,15 +162,12 @@
                         </StackPanel>
                     </Border>
 
-                    <!-- Active / complete panel -->
                     <StackPanel Grid.Row="1" x:Name="panelActive" Visibility="Collapsed">
 
-                        <!-- Current export name -->
                         <TextBlock x:Name="lblExportName"
                                    Style="{StaticResource Heading6}"
                                    Margin="0,0,0,12" />
 
-                        <!-- Progress bar -->
                         <ProgressBar x:Name="pbExport"
                                      Minimum="0" Maximum="100"
                                      Height="8"
@@ -212,12 +197,10 @@
                             </ProgressBar.Style>
                         </ProgressBar>
 
-                        <!-- Progress label -->
                         <TextBlock x:Name="lblProgress"
                                    Style="{StaticResource Caption}"
                                    Margin="0,0,0,12" />
 
-                        <!-- Log output -->
                         <TextBox x:Name="txtLog"
                                  IsReadOnly="True"
                                  TextWrapping="Wrap"
@@ -232,7 +215,6 @@
                                  FontFamily="Consolas"
                                  Foreground="{StaticResource Gray700}" />
 
-                        <!-- Complete row: message + open-file button -->
                         <StackPanel x:Name="panelComplete"
                                     Orientation="Horizontal"
                                     Margin="0,12,0,0"

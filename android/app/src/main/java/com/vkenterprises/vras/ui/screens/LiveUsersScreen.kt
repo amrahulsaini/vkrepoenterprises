@@ -65,10 +65,6 @@ fun LiveUsersScreen(
         wv.evaluateJavascript("updateMarkers('$escaped')", null)
     }
 
-    // Re-keyed on userId so this re-runs when AuthViewModel finally emits the
-    // real id (it starts as -1L on first composition). Without this, the
-    // server received X-User-Id: -1, IsAdminAsync(-1) returned false, and the
-    // endpoint replied 403.
     LaunchedEffect(userId) {
         if (userId <= 0L) {
             loading = false
@@ -138,7 +134,6 @@ fun LiveUsersScreen(
     ) { pad ->
         Column(Modifier.padding(pad).fillMaxSize()) {
 
-            // Map — takes up top half
             Box(
                 Modifier
                     .fillMaxWidth()
@@ -168,7 +163,6 @@ fun LiveUsersScreen(
                 }
             }
 
-            // Error banner
             if (error != null) {
                 Surface(color = MaterialTheme.colorScheme.errorContainer) {
                     Text(
@@ -180,7 +174,6 @@ fun LiveUsersScreen(
                 }
             }
 
-            // Users list — bottom half
             if (users.isEmpty() && !loading) {
                 Box(
                     Modifier.fillMaxWidth().weight(1f),

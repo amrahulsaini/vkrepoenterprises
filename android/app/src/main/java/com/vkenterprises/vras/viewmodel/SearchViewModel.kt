@@ -22,9 +22,6 @@ data class SearchUiState(
     val results: List<SearchResult>   = emptyList(),
     val allResults: List<SearchResult> = emptyList(),
     val selectedResult: SearchResult? = null,
-    // Full record for the currently-open detail (search returns skinny rows;
-    // the heavy fields are fetched per-record on tap). Keyed by id so a stale
-    // one is ignored until the right record's detail arrives.
     val fullRecord: SearchResult?     = null,
     val errorMsg: String?             = null,
     val isSearching: Boolean          = false,
@@ -52,8 +49,6 @@ class SearchViewModel @Inject constructor(
     private val syncRepo: SyncRepository
 ) : ViewModel() {
 
-    // Re-resolved each call so a mid-session agency switch immediately routes
-    // local reads to the new vk_cache_<slug>.db.
     private val vehicleDao get() = db.vehicleCacheDao()
 
     private val serverRepo = SearchRepository()
@@ -67,13 +62,11 @@ class SearchViewModel @Inject constructor(
     val requiredLen get() = if (_ui.value.mode == SearchMode.RC) 4 else 5
 
     init {
-        // On launch: check if server has updates to light up the button immediately
         viewModelScope.launch(Dispatchers.IO) {
             val hasUpdates = runCatching { syncRepo.hasUpdates() }.getOrDefault(false)
             _ui.update { it.copy(syncHasUpdates = hasUpdates) }
             refreshOfflineCount()
         }
-        // Poll every 60s — cheap timestamp comparison, downloads only when needed
         viewModelScope.launch(Dispatchers.IO) {
             while (true) {
                 kotlinx.coroutines.delay(60_000L)
@@ -84,8 +77,6 @@ class SearchViewModel @Inject constructor(
         }
     }
 
-    // Reads the Room cache size and pushes it into state so the home screen
-    // tile shows the current local-record count.
     suspend fun refreshOfflineCount() {
         val n = runCatching { vehicleDao.count() }.getOrDefault(0L)
         _ui.update { it.copy(offlineCount = n) }
@@ -104,7 +95,6 @@ class SearchViewModel @Inject constructor(
         }
     }
 
-    // Clears all local sync state and re-downloads everything from server
     fun forceRefresh() {
         syncJob?.cancel()
         syncJob = viewModelScope.launch(Dispatchers.IO) {
@@ -130,17 +120,8 @@ class SearchViewModel @Inject constructor(
             val q    = capped.uppercase()
             val mode = _ui.value.mode
             searchJob?.cancel()
-            // Flip the spinner ON immediately (even before the debounce) so the
-            // very first keystroke that completes the query shows "Searching…"
-            // instantly — no dead air while the network call spins up.
             _ui.update { it.copy(inputText = "", isSearching = true, errorMsg = null) }
             searchJob = viewModelScope.launch {
-                // Debounce: if the user fires another search right away, THIS job
-                // is cancelled during the delay — before it ever opens a network
-                // call. That stops fast searches from piling up OkHttp requests
-                // (the cause of the "stuck, only old results" freeze). 90ms is
-                // short enough to feel instant (the reference app uses none) yet
-                // still coalesces a fast backspace-and-retype into one request.
                 delay(90)
                 executeSearch(q, mode, userId)
             }
@@ -156,9 +137,6 @@ class SearchViewModel @Inject constructor(
         _ui.update { it.copy(selectedResult = result, fullRecord = null) }
     }
 
-    // Fetches the FULL record (all fields) for one result by id — called when a
-    // detail / finance is opened, since the search list itself is skinny. The
-    // detail screen uses this only when its id matches the selected record.
     fun fetchFullRecord(id: Long, userId: Long) {
         viewModelScope.launch {
             val rec = withContext(Dispatchers.IO) { serverRepo.getRecord(id, userId) }
@@ -187,8 +165,6 @@ class SearchViewModel @Inject constructor(
         )}
     }
 
-    // For admin: current selectedResult came from local cache (most fields blank).
-    // Re-fetch the same vehicle from server to get full field data.
     fun refetchSelectedFromServer(userId: Long) {
         val current = _ui.value.selectedResult ?: return
         viewModelScope.launch {
@@ -208,7 +184,6 @@ class SearchViewModel @Inject constructor(
                     it.vehicleNo == current.vehicleNo || it.chassisNo == current.chassisNo
                 }
                 if (match != null) {
-                    // allResults gets the full set so FOUND IN FINANCES works after refetch
                     _ui.update { it.copy(selectedResult = match, results = result.data, allResults = result.data) }
                 }
             }
@@ -216,15 +191,9 @@ class SearchViewModel @Inject constructor(
     }
 
     private suspend fun executeSearch(q: String, mode: SearchMode, userId: Long) {
-        // Keep previous results visible while new query is in-flight — no flash.
-        // We do NOT update lastQuery here: doing so would make the result-count
-        // header show "N records found for <new query>" using the OLD result
-        // count for ~50-100ms until the new data lands. lastQuery is only set
-        // alongside the matching results below.
         _ui.update { it.copy(isSearching = true, errorMsg = null) }
 
         if (!_ui.value.onlineOnly) {
-            // Offline mode: Room cache only, no server call.
             val local = withContext(Dispatchers.IO) {
                 if (mode == SearchMode.RC) vehicleDao.searchByLast4(q)
                 else vehicleDao.searchByLast5(q)
@@ -242,12 +211,6 @@ class SearchViewModel @Inject constructor(
             return
         }
 
-        // Online mode: server only — no cache fallback. Hard-capped at 20s so a
-        // slow/stalled network can NEVER freeze search forever — it surfaces a
-        // clean error at 20s instead of hanging up to OkHttp's 120s call timeout
-        // while showing stale results. (A real cancellation by a newer search
-        // throws a plain CancellationException, which we let propagate — only
-        // the timeout is caught here.)
         val result = try {
             withContext(Dispatchers.IO) {
                 withTimeout(20_000) {
@@ -265,11 +228,6 @@ class SearchViewModel @Inject constructor(
                         result.data.filter { it.vehicleNo.isValidRc() }.sortedBy { it.vehicleNo }
                     else
                         result.data.sortedBy { it.chassisNo }
-                    // Results list shows each RC / chassis ONCE (no repeats). The
-                    // un-deduped `full` is kept in allResults, so opening a result
-                    // reveals EVERY finance/branch it's in via the detail screen's
-                    // "FOUND IN FINANCES" chooser — that's where the user picks
-                    // which finance (e.g. VASTU) to open.
                     val unique = if (mode == SearchMode.RC)
                         full.distinctBy { it.vehicleNo }
                     else
@@ -285,22 +243,12 @@ class SearchViewModel @Inject constructor(
         }
     }
 
-    // Clears the displayed results so the home dashboard re-appears.
-    // Used by the back-navigation handler on HomeScreen.
     fun clearResults() {
         searchJob?.cancel()
         _ui.update { it.copy(results = emptyList(), allResults = emptyList(), lastQuery = "", inputText = "", errorMsg = null, isSearching = false) }
     }
 }
 
-// Accept all three real-world Indian RC formats:
-//   * Standard:    2 state letters + 2 district digits + 1-3 series letters + 4 unique digits
-//                  e.g. MH12AB1234
-//   * Legacy long: 2 state letters + 5-7 digits (govt / older registrations)
-//                  e.g. HR736546, MH50488, MH506585
-//   * Bharat (BH): 2-digit registration year + "BH" + 4 unique digits + 1-2 letters
-//                  e.g. 22BH2271E, 23BH3473F
-// Strip non-alphanumerics first so hyphens / spaces in stored values do not break the match.
 private val RC_REGEX = Regex(
     "^([A-Z]{2}[0-9]{2}[A-Z]{1,3}[0-9]{4}|[A-Z]{2}[0-9]{5,7}|[0-9]{2}BH[0-9]{4}[A-Z]{1,2})$"
 )

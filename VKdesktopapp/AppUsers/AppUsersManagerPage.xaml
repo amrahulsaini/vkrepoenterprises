@@ -10,7 +10,6 @@
 
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
 
-        <!-- Same styles as FinancesManagerPage for consistency -->
         <Style x:Key="PlusIconButton" TargetType="Button">
             <Setter Property="Width" Value="32" /><Setter Property="Height" Value="32" />
             <Setter Property="BorderThickness" Value="0" /><Setter Property="Cursor" Value="Hand" />
@@ -43,7 +42,6 @@
             </Setter>
         </Style>
 
-        <!-- Compact flat toggle button for Active/Admin -->
         <Style x:Key="ToggleBtn" TargetType="ToggleButton">
             <Setter Property="Width" Value="46" /><Setter Property="Height" Value="24" />
             <Setter Property="BorderThickness" Value="0" /><Setter Property="Cursor" Value="Hand" />
@@ -90,21 +88,18 @@
             </Setter>
         </Style>
 
-        <!-- Label for toggle columns -->
         <Style x:Key="ToggleLabel" TargetType="TextBlock">
             <Setter Property="FontSize" Value="11" /><Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="Margin" Value="0,3,0,0" />
             <Setter Property="HorizontalAlignment" Value="Center" />
         </Style>
 
-        <!-- Avatar circle -->
         <Style x:Key="AvatarCircle" TargetType="Border">
             <Setter Property="Width" Value="36" /><Setter Property="Height" Value="36" />
             <Setter Property="CornerRadius" Value="18" />
             <Setter Property="Background" Value="{StaticResource Primary100}" />
         </Style>
 
-        <!-- Action button (ghost) in right panel -->
         <Style x:Key="GhostButton" TargetType="Button">
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderThickness" Value="1" />
@@ -133,7 +128,6 @@
             </Setter>
         </Style>
 
-        <!-- Primary (orange) button -->
         <Style x:Key="PrimaryButton" TargetType="Button">
             <Setter Property="Background" Value="{StaticResource Orange500}" />
             <Setter Property="BorderThickness" Value="0" />
@@ -157,13 +151,11 @@
             </Setter>
         </Style>
 
-        <!-- Danger ghost button -->
         <Style x:Key="DangerGhostButton" TargetType="Button" BasedOn="{StaticResource GhostButton}">
             <Setter Property="Foreground" Value="{StaticResource Red500}" />
             <Setter Property="BorderBrush" Value="{StaticResource Gray200}" />
         </Style>
 
-        <!-- Subscription row style -->
         <Style x:Key="SubRowStyle" TargetType="DataGridRow">
             <Setter Property="Height" Value="42" /><Setter Property="BorderThickness" Value="0" />
             <Setter Property="Background" Value="Transparent" />
@@ -214,14 +206,12 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <!-- Page header -->
         <StackPanel Grid.Row="0" Margin="0,0,0,16">
             <TextBlock Text="App Users" Style="{StaticResource Heading4}" />
             <TextBlock Text="Manage mobile app users, subscriptions and device access"
                        Style="{StaticResource Caption}" Margin="0,2,0,0" />
         </StackPanel>
 
-        <!-- Stats bar -->
         <UniformGrid Grid.Row="1" Columns="4" Margin="0,0,0,18">
             <Border Style="{StaticResource DashboardCard}" Margin="0,0,12,0">
                 <StackPanel>
@@ -249,7 +239,6 @@
             </Border>
         </UniformGrid>
 
-        <!-- Two-column layout -->
         <Grid Grid.Row="2">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="1.3*" />
@@ -257,11 +246,9 @@
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
-            <!-- LEFT: User list -->
             <Border Grid.Column="0" Style="{StaticResource DashboardCard}" Padding="0">
                 <DockPanel LastChildFill="True">
 
-                    <!-- Header -->
                     <Border DockPanel.Dock="Top"
                             Background="White" BorderBrush="{StaticResource Gray100}"
                             BorderThickness="0,0,0,1" CornerRadius="8,8,0,0" Padding="16,14">
@@ -282,7 +269,6 @@
                         </DockPanel>
                     </Border>
 
-                    <!-- Search -->
                     <Border DockPanel.Dock="Top" Margin="14,10,14,4"
                             Background="White" BorderBrush="{StaticResource Gray200}"
                             BorderThickness="1" CornerRadius="7">
@@ -316,7 +302,6 @@
                         </Grid>
                     </Border>
 
-                    <!-- Column header row (manual, not DataGrid header) -->
                     <Grid DockPanel.Dock="Top" Margin="14,6,14,0">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="44" />
@@ -342,7 +327,6 @@
                     <Rectangle DockPanel.Dock="Top" Height="1"
                                Fill="{StaticResource Gray100}" Margin="14,6,14,0" />
 
-                    <!-- User list (ItemsControl) -->
                     <Grid Margin="14,4,14,14">
                         <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                             <ItemsControl Name="icUsers">
@@ -366,7 +350,6 @@
                                                     <ColumnDefinition Width="80" />
                                                 </Grid.ColumnDefinitions>
 
-                                                <!-- Avatar: PFP image when available, initials otherwise -->
                                                 <Border Grid.Column="0" Style="{StaticResource AvatarCircle}" ClipToBounds="True">
                                                     <Grid>
                                                         <Image Source="{Binding PfpUrl}"
@@ -383,7 +366,6 @@
                                                     </Grid>
                                                 </Border>
 
-                                                <!-- Name + mobile -->
                                                 <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,8,0">
                                                     <TextBlock Text="{Binding Name}"
                                                                FontSize="14" FontWeight="SemiBold"
@@ -393,13 +375,11 @@
                                                                Foreground="{StaticResource Gray500}" />
                                                 </StackPanel>
 
-                                                <!-- Sub end -->
                                                 <TextBlock Grid.Column="2" Text="{Binding SubEndDisplay}"
                                                            FontSize="12"
                                                            Foreground="{StaticResource Gray600}"
                                                            VerticalAlignment="Center" />
 
-                                                <!-- Active toggle -->
                                                 <StackPanel Grid.Column="3" HorizontalAlignment="Center"
                                                             VerticalAlignment="Center">
                                                     <ToggleButton Style="{StaticResource ToggleBtn}"
@@ -409,7 +389,6 @@
                                                                   Unchecked="ActiveToggle_Unchecked" />
                                                 </StackPanel>
 
-                                                <!-- Admin toggle -->
                                                 <StackPanel Grid.Column="4" HorizontalAlignment="Center"
                                                             VerticalAlignment="Center">
                                                     <ToggleButton Style="{StaticResource ToggleBtn}"
@@ -419,7 +398,6 @@
                                                                   Unchecked="AdminToggle_Unchecked" />
                                                 </StackPanel>
 
-                                                <!-- Balance -->
                                                 <TextBlock Grid.Column="5"
                                                            Text="{Binding BalanceDisplay}"
                                                            FontSize="13" FontWeight="SemiBold"
@@ -451,11 +429,9 @@
                 </DockPanel>
             </Border>
 
-            <!-- RIGHT: Profile panel -->
             <Border Grid.Column="2" Style="{StaticResource DashboardCard}" Padding="0">
                 <DockPanel LastChildFill="True" Name="rightPanel">
 
-                    <!-- Panel header with all-in-one Actions menu -->
                     <Border DockPanel.Dock="Top"
                             Background="White" BorderBrush="{StaticResource Gray100}"
                             BorderThickness="0,0,0,1" CornerRadius="8,8,0,0" Padding="16,12">
@@ -463,8 +439,6 @@
                             <TextBlock Name="txtRightTitle" DockPanel.Dock="Left"
                                        Text="Select a user" Style="{StaticResource Heading6}"
                                        VerticalAlignment="Center" />
-                            <!-- Actions button — every per-user function in one
-                                 menu so the admin doesn't have to scroll the panel. -->
                             <Button Name="btnUserActions" DockPanel.Dock="Right"
                                     Style="{StaticResource PrimaryButton}"
                                     Height="32" Padding="14,0" FontSize="13"
@@ -487,7 +461,6 @@
                                     </ContextMenu>
                                 </Button.ContextMenu>
                             </Button>
-                            <!-- Refresh the selected user's KYC docs + details. -->
                             <Button Name="btnRefreshUser" DockPanel.Dock="Right"
                                     Height="32" Padding="12,0" FontSize="13" Margin="0,0,8,0"
                                     Background="Transparent" BorderBrush="{StaticResource Gray300}"
@@ -501,7 +474,6 @@
                         </DockPanel>
                     </Border>
 
-                    <!-- Empty state -->
                     <StackPanel Name="pnlEmpty"
                                 HorizontalAlignment="Center" VerticalAlignment="Center"
                                 DockPanel.Dock="Bottom">
@@ -514,7 +486,6 @@
                                    HorizontalAlignment="Center" Margin="0,8,0,0" />
                     </StackPanel>
 
-                    <!-- Profile content (hidden until user selected) -->
                     <ScrollViewer Name="pnlProfile"
                                   Visibility="Collapsed"
                                   VerticalScrollBarVisibility="Auto"
@@ -522,7 +493,6 @@
                                   PreviewMouseWheel="pnlProfile_PreviewMouseWheel">
                         <StackPanel Margin="20,16,20,20" Name="profileStack">
 
-                            <!-- Avatar + name -->
                             <StackPanel Orientation="Horizontal" Margin="0,0,0,18">
                                 <Border Name="brdAvatar"
                                         Width="60" Height="60" CornerRadius="30"
@@ -551,7 +521,6 @@
                                 </StackPanel>
                             </StackPanel>
 
-                            <!-- Details grid -->
                             <Border Background="{StaticResource Gray50}"
                                     BorderBrush="{StaticResource Gray100}"
                                     BorderThickness="1" CornerRadius="8"
@@ -598,7 +567,6 @@
                                 </Grid>
                             </Border>
 
-                            <!-- Device section -->
                             <StackPanel Margin="0,0,0,16">
                                 <DockPanel Margin="0,0,0,8">
                                     <Button DockPanel.Dock="Right" Content="Reset Device"
@@ -614,16 +582,11 @@
                                            FontFamily="Consolas" />
                             </StackPanel>
 
-                            <!-- Per-user Control Panel password removed — it's now
-                                 a single agency-wide value set in Agency Settings.
-                                 The info note was removed per request. -->
 
-                            <!-- KYC documents section -->
                             <StackPanel Margin="0,0,0,16">
                                 <TextBlock Text="KYC Documents" FontSize="13" FontWeight="SemiBold"
                                            Foreground="{StaticResource Gray700}" Margin="0,0,0,8" />
                                 <UniformGrid Columns="3">
-                                    <!-- Aadhaar Front -->
                                     <Border Margin="0,0,8,0" BorderBrush="{StaticResource Gray200}"
                                             BorderThickness="1" CornerRadius="6"
                                             Background="{StaticResource Gray50}">
@@ -670,7 +633,6 @@
                                             </StackPanel>
                                         </StackPanel>
                                     </Border>
-                                    <!-- Aadhaar Back -->
                                     <Border Margin="0,0,8,0" BorderBrush="{StaticResource Gray200}"
                                             BorderThickness="1" CornerRadius="6"
                                             Background="{StaticResource Gray50}">
@@ -717,7 +679,6 @@
                                             </StackPanel>
                                         </StackPanel>
                                     </Border>
-                                    <!-- PAN Front -->
                                     <Border BorderBrush="{StaticResource Gray200}"
                                             BorderThickness="1" CornerRadius="6"
                                             Background="{StaticResource Gray50}">
@@ -766,9 +727,7 @@
                                     </Border>
                                 </UniformGrid>
 
-                                <!-- Review images: UIDAI photo + selfie side by side -->
                                 <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
-                                    <!-- UIDAI photo (from Aadhaar OKYC) -->
                                     <Border Width="170" Margin="0,0,12,0"
                                             BorderBrush="{StaticResource Gray200}"
                                             BorderThickness="1" CornerRadius="6"
@@ -816,7 +775,6 @@
                                         </StackPanel>
                                     </Border>
 
-                                    <!-- Selfie tile -->
                                     <Border Width="210"
                                             BorderBrush="{StaticResource Gray200}"
                                             BorderThickness="1" CornerRadius="6"
@@ -856,7 +814,6 @@
                                     </Border>
                                 </StackPanel>
 
-                                <!-- Verified Aadhaar (OKYC) details — full width so the address wraps cleanly -->
                                 <Border Margin="0,10,0,0"
                                         BorderBrush="{StaticResource Gray200}"
                                         BorderThickness="1" CornerRadius="6"
@@ -912,7 +869,6 @@
                                     </StackPanel>
                                 </Border>
 
-                                <!-- KYC review: status + Verify / Reject. Activation is locked until Verified. -->
                                 <Border Margin="0,10,0,0"
                                         BorderBrush="{StaticResource Gray200}"
                                         BorderThickness="1" CornerRadius="6"
@@ -948,7 +904,6 @@
                                 </Border>
                             </StackPanel>
 
-                            <!-- Stop App section -->
                             <Border Background="{StaticResource Gray50}"
                                     BorderBrush="{StaticResource Gray100}"
                                     BorderThickness="1" CornerRadius="8"
@@ -974,7 +929,6 @@
                                 </DockPanel>
                             </Border>
 
-                            <!-- Finance Restrictions section -->
                             <StackPanel Margin="0,0,0,16">
                                 <DockPanel Margin="0,0,0,8">
                                     <Button DockPanel.Dock="Right" Content="Save Restrictions"
@@ -1006,7 +960,6 @@
                                 </Border>
                             </StackPanel>
 
-                            <!-- Subscriptions section -->
                             <DockPanel Margin="0,0,0,8">
                                 <Button DockPanel.Dock="Right" Content="+ Add Plan"
                                         Style="{StaticResource PrimaryButton}"
@@ -1068,7 +1021,6 @@
                                 </DataGrid.Columns>
                             </DataGrid>
 
-                            <!-- Danger zone — fully remove the user (releases mobile + device in master) -->
                             <Border Margin="0,24,0,0" Padding="14"
                                     BorderBrush="{StaticResource Red500}" BorderThickness="1"
                                     CornerRadius="6" Background="#FFF5F5">

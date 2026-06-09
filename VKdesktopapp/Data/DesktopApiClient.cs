@@ -12,11 +12,8 @@ using VRASDesktopApp.Models;
 
 namespace VRASDesktopApp.Data;
 
-// All desktop manager operations go through this client.
-// SQL runs server-side → 1 HTTP round-trip instead of N WAN SQL round-trips.
 internal static class DesktopApiClient
 {
-    // DTOs ──────────────────────────────────────────────────────────────────
 
     internal record FinanceDto(int Id, string Name, long BranchCount, long TotalRecords);
 
@@ -74,11 +71,9 @@ internal static class DesktopApiClient
         string  DeviceTime,
         string  ServerTime);
 
-    // JSON options — case-insensitive to tolerate camelCase from server
     private static readonly JsonSerializerOptions _json =
         new() { PropertyNameCaseInsensitive = true };
 
-    // ── Finance ─────────────────────────────────────────────────────────────
 
     internal static async Task<List<FinanceDto>> GetFinancesAsync()
     {
@@ -109,7 +104,6 @@ internal static class DesktopApiClient
         resp.EnsureSuccessStatusCode();
     }
 
-    // ── Branches ────────────────────────────────────────────────────────────
 
     internal static async Task<List<BranchDto>> GetBranchesByFinanceAsync(int financeId)
     {
@@ -165,7 +159,6 @@ internal static class DesktopApiClient
         resp.EnsureSuccessStatusCode();
     }
 
-    // Clear: 1 HTTP call → server does all chunked SQL at loopback speed
     internal static async Task<int> ClearBranchRecordsAsync(int branchId)
     {
         var resp = await Send(HttpMethod.Post, $"api/mgr/branches/{branchId}/clear");
@@ -174,14 +167,12 @@ internal static class DesktopApiClient
         return r.GetProperty("deletedCount").GetInt32();
     }
 
-    // Delete: 1 HTTP call → server purges records + drops branch at loopback
     internal static async Task DeleteBranchAsync(int id)
     {
         var resp = await Send(HttpMethod.Delete, $"api/mgr/branches/{id}");
         resp.EnsureSuccessStatusCode();
     }
 
-    // ── App Users ────────────────────────────────────────────────────────────
 
     internal static async Task<MgrUsersResponseDto> GetUsersWithStatsAsync()
     {
@@ -254,9 +245,6 @@ internal static class DesktopApiClient
         resp.EnsureSuccessStatusCode();
     }
 
-    // ── KYC documents ──────────────────────────────────────────────────────
-    // Document image URLs + the registration-time Aadhaar OKYC demographics and
-    // capture location (read-only — the admin reviews these against the photos).
     internal record KycDocsDto(
         string AadhaarFront, string AadhaarBack, string PanFront, string? Selfie,
         string? AadhaarPhoto, string? KycStatus, string? RejectNote,
@@ -279,8 +267,6 @@ internal static class DesktopApiClient
         resp.EnsureSuccessStatusCode();
     }
 
-    // Sets the KYC review outcome. status: "success" | "failed" | "pending".
-    // note is the optional rejection reason (only meaningful for "failed").
     internal static async Task SetUserKycStatusAsync(long userId, string status, string? note)
     {
         var resp = await Send(HttpMethod.Patch, $"api/mgr/users/{userId}/kyc-status",
@@ -288,15 +274,12 @@ internal static class DesktopApiClient
         resp.EnsureSuccessStatusCode();
     }
 
-    // Deletes the UIDAI photo + verified Aadhaar demographics for a user.
     internal static async Task DeleteUserKycUidaiAsync(long userId)
     {
         var resp = await Send(HttpMethod.Delete, $"api/mgr/users/{userId}/kyc-uidai");
         resp.EnsureSuccessStatusCode();
     }
 
-    // Re-verifies the signed-in admin's login password (agency desktop login)
-    // without disturbing the current session token. Returns true if correct.
     internal static async Task<bool> VerifyLoginPasswordAsync(string email, string password)
     {
         try
@@ -305,7 +288,6 @@ internal static class DesktopApiClient
             {
                 Content = JsonContent.Create(new { email = (email ?? "").Trim().ToLowerInvariant(), password })
             };
-            // Don't send the current Bearer token — this is a standalone check.
             req.Headers.Authorization = null;
             using var resp = await App.HttpClient.SendAsync(req);
             return resp.IsSuccessStatusCode;
@@ -313,7 +295,6 @@ internal static class DesktopApiClient
         catch { return false; }
     }
 
-    // ── Admin / Control Panel password ──────────────────────────────────────
     internal static async Task SetUserAdminPassAsync(long userId, string password)
     {
         var resp = await Send(HttpMethod.Patch, $"api/mgr/users/{userId}/admin-pass",
@@ -357,7 +338,6 @@ internal static class DesktopApiClient
         resp.EnsureSuccessStatusCode();
     }
 
-    // Common agency-wide Control Panel password (replaces per-user admin_pass).
     internal static async Task<string> GetControlPasswordAsync()
     {
         var resp = await Send(HttpMethod.Get, "api/mgr/settings/control-password");
@@ -372,9 +352,6 @@ internal static class DesktopApiClient
         resp.EnsureSuccessStatusCode();
     }
 
-    // ── Agency self-profile (Server Settings → agency contact details) ──────
-    // Reads/writes the signed-in agency's crm_master.agencies row. The mobile
-    // app's Agency panel reads the same row, so edits sync to mobile too.
     internal record AgencyProfileDto(
         int Id, string Name, string Address, string Mobile1, string Mobile2,
         List<string> Extras, string LogoPath);
@@ -415,7 +392,6 @@ internal static class DesktopApiClient
         resp.EnsureSuccessStatusCode();
     }
 
-    // ── Dashboard stats ─────────────────────────────────────────────────────
 
     internal static async Task<DashboardStatsDto> GetDashboardStatsAsync()
     {
@@ -424,7 +400,6 @@ internal static class DesktopApiClient
         return (await resp.Content.ReadFromJsonAsync<DashboardStatsDto>(_json))!;
     }
 
-    // ── Device change requests ──────────────────────────────────────────────
 
     internal static async Task<List<DeviceRequestDto>> GetDeviceRequestsAsync()
     {
@@ -445,7 +420,6 @@ internal static class DesktopApiClient
         resp.EnsureSuccessStatusCode();
     }
 
-    // ── Live users ──────────────────────────────────────────────────────────
 
     internal static async Task<List<LiveUserDto>> GetLiveUsersAsync(string? since = null)
     {
@@ -457,7 +431,6 @@ internal static class DesktopApiClient
         return (await resp.Content.ReadFromJsonAsync<List<LiveUserDto>>(_json))!;
     }
 
-    // ── Search logs ─────────────────────────────────────────────────────────
 
     internal static async Task<List<SearchLogRow>> GetSearchLogsAsync(
         string? fromDate = null, string? toDate = null,
@@ -475,27 +448,11 @@ internal static class DesktopApiClient
         return (await resp.Content.ReadFromJsonAsync<List<SearchLogRow>>(_json))!;
     }
 
-    // ── Column mappings ─────────────────────────────────────────────────────
 
-    // ── Records upload ──────────────────────────────────────────────────────
-    // Wire format: gzip-compressed UTF-8 text
-    //   Line 0 : branchId
-    //   Line 1…: 32 pipe-delimited fields per record (| already stripped from values)
     internal static async Task<(int Inserted, double ElapsedSeconds)> UploadRecordsAsync(
         int branchId, List<UploadRecord> records,
         IProgress<(int pct, string msg)>? progress = null)
     {
-        // Resilient upload for weak / unstable client networks. A single giant
-        // POST (a large branch is tens of MB gzipped) dies on ANY network blip
-        // with no recovery — that was the "error sending the request" /
-        // "copying content to a stream" failure agencies hit. Instead we split
-        // the branch into small chunks and upload each as its own request,
-        // retrying transient failures so a hiccup only re-sends ~1 MB, not the
-        // whole file. Replace-semantics are preserved across chunks via ?mode=:
-        //   begin  → clear old records + insert this chunk
-        //   append → insert this chunk
-        //   finish → insert this chunk + finalize (branch stats + index rebuild)
-        // A single-chunk upload uses mode=replace = the original one-shot path.
         const int CHUNK = 25_000;
         int total  = records.Count;
         int chunks = Math.Max(1, (total + CHUNK - 1) / CHUNK);
@@ -503,7 +460,6 @@ internal static class DesktopApiClient
         int inserted = 0;
         double elapsedSeconds = 0;
 
-        // Build the gzipped pipe-delimited payload for one slice of records.
         static byte[] BuildPayload(int bId, List<UploadRecord> rows)
         {
             var sb = new StringBuilder(rows.Count * 300 + 16);
@@ -550,7 +506,6 @@ internal static class DesktopApiClient
             return ms.ToArray();
         }
 
-        // POST one chunk and stream its ndjson progress. Returns (inserted, elapsed).
         static async Task<(int Inserted, double Elapsed)> PostOnce(
             byte[] payload, string mode, Action<int, string> rep)
         {
@@ -586,9 +541,6 @@ internal static class DesktopApiClient
             return (ins, el);
         }
 
-        // Connection-level failures (reset / DNS / TLS → no status), 408/429 and
-        // 5xx are transient and worth retrying. A genuine 4xx (bad payload, auth)
-        // is not — retrying would just fail the same way.
         static bool IsTransient(Exception ex)
         {
             if (ex is IOException or TaskCanceledException or System.Net.Sockets.SocketException)
@@ -611,8 +563,6 @@ internal static class DesktopApiClient
 
             byte[] payload = BuildPayload(branchId, slice);
 
-            // Map this chunk's 0-100 server progress onto its slice of the
-            // overall bar so the UI advances smoothly across all chunks.
             int lo = (int)(100.0 * ci / chunks);
             int hi = (int)(100.0 * (ci + 1) / chunks);
             int doneBefore = start;
@@ -631,7 +581,7 @@ internal static class DesktopApiClient
                 }
                 catch (Exception ex) when (attempt < MAX_ATTEMPTS && IsTransient(ex))
                 {
-                    int wait = 2 * attempt;   // 2s, 4s, 6s
+                    int wait = 2 * attempt;
                     Report(0, $"network issue — retrying in {wait}s (try {attempt + 1}/{MAX_ATTEMPTS})");
                     await Task.Delay(TimeSpan.FromSeconds(wait));
                 }
@@ -673,7 +623,6 @@ internal static class DesktopApiClient
         return (await resp.Content.ReadFromJsonAsync<ColumnTypeDto>(_json))!;
     }
 
-    // ── Export DTOs ─────────────────────────────────────────────────────────────
 
     internal record ExportUserRow(long Id, string Name, string Mobile, string? Address, string? Pincode,
         bool IsActive, bool IsAdmin, bool IsStopped, bool IsBlacklisted,
@@ -693,7 +642,6 @@ internal static class DesktopApiClient
 
     internal record ExportPage<T>(long Total, int Page, int Size, bool HasMore, List<T> Rows);
 
-    // ── Export methods ──────────────────────────────────────────────────────────
 
     internal static async Task<List<ExportUserRow>> ExportUsersAsync()
     {
@@ -730,7 +678,6 @@ internal static class DesktopApiClient
         return (await resp.Content.ReadFromJsonAsync<ExportPage<ExportVehicleRow>>(_json))!;
     }
 
-    // ── Per-branch / per-finance record export (Finances page Excel download) ────
 
     internal static async Task<ExportPage<ExportVehicleRow>> ExportBranchRecordsPageAsync(
         int branchId, int page, int size = 5000)
@@ -750,7 +697,6 @@ internal static class DesktopApiClient
         return (await resp.Content.ReadFromJsonAsync<ExportPage<ExportVehicleRow>>(_json))!;
     }
 
-    // Loops all pages and returns the full record set for one branch.
     internal static async Task<List<ExportVehicleRow>> ExportBranchRecordsAsync(int branchId)
     {
         var all = new List<ExportVehicleRow>();
@@ -763,7 +709,6 @@ internal static class DesktopApiClient
         return all;
     }
 
-    // Loops all pages and returns the full record set for one finance.
     internal static async Task<List<ExportVehicleRow>> ExportFinanceRecordsAsync(int financeId)
     {
         var all = new List<ExportVehicleRow>();
@@ -776,29 +721,21 @@ internal static class DesktopApiClient
         return all;
     }
 
-    // ── Instant server-streamed .xlsx download ──────────────────────────────
-    // The server builds the .xlsx and streams it; we just copy the bytes to
-    // disk. No paginated JSON, no client-side workbook assembly. Reports
-    // download progress via onBytes (total bytes written so far).
     internal static Task DownloadFinanceXlsxAsync(int financeId, string name, string savePath, IProgress<long>? onBytes = null)
         => DownloadXlsxAsync($"api/mgr/export/finance-records.xlsx?financeId={financeId}&name={Uri.EscapeDataString(name)}", savePath, onBytes);
 
     internal static Task DownloadBranchXlsxAsync(int branchId, string name, string savePath, IProgress<long>? onBytes = null)
         => DownloadXlsxAsync($"api/mgr/export/branch-records.xlsx?branchId={branchId}&name={Uri.EscapeDataString(name)}", savePath, onBytes);
 
-    // Single "part" — streams just the rows [offset, offset+count) into one file.
     internal static Task DownloadFinanceXlsxChunkAsync(int financeId, string name, long offset, int count, string savePath, IProgress<long>? onBytes = null)
         => DownloadXlsxAsync($"api/mgr/export/finance-records.xlsx?financeId={financeId}&name={Uri.EscapeDataString(name)}&offset={offset}&limit={count}", savePath, onBytes);
 
     internal static Task DownloadBranchXlsxChunkAsync(int branchId, string name, long offset, int count, string savePath, IProgress<long>? onBytes = null)
         => DownloadXlsxAsync($"api/mgr/export/branch-records.xlsx?branchId={branchId}&name={Uri.EscapeDataString(name)}&offset={offset}&limit={count}", savePath, onBytes);
 
-    // Reports record exports — one part = rows [offset, offset+count).
-    // recordType ∈ { vehicle-records, rc-records, chassis-records }.
     internal static Task DownloadRecordsXlsxChunkAsync(string recordType, string name, long offset, int count, string savePath, IProgress<long>? onBytes = null)
         => DownloadXlsxAsync($"api/mgr/export/{recordType}.xlsx?name={Uri.EscapeDataString(name)}&offset={offset}&limit={count}", savePath, onBytes);
 
-    // Search Logs — full filtered set streamed to one file.
     internal static Task DownloadSearchLogsXlsxAsync(string? fromDate, string? toDate, long? userId, string? q, string savePath, IProgress<long>? onBytes = null)
     {
         var qs = $"?fromDate={Uri.EscapeDataString(fromDate ?? "")}&toDate={Uri.EscapeDataString(toDate ?? "")}" +
@@ -829,7 +766,6 @@ internal static class DesktopApiClient
         }
     }
 
-    // ── Support tickets (agency Bearer auth, already on App.HttpClient) ──────
     internal record TicketMsg(int Id, string Sender, string Body, string CreatedAt);
     internal record TicketDto(
         int Id, string Subject, string Message, string ScreenshotUrl,
@@ -852,7 +788,6 @@ internal static class DesktopApiClient
             throw new Exception(await resp.Content.ReadAsStringAsync());
     }
 
-    // Agency posts a follow-up message on its own ticket.
     internal static async Task PostTicketMessageAsync(int ticketId, string body)
     {
         var url  = $"{App.ApiBaseUrl.TrimEnd('/')}/api/agency/desktop/tickets/{ticketId}/messages";
@@ -861,9 +796,6 @@ internal static class DesktopApiClient
             throw new Exception(await resp.Content.ReadAsStringAsync());
     }
 
-    // Total count of admin (CRMRS) messages across all of this agency's
-    // tickets — used by the desktop to show an unread badge (compared against
-    // a locally-stored last-seen count).
     internal static async Task<int> GetAdminMessageCountAsync()
     {
         try
@@ -876,15 +808,10 @@ internal static class DesktopApiClient
                         if (m.Sender == "admin") n++;
             return n;
         }
-        catch { return -1; }   // -1 = couldn't check (don't change the badge)
+        catch { return -1; }
     }
 
-    // ── HTTP helper ─────────────────────────────────────────────────────────
 
-    // A transient blip — DNS "no such host", connection reset, TLS hiccup,
-    // timeout, or a 5xx/408/429 — should NOT surface as a hard error dialog on
-    // the flaky field networks our agencies use. These are safe to retry; a
-    // genuine 4xx (bad request / auth / not found) is not.
     private static bool IsTransientNet(Exception ex)
     {
         if (ex is IOException or TaskCanceledException or System.Net.Sockets.SocketException)
@@ -899,8 +826,6 @@ internal static class DesktopApiClient
         HttpMethod method, string relativeUrl, object? body = null)
     {
         var base_ = App.ApiBaseUrl.TrimEnd('/');
-        // Serialize once so the request can be rebuilt on each retry (an
-        // HttpRequestMessage / its content can only be sent a single time).
         string? bodyJson = body != null ? JsonSerializer.Serialize(body) : null;
 
         const int MAX_ATTEMPTS = 3;
@@ -918,15 +843,12 @@ internal static class DesktopApiClient
             }
             catch (Exception ex) when (attempt < MAX_ATTEMPTS && IsTransientNet(ex))
             {
-                // DNS/reset/timeout on a weak network — wait briefly and retry
-                // instead of throwing "No such host is known" in the user's face.
                 await Task.Delay(TimeSpan.FromMilliseconds(400 * attempt));
                 continue;
             }
 
             if (resp.IsSuccessStatusCode) return resp;
 
-            // Retry transient server statuses; surface real 4xx immediately.
             if (attempt < MAX_ATTEMPTS && (int)resp.StatusCode is 408 or 429 or >= 500)
             {
                 resp.Dispose();
@@ -934,10 +856,6 @@ internal static class DesktopApiClient
                 continue;
             }
 
-            // EnsureSuccessStatusCode throws without the response body, so the WPF
-            // catch sees only "500 Internal Server Error" with zero context. Read
-            // the body up-front and bake it into the exception message so the user
-            // sees what actually went wrong (duplicate name, FK violation, etc.).
             string body_ = "";
             try { body_ = await resp.Content.ReadAsStringAsync(); } catch { }
             if (body_.Length > 1500) body_ = body_.Substring(0, 1500) + "…";

@@ -19,7 +19,6 @@ class PreferencesManager(private val context: Context) {
         val KEY_LOGGED_IN      = booleanPreferencesKey("logged_in")
         val KEY_PFP            = stringPreferencesKey("pfp")
         val KEY_BLOCKED_REASON = stringPreferencesKey("blocked_reason")
-        // Multi-tenant: the agency this device belongs to + its signed token.
         val KEY_TENANT_TOKEN   = stringPreferencesKey("tenant_token")
         val KEY_AGENCY_SLUG    = stringPreferencesKey("agency_slug")
         val KEY_AGENCY_NAME    = stringPreferencesKey("agency_name")
@@ -79,8 +78,6 @@ class PreferencesManager(private val context: Context) {
         }
     }
 
-    // Remembers the agency the user picked, so the login screen can pre-fill
-    // it and the home screen can show the agency logo.
     suspend fun saveAgency(slug: String, name: String, logoPath: String = "") {
         context.dataStore.edit { prefs ->
             prefs[KEY_AGENCY_SLUG] = slug
@@ -110,8 +107,6 @@ class PreferencesManager(private val context: Context) {
     }
 
     suspend fun clearSession() {
-        // Drop the session + tenant token, but keep the chosen agency so the
-        // user doesn't have to pick it again on the next login.
         context.dataStore.edit { prefs ->
             val slug = prefs[KEY_AGENCY_SLUG]
             val name = prefs[KEY_AGENCY_NAME]

@@ -3,19 +3,6 @@ using System.Text.Json;
 
 namespace VRASDesktopApp;
 
-/// <summary>
-/// Build-time agency identity, baked into each per-tenant installer.
-///
-/// When <c>tools/build_wpf_all.py</c> produces a per-agency installer it writes
-/// <c>Resources/branding.json</c> into the publish output. On startup this
-/// class reads that file (if present) so the login screen, taskbar window
-/// title, and any other UI that needs the agency name can do so without a
-/// network call or a sign-in first.
-///
-/// For the generic CRMS build (no branding.json shipped), <see cref="Name"/>
-/// stays "CRMS" and <see cref="IsTenantBuild"/> is false — the runtime cache
-/// fallback in <see cref="LoginWindow"/> kicks in instead.
-/// </summary>
 public static class Branding
 {
     public static readonly bool   IsTenantBuild;
@@ -54,6 +41,6 @@ public static class Branding
             if (!string.IsNullOrWhiteSpace(color))   PrimaryColor = color!;
             IsTenantBuild = !string.IsNullOrWhiteSpace(slug);
         }
-        catch { /* fall back to generic CRMS defaults */ }
+        catch { }
     }
 }

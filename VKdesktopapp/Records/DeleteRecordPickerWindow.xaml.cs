@@ -7,9 +7,6 @@ using VRASDesktopApp.Models;
 
 namespace VRASDesktopApp.Records;
 
-// Shown when a searched vehicle exists in more than one finance and the user
-// hits Delete. Lets the admin pick exactly which finance copy/copies to remove
-// — so other finances (and the rest of the search results) stay intact.
 public partial class DeleteRecordPickerWindow : Window
 {
     public sealed class FinanceChoice : INotifyPropertyChanged
@@ -49,7 +46,6 @@ public partial class DeleteRecordPickerWindow : Window
 
     private readonly ObservableCollection<FinanceChoice> _choices;
 
-    // The records the user chose to delete — empty if cancelled.
     public List<VehicleSearchItem> SelectedRecords { get; private set; } = new();
 
     public DeleteRecordPickerWindow(string vehicleNo, IEnumerable<VehicleSearchItem> copies)

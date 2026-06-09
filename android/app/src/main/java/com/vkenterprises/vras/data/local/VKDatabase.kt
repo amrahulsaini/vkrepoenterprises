@@ -2,7 +2,6 @@ package com.vkenterprises.vras.data.local
 
 import androidx.room.*
 
-// ── Entity ───────────────────────────────────────────────────────────────────
 @Entity(
     tableName = "vehicle_cache",
     indices = [
@@ -29,14 +28,8 @@ data class BranchSyncState(
     val uploadedAt: String
 )
 
-// ── DAOs ─────────────────────────────────────────────────────────────────────
 @Dao
 interface VehicleCacheDao {
-    // NO LIMIT — return every match. This is an indexed exact-match on last4/
-    // last5 (idx on both), so it only ever returns the rows that actually share
-    // that key (~hundreds), never the whole table. The old 500/10000 caps could
-    // silently drop records for dense keys (the "MH-16-CW-5003 not found" bug);
-    // an exact-key lookup has no runaway risk, so the cap is removed entirely.
     @Query("SELECT * FROM vehicle_cache WHERE last4 = :q ORDER BY vehicleNo")
     suspend fun searchByLast4(q: String): List<VehicleCache>
 
@@ -77,7 +70,6 @@ interface BranchSyncStateDao {
     suspend fun clearAll()
 }
 
-// ── Database ──────────────────────────────────────────────────────────────────
 @Database(
     entities = [VehicleCache::class, BranchSyncState::class],
     version = 1,

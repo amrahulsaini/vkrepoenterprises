@@ -1,6 +1,5 @@
 namespace VKmobileapi.Models;
 
-// ── Auth ────────────────────────────────────────────────
 public record RegisterRequest(
     string  Mobile,
     string  Name,
@@ -8,21 +7,13 @@ public record RegisterRequest(
     string? Pincode,
     string? PfpBase64,
     string  DeviceId,
-    // KYC document photos (base64) — reviewed by the agency admin in WPF.
     string? AadhaarFront,
     string? AadhaarBack,
     string? PanFront,
     string? AccountNumber,
     string? IfscCode,
-    // Agency the user is joining + the agency's primary mobile (verification gate)
     string? Slug = null,
     string? AgencyMobile = null,
-    // ── Registration-time KYC (new flow) ──────────────────────────────────
-    // Selfie of the agent holding their Aadhaar in hand (base64). Aadhaar OKYC
-    // (OTP) is verified live on the device before submit; the verified
-    // demographics + the agent's live location are carried here and stored on
-    // the user row. AadhaarNumber is the full 12-digit number — only the last 4
-    // are persisted (kyc_aadhaar_last4).
     string? SelfieWithAadhaar = null,
     string? AadhaarNumber = null,
     string? AadhaarName = null,
@@ -33,8 +24,6 @@ public record RegisterRequest(
     double? RegLat = null,
     double? RegLng = null,
     string? RegLocation = null,
-    // The photo UIDAI returns in the OKYC verify response (base64 JPEG) — the
-    // admin compares it against the selfie in WPF.
     string? AadhaarPhoto = null);
 
 public record LoginRequest(
@@ -42,14 +31,8 @@ public record LoginRequest(
     string  DeviceId,
     string? Slug = null);
 
-// One entry of the agency picker shown on the register / login screens.
-// LogoPath is the server-relative path (e.g. /agency-uploads/<slug>.jpg); the
-// mobile app prepends its base URL to render the image.
 public record AgencyListItem(long Id, string Name, string Slug, string LogoPath);
 
-// Full agency profile shown in the in-app "Agency" detail panel — primary
-// mobile, secondary mobile, and any number of extras the admin added via
-// the manage portal, all flattened into one Mobiles list.
 public record AgencyInfo(string Name, string Address, List<string> Mobiles, string LogoPath);
 
 public record HeartbeatRequest(long UserId, double? Lat, double? Lng);
@@ -74,11 +57,8 @@ public record AuthResponse(
     bool   IsAdmin,
     string? PfpUrl,
     string? SubscriptionEndDate,
-    // Signed tenant token — the app sends it back as the X-Tenant-Token header
-    // so every subsequent request is routed to this agency's database.
     string? TenantToken = null);
 
-// ── Search ──────────────────────────────────────────────
 public record SearchResult(
     long   Id,
     string VehicleNo,
@@ -128,11 +108,6 @@ public record SearchResponse(
     int    Count,
     List<SearchResult> Results);
 
-// ── Profile ─────────────────────────────────────────────
-// Mirrors the desktop (WPF) KYC review payload so the mobile Control Panel can
-// show the same review surface: document/photo URLs, the registration-time
-// Aadhaar OKYC demographics, capture location, and the review status + reject
-// note. The trailing fields are optional so older callers/clients still work.
 public record KycInfo(
     bool    KycSubmitted,
     string? AadhaarFront,
@@ -186,7 +161,6 @@ public record AdminUserItem(long Id, string Name, string Mobile, string? Address
     bool IsActive = false, bool IsAdmin = false, bool IsStopped = false, bool IsBlacklisted = false);
 public record VerifyAdminPassRequest(string Password);
 public record SetUserFlagRequest(bool Value);
-// KYC review outcome set from the mobile Control Panel. Status: success | failed | pending.
 public record SetKycStatusRequest(string Status, string? Note);
 
 public record SyncBranch(
@@ -226,7 +200,6 @@ public record StatsResponse(
     long RcRecords,
     long ChassisRecords);
 
-// ── Live users ───────────────────────────────────────────
 public record LiveUserItem(
     long    Id,
     string  Name,

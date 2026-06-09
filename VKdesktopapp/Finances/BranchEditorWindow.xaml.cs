@@ -9,7 +9,6 @@ public partial class BranchEditorWindow : Window
     private readonly int? _branchId;
     private readonly BranchRepository _branchRepo = new();
 
-    // Add mode
     public BranchEditorWindow(int financeId, string financeName)
     {
         InitializeComponent();
@@ -17,7 +16,6 @@ public partial class BranchEditorWindow : Window
         txtFinanceName.Text = financeName;
     }
 
-    // Edit mode
     public BranchEditorWindow(int financeId, string financeName, int branchId,
         string branchName, string contact1, string contact2, string contact3,
         string address, string branchCode)

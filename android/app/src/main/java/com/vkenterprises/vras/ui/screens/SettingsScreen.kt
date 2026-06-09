@@ -66,7 +66,6 @@ fun SettingsScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
 
-            // ── Role banner ──────────────────────────────────────────────
             item {
                 val bgColor    = if (isAdmin) Color(0xFF1A237E) else MaterialTheme.colorScheme.primaryContainer
                 val textColor  = if (isAdmin) Color.White else MaterialTheme.colorScheme.onPrimaryContainer
@@ -97,7 +96,6 @@ fun SettingsScreen(
                 }
             }
 
-            // ── Admin tools ──────────────────────────────────────────────
             if (isAdmin) {
                 item {
                     SectionCard(title = "Admin Tools") {
@@ -117,10 +115,7 @@ fun SettingsScreen(
                 }
             }
 
-            // Server DB stats & Local Cache count intentionally hidden — record
-            // counts must not be visible to admins or agents anywhere in the app.
 
-            // ── Sync ─────────────────────────────────────────────────────
             item {
                 val infiniteTransition = rememberInfiniteTransition(label = "syncPulse")
                 val pulseAlpha by infiniteTransition.animateFloat(
@@ -186,7 +181,6 @@ fun SettingsScreen(
                 }
             }
 
-            // ── Display Preferences ──────────────────────────────────────
             item {
                 SectionCard(title = "Display") {
                     Row(
@@ -227,7 +221,6 @@ fun SettingsScreen(
                 }
             }
 
-            // ── Sync Logs (admin only) ────────────────────────────────────
             if (isAdmin) {
                 item {
                     SectionCard(title = "Sync Logs (${ui.syncLogs.size} branches)") {
@@ -283,7 +276,6 @@ fun SettingsScreen(
                 }
             }
 
-            // ── Account ───────────────────────────────────────────────────
             item {
                 SectionCard(title = "Account") {
                     Button(
@@ -303,7 +295,6 @@ fun SettingsScreen(
                 }
             }
 
-            // ── Footer: agency logo + developer credit ───────────────────
             item {
                 val agencyName by authVm.agencyName.collectAsState(initial = null)
                 val agencyLogo by authVm.agencyLogo.collectAsState(initial = null)
@@ -349,8 +340,6 @@ fun SettingsScreen(
                     HorizontalDivider(Modifier.fillMaxWidth(0.5f))
                     Spacer(Modifier.height(10.dp))
 
-                    // CRMRS brand logo (tap → website) + version, matching the
-                    // WPF server-settings footer.
                     Image(
                         painter = painterResource(id = R.drawable.crmrs_logo),
                         contentDescription = "CRMRS",

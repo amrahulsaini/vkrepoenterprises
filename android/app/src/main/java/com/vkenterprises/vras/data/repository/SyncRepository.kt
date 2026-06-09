@@ -17,8 +17,6 @@ class SyncRepository @Inject constructor(
     private val api: ApiService,
     private val db: TenantDb
 ) {
-    // Resolve DAOs through TenantDb each time so this singleton always reads
-    // and writes the CURRENT agency's vk_cache_<slug>.db — never a stale one.
     private val vehicleDao   get() = db.vehicleCacheDao()
     private val syncStateDao get() = db.branchSyncStateDao()
     data class Progress(
@@ -43,15 +41,11 @@ class SyncRepository @Inject constructor(
         for (b in branches) {
             if (b.uploadedAt == null) continue
             val savedState = syncStateDao.get(b.branchId)
-            // Only the uploadedAt timestamp is authoritative — counts can drift
-            // legitimately (REPLACE on duplicate IDs, server-side row filtering)
-            // and would otherwise trigger a permanent "needs sync" red indicator.
             if (savedState?.uploadedAt != b.uploadedAt) return true
         }
         return false
     }
 
-    // Nuclear option: wipe everything and re-download all (Settings → Force Full Sync)
     suspend fun forceSync(onProgress: suspend (Progress) -> Unit) {
         vehicleDao.deleteAll()
         syncStateDao.clearAll()
@@ -63,7 +57,6 @@ class SyncRepository @Inject constructor(
         if (!branchResp.isSuccessful) return
         val branches = branchResp.body()?.branches ?: return
 
-        // Prune branches no longer on server
         val serverIds = branches.map { it.branchId }.toSet()
         for (local in syncStateDao.getAll()) {
             if (local.branchId !in serverIds) {
@@ -72,7 +65,6 @@ class SyncRepository @Inject constructor(
             }
         }
 
-        // Build task list: what needs downloading and from where
         val tasks = mutableListOf<SyncTask>()
         var totalToDownload = 0L
 
@@ -85,7 +77,6 @@ class SyncRepository @Inject constructor(
             val countMismatch   = localCount != b.totalRecords
             if (!uploadedChanged && !countMismatch) continue
 
-            // Full reset when upload changed OR local has MORE records than server (deleted on server)
             val fullReset  = uploadedChanged || localCount > b.totalRecords
             val startPage  = if (fullReset) 0 else (localCount / PAGE_SIZE).toInt()
             val toDownload = if (fullReset) b.totalRecords
@@ -100,11 +91,6 @@ class SyncRepository @Inject constructor(
 
         val synced = AtomicLong(0L)
 
-        // Download branches in parallel but BOUNDED — a semaphore caps how many
-        // run at once. With unbounded parallelism, an agency with hundreds of
-        // branches would fire hundreds of simultaneous HTTP calls, exhausting the
-        // connection pool and triggering timeouts/OOM as data grows. 5 at a time
-        // keeps the pipe full without overwhelming the network or the server.
         val gate = Semaphore(5)
         coroutineScope {
             tasks.map { task ->
@@ -129,8 +115,6 @@ class SyncRepository @Inject constructor(
 
         if (task.fullReset) vehicleDao.deleteByBranch(branch.branchId)
 
-        // Save state BEFORE downloading — if connection drops, next run resumes from localCount offset
-        // rather than restarting from scratch
         syncStateDao.save(BranchSyncState(branch.branchId, branch.uploadedAt!!))
 
         var page = task.startPage

@@ -77,22 +77,18 @@ public class VehicleSearchResponse
 
 public class VehicleSearchItem
 {
-    // Record Identifier
     public string Id { get; set; } = string.Empty;
 
-    // Vehicle
     public string ReleaseStatus { get; set; } = string.Empty;
     public string VehicleNo { get; set; } = string.Empty;
     public string ChassisNo { get; set; } = string.Empty;
     public string Model { get; set; } = string.Empty;
     public string EngineNo { get; set; } = string.Empty;
 
-    // Customer
     public string CustomerName { get; set; } = string.Empty;
     public string CustomerContactNos { get; set; } = string.Empty;
     public string CustomerAddress { get; set; } = string.Empty;
 
-    // Finance
     public string Financer { get; set; } = string.Empty;
     public string BranchName { get; set; } = string.Empty;
     public string FirstContactDetails { get; set; } = string.Empty;
@@ -110,7 +106,6 @@ public class VehicleSearchItem
     public string Level4 { get; set; } = string.Empty;
     public string Level4ContactNos { get; set; } = string.Empty;
 
-    // Loan
     public string AgreementNo { get; set; } = string.Empty;
     public string Region { get; set; } = string.Empty;
     public string Area { get; set; } = string.Empty;
@@ -127,7 +122,6 @@ public class VehicleSearchItem
     public string TOSS { get; set; } = string.Empty;
     public string Remark { get; set; } = string.Empty;
 
-    // Other
     public string CreatedOn { get; set; } = string.Empty;
     public string UpdatedOn { get; set; } = string.Empty;
 }

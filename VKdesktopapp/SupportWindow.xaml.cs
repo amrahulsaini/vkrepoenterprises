@@ -12,7 +12,7 @@ namespace VRASDesktopApp;
 
 public partial class SupportWindow : Window
 {
-    private string? _shotBase64;   // attached screenshot, base64 (no data: prefix)
+    private string? _shotBase64;
 
     public SupportWindow()
     {
@@ -26,7 +26,6 @@ public partial class SupportWindow : Window
     }
     private void btnClose_Click(object sender, RoutedEventArgs e) => Close();
 
-    // ── Attach screenshot ───────────────────────────────────────────────────
     private void btnAttach_Click(object sender, RoutedEventArgs e)
     {
         var dlg = new OpenFileDialog
@@ -70,7 +69,6 @@ public partial class SupportWindow : Window
         btnRemoveShot.Visibility  = Visibility.Collapsed;
     }
 
-    // ── Submit ──────────────────────────────────────────────────────────────
     private async void btnSubmit_Click(object sender, RoutedEventArgs e)
     {
         var subject = txtSubject.Text.Trim();
@@ -99,7 +97,6 @@ public partial class SupportWindow : Window
         finally { btnSubmit.IsEnabled = true; }
     }
 
-    // ── Load my tickets ─────────────────────────────────────────────────────
     private async void btnRefresh_Click(object sender, RoutedEventArgs e) => await LoadTicketsAsync();
 
     private async System.Threading.Tasks.Task LoadTicketsAsync()
@@ -119,20 +116,16 @@ public partial class SupportWindow : Window
         }
     }
 
-    // Card click → open the full conversation thread for that ticket.
     private void TicketCard_Click(object sender, MouseButtonEventArgs e)
     {
         if (sender is FrameworkElement fe && fe.Tag is TicketVm vm)
         {
             var w = new TicketThreadWindow(vm.Dto) { Owner = this };
             w.ShowDialog();
-            _ = LoadTicketsAsync();   // refresh previews/status after viewing
+            _ = LoadTicketsAsync();
         }
     }
 
-    // View-model with display helpers for the ticket list template.
-    // internal — wraps the internal TicketDto. WPF binding still works on
-    // internal types within the same assembly.
     internal class TicketVm
     {
         private readonly DesktopApiClient.TicketDto _t;
@@ -142,7 +135,6 @@ public partial class SupportWindow : Window
         public string Subject    => _t.Subject;
         public string CreatedAt  => _t.CreatedAt;
 
-        // Preview = the latest message in the thread, else the opening message.
         public string Preview
         {
             get

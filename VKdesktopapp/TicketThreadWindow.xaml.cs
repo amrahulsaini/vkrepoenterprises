@@ -8,9 +8,6 @@ using VRASDesktopApp.Data;
 
 namespace VRASDesktopApp;
 
-// Shows one ticket's full conversation (the agency's opening message + any
-// screenshot, then every back-and-forth message with sender + time) and lets
-// the agency post a reply any number of times.
 public partial class TicketThreadWindow : Window
 {
     private readonly int _ticketId;
@@ -24,11 +21,6 @@ public partial class TicketThreadWindow : Window
         SetStatus(ticket.Status);
         RenderThread(ticket);
 
-        // This window opens as a modal ON TOP of the (also-modal) SupportWindow.
-        // With the custom chrome window, the new dialog doesn't automatically
-        // route keyboard input to its TextBoxes — the reply box looks focused
-        // but won't accept typing. Explicitly activate the window and put
-        // keyboard focus in the reply box once it's loaded.
         Loaded += (_, __) =>
         {
             Activate();
@@ -57,8 +49,6 @@ public partial class TicketThreadWindow : Window
         });
     }
 
-    // Builds the chat: opening message (agency, left), optional screenshot,
-    // then each thread message — agency right-aligned, CRMRS admin left-aligned.
     private void RenderThread(DesktopApiClient.TicketDto t)
     {
         threadPanel.Children.Clear();
@@ -77,7 +67,7 @@ public partial class TicketThreadWindow : Window
                 };
                 threadPanel.Children.Add(img);
             }
-            catch { /* image failed — skip */ }
+            catch { }
         }
 
         if (t.Messages != null)
@@ -129,7 +119,6 @@ public partial class TicketThreadWindow : Window
         {
             await DesktopApiClient.PostTicketMessageAsync(_ticketId, body);
             txtReply.Clear();
-            // Re-fetch this ticket's thread so the new message (with server time) shows.
             var all = await DesktopApiClient.GetMyTicketsAsync();
             var fresh = all.Find(x => x.Id == _ticketId);
             if (fresh != null) { SetStatus(fresh.Status); RenderThread(fresh); }

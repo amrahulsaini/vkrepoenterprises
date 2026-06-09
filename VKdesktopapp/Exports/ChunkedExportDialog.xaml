@@ -28,7 +28,6 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <!-- Header -->
         <Border Grid.Row="0" Background="{StaticResource HeaderBg}" Padding="20,14">
             <StackPanel>
                 <TextBlock Name="txtTitle" Text="Download Records"
@@ -38,7 +37,6 @@
             </StackPanel>
         </Border>
 
-        <!-- Configuration row -->
         <Border Grid.Row="1" Background="{StaticResource MutedBg}" Padding="20,14">
             <Grid>
                 <Grid.ColumnDefinitions>
@@ -69,7 +67,6 @@
             </Grid>
         </Border>
 
-        <!-- File list -->
         <ListView Grid.Row="2" Name="lvFiles"
                   Margin="20,12,20,4"
                   BorderBrush="#E0E0E0" BorderThickness="1"
@@ -124,7 +121,6 @@
             </ListView.View>
         </ListView>
 
-        <!-- Progress + log -->
         <StackPanel Grid.Row="3" Margin="20,8,20,4">
             <Grid Margin="0,0,0,4">
                 <Grid.ColumnDefinitions>
@@ -140,7 +136,6 @@
                          Foreground="{StaticResource Accent}" />
         </StackPanel>
 
-        <!-- Buttons -->
         <Border Grid.Row="4" Background="{StaticResource MutedBg}" Padding="20,12">
             <Grid>
                 <Grid.ColumnDefinitions>

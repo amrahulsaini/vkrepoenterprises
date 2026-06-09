@@ -42,9 +42,6 @@ fun ProfileScreen(
     LaunchedEffect(userId) { if (userId > 0) vm.load(userId) }
 
     val pfpPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        // Same compression pipeline as RegisterScreen — a 4MB phone selfie
-        // becomes ~100KB after downscale-to-1280 + JPEG@80. Without this the
-        // pfp PUT call could time out on slow networks.
         uri?.let { vm.updatePfp(userId, compressImageToBase64(context, it)) }
     }
 
@@ -104,7 +101,6 @@ private fun ProfileContent(
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
     ) {
-        // ── Header ────────────────────────────────────────────────────────
         Surface(
             color = MaterialTheme.colorScheme.primaryContainer,
             modifier = Modifier.fillMaxWidth()
@@ -163,7 +159,6 @@ private fun ProfileContent(
 
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
 
-            // ── Personal info ─────────────────────────────────────────────
             ProfileSection(title = "Personal Information") {
                 InfoRow(Icons.Default.LocationOn, "Address", profile.address ?: "—")
                 InfoRow(Icons.Default.PinDrop, "Pincode", profile.pincode ?: "—")
@@ -171,7 +166,6 @@ private fun ProfileContent(
                 InfoRow(Icons.Default.AccountBalance, "Balance", "₹${profile.balance}")
             }
 
-            // ── KYC ───────────────────────────────────────────────────────
             ProfileSection(title = "KYC Documents") {
                 val kyc = profile.kyc
                 if (kyc.kycSubmitted) {
@@ -211,7 +205,6 @@ private fun ProfileContent(
                 }
             }
 
-            // ── Subscriptions ─────────────────────────────────────────────
             ProfileSection(title = "Subscriptions (${profile.subscriptions.size})") {
                 if (profile.subscriptions.isEmpty()) {
                     Text("No subscription records.", style = MaterialTheme.typography.bodySmall,
@@ -261,10 +254,6 @@ private fun InfoRow(icon: androidx.compose.ui.graphics.vector.ImageVector, label
     }
 }
 
-// `url` is a full https URL into /uploads/kyc/... the server returns from
-// GET /api/mobile/profile/{id}. Previously this composable expected a
-// base64 string and silently fell through to "Not provided" because the
-// server actually returns paths/URLs — broken thumbnails on every device.
 @Composable
 private fun KycDocThumb(
     label: String,
@@ -329,7 +318,6 @@ private fun SubRow(sub: SubscriptionRecord) {
     }
 }
 
-// Full-screen, pinch-to-zoom document preview. Tap anywhere / back to close.
 @Composable
 private fun KycImagePreviewDialog(url: String, onDismiss: () -> Unit) {
     androidx.compose.ui.window.Dialog(

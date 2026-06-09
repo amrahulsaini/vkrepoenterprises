@@ -1,24 +1,3 @@
-// ─────────────────────────────────────────────────────────────────────────────
-//  Sandbox (api.sandbox.co.in) KYC integration — Aadhaar OKYC (OTP), PAN, Bank.
-//
-//  Credentials are read ONLY from server environment variables — never hardcoded
-//  and never sent to the WPF/Android client:
-//      SANDBOX_API_KEY     (key_live_... / key_test_...)
-//      SANDBOX_API_SECRET  (secret_live_... / secret_test_...)
-//      SANDBOX_BASE_URL    (optional; default https://api.sandbox.co.in,
-//                           use https://test-api.sandbox.co.in for sandbox)
-//
-//  Auth flow (per Sandbox docs): POST /authenticate with x-api-key + x-api-secret
-//  → { data.access_token } (valid 24h). The token is sent in the Authorization
-//  header WITHOUT a "Bearer" prefix, plus x-api-key, on every subsequent call.
-//  We cache the token in-process and refresh it ~20h.
-//
-//  Endpoints exposed to the desktop app (MgrAuth-gated):
-//      POST /api/mgr/kyc/aadhaar/otp     { aadhaarNumber }            → { referenceId }
-//      POST /api/mgr/kyc/aadhaar/verify  { referenceId, otp }         → { name, dob, ... }
-//      POST /api/mgr/kyc/pan             { pan, name, dob(DD/MM/YYYY) }→ { status, matches }
-//      POST /api/mgr/kyc/bank            { ifsc, accountNumber, name } → { nameAtBank }
-// ─────────────────────────────────────────────────────────────────────────────
 using System;
 using System.Collections.Generic;
 using System.Net.Http;
@@ -47,7 +26,6 @@ internal static class SandboxKyc
 
     private static bool Configured => ApiKey.Length > 0 && ApiSecret.Length > 0;
 
-    // ── access-token cache ───────────────────────────────────────────────────
     private static async Task<string> TokenAsync()
     {
         if (_token.Length > 0 && DateTime.UtcNow < _tokenExpiry) return _token;
@@ -66,18 +44,17 @@ internal static class SandboxKyc
                       && d.TryGetProperty("access_token", out var t) ? t.GetString() ?? "" : "";
             if (tok.Length == 0) throw new Exception("Sandbox authenticate failed: " + json);
             _token = tok;
-            _tokenExpiry = DateTime.UtcNow.AddHours(20); // token lives 24h; refresh early
+            _tokenExpiry = DateTime.UtcNow.AddHours(20);
             return _token;
         }
         finally { _tokenLock.Release(); }
     }
 
-    // ── generic authenticated call ─────────────────────────────────────────────
     private static async Task<JsonElement> CallAsync(HttpMethod method, string path, object? body, string? apiVersion)
     {
         var token = await TokenAsync();
         using var req = new HttpRequestMessage(method, BaseUrl + path);
-        req.Headers.TryAddWithoutValidation("Authorization", token); // NO "Bearer" prefix (per docs)
+        req.Headers.TryAddWithoutValidation("Authorization", token);
         req.Headers.TryAddWithoutValidation("x-api-key", ApiKey);
         if (apiVersion != null) req.Headers.TryAddWithoutValidation("x-api-version", apiVersion);
         if (body != null)
@@ -89,7 +66,6 @@ internal static class SandboxKyc
 
     public static void Map(WebApplication app, Func<HttpContext, bool> auth)
     {
-        // ── Aadhaar OKYC — step 1: send OTP ────────────────────────────────────
         app.MapPost("/api/mgr/kyc/aadhaar/otp", async (HttpContext ctx) =>
         {
             if (!auth(ctx)) return Results.Unauthorized();
@@ -114,7 +90,6 @@ internal static class SandboxKyc
             catch (Exception ex) { return Results.Problem(ex.Message); }
         });
 
-        // ── Aadhaar OKYC — step 2: verify OTP → identity details ───────────────
         app.MapPost("/api/mgr/kyc/aadhaar/verify", async (HttpContext ctx) =>
         {
             if (!auth(ctx)) return Results.Unauthorized();
@@ -126,8 +101,6 @@ internal static class SandboxKyc
                 return Results.BadRequest(new { ok = false, message = "Reference id and the 6-digit OTP are required." });
             try
             {
-                // Sandbox requires reference_id as a STRING — sending a JSON
-                // number is rejected with "Invalid request body".
                 var r = await CallAsync(HttpMethod.Post, "/kyc/aadhaar/okyc/otp/verify", new Dictionary<string, object?>
                 {
                     ["@entity"] = "in.co.sandbox.kyc.aadhaar.okyc.request",
@@ -138,8 +111,6 @@ internal static class SandboxKyc
                 {
                     string S(string k) => d.TryGetProperty(k, out var v)
                         ? (v.ValueKind == JsonValueKind.String ? v.GetString() ?? "" : v.ToString()) : "";
-                    // Sandbox returns 200 + data even on a wrong OTP (just a
-                    // "message", no identity). Don't report verified in that case.
                     if (S("name").Length == 0 && S("date_of_birth").Length == 0)
                     {
                         var dm = S("message");
@@ -158,7 +129,7 @@ internal static class SandboxKyc
                         gender  = S("gender"),
                         address = addr,
                         careOf  = S("care_of"),
-                        photo   = S("photo"),          // base64 (UIDAI photo)
+                        photo   = S("photo"),
                         status  = S("status")
                     });
                 }
@@ -167,7 +138,6 @@ internal static class SandboxKyc
             catch (Exception ex) { return Results.Problem(ex.Message); }
         });
 
-        // ── PAN verification ───────────────────────────────────────────────────
         app.MapPost("/api/mgr/kyc/pan", async (HttpContext ctx) =>
         {
             if (!auth(ctx)) return Results.Unauthorized();
@@ -175,7 +145,7 @@ internal static class SandboxKyc
             var dto = await ReadJson(ctx);
             var pan  = (dto.GetValueOrDefault("pan") ?? "").Trim().ToUpper();
             var name = (dto.GetValueOrDefault("name") ?? "").Trim();
-            var dob  = (dto.GetValueOrDefault("dob") ?? "").Trim(); // DD/MM/YYYY
+            var dob  = (dto.GetValueOrDefault("dob") ?? "").Trim();
             if (pan.Length != 10)
                 return Results.BadRequest(new { ok = false, message = "Enter a valid 10-character PAN." });
             try
@@ -212,7 +182,6 @@ internal static class SandboxKyc
             catch (Exception ex) { return Results.Problem(ex.Message); }
         });
 
-        // ── Bank account verification (penny-less) ─────────────────────────────
         app.MapPost("/api/mgr/kyc/bank", async (HttpContext ctx) =>
         {
             if (!auth(ctx)) return Results.Unauthorized();

@@ -12,7 +12,6 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <!-- Header -->
         <Grid Grid.Row="0" Margin="0,0,0,18">
             <StackPanel>
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
@@ -30,7 +29,6 @@
                 <TextBlock Text="Permanently block users from logging in or registering. Blacklisted users see 'You have been blocked by agency'."
                            Style="{StaticResource Caption}" Margin="0,2,0,0" TextWrapping="Wrap" />
             </StackPanel>
-            <!-- Refresh icon (top-right) -->
             <Button Name="btnRefresh" HorizontalAlignment="Right" VerticalAlignment="Top"
                     Width="38" Height="38" Cursor="Hand"
                     Background="Transparent" BorderThickness="0"
@@ -53,7 +51,6 @@
             </Button>
         </Grid>
 
-        <!-- Two-column layout -->
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="1.2*" />
@@ -61,7 +58,6 @@
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
-            <!-- LEFT: All users list -->
             <Border Grid.Column="0" Style="{StaticResource DashboardCard}" Padding="0">
                 <DockPanel LastChildFill="True">
                     <Border DockPanel.Dock="Top" Background="White"
@@ -70,7 +66,6 @@
                         <TextBlock Text="All Users" Style="{StaticResource Heading6}" />
                     </Border>
 
-                    <!-- Search -->
                     <Border DockPanel.Dock="Top" Margin="14,10,14,4"
                             Background="White" BorderBrush="{StaticResource Gray200}"
                             BorderThickness="1" CornerRadius="7">
@@ -192,7 +187,6 @@
                 </DockPanel>
             </Border>
 
-            <!-- RIGHT: Action panel -->
             <Border Grid.Column="2" Style="{StaticResource DashboardCard}" Padding="0">
                 <DockPanel LastChildFill="True">
                     <Border DockPanel.Dock="Top" Background="White"
@@ -202,7 +196,6 @@
                                    Style="{StaticResource Heading6}" />
                     </Border>
 
-                    <!-- Empty state -->
                     <StackPanel Name="pnlEmpty" HorizontalAlignment="Center"
                                 VerticalAlignment="Center" DockPanel.Dock="Bottom">
                         <TextBlock Text="&#xE77B;" FontFamily="Segoe MDL2 Assets" FontSize="48"
@@ -212,11 +205,9 @@
                                    HorizontalAlignment="Center" Margin="0,8,0,0" />
                     </StackPanel>
 
-                    <!-- Action panel (shown when user selected) -->
                     <StackPanel Name="pnlAction" Visibility="Collapsed"
                                 Margin="20,20,20,20" DockPanel.Dock="Top">
 
-                        <!-- User info card -->
                         <Border Background="{StaticResource Gray50}"
                                 BorderBrush="{StaticResource Gray100}"
                                 BorderThickness="1" CornerRadius="8"
@@ -232,13 +223,11 @@
                             </StackPanel>
                         </Border>
 
-                        <!-- Status badge -->
                         <Border Name="statusBadge" CornerRadius="6" Padding="12,8"
                                 HorizontalAlignment="Left" Margin="0,0,0,20">
                             <TextBlock Name="txtStatus" FontSize="13" FontWeight="SemiBold" />
                         </Border>
 
-                        <!-- Blacklist button -->
                         <Button Name="btnBlacklist" FontSize="14" FontWeight="SemiBold"
                                 Padding="16,12" Cursor="Hand"
                                 Click="btnBlacklist_Click">

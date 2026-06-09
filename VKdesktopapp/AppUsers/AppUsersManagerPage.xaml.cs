@@ -93,11 +93,8 @@ public partial class AppUsersManagerPage : Page
         txtProfileJoined.Text  = user.CreatedDisplay;
         txtDeviceId.Text       = user.DeviceId ?? "(no device registered)";
 
-        // Load PFP — server may return a full URL (file-stored PFPs) or legacy
-        // base64. Detect and load appropriately.
         await SetAvatarAsync(user.PfpBase64);
 
-        // App Active toggle — ON = app running, OFF = stopped (inverted semantics)
         _suppressStopToggle = true;
         tglStopApp.IsChecked = !user.IsStopped;
         lblStopStatus.Text   = user.IsStopped ? "Stopped" : "Running";
@@ -109,20 +106,12 @@ public partial class AppUsersManagerPage : Page
         btnRefreshUser.Visibility = Visibility.Visible;
         RefreshActionLabels(user);
 
-        // Kick off all four secondary loads in parallel — previously these ran
-        // sequentially which meant the user waited 4× the longest call before
-        // KYC images even started loading.
-        // Control Panel password is now agency-wide (Agency Settings), no
-        // longer per-user — so it's not loaded here any more.
         await Task.WhenAll(
             LoadSubscriptionsAsync(user.Id),
             LoadFinanceRestrictionsAsync(user.Id),
             LoadKycAsync(user.Id));
     }
 
-    // ── All-in-one Actions menu ─────────────────────────────────────────────
-    // Labels flip to reflect the user's current state so one menu both sets
-    // and clears each flag.
     private void RefreshActionLabels(AppUserListItem u)
     {
         miStopApp.Header   = u.IsStopped     ? "Start App"        : "Stop App";
@@ -172,7 +161,7 @@ public partial class AppUsersManagerPage : Page
         {
             await _repo.SetBlacklistedAsync(_selectedUser.Id, bl);
             _selectedUser.IsBlacklisted = bl;
-            if (bl) _selectedUser.IsStopped = true;   // blacklisting also stops
+            if (bl) _selectedUser.IsStopped = true;
             RefreshActionLabels(_selectedUser);
         }
         catch (Exception ex) { MessageBox.Show(ex.Message, "Blacklist", MessageBoxButton.OK, MessageBoxImage.Error); }
@@ -186,8 +175,6 @@ public partial class AppUsersManagerPage : Page
         catch (Exception ex) { MessageBox.Show(ex.Message, "Admin", MessageBoxButton.OK, MessageBoxImage.Error); }
     }
 
-    // Reloads the selected user's KYC documents/photos + verified details +
-    // subscriptions/restrictions — handy right after the agent re-submits KYC.
     private async void btnRefreshUser_Click(object sender, RoutedEventArgs e)
     {
         if (_selectedUser == null) return;
@@ -207,7 +194,6 @@ public partial class AppUsersManagerPage : Page
     {
         if (_selectedUser == null) return;
         var active = !_selectedUser.IsActive;
-        // Gate: can't activate until KYC is verified. (Deactivating is allowed.)
         if (active && !string.Equals(_kycStatus, "success", StringComparison.OrdinalIgnoreCase))
         {
             MessageBox.Show(
@@ -231,18 +217,15 @@ public partial class AppUsersManagerPage : Page
         catch (Exception ex) { MessageBox.Show(ex.Message, "Delete User", MessageBoxButton.OK, MessageBoxImage.Error); }
     }
 
-    // Faster, smoother wheel scrolling on the profile panel — the default WPF
-    // step felt sluggish on the long detail panel.
     private void pnlProfile_PreviewMouseWheel(object sender, System.Windows.Input.MouseWheelEventArgs e)
     {
         if (sender is ScrollViewer sv)
         {
-            sv.ScrollToVerticalOffset(sv.VerticalOffset - e.Delta);   // 1:1 wheel delta
+            sv.ScrollToVerticalOffset(sv.VerticalOffset - e.Delta);
             e.Handled = true;
         }
     }
 
-    // Loads PFP into imgPfp from either a URL or legacy base64. Falls back to initials.
     private async Task SetAvatarAsync(string? pfpRaw)
     {
         if (string.IsNullOrWhiteSpace(pfpRaw))
@@ -276,7 +259,6 @@ public partial class AppUsersManagerPage : Page
         }
     }
 
-    // ── KYC documents ───────────────────────────────────────────────────
     private DesktopApiClient.KycDocsDto? _kycDocs;
 
     private async Task LoadKycAsync(long userId)
@@ -301,11 +283,9 @@ public partial class AppUsersManagerPage : Page
 
         DesktopApiClient.KycDocsDto? docs = null;
         try { docs = await _repo.GetKycAsync(userId); }
-        catch { /* user may have no KYC yet */ }
+        catch { }
         _kycDocs = docs;
 
-        // Restore the "Not uploaded" placeholder text so any tile that ends up
-        // empty doesn't sit on "Loading…".
         txtKycAadhaarFrontEmpty.Text = "Not uploaded";
         txtKycAadhaarBackEmpty.Text  = "Not uploaded";
         txtKycPanFrontEmpty.Text     = "Not uploaded";
@@ -316,9 +296,6 @@ public partial class AppUsersManagerPage : Page
 
         PopulateKycDetails(docs);
 
-        // Download all five image bytes in parallel — previously sequential
-        // awaits made a single-doc load take 5× longer than necessary, and
-        // the UI showed "Not uploaded" for the entire duration.
         var aFrontTask = LoadKycBytesAsync(docs.AadhaarFront);
         var aBackTask  = LoadKycBytesAsync(docs.AadhaarBack);
         var pFrontTask = LoadKycBytesAsync(docs.PanFront);
@@ -333,9 +310,6 @@ public partial class AppUsersManagerPage : Page
         ApplyKycImage(imgKycUidaiPhoto,   txtKycUidaiPhotoEmpty,   await uidaiTask);
     }
 
-    // Resets the read-only OKYC demographic/location text fields.
-    // Current KYC review status of the selected user ('pending'|'success'|
-    // 'failed'); drives whether activation is allowed and the badge colour.
     private string _kycStatus = "success";
 
     private void ClearKycDetails()
@@ -361,8 +335,6 @@ public partial class AppUsersManagerPage : Page
         txtKycStatusBadge.Foreground = fg;
     }
 
-    // Fills the OKYC demographics + capture location + review status. Read-only —
-    // the admin eyeballs the photos, marks KYC Verified/Rejected, then activates.
     private void PopulateKycDetails(DesktopApiClient.KycDocsDto docs)
     {
         var a = docs.Aadhaar;
@@ -372,7 +344,6 @@ public partial class AppUsersManagerPage : Page
             ? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x16, 0xA3, 0x4A))
             : (System.Windows.Media.Brush)FindResource("Gray700");
 
-        // Prefer the full 12-digit number; fall back to masked last-4.
         string number = !string.IsNullOrWhiteSpace(a?.Number) ? a!.Number!
                        : !string.IsNullOrWhiteSpace(a?.Last4)  ? $"XXXX XXXX {a!.Last4}" : "—";
         txtKycAaNumber.Text  = number;
@@ -389,7 +360,6 @@ public partial class AppUsersManagerPage : Page
         }
         else txtKycLocation.Text = "—";
 
-        // ── Review status badge + reject note ──────────────────────────────
         _kycStatus = (docs.KycStatus ?? "success").Trim().ToLowerInvariant();
         switch (_kycStatus)
         {
@@ -407,7 +377,7 @@ public partial class AppUsersManagerPage : Page
                     ? "Rejected (no note)." : $"Note: {docs.RejectNote}";
                 txtKycRejectNote.Visibility = Visibility.Visible;
                 break;
-            default: // pending
+            default:
                 txtKycStatusBadge.Text = "KYC: PENDING REVIEW";
                 SetBadge(new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xFE, 0xF9, 0xC3)),
                          new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x85, 0x4D, 0x0E)));
@@ -416,7 +386,6 @@ public partial class AppUsersManagerPage : Page
         }
     }
 
-    // ── KYC review actions ───────────────────────────────────────────────
     private async void btnKycVerify_Click(object sender, RoutedEventArgs e)
     {
         if (_selectedUser == null) return;
@@ -435,7 +404,6 @@ public partial class AppUsersManagerPage : Page
     private async void btnKycReject_Click(object sender, RoutedEventArgs e)
     {
         if (_selectedUser == null) return;
-        // Optional rejection note the agent will see on their next login.
         var (ok, note) = PromptForNote(
             $"Reject {_selectedUser.Name}'s KYC",
             "Reason (optional) — the agent sees this and re-submits. Rejecting also deactivates the account.");
@@ -454,8 +422,6 @@ public partial class AppUsersManagerPage : Page
         { MessageBox.Show(ex.Message, "KYC", MessageBoxButton.OK, MessageBoxImage.Error); }
     }
 
-    // Delete the UIDAI photo + verified Aadhaar details — gated by the admin's
-    // login password (re-verified against the server). Irreversible.
     private async void btnKycDeleteUidai_Click(object sender, RoutedEventArgs e)
     {
         if (_selectedUser == null) return;
@@ -495,7 +461,6 @@ public partial class AppUsersManagerPage : Page
         { MessageBox.Show(ex.Message, "Delete UIDAI data", MessageBoxButton.OK, MessageBoxImage.Error); }
     }
 
-    // Minimal modal password prompt. Returns (true, password) on OK, (false, "") on cancel.
     private (bool ok, string pwd) PromptForPassword(string title, string prompt)
     {
         var win = new Window
@@ -522,8 +487,6 @@ public partial class AppUsersManagerPage : Page
         return (result, box.Password ?? "");
     }
 
-    // Minimal modal text prompt (no Microsoft.VisualBasic dependency). Returns
-    // (true, text) on OK and (false, "") on cancel.
     private (bool ok, string text) PromptForNote(string title, string prompt)
     {
         var win = new Window
@@ -550,9 +513,6 @@ public partial class AppUsersManagerPage : Page
         return (result, box.Text ?? "");
     }
 
-    // Downloads the bytes for one KYC image — runs off the UI thread. Returns
-    // null on any failure (missing URL, network error) so the caller can show
-    // the empty state.
     private static async Task<byte[]?> LoadKycBytesAsync(string url)
     {
         if (string.IsNullOrWhiteSpace(url)) return null;
@@ -603,8 +563,6 @@ public partial class AppUsersManagerPage : Page
             await DownloadKycAsync(docType);
     }
 
-    // Shared download — used by the per-tile Download button AND the preview
-    // window's Download button.
     private async Task DownloadKycAsync(string docType)
     {
         if (_selectedUser == null) return;
@@ -643,7 +601,6 @@ public partial class AppUsersManagerPage : Page
             await DeleteKycAsync(docType);
     }
 
-    // Returns true if the doc was deleted (so the preview window can close).
     private async Task<bool> DeleteKycAsync(string docType)
     {
         if (_selectedUser == null) return false;
@@ -666,7 +623,6 @@ public partial class AppUsersManagerPage : Page
         }
     }
 
-    // Refresh the user list on demand.
     private async void btnRefreshUsers_Click(object sender, RoutedEventArgs e)
     {
         btnRefreshUsers.IsEnabled = false;
@@ -674,7 +630,6 @@ public partial class AppUsersManagerPage : Page
         finally { btnRefreshUsers.IsEnabled = true; }
     }
 
-    // Click a KYC thumbnail → open a large preview with Download / Delete.
     private void KycImage_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
     {
         if (sender is not Image img || img.Source == null) return;
@@ -692,10 +647,9 @@ public partial class AppUsersManagerPage : Page
         };
 
         var grid = new Grid();
-        grid.RowDefinitions.Add(new RowDefinition());                                  // image fills
-        grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });       // button bar
+        grid.RowDefinitions.Add(new RowDefinition());
+        grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
-        // Zoomable-ish: Uniform stretch in a scroll viewer so big scans are readable.
         var preview = new Image
         {
             Source  = img.Source,
@@ -763,7 +717,7 @@ public partial class AppUsersManagerPage : Page
             }).ToList();
             icFinanceRestrictions.ItemsSource = items;
         }
-        catch { /* silent */ }
+        catch { }
     }
 
     private async Task LoadSubscriptionsAsync(long userId)
@@ -773,10 +727,9 @@ public partial class AppUsersManagerPage : Page
             var subs = await _repo.GetSubscriptionsAsync(userId);
             dgSubscriptions.ItemsSource = subs;
         }
-        catch { /* silent — subscriptions are secondary */ }
+        catch { }
     }
 
-    // ── Active toggle ──────────────────────────────────────────────────
     private async void ActiveToggle_Checked(object sender, RoutedEventArgs e)
     {
         if (sender is ToggleButton { Tag: AppUserListItem user })
@@ -795,7 +748,6 @@ public partial class AppUsersManagerPage : Page
         {
             await _repo.SetActiveAsync(user.Id, active);
             user.IsActive = active;
-            // Refresh stats
             var (total, a, admins, withSub) = await _repo.GetStatsAsync();
             lblActive.Text = a.ToString("N0");
         }
@@ -806,7 +758,6 @@ public partial class AppUsersManagerPage : Page
         }
     }
 
-    // ── Admin toggle ───────────────────────────────────────────────────
     private async void AdminToggle_Checked(object sender, RoutedEventArgs e)
     {
         if (sender is ToggleButton { Tag: AppUserListItem user })
@@ -835,12 +786,10 @@ public partial class AppUsersManagerPage : Page
         }
     }
 
-    // ── Subscription ───────────────────────────────────────────────────
     private async void btnAddSubscription_Click(object sender, RoutedEventArgs e)
     {
         if (_selectedUser == null) return;
 
-        // Only one active plan allowed per user — delete the existing one first.
         var existing = await _repo.GetSubscriptionsAsync(_selectedUser.Id);
         if (existing.Count > 0)
         {
@@ -861,7 +810,6 @@ public partial class AppUsersManagerPage : Page
                 dlg.StartDate, dlg.EndDate,
                 dlg.Amount, dlg.Notes);
             await LoadSubscriptionsAsync(_selectedUser.Id);
-            // update sub end on list item
             var subs = await _repo.GetSubscriptionsAsync(_selectedUser.Id);
             _selectedUser.SubEndDate = subs.Count > 0 ? subs.Max(s => s.EndDate) : null;
 
@@ -903,7 +851,6 @@ public partial class AppUsersManagerPage : Page
         }
     }
 
-    // ── Device reset ───────────────────────────────────────────────────
     private async void btnResetDevice_Click(object sender, RoutedEventArgs e)
     {
         if (_selectedUser == null) return;
@@ -924,11 +871,6 @@ public partial class AppUsersManagerPage : Page
         }
     }
 
-    // ── Delete user ───────────────────────────────────────────────────
-    // Calls the server-side delete that cascades the tenant row AND releases
-    // the cross-agency claim in crm_master.app_user_registry. Without this,
-    // an admin who removed the row directly from app_users in MySQL would
-    // permanently block this mobile / device from registering anywhere else.
     private async void btnDeleteUser_Click(object sender, RoutedEventArgs e)
     {
         if (_selectedUser == null) return;
@@ -953,17 +895,14 @@ public partial class AppUsersManagerPage : Page
         }
     }
 
-    // ── App Active toggle (ON = running, OFF = stopped) ────────────────────
     private async void StopToggle_Checked(object sender, RoutedEventArgs e)
     {
-        // Toggle ON = mark app as running (IsStopped = false)
         if (_suppressStopToggle || _selectedUser == null) return;
         await SetStoppedAsync(_selectedUser, false);
     }
 
     private async void StopToggle_Unchecked(object sender, RoutedEventArgs e)
     {
-        // Toggle OFF = stop the app (IsStopped = true)
         if (_suppressStopToggle || _selectedUser == null) return;
         await SetStoppedAsync(_selectedUser, true);
     }
@@ -980,14 +919,12 @@ public partial class AppUsersManagerPage : Page
         {
             MessageBox.Show($"Failed to update state: {ex.Message}", "App Active",
                 MessageBoxButton.OK, MessageBoxImage.Error);
-            // Revert toggle to reflect actual server state (inverted semantics)
             _suppressStopToggle = true;
             tglStopApp.IsChecked = !user.IsStopped;
             _suppressStopToggle  = false;
         }
     }
 
-    // ── Finance Restrictions ────────────────────────────────────────────
     private async void btnSaveRestrictions_Click(object sender, RoutedEventArgs e)
     {
         if (_selectedUser == null) return;

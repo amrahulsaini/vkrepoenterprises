@@ -20,7 +20,6 @@ class SettingsViewModel @Inject constructor(
     private val api: ApiService
 ) : ViewModel() {
 
-    // Always points at the signed-in agency's vk_cache_<slug>.db.
     private val vehicleDao get() = db.vehicleCacheDao()
 
     data class UiState(

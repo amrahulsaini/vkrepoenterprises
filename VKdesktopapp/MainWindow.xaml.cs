@@ -63,7 +63,6 @@ public partial class MainWindow : Window
         }
         LoadAgencyLogo();
 
-        // Poll the support unread-reply badge: once now + every 60s.
         _ = UpdateSupportBadgeAsync();
         var t = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(60) };
         t.Tick += async (_, _) => await UpdateSupportBadgeAsync();
@@ -115,14 +114,9 @@ public partial class MainWindow : Window
     {
         var w = new SupportWindow { Owner = this };
         w.ShowDialog();
-        // Opening Support = the agency has now seen the replies → clear badge.
         await MarkSupportSeenAsync();
     }
 
-    // ── Support unread badge ─────────────────────────────────────────────────
-    // Shows a red count on the 🎧 icon when CRMRS has posted admin replies the
-    // agency hasn't opened yet. "Seen" = count of admin messages at the last
-    // time the agency opened Support, stored in a small LocalAppData file.
     private static string SupportSeenFile => System.IO.Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "VKEnterprises", "tickets_seen.txt");
@@ -145,7 +139,7 @@ public partial class MainWindow : Window
     private async Task UpdateSupportBadgeAsync()
     {
         var count = await DesktopApiClient.GetAdminMessageCountAsync();
-        if (count < 0) return;                 // couldn't check — leave badge as is
+        if (count < 0) return;
         int unread = count - ReadSupportSeen();
         if (unread > 0)
         {
@@ -196,13 +190,6 @@ public partial class MainWindow : Window
     {
         if (_recordsEditorWindow == null)
         {
-            // RecordsEditorWindow is the most Syncfusion-heavy screen in the
-            // app (SfSpreadsheet + ribbon + Windows11Light theme). On machines
-            // with Smart App Control / AppLocker / WDAC, those unsigned
-            // Syncfusion DLLs get blocked and constructing the window throws a
-            // FileLoadException (0x800711C7). Catch it here so the agency sees
-            // a clear "blocked by your IT policy" message instead of a raw
-            // crash dialog — and so the rest of the app stays usable.
             try
             {
                 _recordsEditorWindow = new RecordsEditorWindow();
@@ -216,16 +203,11 @@ public partial class MainWindow : Window
             _recordsEditorWindow.Closed += (_, __) =>
             {
                 _recordsEditorWindow = null;
-                // Editor closed → bring the dashboard back to the foreground.
                 if (WindowState == WindowState.Minimized)
                     WindowState = WindowState.Maximized;
                 Activate();
             };
             _recordsEditorWindow.Show();
-            // Get the dashboard out of the way so the editor is the foreground
-            // window. Minimize — do NOT Hide(): this window is shown via
-            // LoginWindow.ShowDialog(), and hiding a modal dialog ends that
-            // modal loop, which makes the login window pop back up.
             WindowState = WindowState.Minimized;
             return;
         }
@@ -238,8 +220,6 @@ public partial class MainWindow : Window
         _recordsEditorWindow.Activate();
     }
 
-    // Shows the signed-in agency's name / contact / address in the menu header.
-    // Falls back to the locally-configured firm when no agency session exists.
     private void RefreshFirmLabels()
     {
         var u = App.SignedAppUser;
@@ -254,8 +234,6 @@ public partial class MainWindow : Window
         if (FindName("lblFirmAddress") is TextBlock addrTb)   addrTb.Text   = addr;
     }
 
-    // Downloads the signed-in agency's logo and shows it in the menu header.
-    // Best-effort — on any failure the default CRMS mark stays in place.
     private async void LoadAgencyLogo()
     {
         try
@@ -276,6 +254,6 @@ public partial class MainWindow : Window
             bmp.Freeze();
             img.Source = bmp;
         }
-        catch { /* keep the default logo */ }
+        catch { }
     }
 }

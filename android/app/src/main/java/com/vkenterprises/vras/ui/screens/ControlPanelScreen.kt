@@ -44,7 +44,6 @@ fun ControlPanelScreen(
     LaunchedEffect(userId) { if (userId > 0) vm.init(userId) }
 
     LaunchedEffect(ui.errorMsg) {
-        // errors are shown inline; nothing to do here
     }
 
     Scaffold(
@@ -196,7 +195,6 @@ private fun StatusDot(label: String, on: Boolean, color: Color) {
 private fun UserDetail(vm: ControlPanelViewModel, ui: com.vkenterprises.vras.viewmodel.ControlPanelUiState) {
     val user = ui.selectedUser ?: return
     val profile = ui.selectedProfile
-    // Reset per-user so a stale preview/reject dialog never carries over.
     var previewUrl  by remember(user.id) { mutableStateOf<String?>(null) }
     var rejectDialog by remember(user.id) { mutableStateOf(false) }
     val onPreview: (String?) -> Unit = { url -> if (!url.isNullOrBlank()) previewUrl = url }
@@ -206,7 +204,6 @@ private fun UserDetail(vm: ControlPanelViewModel, ui: com.vkenterprises.vras.vie
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // ── Header: name + mobile + pfp ─────────────────────────────────
         item {
             Card(shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
                 Row(
@@ -253,7 +250,6 @@ private fun UserDetail(vm: ControlPanelViewModel, ui: com.vkenterprises.vras.vie
                 }
             }
         }
-        // ── Personal info ───────────────────────────────────────────────
         item {
             Card(shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -269,7 +265,6 @@ private fun UserDetail(vm: ControlPanelViewModel, ui: com.vkenterprises.vras.vie
                 }
             }
         }
-        // ── KYC verification (documents + OKYC details + review actions) ─
         item {
             Card(shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -289,7 +284,6 @@ private fun UserDetail(vm: ControlPanelViewModel, ui: com.vkenterprises.vras.vie
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                     } else {
-                        // Rejection note (shown to the agent on next login).
                         if (kyc.kycStatus.equals("failed", true) && !kyc.rejectNote.isNullOrBlank()) {
                             Surface(
                                 shape = RoundedCornerShape(6.dp),
@@ -302,7 +296,6 @@ private fun UserDetail(vm: ControlPanelViewModel, ui: com.vkenterprises.vras.vie
                                     modifier = Modifier.padding(8.dp))
                             }
                         }
-                        // Documents — tap any to preview full-screen.
                         Text("Documents (tap to preview)",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -316,7 +309,6 @@ private fun UserDetail(vm: ControlPanelViewModel, ui: com.vkenterprises.vras.vie
                             KycTile("UIDAI Photo", kyc.aadhaarPhoto, Modifier.weight(1f)) { onPreview(kyc.aadhaarPhoto) }
                             Spacer(Modifier.weight(1f))
                         }
-                        // Aadhaar OKYC demographics fetched at registration.
                         Spacer(Modifier.height(2.dp))
                         Text(
                             if (kyc.aadhaarVerified) "✓ Aadhaar verified with UIDAI (OKYC)"
@@ -337,7 +329,6 @@ private fun UserDetail(vm: ControlPanelViewModel, ui: com.vkenterprises.vras.vie
                                     "(%.5f, %.5f)".format(kyc.lat, kyc.lng)
                             else null)
 
-                        // ── Review actions (Mark Verified / Reject) ──────────
                         Spacer(Modifier.height(4.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp),
                             modifier = Modifier.fillMaxWidth()) {
@@ -367,20 +358,17 @@ private fun UserDetail(vm: ControlPanelViewModel, ui: com.vkenterprises.vras.vie
                 }
             }
         }
-        // ── Status toggles ──────────────────────────────────────────────
         item {
             Card(shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     SectionTitle("User Status")
                     ToggleRow("Active account", user.isActive, ui.busy) { vm.setActive(it) }
-                    // Promote/demote — ON = Admin, OFF = normal user.
                     ToggleRow("Admin (full access)", user.isAdmin, ui.busy) { vm.setAdmin(it) }
                     ToggleRow("App stopped", user.isStopped, ui.busy) { vm.setStopped(it) }
                     ToggleRow("Blacklisted", user.isBlacklisted, ui.busy) { vm.setBlacklisted(it) }
                 }
             }
         }
-        // ── Subscription / plan ─────────────────────────────────────────
         item {
             Card(shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp)) {
@@ -509,7 +497,6 @@ private fun KycTile(
     }
 }
 
-// Coloured KYC status pill — PENDING REVIEW / VERIFIED / REJECTED.
 @Composable
 private fun KycStatusBadge(status: String?) {
     val (label, bg, fg) = when (status?.lowercase()) {
@@ -528,7 +515,6 @@ private fun KycStatusBadge(status: String?) {
     }
 }
 
-// Full-screen, pinch-to-zoom KYC document preview. Tap outside / back to close.
 @Composable
 private fun ImagePreviewDialog(url: String, onDismiss: () -> Unit) {
     androidx.compose.ui.window.Dialog(
@@ -570,7 +556,6 @@ private fun ImagePreviewDialog(url: String, onDismiss: () -> Unit) {
     }
 }
 
-// Reject dialog with an optional note the agent sees on next login.
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun RejectKycDialog(
@@ -644,8 +629,6 @@ private fun AddPlanDialog(vm: ControlPanelViewModel, ui: com.vkenterprises.vras.
         title = { Text("Add Plan", fontWeight = FontWeight.Bold) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                // Read-only fields with a calendar trailing icon — tap anywhere
-                // on the field to open the Material 3 date picker.
                 OutlinedTextField(
                     value = ui.addStartDate,
                     onValueChange = {},
@@ -699,8 +682,6 @@ private fun AddPlanDialog(vm: ControlPanelViewModel, ui: com.vkenterprises.vras.
     )
 }
 
-// Material 3 DatePickerDialog wrapper — accepts a YYYY-MM-DD seed and returns
-// a YYYY-MM-DD pick. Kept in a small object so the AddPlanDialog stays tidy.
 private object DateField {
     private val Fmt: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
 

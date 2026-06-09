@@ -18,8 +18,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.vkenterprises.vras.data.models.AgencyListItem
 
-// A tap-to-open, searchable agency picker shared by the register & login
-// screens. Built only from stable Compose APIs (OutlinedCard, Dialog, Column).
 @Composable
 fun AgencyPickerField(
     agencies: List<AgencyListItem>,

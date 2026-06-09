@@ -1,6 +1,5 @@
 package com.vkenterprises.vras.data.models
 
-// Responses from the server's /api/mobile/kyc/* endpoints (Sandbox-backed).
 data class KycOtpResp(
     val ok: Boolean = false,
     val referenceId: String? = null,

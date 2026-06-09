@@ -53,8 +53,6 @@ import com.vkenterprises.vras.viewmodel.SearchViewModel
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 
-// Bundled Roboto (same TTFs the reference app uses) so the plate list looks
-// identical on every device — not the OEM system font (e.g. Oppo Sans).
 private val RobotoFamily = FontFamily(
     Font(R.font.roboto_bold,  FontWeight.Bold),
     Font(R.font.roboto_black, FontWeight.Black)
@@ -76,9 +74,6 @@ fun HomeScreen(
     val agencyLogo  by authVm.agencyLogo.collectAsState(initial = null)
     val subEnd      by authVm.subscriptionEnd.collectAsState(initial = null)
 
-    // Back-press handling: if results are showing, back wipes them so the
-    // dashboard (logo / contact / Remaining Days etc.) re-appears. Only on the
-    // bare dashboard does back actually exit the app — matches user expectation.
     BackHandler(enabled = ui.results.isNotEmpty() || ui.inputText.isNotEmpty()) {
         searchVm.clearResults()
     }
@@ -87,11 +82,7 @@ fun HomeScreen(
         ?.let { BuildConfig.BASE_URL.trimEnd('/') + "/" + it.trimStart('/') }
     val context    = LocalContext.current
 
-    // Ask for location permission so the worker can send GPS heartbeats
-    // ── Location gate ─────────────────────────────────────────────────────────
-    // App cannot be used without location services enabled + permission granted.
     var showLocationDialog by remember { mutableStateOf(false) }
-    // Holds the new online/offline state to confirm in the dialog.
     var pendingOnlineModeChange by remember { mutableStateOf<Boolean?>(null) }
 
     fun isLocationEnabled(): Boolean {
@@ -121,8 +112,6 @@ fun HomeScreen(
         }
     }
 
-    // Re-check every time we come back to the screen (user may have toggled GPS in settings)
-    // Also refresh session so isAdmin / isActive changes from desktop take effect instantly.
     val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val obs = androidx.lifecycle.LifecycleEventObserver { _, event ->
@@ -138,8 +127,6 @@ fun HomeScreen(
         onDispose { lifecycleOwner.lifecycle.removeObserver(obs) }
     }
 
-    // Online / Offline confirmation dialog — appears whenever the cloud icon
-    // is tapped so the user explicitly acknowledges which mode they are in.
     pendingOnlineModeChange?.let { goingOnline ->
         AlertDialog(
             onDismissRequest = { pendingOnlineModeChange = null },
@@ -185,7 +172,7 @@ fun HomeScreen(
 
     if (showLocationDialog) {
         AlertDialog(
-            onDismissRequest = { /* non-dismissible */ },
+            onDismissRequest = { },
             icon = { Icon(Icons.Default.LocationOff, contentDescription = null,
                 tint = MaterialTheme.colorScheme.error) },
             title = { Text("Location Required") },
@@ -233,12 +220,10 @@ fun HomeScreen(
         }
     }
 
-    // Start foreground status polling (every 10 s via viewModelScope)
     LaunchedEffect(userId) {
         if (userId > 0) authVm.startStatusPolling(userId)
     }
 
-    // Instant reaction to stop/blacklist detected by polling
     LaunchedEffect(kickReason) {
         val reason = kickReason ?: return@LaunchedEffect
         when (reason) {
@@ -261,8 +246,6 @@ fun HomeScreen(
             TopAppBar(
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        // White-background card so the logo (which may have
-                        // any colours / transparency) is always legible.
                         Surface(
                             shape = RoundedCornerShape(8.dp),
                             color = Color.White,
@@ -273,10 +256,6 @@ fun HomeScreen(
                             ),
                             modifier = Modifier.size(38.dp)
                         ) {
-                            // Logo is baked into the per-flavor APK at build time
-                            // (see android/tools/gen_flavors.py). No network fetch,
-                            // no CRMRS fallback — every white-label build ships its
-                            // agency's actual logo.
                             Image(
                                 painter = painterResource(id = R.drawable.agency_logo),
                                 contentDescription = BuildConfig.AGENCY_NAME,
@@ -303,12 +282,7 @@ fun HomeScreen(
                 },
                 actions = {
                     val pfpUrl by authVm.pfpUrl.collectAsState(initial = null)
-                    // The standalone "Manage Subscriptions" icon was removed —
-                    // admins reach the same screen via Control Panel below.
 
-                    // Online / Offline toggle — green cloud when online (default),
-                    // red cloud-off when offline. Tap shows a confirmation dialog
-                    // so the user always knows which mode they are in.
                     IconButton(onClick = { pendingOnlineModeChange = !ui.onlineOnly }) {
                         Icon(
                             imageVector       = if (ui.onlineOnly) Icons.Default.Cloud
@@ -342,10 +316,6 @@ fun HomeScreen(
                     }
                     IconButton(onClick = { nav.navigate(Screen.Profile.route) }) {
                         if (!pfpUrl.isNullOrBlank()) {
-                            // Coil request: account-circle icon shown both as
-                            // "loading" placeholder and "error" fallback, so the
-                            // avatar slot never renders as a broken/empty box.
-                            // crossfade for a smooth swap once the bytes land.
                             val req = coil.request.ImageRequest.Builder(LocalContext.current)
                                 .data(pfpUrl)
                                 .crossfade(true)
@@ -369,7 +339,6 @@ fun HomeScreen(
     ) { pad ->
         Column(Modifier.padding(pad).fillMaxSize()) {
 
-            // Sync progress banner
             if (ui.isSyncing) {
                 val pct = if (ui.syncTotal > 0) (ui.syncCurrent.toFloat() / ui.syncTotal) else 0f
                 Surface(color = MaterialTheme.colorScheme.primaryContainer) {
@@ -393,7 +362,6 @@ fun HomeScreen(
                 }
             }
 
-            // ── Search bar ───────────────────────────────────────────────
             Surface(
                 color = MaterialTheme.colorScheme.surfaceVariant,
                 modifier = Modifier.fillMaxWidth()
@@ -465,7 +433,6 @@ fun HomeScreen(
                 }
             }
 
-            // ── Error ────────────────────────────────────────────────────
             if (ui.errorMsg != null) {
                 Surface(color = MaterialTheme.colorScheme.errorContainer) {
                     Text(ui.errorMsg!!, Modifier.fillMaxWidth().padding(10.dp),
@@ -474,9 +441,7 @@ fun HomeScreen(
                 }
             }
 
-            // ── Results ──────────────────────────────────────────────────
             if (ui.results.isNotEmpty()) {
-                // Count bar — minimal strip (kept tiny to give the list more room)
                 Surface(color = MaterialTheme.colorScheme.primaryContainer) {
                     Row(
                         Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 1.dp),
@@ -501,9 +466,6 @@ fun HomeScreen(
                 }
 
                 if (ui.twoColumnView) {
-                    // Column-wise alphabetical order: col1 = first half, col2 = second half.
-                    // remember() keyed on ui.results means we only recompute the reorder
-                    // when the result list changes — not on every unrelated recomposition.
                     val reordered = remember(ui.results) {
                         val sorted = ui.results
                         val half   = (sorted.size + 1) / 2
@@ -519,9 +481,6 @@ fun HomeScreen(
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(0.dp)
                     ) {
-                        // key = id lets Compose diff items across searches and reuse
-                        // composition slots for rows that didn't change — big win on
-                        // partial-result updates.
                         items(reordered, key = { it.id }) { item ->
                             VehicleGridCell(item, ui.mode) {
                                 searchVm.selectResult(item)
@@ -540,8 +499,6 @@ fun HomeScreen(
                     }
                 }
             } else if (ui.isSearching) {
-                // First search of a session: the server can take a moment to warm
-                // up, so show a clear busy state instead of flashing the dashboard.
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
@@ -571,11 +528,6 @@ fun HomeScreen(
     }
 }
 
-// ── Idle-state landing panel ─────────────────────────────────────────────────
-// Shown beneath the search bar when there are no results. Replaces the old
-// 2-tile quick-access grid. Layout per request:
-//   logo → mobile → address → Remaining Days / Offline Records / My Account
-//   (+ Control Panel for admins) → "Software designed by CRMRS" footer.
 @Composable
 private fun AgencyLandingPanel(
     agencyName: String,
@@ -598,7 +550,6 @@ private fun AgencyLandingPanel(
         Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 18.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Big agency logo on a white card
         Surface(
             shape = RoundedCornerShape(20.dp),
             color = Color.White,
@@ -665,13 +616,11 @@ private fun AgencyLandingPanel(
                 daysLeft <= 7L    -> Color(0xFFEF6C00)
                 else              -> Color(0xFF388E3C)
             }
-        ) { /* read-only tile */ }
+        ) { }
         Spacer(Modifier.height(10.dp))
         LandingTile(
             label    = "OFFLINE RECORDS",
             icon     = Icons.Default.CloudDownload,
-            // Record count intentionally hidden — agents shouldn't see how many
-            // records are on the device.
             subtitle = "Saved on this phone",
             accent   = MaterialTheme.colorScheme.primary
         ) { nav.navigate(Screen.Settings.route) }
@@ -760,21 +709,16 @@ private fun VehicleGridCell(item: SearchResult, mode: SearchMode, onClick: () ->
         SearchMode.CHASSIS -> item.chassisNo.ifBlank { "—" }
     }
     val isInvalidRc = mode == SearchMode.RC && item.vehicleNo.isNotBlank() && !item.vehicleNo.isValidRc()
-    // Compact rows so ~21 fit per column in a single look (matches the
-    // reference's tight 2-column list).
     Row(
         Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            // Tight side padding so the FULL RC always fits (no ellipsis) and the
-            // chevron still shows; balanced top/bottom space.
             .padding(start = 10.dp, end = 2.dp, top = 8.dp, bottom = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Text(
             display,
-            // Exact reference style: bundled Roboto Bold (700) typeface, 16sp.
             fontWeight = FontWeight.Bold,
             fontFamily = RobotoFamily,
             fontSize = 16.sp,
@@ -840,7 +784,6 @@ private fun HomeTile(
     }
 }
 
-// 1,234 → "1,234" / 12345 → "12,345" / 1234567 → "1,234,567"
 private fun formatRoomCount(n: Long): String =
     java.text.NumberFormat.getInstance(java.util.Locale.US).format(n)
 
@@ -915,10 +858,6 @@ private fun Int.formatCount(): String = when {
     else              -> "$this"
 }
 
-// Indian RC formats accepted:
-//   * Standard:    MH12AB1234   — 2 state + 2 district + 1-3 series + 4 unique
-//   * Legacy long: HR736546     — 2 state + 5-7 digits (govt / older)
-//   * Bharat (BH): 22BH2271E    — 2 year + BH + 4 digits + 1-2 letters
 private val RC_REGEX = Regex(
     "^([A-Z]{2}[0-9]{2}[A-Z]{1,3}[0-9]{4}|[A-Z]{2}[0-9]{5,7}|[0-9]{2}BH[0-9]{4}[A-Z]{1,2})$"
 )

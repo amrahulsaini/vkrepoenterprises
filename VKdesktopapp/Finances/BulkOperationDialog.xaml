@@ -17,7 +17,6 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <!-- Title bar -->
         <Border Grid.Row="0"
                 Background="White"
                 BorderBrush="{StaticResource Gray100}"
@@ -30,7 +29,6 @@
             </DockPanel>
         </Border>
 
-        <!-- Content -->
         <StackPanel Grid.Row="1" Margin="20,18,20,14" VerticalAlignment="Center">
             <TextBlock x:Name="txtStatus"
                        FontSize="13"
@@ -44,7 +42,6 @@
                          BorderThickness="0"/>
         </StackPanel>
 
-        <!-- Footer -->
         <Border Grid.Row="2"
                 Background="White"
                 BorderBrush="{StaticResource Gray100}"

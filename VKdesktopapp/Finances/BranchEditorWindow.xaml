@@ -9,7 +9,6 @@
         FontFamily="{StaticResource FontBody}">
 
     <Window.Resources>
-        <!-- Focusable input border -->
         <Style x:Key="InputBorder" TargetType="Border">
             <Setter Property="BorderBrush" Value="{StaticResource Gray300}" />
             <Setter Property="BorderThickness" Value="1" />
@@ -22,7 +21,6 @@
             </Style.Triggers>
         </Style>
 
-        <!-- Clean TextBox inside InputBorder -->
         <Style x:Key="CleanTextBox" TargetType="TextBox">
             <Setter Property="Padding" Value="12,10" />
             <Setter Property="FontSize" Value="14" />
@@ -40,13 +38,11 @@
             </Setter>
         </Style>
 
-        <!-- ReadOnly variant -->
         <Style x:Key="CleanTextBoxReadOnly" TargetType="TextBox" BasedOn="{StaticResource CleanTextBox}">
             <Setter Property="Foreground" Value="{StaticResource Gray500}" />
             <Setter Property="Background" Value="Transparent" />
         </Style>
 
-        <!-- Field label -->
         <Style x:Key="FieldLabel" TargetType="TextBlock">
             <Setter Property="FontSize" Value="11" />
             <Setter Property="FontWeight" Value="SemiBold" />
@@ -62,7 +58,6 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <!-- Title bar -->
         <Border Grid.Row="0"
                 Background="White"
                 BorderBrush="{StaticResource Gray100}"
@@ -87,11 +82,9 @@
             </DockPanel>
         </Border>
 
-        <!-- Form body -->
         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
             <StackPanel Margin="24,20,24,12">
 
-                <!-- Branch name first (top) -->
                 <TextBlock Text="FINANCE NAME *" Style="{StaticResource FieldLabel}" />
                 <Border Style="{StaticResource InputBorder}" Margin="0,0,0,16">
                     <TextBox x:Name="txtBranchName"
@@ -100,7 +93,6 @@
                              CharacterCasing="Upper" />
                 </Border>
 
-                <!-- Head Office (read-only) — moved below branch name -->
                 <TextBlock Text="HEAD OFFICE" Style="{StaticResource FieldLabel}" />
                 <Border Style="{StaticResource InputBorder}" Margin="0,0,0,16"
                         Background="{StaticResource Gray50}">
@@ -110,7 +102,6 @@
                              IsReadOnly="True" />
                 </Border>
 
-                <!-- Contacts row -->
                 <Grid Margin="0,0,0,16">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
@@ -142,13 +133,11 @@
                     </StackPanel>
                 </Grid>
 
-                <!-- Branch code -->
                 <TextBlock Text="BRANCH CODE" Style="{StaticResource FieldLabel}" />
                 <Border Style="{StaticResource InputBorder}" Margin="0,0,0,16">
                     <TextBox x:Name="txtBranchCode" Style="{StaticResource CleanTextBox}" />
                 </Border>
 
-                <!-- Address -->
                 <TextBlock Text="ADDRESS / NOTES" Style="{StaticResource FieldLabel}" />
                 <Border Style="{StaticResource InputBorder}" Margin="0,0,0,4">
                     <TextBox x:Name="txtAddress"
@@ -163,7 +152,6 @@
             </StackPanel>
         </ScrollViewer>
 
-        <!-- Footer -->
         <Border Grid.Row="2"
                 Background="White"
                 BorderBrush="{StaticResource Gray100}"

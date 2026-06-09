@@ -19,20 +19,18 @@ builder.Services.AddCors(options =>
 });
 
 builder.Services.AddMemoryCache();
-builder.WebHost.ConfigureKestrel(opts => opts.Limits.MaxRequestBodySize = 200 * 1024 * 1024); // 200 MB for bulk uploads
+builder.WebHost.ConfigureKestrel(opts => opts.Limits.MaxRequestBodySize = 200 * 1024 * 1024);
 
 builder.Services.AddResponseCompression(opts =>
 {
-    opts.EnableForHttps = true; // Cloudflare terminates TLS; origin is HTTP anyway, but safe to enable
+    opts.EnableForHttps = true;
     opts.Providers.Add<Microsoft.AspNetCore.ResponseCompression.GzipCompressionProvider>();
     opts.MimeTypes = Microsoft.AspNetCore.ResponseCompression.ResponseCompressionDefaults.MimeTypes.Concat(
         new[] { "application/json", "application/ndjson", "text/plain" });
 });
 builder.Services.Configure<Microsoft.AspNetCore.ResponseCompression.GzipCompressionProviderOptions>(opts =>
-    opts.Level = CompressionLevel.Fastest); // Fastest = still 8-10x smaller, zero CPU bottleneck
+    opts.Level = CompressionLevel.Fastest);
 
-// Legacy single-tenant database (vkre_db1). Agency requests are routed to
-// their own tenant DB per-request by the middleware below; see TenantContext.
 TenantContext.DefaultConn = new MySqlConnectionStringBuilder
 {
     Server   = Environment.GetEnvironmentVariable("MYSQL_HOST")     ?? "127.0.0.1",
@@ -52,22 +50,16 @@ var desktopLoginPassword = Environment.GetEnvironmentVariable("DESKTOP_LOGIN_PAS
 var privateKey = Environment.GetEnvironmentVariable("PRIVATEKEY") ?? "vk_enterprises_local_jwt_key";
 var port = Environment.GetEnvironmentVariable("PORT") ?? "5002";
 
-// MySQL host/port — used for the default DB connection and per-tenant routing.
 var mysqlHost = Environment.GetEnvironmentVariable("MYSQL_HOST") ?? "127.0.0.1";
 var mysqlPort = int.TryParse(Environment.GetEnvironmentVariable("MYSQL_PORT"), out var mysqlPortParsed) ? mysqlPortParsed : 3306;
 
 var app = builder.Build();
-app.UseResponseCompression(); // must be first — compresses everything below it
+app.UseResponseCompression();
 app.UseCors();
 
-// ── Multi-tenant request routing ─────────────────────────────────────────────
-// A valid CRMS agency Bearer token (issued by /api/agency/desktop/login) routes
-// this request — for its whole async lifetime — to that agency's own isolated
-// database. No token, or a legacy desktop token → the default vkre_db1 database.
 app.Use(async (ctx, next) =>
 {
     var path = ctx.Request.Path.Value ?? "";
-    // /api/agency/* endpoints manage their own auth and always use crm_master.
     if (!path.StartsWith("/api/agency", StringComparison.OrdinalIgnoreCase))
     {
         var authHeader = ctx.Request.Headers.Authorization.FirstOrDefault();
@@ -91,23 +83,17 @@ app.Use(async (ctx, next) =>
     await next();
 });
 
-// Shared HttpClient for forwarding mobile requests to VKmobileapi (port 5001)
 var mobileHttp = new HttpClient
 {
     BaseAddress = new Uri("http://localhost:5001/"),
     Timeout     = TimeSpan.FromSeconds(60)
 };
 
-// ── Public health / status endpoint ─────────────────────────────────────────
-// Powers the "System Status" page. No auth — it only reports up/down + latency
-// per component, nothing sensitive. Each check is bounded so a hung dependency
-// can't hang the status check itself.
 app.MapGet("/api/health", async () =>
 {
     var components = new List<object>();
     bool allOk = true;
 
-    // Database — any successful connection + SELECT 1 proves MariaDB is reachable.
     var dbSw = Stopwatch.StartNew();
     bool dbOk;
     try
@@ -123,7 +109,6 @@ app.MapGet("/api/health", async () =>
     allOk &= dbOk;
     components.Add(new { name = "Database", status = dbOk ? "operational" : "down", latencyMs = (long)dbSw.ElapsedMilliseconds });
 
-    // Mobile API (VKmobileapi on :5001) — hit a light public endpoint.
     var mSw = Stopwatch.StartNew();
     bool mOk;
     try
@@ -137,7 +122,6 @@ app.MapGet("/api/health", async () =>
     allOk &= mOk;
     components.Add(new { name = "Mobile API", status = mOk ? "operational" : "down", latencyMs = (long)mSw.ElapsedMilliseconds });
 
-    // Web API (this service) — if it's answering, it's up.
     components.Add(new { name = "Web API", status = "operational", latencyMs = 0L });
 
     return Results.Ok(new
@@ -467,9 +451,6 @@ app.MapPost("/api/Confirmations", async (ConfirmationRequest req) =>
     }
 });
 
-// Legacy "fetch every row" endpoint — kept for back-compat with any external
-// caller, but the desktop now uses /api/Confirmations/paged below. Capped at
-// 5000 rows so an over-grown table doesn't blow up the legacy caller either.
 app.MapGet("/api/Confirmations", async () =>
 {
     try
@@ -499,17 +480,6 @@ app.MapGet("/api/Confirmations", async () =>
     catch { return Results.Ok(new List<ConfirmationResponseItem>()); }
 });
 
-// Paginated + filterable confirmations endpoint. Replaces the desktop's
-// previous "load every row on page open" behaviour — older agencies' tables
-// grew large enough that the unpaginated fetch was timing out and freezing
-// the WPF grid for 10+ seconds on Confirmations tab open.
-//
-// Query params (all optional):
-//   page = 0-based page index   (default 0)
-//   size = rows per page        (default 200, max 1000)
-//   q    = search text          (matches vehicle_no / chassis_no)
-//   from = YYYY-MM-DD inclusive (filter on created_at)
-//   to   = YYYY-MM-DD inclusive
 app.MapGet("/api/Confirmations/paged", async (HttpContext ctx) =>
 {
     int page = int.TryParse(ctx.Request.Query["page"], out var p) ? Math.Max(0, p) : 0;
@@ -556,8 +526,6 @@ app.MapGet("/api/Confirmations/paged", async (HttpContext ctx) =>
                      LIMIT {size} OFFSET {page * size}";
         await using (var cmd = new MySqlCommand(sql, conn) { CommandTimeout = 30 })
         {
-            // Rebuild param list — same names but a parameter object can only
-            // belong to one MySqlCommand.
             foreach (var par in ps) cmd.Parameters.Add(new MySqlParameter(par.ParameterName, par.Value));
             await using var rdr = await cmd.ExecuteReaderAsync();
             while (await rdr.ReadAsync())
@@ -601,9 +569,6 @@ app.MapGet("/", () => Results.Ok(new
     port
 }));
 
-// ── Desktop Manager endpoints (/api/mgr/*) ──────────────────────────────────
-// All SQL runs server-side at loopback speed — eliminates WAN round-trips
-// for every query the desktop previously issued directly to MySQL.
 
 static bool MgrAuth(HttpContext ctx, string key) =>
     ctx.Request.Headers.TryGetValue("X-Api-Key", out var v) && v == key;
@@ -616,7 +581,6 @@ static async Task MgrExec(string sql, MySqlConnection c, int timeout = 30,
     await cmd.ExecuteNonQueryAsync();
 }
 
-// ── Finances ──────────────────────────────────────────────────────────────
 
 app.MapGet("/api/mgr/finances", async (HttpContext ctx) =>
 {
@@ -625,10 +589,6 @@ app.MapGet("/api/mgr/finances", async (HttpContext ctx) =>
     {
         await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
-        // Head offices listed A→Z. Record counts come from the maintained
-        // branches.total_records column (SUM) — NOT a COUNT over vehicle_records.
-        // The old COUNT(vr.id) join scanned millions of rows (~730 ms); summing
-        // the per-branch counter is sub-millisecond.
         const string sql = @"
             SELECT f.id, f.name,
                    COALESCE(b.branch_cnt, 0) AS branch_count,
@@ -693,7 +653,6 @@ app.MapDelete("/api/mgr/finances/{id:int}", async (HttpContext ctx, int id) =>
         await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
         await MgrExec("SET foreign_key_checks=0", conn);
-        // Multi-table DELETE: removes rc_info + chassis_info + vehicle_records for all branches of this finance
         await MgrExec(@"DELETE vr, rc, ci
             FROM vehicle_records vr
             INNER JOIN branches b ON vr.branch_id = b.id
@@ -708,7 +667,6 @@ app.MapDelete("/api/mgr/finances/{id:int}", async (HttpContext ctx, int id) =>
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
 
-// ── Branches ──────────────────────────────────────────────────────────────
 
 app.MapGet("/api/mgr/branches", async (HttpContext ctx, int? financeId) =>
 {
@@ -780,10 +738,6 @@ app.MapGet("/api/mgr/branches/{id:int}", async (HttpContext ctx, int id) =>
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
 
-// Truncate a value to its column's max width so an over-long contact / name
-// can NEVER throw "Data too long for column" (the Add-Branch 500). The bulk
-// upload path already truncates every field; these direct INSERT/UPDATE
-// endpoints did not — this closes that gap. (address/notes are TEXT = no cap.)
 static string Cap(string? v, int max) =>
     string.IsNullOrEmpty(v) ? "" : (v.Length > max ? v[..max] : v);
 
@@ -837,7 +791,6 @@ app.MapPut("/api/mgr/branches/{id:int}", async (HttpContext ctx, int id, MgrUpda
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
 
-// Clear: single multi-table DELETE — no chunking, fast with FK checks off
 app.MapPost("/api/mgr/branches/{id:int}/clear", async (HttpContext ctx, int id) =>
 {
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
@@ -860,11 +813,6 @@ app.MapPost("/api/mgr/branches/{id:int}/clear", async (HttpContext ctx, int id) 
             LEFT JOIN rc_info rc ON rc.vehicle_record_id = vr.id
             LEFT JOIN chassis_info ci ON ci.vehicle_record_id = vr.id
             WHERE vr.branch_id = @id", conn, 300, ("@id", id));
-        // Reset the branch's stored counter + upload time. The Finances list and
-        // dashboard read branches.total_records (a maintained counter, NOT a live
-        // COUNT), and mobile sync keys off uploaded_at — so without this the
-        // branch keeps showing its old record count after a clear ("nothing
-        // happened"). uploaded_at=NULL = nothing left to sync.
         await MgrExec("UPDATE branches SET total_records=0, uploaded_at=NULL WHERE id=@id",
             conn, 30, ("@id", id));
         await MgrExec("SET foreign_key_checks=1", conn);
@@ -873,7 +821,6 @@ app.MapPost("/api/mgr/branches/{id:int}/clear", async (HttpContext ctx, int id) 
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
 
-// Delete: single multi-table DELETE then drop branch — no chunking
 app.MapDelete("/api/mgr/branches/{id:int}", async (HttpContext ctx, int id) =>
 {
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
@@ -894,7 +841,6 @@ app.MapDelete("/api/mgr/branches/{id:int}", async (HttpContext ctx, int id) =>
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
 
-// ── App Users ─────────────────────────────────────────────────────────────
 
 app.MapGet("/api/mgr/users", async (HttpContext ctx) =>
 {
@@ -923,9 +869,6 @@ app.MapGet("/api/mgr/users", async (HttpContext ctx) =>
             }
         }
 
-        // Balance is the total of every subscription ever bought for the user
-        // — sum of subscriptions.amount. The legacy u.balance column is no
-        // longer used so what the admin sees matches the Subscriptions tab.
         const string usersSql = @"
             SELECT u.id, u.name, u.mobile, u.address, u.pincode,
                    u.pfp, u.device_id, u.is_active, u.is_admin,
@@ -943,9 +886,6 @@ app.MapGet("/api/mgr/users", async (HttpContext ctx) =>
             while (await rdr.ReadAsync())
             {
                 var pfpRaw = rdr.IsDBNull(5) ? null : rdr.GetString(5);
-                // If pfp looks like a relative file path (no whitespace, contains '/'
-                // and no '+'/'=' typical of base64), turn it into a full URL that
-                // LiteSpeed serves from /uploads/. Legacy base64 entries pass through.
                 string? pfpOut = pfpRaw;
                 if (!string.IsNullOrEmpty(pfpRaw)
                     && pfpRaw.Length < 256
@@ -979,7 +919,6 @@ app.MapGet("/api/mgr/users", async (HttpContext ctx) =>
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
 
-// Lightweight user list for picker — no pfp, fast load
 app.MapGet("/api/mgr/users/picker", async (HttpContext ctx) =>
 {
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
@@ -1041,9 +980,6 @@ app.MapMethods("/api/mgr/users/{id:long}/active", new[] { "PATCH" }, async (Http
     {
         await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
-        // Activation is gated on KYC verification: an agent can only be set
-        // active once an admin has marked their KYC 'success'. (Deactivating is
-        // always allowed.) This mirrors the WPF gate as a server-side safety net.
         if (dto.Active)
         {
             try
@@ -1055,7 +991,7 @@ app.MapMethods("/api/mgr/users/{id:long}/active", new[] { "PATCH" }, async (Http
                 if (!string.Equals(st, "success", StringComparison.OrdinalIgnoreCase))
                     return Results.BadRequest(new { message = "Verify the agent's KYC before activating their account." });
             }
-            catch { /* legacy schema without kyc_status — allow */ }
+            catch { }
         }
         await MgrExec("UPDATE app_users SET is_active=@v WHERE id=@id", conn, 10,
             ("@v", dto.Active ? 1 : 0), ("@id", id));
@@ -1064,10 +1000,6 @@ app.MapMethods("/api/mgr/users/{id:long}/active", new[] { "PATCH" }, async (Http
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
 
-// Admin sets KYC review outcome: 'success' (verified) or 'failed' (rejected,
-// with an optional note the agent sees on their next login). Rejecting also
-// deactivates the account so a previously-active agent can't keep working on a
-// now-rejected KYC.
 app.MapMethods("/api/mgr/users/{id:long}/kyc-status", new[] { "PATCH" }, async (HttpContext ctx, long id, MgrSetKycStatusDto dto) =>
 {
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
@@ -1144,12 +1076,6 @@ app.MapMethods("/api/mgr/users/{id:long}/blacklisted", new[] { "PATCH" }, async 
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
 
-// DELETE /api/mgr/users/{id} — fully remove a user from the current agency.
-// Atomically drops the tenant row (cascades to subscriptions, KYC, finance
-// restrictions, etc. via existing FK CASCADE) AND releases the cross-agency
-// claim on this mobile/device in crm_master.app_user_registry. Without the
-// master cleanup, the same mobile / device cannot register at any other
-// agency — they would forever appear "already registered".
 app.MapDelete("/api/mgr/users/{id:long}", async (HttpContext ctx, long id) =>
 {
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
@@ -1158,7 +1084,6 @@ app.MapDelete("/api/mgr/users/{id:long}", async (HttpContext ctx, long id) =>
         await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
 
-        // Read mobile + device BEFORE deleting so we can release them in master.
         string? mobile = null, deviceId = null;
         await using (var sel = new MySqlCommand(
             "SELECT mobile, COALESCE(device_id,'') FROM app_users WHERE id=@id", conn))
@@ -1173,19 +1098,11 @@ app.MapDelete("/api/mgr/users/{id:long}", async (HttpContext ctx, long id) =>
         }
         if (mobile == null) return Results.NotFound(new { message = "User not found" });
 
-        // Explicitly drop the KYC row first so it's gone even on older tenant
-        // DBs whose user_kyc FK predates ON DELETE CASCADE — otherwise a deleted
-        // user's KYC could linger and a re-registration look "already verified".
         try { await MgrExec("DELETE FROM user_kyc WHERE user_id=@id", conn, 10, ("@id", id)); }
-        catch { /* table may not exist on legacy schema */ }
+        catch { }
 
-        // Drop the tenant row — FK CASCADE wipes subscriptions, kyc, finance
-        // restrictions, device-change requests, etc. in one shot.
         await MgrExec("DELETE FROM app_users WHERE id=@id", conn, 15, ("@id", id));
 
-        // Release the cross-agency claim. We scope by (mobile, agency_slug) so
-        // a different agency's claim on the same mobile (which shouldn't exist
-        // by the registry's UNIQUE(mobile), but we're defensive) is untouched.
         if (!string.IsNullOrEmpty(AgencyPortal.MasterConn))
         {
             await using var mconn = new MySqlConnection(AgencyPortal.MasterConn);
@@ -1240,9 +1157,6 @@ app.MapPut("/api/mgr/users/{id:long}/finance-restrictions", async (HttpContext c
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
 
-// ── Admin (Control Panel) password ──────────────────────────────────────────
-// Sets the per-admin Control Panel password. Desktop calls this from the
-// Users page for any admin user.
 app.MapMethods("/api/mgr/users/{id:long}/admin-pass", new[] { "PATCH" },
     async (HttpContext ctx, long id, MgrSetAdminPassDto dto) =>
 {
@@ -1259,8 +1173,6 @@ app.MapMethods("/api/mgr/users/{id:long}/admin-pass", new[] { "PATCH" },
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
 
-// Returns whether a user has an admin password set (so the desktop can show
-// "set" vs "not set" without exposing the password).
 app.MapGet("/api/mgr/users/{id:long}/admin-pass", async (HttpContext ctx, long id) =>
 {
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
@@ -1277,10 +1189,6 @@ app.MapGet("/api/mgr/users/{id:long}/admin-pass", async (HttpContext ctx, long i
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
 
-// ── KYC documents ────────────────────────────────────────────────────────────
-// Returns the user's KYC document URLs (aadhaar_front, aadhaar_back, pan_front).
-// Mobile API stores them as relative paths like "kyc/42/aadhaar_front.jpg".
-// We build full URLs that LiteSpeed serves via the /uploads/ static context.
 app.MapGet("/api/mgr/users/{id:long}/kyc", async (HttpContext ctx, long id) =>
 {
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
@@ -1288,8 +1196,6 @@ app.MapGet("/api/mgr/users/{id:long}/kyc", async (HttpContext ctx, long id) =>
     {
         await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
-        // selfie column was added with the registration-time KYC flow; guard
-        // with COALESCE-style try so legacy schemas without it still respond.
         string? af = null, ab = null, pf = null, selfie = null, uidaiPhoto = null;
         try
         {
@@ -1308,7 +1214,6 @@ app.MapGet("/api/mgr/users/{id:long}/kyc", async (HttpContext ctx, long id) =>
         }
         catch
         {
-            // Legacy schema without selfie/aadhaar_photo — original 3-column read.
             await using var cmd = new MySqlCommand(
                 "SELECT aadhaar_front, aadhaar_back, pan_front FROM user_kyc WHERE user_id=@uid", conn);
             cmd.Parameters.AddWithValue("@uid", id);
@@ -1325,10 +1230,6 @@ app.MapGet("/api/mgr/users/{id:long}/kyc", async (HttpContext ctx, long id) =>
             ? ""
             : $"{ctx.Request.Scheme}://{ctx.Request.Host}/uploads/{rel.TrimStart('/')}";
 
-        // ── Number-based KYC verification (Aadhaar OKYC / PAN / bank), stored
-        // on app_users by VKmobileapi when the agent verifies in the mobile app.
-        // Admin-only read-out for the desktop Users page. Columns are nullable
-        // and may not exist on very old schemas, so guard the whole block.
         string? aaName = null, aaDob = null, aaGender = null, aaAddr = null, aaLast4 = null, aaNumber = null;
         bool aaVer = false; DateTime? aaVerAt = null;
         string? pan = null, panName = null; bool panVer = false;
@@ -1361,7 +1262,7 @@ app.MapGet("/api/mgr/users/{id:long}/kyc", async (HttpContext ctx, long id) =>
                 kycStatus = S(17) ?? "success"; rejectNote = S(18); aaNumber = S(19);
             }
         }
-        catch { /* columns missing on legacy schema — return docs only */ }
+        catch { }
 
         return Results.Ok(new
         {
@@ -1370,10 +1271,8 @@ app.MapGet("/api/mgr/users/{id:long}/kyc", async (HttpContext ctx, long id) =>
             panFront     = ToUrl(pf),
             selfie       = ToUrl(selfie),
             aadhaarPhoto = ToUrl(uidaiPhoto),
-            // KYC review state
             kycStatus  = kycStatus,
             rejectNote = rejectNote,
-            // number-verification block
             aadhaar = new {
                 verified = aaVer, last4 = aaLast4, number = aaNumber, name = aaName, dob = aaDob,
                 gender = aaGender, address = aaAddr, verifiedAt = aaVerAt
@@ -1386,8 +1285,6 @@ app.MapGet("/api/mgr/users/{id:long}/kyc", async (HttpContext ctx, long id) =>
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
 
-// Clears a single KYC document from the DB and best-effort deletes the file.
-// docType must be one of: aadhaar_front, aadhaar_back, pan_front.
 app.MapDelete("/api/mgr/users/{id:long}/kyc/{docType}", async (HttpContext ctx, long id, string docType) =>
 {
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
@@ -1399,19 +1296,15 @@ app.MapDelete("/api/mgr/users/{id:long}/kyc/{docType}", async (HttpContext ctx, 
         await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
 
-        // Read the current file path so we can remove the file on disk too.
         await using var sel = new MySqlCommand(
             $"SELECT {docType} FROM user_kyc WHERE user_id=@uid", conn);
         sel.Parameters.AddWithValue("@uid", id);
         var rel = (await sel.ExecuteScalarAsync()) as string;
 
-        // Clear the column.
         await MgrExec(
             $"UPDATE user_kyc SET {docType}=NULL WHERE user_id=@uid",
             conn, 10, ("@uid", id));
 
-        // Best-effort file delete — owned by www-data (VKmobileapi); may fail
-        // depending on cross-service file permissions. DB is the source of truth.
         if (!string.IsNullOrEmpty(rel))
         {
             try
@@ -1419,7 +1312,7 @@ app.MapDelete("/api/mgr/users/{id:long}/kyc/{docType}", async (HttpContext ctx, 
                 var fullPath = Path.Combine("/opt/vkmobileapi/uploads", rel.TrimStart('/'));
                 if (File.Exists(fullPath)) File.Delete(fullPath);
             }
-            catch { /* file may be locked or unwritable — DB cleared, that's enough */ }
+            catch { }
         }
 
         return Results.Ok(new { success = true });
@@ -1427,10 +1320,6 @@ app.MapDelete("/api/mgr/users/{id:long}/kyc/{docType}", async (HttpContext ctx, 
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
 
-// Deletes the UIDAI photo AND the verified Aadhaar demographics in one shot.
-// Used by the desktop "Delete UIDAI photo & details" action (which gates the
-// call behind the admin's login password client-side). Clears the aadhaar_photo
-// file + column and wipes the OKYC name/dob/gender/address/number + verified flag.
 app.MapMethods("/api/mgr/users/{id:long}/kyc-uidai", new[] { "DELETE" }, async (HttpContext ctx, long id) =>
 {
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
@@ -1439,7 +1328,6 @@ app.MapMethods("/api/mgr/users/{id:long}/kyc-uidai", new[] { "DELETE" }, async (
         await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
 
-        // Best-effort: remove the UIDAI photo file from disk, then clear the column.
         try
         {
             await using var sel = new MySqlCommand("SELECT aadhaar_photo FROM user_kyc WHERE user_id=@uid", conn);
@@ -1453,12 +1341,11 @@ app.MapMethods("/api/mgr/users/{id:long}/kyc-uidai", new[] { "DELETE" }, async (
                     var fullPath = Path.Combine("/opt/vkmobileapi/uploads", rel.TrimStart('/'));
                     if (File.Exists(fullPath)) File.Delete(fullPath);
                 }
-                catch { /* file may be locked/unwritable — DB cleared, that's enough */ }
+                catch { }
             }
         }
-        catch { /* user_kyc / aadhaar_photo column may not exist on legacy schema */ }
+        catch { }
 
-        // Wipe the verified Aadhaar demographics on the user row.
         await MgrExec(@"
             UPDATE app_users SET
                 kyc_aadhaar_number   = NULL,
@@ -1550,10 +1437,6 @@ app.MapPut("/api/mgr/settings/subs-password", async (HttpContext ctx, MgrSetSubs
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
 
-// ── Common Control Panel password (one per agency, replaces per-user) ───────
-// Stored in app_settings under 'control_panel_password'. The mobile app's
-// Control Panel verify endpoint now checks this single value instead of each
-// user's old app_users.admin_pass column.
 app.MapGet("/api/mgr/settings/control-password", async (HttpContext ctx) =>
 {
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
@@ -1630,8 +1513,6 @@ app.MapPost("/api/mgr/users/{id:long}/subscriptions", async (HttpContext ctx, lo
         cmd.Parameters.AddWithValue("@n",   (object?)dto.Notes ?? DBNull.Value);
         await cmd.ExecuteNonQueryAsync();
 
-        // Invalidate the mobile API's 5-min subscription cache so the Android
-        // app sees the new plan on its very next search instead of after TTL.
         _ = mobileHttp.PostAsync($"api/mobile/cache/invalidate-sub/{id}", null);
 
         return Results.Ok();
@@ -1647,7 +1528,6 @@ app.MapDelete("/api/mgr/subscriptions/{id:long}", async (HttpContext ctx, long i
         await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
 
-        // Look up which user this sub belongs to so we can invalidate their cache.
         long userId = 0;
         await using (var sel = new MySqlCommand(
             "SELECT user_id FROM subscriptions WHERE id=@id LIMIT 1", conn) { CommandTimeout = 5 })
@@ -1667,7 +1547,6 @@ app.MapDelete("/api/mgr/subscriptions/{id:long}", async (HttpContext ctx, long i
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
 
-// ── Vehicle search (desktop) ───────────────────────────────────────────────
 
 app.MapGet("/api/mgr/search", async (HttpContext ctx, string? q, string? mode) =>
 {
@@ -1740,11 +1619,6 @@ app.MapGet("/api/mgr/search", async (HttpContext ctx, string? q, string? mode) =
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
 
-// ── Skinny search list ──────────────────────────────────────────────────────
-// Returns ONLY what the result list + "found in finances" chooser need (id,
-// vehicle/chassis no, model, branch, finance, date) — NOT the ~40 heavy columns.
-// Shrinks a search response from ~300 KB to a few KB → instant even online. The
-// full record is fetched on tap via /api/mgr/record/{id}.
 app.MapGet("/api/mgr/search/list", async (HttpContext ctx, string? q, string? mode) =>
 {
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
@@ -1756,12 +1630,6 @@ app.MapGet("/api/mgr/search/list", async (HttpContext ctx, string? q, string? mo
             vr.id, vr.vehicle_no, vr.chassis_no, vr.model,
             b.name AS branch_name, COALESCE(f.name,'') AS financer,
             COALESCE(DATE_FORMAT(vr.created_at,'%d %b %Y %h:%i %p'),'') AS created_on";
-        // No ORDER BY: a common last4/last5 can match thousands of duplicate
-        // rows, and sorting them server-side forces a filesort (the cause of
-        // "common number = seconds, rare number = instant"). The desktop client
-        // re-sorts this skinny list by RC/chassis for the grid anyway, so the
-        // server sort is wasted work. Dropping it makes the query a pure indexed
-        // lookup → consistently fast regardless of how many rows match.
         var sql = isChassis
             ? $@"SELECT {lite} FROM chassis_info ci
                  INNER JOIN vehicle_records vr ON vr.id = ci.vehicle_record_id
@@ -1795,7 +1663,6 @@ app.MapGet("/api/mgr/search/list", async (HttpContext ctx, string? q, string? mo
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
 
-// ── Full record detail by id (fetched only when a search result is opened) ──
 app.MapGet("/api/mgr/record/{id:long}", async (HttpContext ctx, long id) =>
 {
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
@@ -1848,7 +1715,6 @@ app.MapGet("/api/mgr/record/{id:long}", async (HttpContext ctx, long id) =>
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
 
-// ── Dashboard quick stats ──────────────────────────────────────────────────
 
 app.MapGet("/api/mgr/dashboard-stats", async (HttpContext ctx) =>
 {
@@ -1857,9 +1723,6 @@ app.MapGet("/api/mgr/dashboard-stats", async (HttpContext ctx) =>
     {
         await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
-        // totalRecords summed from the maintained branches.total_records counter
-        // instead of COUNT(*) over the multi-million-row vehicle_records table
-        // (~410 ms → sub-ms). CAST keeps it a BIGINT for GetInt64.
         const string sql = @"
             SELECT
                 (SELECT CAST(COALESCE(SUM(total_records),0) AS SIGNED) FROM branches WHERE is_active=1),
@@ -1878,7 +1741,6 @@ app.MapGet("/api/mgr/dashboard-stats", async (HttpContext ctx) =>
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
 
-// ── Device change requests ─────────────────────────────────────────────────
 
 app.MapGet("/api/mgr/device-requests", async (HttpContext ctx) =>
 {
@@ -1947,7 +1809,6 @@ app.MapDelete("/api/mgr/device-requests/{id:long}", async (HttpContext ctx, long
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
 
-// ── Live users (active in last 15 min) ────────────────────────────────────
 
 app.MapGet("/api/mgr/live-users", async (HttpContext ctx, string? since) =>
 {
@@ -1957,8 +1818,6 @@ app.MapGet("/api/mgr/live-users", async (HttpContext ctx, string? since) =>
         await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
 
-        // since = "HH:mm" 24h — show all users seen after that time today
-        // omitted = last 15 minutes
         string where;
         MySqlCommand cmd;
         if (!string.IsNullOrWhiteSpace(since) &&
@@ -2008,7 +1867,6 @@ app.MapGet("/api/mgr/live-users", async (HttpContext ctx, string? since) =>
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
 
-// ── Search logs (vehicle views from mobile agents) ────────────────────────────
 app.MapGet("/api/mgr/search-logs", async (HttpContext ctx,
     string? fromDate, string? toDate, long? userId, string? q, bool? export) =>
 {
@@ -2080,7 +1938,6 @@ app.MapGet("/api/mgr/search-logs", async (HttpContext ctx,
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
 
-// ── Column types & mappings (Excel column mapping config) ─────────────────────
 app.MapGet("/api/mgr/column-mappings", async (HttpContext ctx) =>
 {
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
@@ -2154,25 +2011,14 @@ app.MapPost("/api/mgr/column-types", async (HttpContext ctx, MgrCreateColumnType
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
 
-// ── Bulk upload records from desktop app (streaming ndjson progress) ──────────
-// Wire format in: gzip-compressed UTF-8 text — line 0 = branchId, rest = 32 pipe-delimited fields
-// Wire format out: newline-delimited JSON  {"pct":N,"msg":"..."} … {"pct":100,"msg":"…","inserted":N,"elapsedSeconds":N}
 app.MapPost("/api/mgr/records/upload", async (HttpContext ctx) =>
 {
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
 
-    // Chunked-upload mode (for resilience on weak client networks the desktop
-    // splits a big branch into several small POSTs, each retried on failure):
-    //   replace (default / single-shot) → clear old records, insert, finalize
-    //   begin  → clear old records, insert this chunk, DON'T finalize
-    //   append → insert this chunk only (no clear, no finalize)
-    //   finish → insert this chunk, then finalize (branch stats + index rebuild)
-    // No param → "replace" → exactly the original one-shot behaviour.
     string mode     = (ctx.Request.Query["mode"].FirstOrDefault() ?? "replace").ToLowerInvariant();
     bool   doClear  = mode is "replace" or "begin";
     bool   doFinal  = mode is "replace" or "finish";
 
-    // ── 1. Decompress + parse BEFORE touching the response ────────────────
     string text;
     try
     {
@@ -2186,7 +2032,6 @@ app.MapPost("/api/mgr/records/upload", async (HttpContext ctx) =>
     if (lines.Length < 2 || !int.TryParse(lines[0].Trim(), out int branchId) || branchId <= 0)
         return Results.BadRequest(new { message = "Invalid payload." });
 
-    // ── 2. Switch to streaming ndjson ─────────────────────────────────────
     ctx.Response.StatusCode  = 200;
     ctx.Response.ContentType = "application/x-ndjson";
     ctx.Response.Headers["Cache-Control"]      = "no-cache";
@@ -2205,8 +2050,7 @@ app.MapPost("/api/mgr/records/upload", async (HttpContext ctx) =>
 
     try
     {
-        // ── 3. Build DataTable ────────────────────────────────────────────
-        var sw = Stopwatch.StartNew();   // covers entire upload, not just BulkCopy
+        var sw = Stopwatch.StartNew();
         await Push(5, $"Parsing {lines.Length - 1:N0} records…");
 
         static string Tr(string v, int max) => v.Length > max ? v[..max] : v;
@@ -2246,7 +2090,7 @@ app.MapPost("/api/mgr/records/upload", async (HttpContext ctx) =>
         dt.Columns.Add("toss",             typeof(string));
         dt.Columns.Add("remark",           typeof(string));
         dt.MinimumCapacity = lines.Length - 1;
-        dt.BeginLoadData();   // suppress per-row change events — faster for bulk population
+        dt.BeginLoadData();
 
         int skippedRows = 0;
         for (int i = 1; i < lines.Length; i++)
@@ -2273,16 +2117,12 @@ app.MapPost("/api/mgr/records/upload", async (HttpContext ctx) =>
         if (skippedRows > 0)
             Console.WriteLine($"[Upload] branch={branchId} WARNING: {skippedRows} rows had fewer than 32 fields and were skipped");
 
-        // ── 4. Open DB, clear old records ─────────────────────────────────
         await Push(15, "Connecting to database…");
         await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
         await MgrExec("SET foreign_key_checks = 0", conn);
         await MgrExec("SET unique_checks = 0", conn);
 
-        // Clear the branch's existing records only on the first (begin) or a
-        // single-shot (replace) upload — append/finish chunks add to the set
-        // the begin chunk already started.
         if (doClear)
         {
             await Push(20, "Checking existing records…");
@@ -2302,7 +2142,6 @@ app.MapPost("/api/mgr/records/upload", async (HttpContext ctx) =>
             }
         }
 
-        // ── 5. BulkCopy with real-time progress ──────────────────────────
         int totalRows = parsedRows;
         await Push(35, $"0 / {totalRows:N0}");
 
@@ -2310,12 +2149,11 @@ app.MapPost("/api/mgr/records/upload", async (HttpContext ctx) =>
         {
             DestinationTableName = "vehicle_records",
             BulkCopyTimeout      = 600,
-            NotifyAfter          = Math.Max(1000, totalRows / 20)  // ~20 events regardless of size
+            NotifyAfter          = Math.Max(1000, totalRows / 20)
         };
         for (int i = 0; i < dt.Columns.Count; i++)
             bc.ColumnMappings.Add(new MySqlBulkCopyColumnMapping(i, dt.Columns[i].ColumnName));
 
-        // MySqlRowsCopied fires on the BulkCopy thread — queue it, drain in the poll loop
         var copiedQueue = new System.Collections.Concurrent.ConcurrentQueue<long>();
         bc.MySqlRowsCopied += (_, e) => copiedQueue.Enqueue(e.RowsCopied);
 
@@ -2325,15 +2163,14 @@ app.MapPost("/api/mgr/records/upload", async (HttpContext ctx) =>
             await Task.Delay(300);
             if (copiedQueue.TryDequeue(out long copied))
             {
-                int pct = 35 + (int)((double)copied / totalRows * 50); // 35 → 85
+                int pct = 35 + (int)((double)copied / totalRows * 50);
                 await Push(Math.Min(pct, 85), $"{copied:N0} / {totalRows:N0}");
             }
         }
-        var bcResult = await bcTask;  // re-throws on failure
+        var bcResult = await bcTask;
         dt.Dispose();
         long bcInserted = bcResult.RowsInserted;
 
-        // ── 6. Verify actual DB count ─────────────────────────────────────
         await Push(88, "Verifying insert count…");
         long dbCount;
         await using (var verifCmd = new MySqlCommand(
@@ -2345,32 +2182,18 @@ app.MapPost("/api/mgr/records/upload", async (HttpContext ctx) =>
 
         Console.WriteLine($"[Upload] branch={branchId} sent={totalRows} skipped={skippedRows} bcInserted={bcInserted} dbCount={dbCount}");
 
-        // ── 7. Finalize — only on the last (finish) or single-shot (replace)
-        //       chunk. Intermediate begin/append chunks skip the branch-stats
-        //       write; the finish chunk records the authoritative total. ─────
         if (doFinal)
         {
             await Push(92, "Updating branch stats…");
             await MgrExec("UPDATE branches SET total_records=@cnt, uploaded_at=NOW() WHERE id=@bid",
                 conn, 30, ("@cnt", dbCount), ("@bid", branchId));
         }
-        // Re-enable per-connection checks for every chunk (they were disabled
-        // at the top of THIS request's connection).
         await MgrExec("SET foreign_key_checks = 1", conn);
         await MgrExec("SET unique_checks = 1", conn);
 
         int inserted = (int)dbCount;
         await Push(100, $"Done", inserted, sw.Elapsed.TotalSeconds);
 
-        // ── 8. Background index rebuild ───────────────────────────────────
-        // Runs only after the final/single chunk, when every vehicle_record for
-        // the branch is present — it rebuilds rc_info/chassis_info for the whole
-        // branch in one pass, so running it per-chunk would be wasted work.
-        // DELETE before INSERT makes each task idempotent: if a previous upload's
-        // background task is still running when a new upload starts, the stale INSERT
-        // targets the same vehicle_record rows and would double rc_info/chassis_info
-        // (unique_checks=0 lets duplicates slip through). Deleting first ensures only
-        // one set of rows exists regardless of overlapping executions.
         if (doFinal)
         _ = Task.WhenAll(
             Task.Run(async () =>
@@ -2381,11 +2204,6 @@ app.MapPost("/api/mgr/records/upload", async (HttpContext ctx) =>
                 await MgrExec(@"DELETE ri FROM rc_info ri
                     INNER JOIN vehicle_records vr ON vr.id = ri.vehicle_record_id
                     WHERE vr.branch_id = @bid", c, 300, ("@bid", branchId));
-                // last4 = the right-most 4-digit cluster (e.g. MH-12-AB-1234 → "1234",
-                // HR-73-6546 → "6546", 22-BH-2271-E → "2271").
-                // Only insert rows whose stripped vehicle_no is a recognised Indian RC
-                // format — prevents junk like "AF1234" or bare digit strings from
-                // polluting rc_info and showing up in searches.
                 await MgrExec(@"INSERT INTO rc_info (vehicle_record_id,rc_number,model,last4)
                     SELECT id, vehicle_no, COALESCE(model,''),
                            LEFT(REGEXP_SUBSTR(vehicle_no,'[0-9]{4}[^0-9]*$'), 4)
@@ -2418,11 +2236,9 @@ app.MapPost("/api/mgr/records/upload", async (HttpContext ctx) =>
         await ctx.Response.Body.FlushAsync();
     }
 
-    // Response already written above; returning Ok() is a no-op once HasStarted=true
     return Results.Ok();
 });
 
-// ── Export endpoints ──────────────────────────────────────────────────────────
 
 app.MapGet("/api/mgr/export/users", async (HttpContext ctx) =>
 {
@@ -2431,8 +2247,6 @@ app.MapGet("/api/mgr/export/users", async (HttpContext ctx) =>
     {
         await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
-        // Balance = sum of all subscription amounts ever bought for the user.
-        // The legacy u.balance column is ignored.
         const string sql = @"
             SELECT u.id, u.name, u.mobile, u.address, u.pincode,
                    u.is_active, u.is_admin, u.is_stopped, u.is_blacklisted,
@@ -2569,9 +2383,6 @@ app.MapGet("/api/mgr/export/rc-records", async (HttpContext ctx) =>
         await using (var cntCmd = new MySqlCommand("SELECT COUNT(*) FROM rc_info", conn) { CommandTimeout = 30 })
             total = Convert.ToInt64(await cntCmd.ExecuteScalarAsync());
 
-        // The RC export pulls the RC number from rc_info (the dedicated
-        // lookup table) — that's the whole point of having this endpoint
-        // separate from /export/vehicle-records.
         const string fields = @"
             ri.rc_number AS vehicle_no, vr.chassis_no, vr.engine_no, ri.model, vr.agreement_no,
             vr.customer_name, vr.customer_contact, vr.customer_address,
@@ -2625,9 +2436,6 @@ app.MapGet("/api/mgr/export/chassis-records", async (HttpContext ctx) =>
         await using (var cntCmd = new MySqlCommand("SELECT COUNT(*) FROM chassis_info", conn) { CommandTimeout = 30 })
             total = Convert.ToInt64(await cntCmd.ExecuteScalarAsync());
 
-        // The chassis export pulls the chassis number from chassis_info (the
-        // dedicated lookup table) — separate from /export/vehicle-records on
-        // purpose.
         const string fields = @"
             vr.vehicle_no, ci.chassis_number AS chassis_no, vr.engine_no, ci.model, vr.agreement_no,
             vr.customer_name, vr.customer_contact, vr.customer_address,
@@ -2668,7 +2476,6 @@ app.MapGet("/api/mgr/export/chassis-records", async (HttpContext ctx) =>
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
 
-// Per-branch export — replaces the desktop's old direct-MySQL ExportRepository
 app.MapGet("/api/mgr/export/branch-records", async (HttpContext ctx) =>
 {
     int branchId = int.TryParse(ctx.Request.Query["branchId"], out var _bid) ? _bid : 0;
@@ -2688,9 +2495,6 @@ app.MapGet("/api/mgr/export/branch-records", async (HttpContext ctx) =>
             total = Convert.ToInt64(await cntCmd.ExecuteScalarAsync());
         }
 
-        // Branch export = vehicle records for one branch. All fields come
-        // straight from vehicle_records. RC/chassis lookup tables are reserved
-        // for the dedicated /export/rc-records and /export/chassis-records.
         const string fields = @"
             vr.vehicle_no, vr.chassis_no, vr.engine_no, vr.model, vr.agreement_no,
             vr.customer_name, vr.customer_contact, vr.customer_address,
@@ -2702,10 +2506,6 @@ app.MapGet("/api/mgr/export/branch-records", async (HttpContext ctx) =>
             vr.sender_mail1, vr.sender_mail2, vr.executive_name,
             vr.pos, vr.toss, vr.remark, vr.region, vr.area,
             COALESCE(DATE_FORMAT(vr.created_at,'%d %b %Y'),'') AS created_on";
-        // ORDER BY vr.id (primary key) instead of vr.vehicle_no — vehicle_no
-        // isn't always indexed and the sort was forcing a full filesort of
-        // millions of rows on every page fetch. PK ordering is stable, fast,
-        // and OFFSET pagination on it is O(log N + size) instead of O(N).
         var sql = $@"SELECT {fields}
             FROM vehicle_records vr
             INNER JOIN branches b ON b.id = vr.branch_id
@@ -2736,7 +2536,6 @@ app.MapGet("/api/mgr/export/branch-records", async (HttpContext ctx) =>
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
 
-// Per-finance export — every branch under one finance
 app.MapGet("/api/mgr/export/finance-records", async (HttpContext ctx) =>
 {
     int financeId = int.TryParse(ctx.Request.Query["financeId"], out var _fid) ? _fid : 0;
@@ -2758,8 +2557,6 @@ app.MapGet("/api/mgr/export/finance-records", async (HttpContext ctx) =>
             total = Convert.ToInt64(await cntCmd.ExecuteScalarAsync());
         }
 
-        // Finance export = vehicle records across all branches of one finance.
-        // All fields straight from vehicle_records — see /export/branch-records.
         const string fields = @"
             vr.vehicle_no, vr.chassis_no, vr.engine_no, vr.model, vr.agreement_no,
             vr.customer_name, vr.customer_contact, vr.customer_address,
@@ -2771,10 +2568,6 @@ app.MapGet("/api/mgr/export/finance-records", async (HttpContext ctx) =>
             vr.sender_mail1, vr.sender_mail2, vr.executive_name,
             vr.pos, vr.toss, vr.remark, vr.region, vr.area,
             COALESCE(DATE_FORMAT(vr.created_at,'%d %b %Y'),'') AS created_on";
-        // Same perf rationale as /export/branch-records: ORDER BY vr.id (PK)
-        // makes large-OFFSET pagination near-instant. The legacy
-        // ORDER BY b.name, vr.vehicle_no was forcing a full filesort across
-        // every branch under the finance on every page fetch.
         var sql = $@"SELECT {fields}
             FROM vehicle_records vr
             INNER JOIN branches b ON b.id = vr.branch_id
@@ -2805,14 +2598,6 @@ app.MapGet("/api/mgr/export/finance-records", async (HttpContext ctx) =>
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
 
-// ── Instant streaming .xlsx exports ─────────────────────────────────────────
-// These generate the Excel file ON THE SERVER and stream it straight to the
-// client as a download. The desktop just saves the bytes — no paginated JSON
-// fetch, no client-side workbook assembly. A MySqlDataReader feeds rows
-// directly into a zipped OpenXML worksheet (XlsxStream), so even a few hundred
-// thousand records use almost no memory and start downloading immediately.
-//
-// Shared 34-column schema — must match XLSX_HEADERS order below.
 const string XLSX_FIELDS = @"
     vr.vehicle_no, vr.chassis_no, vr.engine_no, vr.model, vr.agreement_no,
     vr.customer_name, vr.customer_contact, vr.customer_address,
@@ -2836,7 +2621,6 @@ string[] XLSX_HEADERS = {
     "Sender Mail 1","Sender Mail 2","Executive Name",
     "POS","TOSS","Remark","Region","Area","Created On" };
 
-// Token via header OR ?key= so a plain browser/HttpClient download works.
 static bool MgrAuthFlexible(HttpContext ctx, string key) =>
     (ctx.Request.Headers.TryGetValue("X-Api-Key", out var v) && v == key) ||
     (ctx.Request.Query.TryGetValue("key", out var q) && q == key);
@@ -2844,18 +2628,11 @@ static bool MgrAuthFlexible(HttpContext ctx, string key) =>
 async Task StreamVehicleXlsx(HttpContext ctx, string whereSql, string sheetName,
                              string downloadName, long offset, int limit, params (string, object)[] ps)
 {
-    // ZipArchive + StreamWriter do synchronous writes to the response body,
-    // which Kestrel blocks by default ("Synchronous operations are
-    // disallowed"). Opt this one response into sync IO — required for the
-    // streamed-zip writer and standard practice for file-generation endpoints.
     var bodyControl = ctx.Features.Get<Microsoft.AspNetCore.Http.Features.IHttpBodyControlFeature>();
     if (bodyControl != null) bodyControl.AllowSynchronousIO = true;
 
     await using var conn = new MySqlConnection(TenantContext.Conn);
     await conn.OpenAsync();
-    // When limit > 0 we stream just one slice (used for the "parts" export:
-    // each part is its own file of `limit` rows starting at `offset`). When
-    // limit <= 0 we stream the whole result set in one file.
     var slice = limit > 0 ? $" LIMIT {limit} OFFSET {offset}" : "";
     var sql = $"SELECT {XLSX_FIELDS} FROM vehicle_records vr " +
               "INNER JOIN branches b ON b.id = vr.branch_id " +
@@ -2872,8 +2649,6 @@ async Task StreamVehicleXlsx(HttpContext ctx, string whereSql, string sheetName,
                                XLSX_HEADERS.Length, ctx.RequestAborted);
 }
 
-// offset/limit are optional: omit for one full file, or pass them for a
-// single "part" (e.g. offset=0&limit=100000 = first 1-lakh part).
 app.MapGet("/api/mgr/export/finance-records.xlsx", async (HttpContext ctx) =>
 {
     if (!MgrAuthFlexible(ctx, desktopLoginPassword)) { ctx.Response.StatusCode = 401; return; }
@@ -2908,11 +2683,6 @@ app.MapGet("/api/mgr/export/branch-records.xlsx", async (HttpContext ctx) =>
     { ctx.Response.StatusCode = 500; await ctx.Response.WriteAsync(ex.Message); }
 });
 
-// ── Generic streamed-xlsx exports (Reports records + Search Logs) ───────────
-// Same instant server-stream approach as Finances: build the .xlsx from a
-// DataReader and stream it. Reports' vehicle/RC/chassis exports get
-// offset/limit (so the parts dialog works); Search Logs streams the whole
-// filtered set.
 async Task StreamSelectXlsx(HttpContext ctx, string sql, string sheetName,
                             string downloadName, string[] headers, params (string, object)[] ps)
 {
@@ -2928,7 +2698,6 @@ async Task StreamSelectXlsx(HttpContext ctx, string sql, string sheetName,
     await XlsxStream.WriteAsync(ctx.Response.Body, sheetName, headers, rdr, headers.Length, ctx.RequestAborted);
 }
 
-// Vehicle / RC / Chassis global record exports (offset/limit = one part).
 foreach (var spec in new[]
 {
     ("vehicle-records", "Vehicle Records", $"SELECT {XLSX_FIELDS} FROM vehicle_records vr INNER JOIN branches b ON b.id=vr.branch_id LEFT JOIN finances f ON f.id=b.finance_id ORDER BY vr.id"),
@@ -2950,7 +2719,6 @@ foreach (var spec in new[]
     });
 }
 
-// Search Logs — streamed xlsx with the same filters as /api/mgr/search-logs.
 string[] SEARCHLOG_HEADERS = { "User", "Mobile", "Vehicle No", "Chassis No", "Model", "Search Location", "User Address", "Device Time", "Server Time" };
 app.MapGet("/api/mgr/search-logs.xlsx", async (HttpContext ctx) =>
 {
@@ -2978,7 +2746,6 @@ app.MapGet("/api/mgr/search-logs.xlsx", async (HttpContext ctx) =>
     { ctx.Response.StatusCode = 500; await ctx.Response.WriteAsync(ex.Message); }
 });
 
-// ── Forward /api/mobile/* → VKmobileapi on port 5001 ─────────────────────────
 app.Map("/api/mobile/{**rest}", async (HttpContext ctx) =>
 {
     var target = (ctx.Request.Path.Value ?? "/") + ctx.Request.QueryString.Value;
@@ -3012,9 +2779,6 @@ app.Map("/api/mobile/{**rest}", async (HttpContext ctx) =>
     await resp.Content.CopyToAsync(ctx.Response.Body);
 });
 
-// ── Client download page ─────────────────────────────────────────────────────
-// deploy.sh creates /opt/vkapi/downloads and copies the installer there.
-// Clients visit: https://api.characterverse.tech/download
 var downloadsPath = Path.Combine(app.Environment.ContentRootPath, "downloads");
 if (Directory.Exists(downloadsPath))
 {
@@ -3027,10 +2791,8 @@ if (Directory.Exists(downloadsPath))
     app.MapGet("/download", () => Results.Redirect("/downloads/index.html"));
 }
 
-// ── Agency uploads (logos) — served as /agency-uploads/ static files ─────────
-// Defensive: never let a missing/unwritable folder crash startup.
 var agencyUploads = "/opt/vkapi/agency-uploads";
-try { Directory.CreateDirectory(agencyUploads); } catch { /* deploy.sh creates it */ }
+try { Directory.CreateDirectory(agencyUploads); } catch { }
 if (Directory.Exists(agencyUploads))
 {
     app.UseStaticFiles(new StaticFileOptions
@@ -3041,9 +2803,6 @@ if (Directory.Exists(agencyUploads))
     });
 }
 
-// ── Public assets (map_live.html, etc.) — served as /public/ ────────────────
-// Bundled with the deploy in VKApiServer/public/. Used e.g. by the WPF
-// admin "live map" feature which opens /public/map_live.html in a browser.
 var publicPath = Path.Combine(app.Environment.ContentRootPath, "public");
 if (Directory.Exists(publicPath))
 {
@@ -3055,12 +2814,6 @@ if (Directory.Exists(publicPath))
     });
 }
 
-// ── Mobile uploads (PFP + KYC) — served as /uploads/ ────────────────────────
-// VKmobileapi writes app_user PFP photos and KYC scans to
-// /opt/vkmobileapi/uploads/. The mobile API's own MobileController.AbsUrl()
-// builds public URLs like https://api.crmrecoverysoftware.com/uploads/pfp/
-// user_10.jpg. Without this static-file mapping every "My Account" image
-// in the mobile app and every KYC thumbnail in the WPF admin returned 404.
 const string mobileUploadsPath = "/opt/vkmobileapi/uploads";
 if (Directory.Exists(mobileUploadsPath))
 {
@@ -3072,20 +2825,12 @@ if (Directory.Exists(mobileUploadsPath))
     });
 }
 
-// ── Webhook endpoints (/api/webhooks/*) ──────────────────────────────────────
-// Banks POST vehicle data to /api/webhooks/provider/HDB with:
-//   Authorization: Basic base64(username:password)
-//   X-Agency-Slug: <agency-slug>
-//   Body: { fileInfo: { fileName, vehicleType, uploadedBy, uploadDate, bankName, fileGUID? },
-//           data: [ { col1: val1, ... }, ... ] }
-// Desktop reads files via /api/webhooks/files (MgrAuth).
 
 var webhookFilesRoot = Path.Combine(app.Environment.ContentRootPath, "webhook-files");
 Directory.CreateDirectory(webhookFilesRoot);
 
 app.MapPost("/api/webhooks/provider/HDB", async (HttpContext ctx) =>
 {
-    // ── 1. Decode Basic auth ──────────────────────────────────────────────
     var authHeader = ctx.Request.Headers.Authorization.FirstOrDefault() ?? "";
     if (!authHeader.StartsWith("Basic ", StringComparison.OrdinalIgnoreCase))
         return Results.Unauthorized();
@@ -3100,15 +2845,11 @@ app.MapPost("/api/webhooks/provider/HDB", async (HttpContext ctx) =>
     }
     catch { return Results.Unauthorized(); }
 
-    // ── 2. Resolve agency DB ──────────────────────────────────────────────
     var slug = ctx.Request.Headers["X-Agency-Slug"].FirstOrDefault()?.Trim().ToLowerInvariant();
     if (string.IsNullOrEmpty(slug))
         return Results.BadRequest(new { message = "X-Agency-Slug header required" });
     var tenantConn = TenantContext.BuildTenantConn(mysqlHost, mysqlPort, slug);
 
-    // ── 3. Verify credentials against webhook_users ───────────────────────
-    // Supports both bcrypt hashes (imported from legacy Node.js system, start with $2a$/$2b$)
-    // and SHA-256 hex (new credentials created via the desktop app).
     try
     {
         await using var authConn = new MySqlConnection(tenantConn);
@@ -3132,7 +2873,6 @@ app.MapPost("/api/webhooks/provider/HDB", async (HttpContext ctx) =>
     }
     catch { return Results.Problem("DB error during auth"); }
 
-    // ── 4. Parse body ─────────────────────────────────────────────────────
     WebhookProviderRequest? body;
     try { body = await ctx.Request.ReadFromJsonAsync<WebhookProviderRequest>(); }
     catch { return Results.BadRequest(new { message = "Invalid JSON body" }); }
@@ -3140,7 +2880,6 @@ app.MapPost("/api/webhooks/provider/HDB", async (HttpContext ctx) =>
         return Results.BadRequest(new { message = "fileInfo and data[] required" });
     var fi = body.FileInfo;
 
-    // ── 5. Write CSV ──────────────────────────────────────────────────────
     var safeSlug    = System.Text.RegularExpressions.Regex.Replace(slug, "[^a-z0-9_-]", "");
     var slotDir     = Path.Combine(webhookFilesRoot, safeSlug);
     Directory.CreateDirectory(slotDir);
@@ -3165,7 +2904,6 @@ app.MapPost("/api/webhooks/provider/HDB", async (HttpContext ctx) =>
     }
     catch (Exception ex) { return Results.Problem($"CSV write failed: {ex.Message}"); }
 
-    // ── 6. Upsert bank + insert file record ───────────────────────────────
     try
     {
         await using var conn = new MySqlConnection(tenantConn);
@@ -3198,7 +2936,6 @@ app.MapPost("/api/webhooks/provider/HDB", async (HttpContext ctx) =>
     return Results.Ok(new { message = "Data successfully uploaded", records = totalRows });
 });
 
-// List webhook files — for the Desktop "Direct Data" page
 app.MapGet("/api/webhooks/files", async (HttpContext ctx) =>
 {
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
@@ -3235,7 +2972,6 @@ app.MapGet("/api/webhooks/files", async (HttpContext ctx) =>
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
 
-// Download a webhook CSV file
 app.MapGet("/api/webhooks/files/{id:int}/download", async (HttpContext ctx, int id) =>
 {
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
@@ -3264,7 +3000,6 @@ app.MapGet("/api/webhooks/files/{id:int}/download", async (HttpContext ctx, int 
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
 
-// List webhook users (for the "Credentials" tab in Direct Data)
 app.MapGet("/api/webhooks/users", async (HttpContext ctx) =>
 {
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
@@ -3284,7 +3019,6 @@ app.MapGet("/api/webhooks/users", async (HttpContext ctx) =>
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
 
-// Create webhook user — password stored as SHA-256 hex
 app.MapPost("/api/webhooks/users", async (HttpContext ctx, WebhookCreateUserDto dto) =>
 {
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
@@ -3308,7 +3042,6 @@ app.MapPost("/api/webhooks/users", async (HttpContext ctx, WebhookCreateUserDto 
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
 
-// Delete webhook user
 app.MapDelete("/api/webhooks/users/{id:int}", async (HttpContext ctx, int id) =>
 {
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
@@ -3324,21 +3057,14 @@ app.MapDelete("/api/webhooks/users/{id:int}", async (HttpContext ctx, int id) =>
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
 
-// ── CRMS Agency Portal endpoints (/api/agency/*) ────────────────────────────
 AgencyPortal.Map(app, mysqlHost, mysqlPort);
 
-// ── Sandbox KYC endpoints (/api/mgr/kyc/*) — Aadhaar OKYC + PAN + bank ──────
-// Desktop-gated (same X-Api-Key as the rest of /api/mgr/*). Sandbox credentials
-// come from the SANDBOX_API_KEY / SANDBOX_API_SECRET env vars on the server.
 SandboxKyc.Map(app, ctx => MgrAuth(ctx, desktopLoginPassword));
 
 app.Run($"http://localhost:{port}");
 
-// Local functions must appear before type declarations (CS8803)
 static async Task<T> GetCachedAsync<T>(IMemoryCache cache, string key, Func<Task<T>> factory, int seconds)
 {
-    // Tenant-scope the cache key so one agency's cached dashboard is never
-    // served to another agency (or to the legacy default tenant).
     key = TenantContext.Key + ":" + key;
     if (cache.TryGetValue(key, out T? cached) && cached is not null)
         return cached;
@@ -3347,7 +3073,6 @@ static async Task<T> GetCachedAsync<T>(IMemoryCache cache, string key, Func<Task
     return result;
 }
 
-// ── DTOs ──────────────────────────────────────────────────────────────────
 
 record MgrCreateFinanceDto(string Name, string? Description);
 record MgrUpdateNameDto(string Name);

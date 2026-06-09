@@ -19,15 +19,8 @@ class VKApp : Application(), Configuration.Provider {
 
     override fun onCreate() {
         super.onCreate()
-        // Scheduling work touches WorkManager's internal database. Doing it on
-        // the main thread here delays the very first frame (white screen on
-        // launch). Run it on a background thread so onCreate() returns fast.
         Thread {
             runCatching {
-                // FIRST thing on the background thread: open the TLS socket to
-                // the API host so it's hot before the user can finish typing a
-                // search. Kicks off DNS + handshake in parallel with the
-                // WorkManager scheduling below.
                 com.vkenterprises.vras.data.api.ApiClient.warmUp()
                 scheduleSyncWork()
                 scheduleLocationWork()
@@ -51,9 +44,6 @@ class VKApp : Application(), Configuration.Provider {
         )
     }
 
-    // Start the self-chaining one-time sync immediately so background sync runs
-    // every ~60s even without the ViewModel polling loop (REPLACE so it always
-    // resets the 60s timer on app open rather than waiting for old chain to fire).
     private fun kickStartSyncChain() {
         val immediate = OneTimeWorkRequestBuilder<SyncWorker>()
             .setConstraints(
@@ -70,7 +60,6 @@ class VKApp : Application(), Configuration.Provider {
     }
 
     private fun scheduleSyncWork() {
-        // Cancel old 6-hour work if it exists from older installs
         WorkManager.getInstance(this).cancelUniqueWork("vehicle_sync")
 
         val request = PeriodicWorkRequestBuilder<SyncWorker>(15, TimeUnit.MINUTES)

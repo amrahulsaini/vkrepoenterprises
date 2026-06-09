@@ -27,10 +27,6 @@ public partial class App : Application
 
     public static string ApiKey => Settings.Default.ApiKey;
 
-    /// <summary>
-    /// Display name for report / PDF exports: the signed-in agency's name when
-    /// running as a tenant, otherwise the product name.
-    /// </summary>
     public static string BrandName =>
         (SignedAppUser?.IsAgency == true && !string.IsNullOrWhiteSpace(SignedAppUser.AgencyName))
             ? SignedAppUser!.AgencyName
@@ -38,27 +34,18 @@ public partial class App : Application
 
     public App()
     {
-        // Load environment variables from project .env if present (for local dev)
         try
         {
             EnvLoader.LoadDotEnv();
         }
         catch { }
 
-        // If the stored ApiKey is the old default, reset it to the current default
         if (Settings.Default.ApiKey == "vk@kunal.admin")
         {
             Settings.Default.ApiKey = "12";
             Settings.Default.Save();
         }
 
-        // Per-user ApiBaseUrl normalization. Old user.config files variously
-        // store the current API host with OR without a trailing slash, point
-        // at retired domains (characterverse, 103.247.19.45), or are empty.
-        // The login code does string concatenation (`ApiBaseUrl + "api/..."`),
-        // so a missing trailing slash breaks every request with a
-        // SocketException ("Cannot reach the server"). Force a clean, fresh
-        // value whenever the saved one doesn't byte-for-byte match.
         const string CurrentApi = "https://api.crmrecoverysoftware.com/";
         if (!string.Equals(Settings.Default.ApiBaseUrl, CurrentApi, StringComparison.Ordinal))
         {
@@ -66,26 +53,13 @@ public partial class App : Application
             Settings.Default.Save();
         }
 
-        // Enable gzip: large search / list responses (a busy RC search can be
-        // hundreds of KB of JSON) arrive compressed — OLS gzips them ~5-10x.
-        // Without a decompression handler the client never sends Accept-Encoding,
-        // so every response transfers uncompressed and feels slow on weak links.
         HttpClient = new HttpClient(new HttpClientHandler
         {
             AutomaticDecompression = System.Net.DecompressionMethods.GZip | System.Net.DecompressionMethods.Deflate
         });
         HttpClient.DefaultRequestHeaders.Add("Connection", "keep-alive");
-        // 5-minute ceiling — generous enough for big xlsx uploads (the
-        // streaming /api/mgr/records/upload call hits this client), tight
-        // enough that a broken connection doesn't hang the UI for
-        // 20 minutes like the old default.
         HttpClient.Timeout = TimeSpan.FromMinutes(5);
 
-        // Pre-warm the TLS connection to the API host while the login window
-        // renders. The cold first call to a new HTTPS host costs ~300-500ms
-        // for DNS + handshake; doing it in the background means the user's
-        // first Sign-In click already has a hot socket and doesn't get a
-        // spurious "Cannot reach the server" error.
         _ = Task.Run(async () =>
         {
             try
@@ -93,9 +67,8 @@ public partial class App : Application
                 using var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(10));
                 using var _ = await HttpClient.GetAsync(Settings.Default.ApiBaseUrl, cts.Token);
             }
-            catch { /* warmup is best-effort, real call will surface any error */ }
+            catch { }
         });
-        // Syncfusion license
         SyncfusionLicenseProvider.RegisterLicense("Ngo9BigBOggjHTQxAR8/V1NMaF5cXmBCf1FpRmJGdld5fUVHYVZUTXxaS00DNHVRdkdlWXpedXRTRWheV0VxV0RWYUE=");
     }
 
@@ -103,7 +76,6 @@ public partial class App : Application
     {
         base.OnStartup(e);
 
-        // Global handlers so crashes are logged and surfaced instead of silently exiting.
         this.DispatcherUnhandledException += App_DispatcherUnhandledException;
         AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
         TaskScheduler.UnobservedTaskException += TaskScheduler_UnobservedTaskException;
@@ -114,10 +86,6 @@ public partial class App : Application
         try
         {
             LogException(e.Exception);
-            // If this is a corporate security policy (AppLocker / WDAC / Smart
-            // App Control) blocking one of our unsigned DLLs, show a clear,
-            // non-scary explanation instead of a raw .NET stack trace that
-            // makes the app look crashed/broken to the agency's staff.
             if (IsBlockedByPolicy(e.Exception))
                 ShowPolicyBlockMessage(e.Exception);
             else
@@ -127,11 +95,6 @@ public partial class App : Application
         catch { }
     }
 
-    // True when the exception (or any inner exception) is Windows refusing to
-    // load one of our binaries because of an Application Control policy.
-    //   HRESULT 0x800711C7 = ERROR_FILE_BLOCKED_BY_POLICY
-    // Surfaces as a FileLoadException whose message contains
-    // "Application Control policy has blocked this file".
     public static bool IsBlockedByPolicy(Exception? ex)
     {
         const int ERROR_FILE_BLOCKED_BY_POLICY = unchecked((int)0x800711C7);
@@ -146,8 +109,6 @@ public partial class App : Application
         return false;
     }
 
-    // Friendly, actionable message for a policy block. Names the blocked file
-    // so support can tell the agency's IT exactly what to whitelist.
     public static void ShowPolicyBlockMessage(Exception? ex)
     {
         string blockedFile = "";
@@ -205,8 +166,6 @@ public partial class App : Application
             System.IO.File.WriteAllText(logFile, ex?.ToString() ?? "(null)");
         }
         catch { }
-        // Also capture into the central diagnostics log and report to the server,
-        // so every failure (not just uploads) shows up in the manage Errors tab.
         try { if (ex != null) Data.Diagnostics.LogError("Unhandled exception", ex); } catch { }
     }
 
@@ -254,19 +213,11 @@ public partial class App : Application
         return text;
     }
 
-    // Historically this function moved any characters AFTER the first 4-digit
-    // run to the front, separated by '/'. That mangled Bharat-series numbers
-    // ("22-BH-2271-E" → "-E/22-BH-2271") which broke both display and the
-    // mobile-app regex match. The hyphen-formatted form already sorts
-    // sensibly, so the function is now an identity passthrough.
     public static string GetVehicleNoInSearchableFormated(string vehicleNo)
     {
         return vehicleNo;
     }
 
-    /// <summary>
-    /// Adds or refreshes the Bearer token on the default HttpClient.
-    /// </summary>
     public static void SetAuthToken(string token)
     {
         App.HttpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);

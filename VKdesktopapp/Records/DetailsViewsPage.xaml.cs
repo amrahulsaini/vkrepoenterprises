@@ -87,7 +87,6 @@ public partial class DetailsViewsPage : Page
         UpdateMapButton();
     }
 
-    // ── Filters ─────────────────────────────────────────────────────────────
 
     private void Filter_Changed(object sender, SelectionChangedEventArgs e)
     {
@@ -110,7 +109,6 @@ public partial class DetailsViewsPage : Page
         }
     }
 
-    // ── Grid interactions ────────────────────────────────────────────────────
 
     private void dgLogs_SelectionChanged(object sender, SelectionChangedEventArgs e)
         => UpdateMapButton();
@@ -144,7 +142,6 @@ public partial class DetailsViewsPage : Page
         win.Show();
     }
 
-    // ── Shared export helpers ────────────────────────────────────────────────
 
     private void SetExportBusy(bool busy, string? status = null)
     {
@@ -195,7 +192,6 @@ public partial class DetailsViewsPage : Page
         set(10, r.ServerTime);
     }
 
-    // ── Export Excel ─────────────────────────────────────────────────────────
 
     private async void btnExportExcel_Click(object sender, RoutedEventArgs e)
     {
@@ -206,8 +202,6 @@ public partial class DetailsViewsPage : Page
         };
         if (dlg.ShowDialog() != true) return;
 
-        // Instant: the SERVER builds the .xlsx from the filtered query and
-        // streams it straight to the file — no fetch-all-JSON-then-write.
         var from = dpFrom.SelectedDate?.ToString("yyyy-MM-dd");
         var to   = dpTo.SelectedDate?.ToString("yyyy-MM-dd");
         var q    = txtSearch.Text.Trim();
@@ -230,7 +224,6 @@ public partial class DetailsViewsPage : Page
         }
     }
 
-    // ── Export PDF ───────────────────────────────────────────────────────────
 
     private async void btnExportPdf_Click(object sender, RoutedEventArgs e)
     {
@@ -314,7 +307,6 @@ public partial class DetailsViewsPage : Page
                 {
                     var pRow = grid.Rows.Add();
                     FillRow(r, (col, val) => pRow.Cells[col].Value = val);
-                    // PDF uses 4 decimal places for coords
                     pRow.Cells[7].Value = r.Lat?.ToString("F4") ?? "";
                     pRow.Cells[8].Value = r.Lng?.ToString("F4") ?? "";
                 }

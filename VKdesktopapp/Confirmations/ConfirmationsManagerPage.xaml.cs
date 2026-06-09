@@ -17,11 +17,6 @@ namespace VRASDesktopApp.Confirmations;
 
 public partial class ConfirmationsManagerPage : Page
 {
-    // ── Paging state ──────────────────────────────────────────────────────
-    // Server returns rows in 200-row pages. We keep an accumulating
-    // ObservableCollection so infinite-scroll just appends to the grid.
-    // _total mirrors the COUNT(*) the server returned so the header label
-    // always knows the unfiltered grand total.
     private const int PageSize = 200;
     private readonly ObservableCollection<ConfirmationResponseItem> _items = new();
     private int  _page     = 0;
@@ -29,8 +24,6 @@ public partial class ConfirmationsManagerPage : Page
     private bool _hasMore  = true;
     private bool _isLoading = false;
 
-    // Debounce ticking for the search box so we don't fire a server call on
-    // every keystroke.
     private CancellationTokenSource? _searchDebounce;
 
     public ConfirmationsManagerPage()
@@ -44,7 +37,6 @@ public partial class ConfirmationsManagerPage : Page
         };
     }
 
-    // ── Loading ───────────────────────────────────────────────────────────
 
     private async Task ReloadAsync()
     {
@@ -97,10 +89,6 @@ public partial class ConfirmationsManagerPage : Page
             : $"{_items.Count:N0} records";
     }
 
-    // ── Infinite scroll ───────────────────────────────────────────────────
-    // The DataGrid's internal ScrollViewer is built once the control is
-    // loaded. Hook into ScrollChanged and fire LoadNextPage when the user
-    // is within 200px of the bottom.
     private void HookScrollListener()
     {
         var sv = FindVisualChild<ScrollViewer>(dgConfirmations);
@@ -127,15 +115,11 @@ public partial class ConfirmationsManagerPage : Page
         return null;
     }
 
-    // ── User input handlers ───────────────────────────────────────────────
 
     private async void txtSearch_TextChanged(object sender, TextChangedEventArgs e)
     {
         lblSearchWatermark.Visibility = string.IsNullOrEmpty(txtSearch.Text) ? Visibility.Visible : Visibility.Collapsed;
 
-        // Cancel any in-flight debounce and start a fresh one. After 400ms
-        // of inactivity we re-query the server. Avoids hammering the API
-        // while the admin is mid-type.
         _searchDebounce?.Cancel();
         _searchDebounce = new CancellationTokenSource();
         var token = _searchDebounce.Token;
@@ -144,7 +128,7 @@ public partial class ConfirmationsManagerPage : Page
             await Task.Delay(400, token);
             await ReloadAsync();
         }
-        catch (TaskCanceledException) { /* later keystroke superseded this */ }
+        catch (TaskCanceledException) { }
     }
 
     private async void Date_Changed(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
@@ -157,10 +141,6 @@ public partial class ConfirmationsManagerPage : Page
         await ReloadAsync();
     }
 
-    // ── PDF export ────────────────────────────────────────────────────────
-    // Exports whatever's CURRENTLY in the grid (the loaded pages). To export
-    // everything across all pages, the admin clears the filters first and
-    // scrolls to the bottom — the grid auto-fetches until _hasMore is false.
     private void btnExport_Click(object sender, RoutedEventArgs e)
     {
         try
@@ -240,6 +220,5 @@ public partial class ConfirmationsManagerPage : Page
         }
     }
 
-    // ── DTO matching /api/Confirmations/paged response shape ──────────────
     private record PagedResponse(long Total, int Page, int Size, bool HasMore, List<ConfirmationResponseItem> Rows);
 }

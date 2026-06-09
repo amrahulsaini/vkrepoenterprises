@@ -15,7 +15,6 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <!-- Title bar -->
         <Border Grid.Row="0"
                 Background="{StaticResource Gray900}"
                 Padding="16,10"
@@ -40,7 +39,6 @@
             </DockPanel>
         </Border>
 
-        <!-- Map -->
         <wv2:WebView2 x:Name="mapView" Grid.Row="1" />
     </Grid>
 </Window>

@@ -37,7 +37,6 @@ public class BranchRepository
         => await DesktopApiClient.UpdateBranchAsync(id, name,
             contact1, contact2, contact3, address, branchCode);
 
-    // Single HTTP call → server purges all records + drops branch at loopback speed
     public async Task DeleteBranchAsync(int id, IProgress<string>? progress = null)
     {
         progress?.Report("Deleting branch…");
