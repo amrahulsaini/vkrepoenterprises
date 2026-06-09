@@ -79,9 +79,6 @@ fun SubscriptionExpiredScreen(vm: AuthViewModel, nav: NavController) {
 
             Spacer(Modifier.height(8.dp))
 
-            // CHECK AGAIN (re-checks subscription with the server → Home the
-            // moment it's renewed) + Back to login. Shared with the other
-            // status screens.
             StatusActions(vm, nav)
         }
     }

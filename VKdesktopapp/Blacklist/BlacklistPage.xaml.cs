@@ -159,7 +159,6 @@ public partial class BlacklistPage : Page
             _selectedUser.IsBlacklisted = blacklist;
             _selectedUser.IsStopped     = blacklist;
             UpdateActionPanel();
-            // Refresh list item display
             ApplyFilter();
         }
         catch (Exception ex)

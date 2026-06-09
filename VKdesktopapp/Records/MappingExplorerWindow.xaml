@@ -64,7 +64,6 @@
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="*" />
                 </Grid.RowDefinitions>
-                <!-- Column type header + Add button -->
                 <Grid Margin="16,8,8,8">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
@@ -81,7 +80,6 @@
                             ToolTip="Add new column type"
                             Click="btnAddColumnType_Click" />
                 </Grid>
-                <!-- Inline: add new column type -->
                 <Border x:Name="brdNewColumnType"
                         Grid.Row="1"
                         Visibility="Collapsed"
@@ -166,7 +164,6 @@
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="*" />
                 </Grid.RowDefinitions>
-                <!-- Aliases header + Add button -->
                 <Grid Margin="16,8,8,8">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
@@ -183,7 +180,6 @@
                             ToolTip="Add alias for selected column"
                             Click="btnAddAlias_Click" />
                 </Grid>
-                <!-- Inline: add new alias -->
                 <Border x:Name="brdNewAlias"
                         Grid.Row="1"
                         Visibility="Collapsed"

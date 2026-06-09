@@ -72,8 +72,6 @@ class LocationWorker @AssistedInject constructor(
         else
             Priority.PRIORITY_LOW_POWER
 
-        // Try a fresh fix first; background workers often can't warm the GPS chip
-        // in time, so getCurrentLocation returns null → fall back to last known.
         val fresh = suspendCancellableCoroutine<Location?> { cont ->
             val cts = CancellationTokenSource()
             client.getCurrentLocation(priority, cts.token)
@@ -84,8 +82,6 @@ class LocationWorker @AssistedInject constructor(
         }
         if (fresh != null) return fresh
 
-        // lastLocation is the system-cached position (any app); always available
-        // as long as the device has had a fix at any point.
         return suspendCancellableCoroutine { cont ->
             client.lastLocation
                 .addOnSuccessListener { loc -> cont.resume(loc) }

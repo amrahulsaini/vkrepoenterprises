@@ -20,8 +20,6 @@ public partial class FindVehiclePage : Page
     private readonly DispatcherTimer _debounceTimer;
     private List<VehicleSearchItem> _fullResults = new();
     private readonly VehicleSearchRepository _searchRepo = new();
-    // Full records fetched on tap, keyed by record id — so re-opening the same
-    // record never re-hits the network.
     private readonly Dictionary<string, VehicleSearchItem> _fullRecordCache = new();
 
     public FindVehiclePage()
@@ -33,8 +31,6 @@ public partial class FindVehiclePage : Page
 
     private void Page_Loaded(object sender, RoutedEventArgs e)
     {
-        // Auto-focus the search box on every navigation to this page so the
-        // user can just start typing — no extra click needed.
         Dispatcher.BeginInvoke(new Action(() => {
             txtSearch.Focus();
             Keyboard.Focus(txtSearch);
@@ -65,7 +61,6 @@ public partial class FindVehiclePage : Page
 
             if (chassis)
             {
-                // Chassis: keep alphanumeric only, uppercase, max 5 chars
                 var cleaned = Regex.Replace(text, "[^A-Za-z0-9]", "").ToUpper();
                 if (txtSearch.Text != cleaned)
                 {
@@ -78,7 +73,6 @@ public partial class FindVehiclePage : Page
             }
             else
             {
-                // RC: digits only, max 4
                 var digits = Regex.Replace(text, "[^0-9]", "");
                 if (txtSearch.Text != digits)
                 {
@@ -140,8 +134,6 @@ public partial class FindVehiclePage : Page
             _fullResults = results;
             txtSearch.Text = string.Empty;
 
-            // Counts are set in RebindResultsGrid (VEHICLE MATCHES = distinct
-            // vehicles) and on vehicle selection (per-vehicle finance count).
 
             if (chassis)
             {
@@ -168,9 +160,6 @@ public partial class FindVehiclePage : Page
         }
     }
 
-    // Rebuilds the results grid from _fullResults — one row per vehicle,
-    // sorted by RC/chassis. Used after a search and after a deletion, so
-    // removing one vehicle never wipes the rest of the results.
     private void RebindResultsGrid()
     {
         var chassis = IsChassisMode();
@@ -181,12 +170,7 @@ public partial class FindVehiclePage : Page
                      StringComparer.OrdinalIgnoreCase)
             .ToList();
         dgResults.ItemsSource = grouped;
-        // VEHICLE MATCHES = how many distinct vehicles (RC/chassis) matched the
-        // query — one per grid row — NOT the summed count of every finance copy.
         lblResults.Text = grouped.Count.ToString("N0");
-        // The Head Offices/Finances count is per-selected-vehicle and is set when
-        // a vehicle is clicked (see dgResults_SelectionChanged). Reset it here
-        // because changing the grid's items clears the selection.
         lblBranchCount.Text = "0";
     }
 
@@ -196,8 +180,6 @@ public partial class FindVehiclePage : Page
         {
             var chassis = IsChassisMode();
             var key     = chassis ? vehicle.ChassisNo : vehicle.VehicleNo;
-            // Sort the finance/branch copies client-side (the server no longer
-            // sorts the skinny list — see VehicleSearchRepository).
             var branches = _fullResults
                 .Where(x => (chassis ? x.ChassisNo : x.VehicleNo) == key)
                 .OrderBy(x => x.Financer, StringComparer.OrdinalIgnoreCase)
@@ -205,8 +187,6 @@ public partial class FindVehiclePage : Page
                 .ToList();
 
             lstBranches.ItemsSource = branches;
-            // Count = how many head-office/finance copies THIS vehicle appears in,
-            // not the total across every matched vehicle.
             lblBranchCount.Text     = branches.Count.ToString("N0");
             brdBranches.Visibility  = Visibility.Visible;
             brdDetails.Visibility   = Visibility.Collapsed;
@@ -230,21 +210,15 @@ public partial class FindVehiclePage : Page
             return;
         }
 
-        // Show immediately with the skinny fields we already have (vehicle/
-        // chassis/model/branch/finance) — no blank panel while the heavy fields
-        // load.
         brdDetails.Visibility  = Visibility.Visible;
         brdDetails.DataContext = skinny;
 
-        // Already fetched once this session? use the cached full record.
         if (_fullRecordCache.TryGetValue(skinny.Id, out var cached))
         {
             brdDetails.DataContext = cached;
             return;
         }
 
-        // Fetch the ~40 heavy fields for THIS record on tap. Cancel any earlier
-        // in-flight fetch so a fast click-through doesn't race.
         _detailCts?.Cancel();
         _detailCts?.Dispose();
         _detailCts = new CancellationTokenSource();
@@ -254,17 +228,13 @@ public partial class FindVehiclePage : Page
             var full = await _searchRepo.GetRecordByIdAsync(long.Parse(skinny.Id), ct);
             if (ct.IsCancellationRequested || full == null) return;
             _fullRecordCache[skinny.Id] = full;
-            // Only apply if the user is still looking at this same record.
             if (lstBranches.SelectedItem is VehicleSearchItem stillSel && stillSel.Id == skinny.Id)
                 brdDetails.DataContext = full;
         }
         catch (OperationCanceledException) { }
-        catch { /* keep the skinny data shown if the full fetch fails */ }
+        catch { }
     }
 
-    // Right-click "Copy" handlers on Branches/Finances list items. They put
-    // the relevant text on the clipboard without affecting list selection
-    // (so click-to-filter still works as before).
     private void BranchItem_Copy_Click(object sender, RoutedEventArgs e)
     {
         if (sender is MenuItem mi && mi.Tag is VehicleSearchItem r)
@@ -287,8 +257,6 @@ public partial class FindVehiclePage : Page
     {
         if (brdDetails.DataContext is not VehicleSearchItem r) return;
 
-        // Dump every field shown in the details panel as "Label : Value" lines.
-        // Blank fields are skipped so the paste isn't cluttered with empty rows.
         var sb = new System.Text.StringBuilder();
         void L(string label, string value)
         {
@@ -379,7 +347,6 @@ public partial class FindVehiclePage : Page
         var chassis = IsChassisMode();
         var key     = chassis ? record.ChassisNo : record.VehicleNo;
 
-        // Every finance copy of this vehicle currently in the results.
         var copies = _fullResults
             .Where(x => (chassis ? x.ChassisNo : x.VehicleNo) == key)
             .ToList();
@@ -387,7 +354,6 @@ public partial class FindVehiclePage : Page
         List<VehicleSearchItem> toDelete;
         if (copies.Count > 1)
         {
-            // Vehicle is in multiple finances — ask which one(s) to delete from.
             var picker = new DeleteRecordPickerWindow(record.VehicleNo, copies)
             {
                 Owner = Window.GetWindow(this)
@@ -416,7 +382,6 @@ public partial class FindVehiclePage : Page
                 _fullResults.Remove(r);
             }
 
-            // Re-render the grid from what's left — other vehicles stay put.
             RebindResultsGrid();
 
             var remaining = _fullResults
@@ -424,16 +389,12 @@ public partial class FindVehiclePage : Page
                 .ToList();
             if (remaining.Any())
             {
-                // Vehicle still exists in other finances — refresh its panel
-                // and its per-vehicle finance count.
                 lstBranches.ItemsSource   = remaining;
                 lblBranchCount.Text       = remaining.Count.ToString("N0");
                 lstBranches.SelectedIndex = 0;
             }
             else
             {
-                // This vehicle is fully gone; hide its panels but KEEP the
-                // rest of the search results visible.
                 dgResults.SelectedItem = null;
                 brdBranches.Visibility = Visibility.Collapsed;
                 brdDetails.Visibility  = Visibility.Collapsed;

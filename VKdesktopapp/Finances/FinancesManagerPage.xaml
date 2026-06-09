@@ -8,7 +8,6 @@
 
     <Page.Resources>
 
-        <!-- Orange "+" circle button -->
         <Style x:Key="PlusIconButton" TargetType="Button">
             <Setter Property="Width" Value="32" />
             <Setter Property="Height" Value="32" />
@@ -41,10 +40,7 @@
             </Setter>
         </Style>
 
-        <!-- Row: no hover color, subtle selected highlight -->
         <Style x:Key="GridRowStyle" TargetType="DataGridRow">
-            <!-- MinHeight (not fixed Height) so a long Head Office name can wrap
-                 onto a second line and the row grows to fit it. -->
             <Setter Property="MinHeight" Value="46" />
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="Background" Value="Transparent" />
@@ -55,7 +51,6 @@
             </Style.Triggers>
         </Style>
 
-        <!-- Cell: fully transparent — row background shows through, no fading -->
         <Style x:Key="GridCellStyle" TargetType="DataGridCell">
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="Padding" Value="14,0" />
@@ -80,7 +75,6 @@
             </Style.Triggers>
         </Style>
 
-        <!-- Column header -->
         <Style x:Key="ColHeaderStyle" TargetType="DataGridColumnHeader">
             <Setter Property="Height" Value="42" />
             <Setter Property="Background" Value="{StaticResource Gray50}" />
@@ -103,7 +97,6 @@
             </Setter>
         </Style>
 
-        <!-- Search TextBox -->
         <Style x:Key="InlineTextBox" TargetType="TextBox">
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderThickness" Value="0" />
@@ -121,19 +114,16 @@
             </Setter>
         </Style>
 
-        <!-- Shared row cell text style -->
         <Style x:Key="CellText" TargetType="TextBlock">
             <Setter Property="FontSize" Value="14" />
             <Setter Property="VerticalAlignment" Value="Center" />
             <Setter Property="Foreground" Value="{StaticResource Gray800}" />
         </Style>
 
-        <!-- Muted secondary cell text -->
         <Style x:Key="CellTextMuted" TargetType="TextBlock" BasedOn="{StaticResource CellText}">
             <Setter Property="Foreground" Value="{StaticResource Gray500}" />
         </Style>
 
-        <!-- Outline button used for View All -->
         <Style x:Key="OutlineButton" TargetType="Button">
             <Setter Property="Background" Value="White" />
             <Setter Property="BorderBrush" Value="{StaticResource Orange500}" />
@@ -174,24 +164,19 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <!-- Page header -->
         <StackPanel Grid.Row="0" Margin="0,0,0,18">
             <TextBlock Text="HEAD OFFICES" Style="{StaticResource Heading4}" FontWeight="Bold" />
             <TextBlock Text="Manage head offices and their finances"
                        Style="{StaticResource Caption}" Margin="0,2,0,0" />
         </StackPanel>
 
-        <!-- Two-column layout -->
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
-                <!-- Head offices narrower so the wider Finances side fits
-                     Uploaded date column (with AM/PM) without truncation. -->
                 <ColumnDefinition Width="0.75*" />
                 <ColumnDefinition Width="16" />
                 <ColumnDefinition Width="1.4*" />
             </Grid.ColumnDefinitions>
 
-            <!-- LEFT — Finance list -->
             <Border Grid.Column="0" Style="{StaticResource DashboardCard}" Padding="0">
                 <DockPanel LastChildFill="True">
 
@@ -251,7 +236,6 @@
                         </DockPanel>
                     </Border>
 
-                    <!-- Search box -->
                     <Border DockPanel.Dock="Top"
                             Margin="14,12,14,4"
                             Background="White"
@@ -294,7 +278,6 @@
                         </Grid>
                     </Border>
 
-                    <!-- DataGrid -->
                     <Grid Margin="14,6,14,14">
                         <DataGrid Name="dgFinances"
                                   Style="{StaticResource MaterialDataGrid}"
@@ -328,7 +311,6 @@
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock" BasedOn="{StaticResource CellText}">
                                             <Setter Property="FontWeight" Value="Bold" />
-                                            <!-- Long names wrap to the next line instead of clipping. -->
                                             <Setter Property="TextWrapping" Value="Wrap" />
                                             <Setter Property="Padding" Value="0,8" />
                                         </Style>
@@ -341,9 +323,6 @@
                                         <Style TargetType="TextBlock" BasedOn="{StaticResource CellTextMuted}" />
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
-                                <!-- Per-row kebab menu: same actions as the
-                                     right-click context menu, but reachable
-                                     with a single left click. -->
                                 <DataGridTemplateColumn Width="44">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
@@ -366,7 +345,6 @@
                 </DockPanel>
             </Border>
 
-            <!-- RIGHT — Branch list -->
             <Border Grid.Column="2" Style="{StaticResource DashboardCard}" Padding="0">
                 <DockPanel LastChildFill="True">
 
@@ -425,7 +403,6 @@
                         </DockPanel>
                     </Border>
 
-                    <!-- Branch search box -->
                     <Border DockPanel.Dock="Top"
                             Margin="14,12,14,4"
                             Background="White"
@@ -469,7 +446,6 @@
                     </Border>
 
                     <Grid Margin="14,6,14,14">
-                        <!-- Empty state shown when no head office is selected -->
                         <StackPanel Name="pnlBranchEmpty"
                                     HorizontalAlignment="Center" VerticalAlignment="Center"
                                     Visibility="Collapsed">
@@ -512,7 +488,6 @@
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock" BasedOn="{StaticResource CellText}">
                                             <Setter Property="FontWeight" Value="Bold" />
-                                            <!-- Long names wrap to the next line instead of clipping. -->
                                             <Setter Property="TextWrapping" Value="Wrap" />
                                             <Setter Property="Padding" Value="0,8" />
                                         </Style>
@@ -532,7 +507,6 @@
                                         <Style TargetType="TextBlock" BasedOn="{StaticResource CellTextMuted}" />
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
-                                <!-- Per-row kebab menu (Edit / Download / Clear / Delete) -->
                                 <DataGridTemplateColumn Width="44">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>

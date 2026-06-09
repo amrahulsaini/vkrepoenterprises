@@ -75,9 +75,6 @@ public partial class RecordValidatorAndUploaderWindow : Window
         if (e.ButtonState == System.Windows.Input.MouseButtonState.Pressed) DragMove();
     }
 
-    // ──────────────────────────────────────────────────────────────
-    //  Read Excel rows into _records
-    // ──────────────────────────────────────────────────────────────
 
     private void ReadRecords()
     {
@@ -145,17 +142,7 @@ public partial class RecordValidatorAndUploaderWindow : Window
         }
     }
 
-    // ──────────────────────────────────────────────────────────────
-    //  Validation (RC number format check)
-    // ──────────────────────────────────────────────────────────────
 
-    // Validate against FormatedVehicleNo (stripped of separators) so that
-    // short trailing-digit inputs like MH16CA716 are zero-padded to MH16CA0716
-    // by GetFormatedVehicleNo before validation, and then pass the regex.
-    // Accepted formats (after stripping hyphens):
-    //   * Standard:    MH12AB1234 / DL1ZC4342 / RJ144C8139 / MH16CA0716 — 2 state + 1-3 digits + 1-3 series letters + 4 unique
-    //   * Legacy long: HR736546               — 2 state + 5-7 digits (govt / older)
-    //   * Bharat (BH): 22BH2271E              — 2 year + BH + 4 digits + 1-2 letters
     private static readonly Regex RcRegex =
         new(@"^([A-Z]{2}[0-9]{1,3}[A-Z]{1,3}[0-9]{4}|[A-Z]{2}[0-9]{5,7}|[0-9]{2}BH[0-9]{4}[A-Z]{1,2})$",
             RegexOptions.Compiled);
@@ -165,17 +152,10 @@ public partial class RecordValidatorAndUploaderWindow : Window
 
     private static bool IsValidRc(UploadRecord r)
     {
-        // Validate the formatted (zero-padded) value, not the raw input.
-        // MH16CA716 → GetFormatedVehicleNo → MH-16-CA-0716 → strip → MH16CA0716 → valid.
         var plain = AlphaNumOnly.Replace(r.FormatedVehicleNo ?? string.Empty, "").ToUpperInvariant();
         return RcRegex.IsMatch(plain);
     }
 
-    // A chassis is "valid enough to upload" when, after stripping separators,
-    // it has at least 5 alphanumeric chars AND contains at least one digit.
-    // Mobile search looks up by the last 5 chars, so anything shorter is
-    // useless; pure-letter strings like "NA"/"NIL"/"NONE" are placeholders
-    // and would only pollute results.
     private static bool IsValidChassis(UploadRecord r)
     {
         var plain = AlphaNumOnly.Replace(r.ChasisNo ?? string.Empty, "").ToUpperInvariant();
@@ -233,10 +213,6 @@ public partial class RecordValidatorAndUploaderWindow : Window
         }
     }
 
-    // ──────────────────────────────────────────────────────────────
-    //  De-duplication
-    //  Same RC + same data → 1 row.  Same RC + different data → keep all.
-    // ──────────────────────────────────────────────────────────────
 
     private static string GetRecordSignature(UploadRecord r) =>
         string.Join('\x01',
@@ -256,7 +232,6 @@ public partial class RecordValidatorAndUploaderWindow : Window
         {
             var list = group.ToList();
             if (list.Count == 1) { result.Add(list[0]); continue; }
-            // Same RC, multiple rows — drop rows that are byte-for-byte identical to an earlier row
             var seen = new HashSet<string>();
             foreach (var r in list)
                 if (seen.Add(GetRecordSignature(r)))
@@ -265,9 +240,6 @@ public partial class RecordValidatorAndUploaderWindow : Window
         return result;
     }
 
-    // ──────────────────────────────────────────────────────────────
-    //  Branch loading — via API
-    // ──────────────────────────────────────────────────────────────
 
     private async Task LoadBranchesAsync()
     {
@@ -306,9 +278,6 @@ public partial class RecordValidatorAndUploaderWindow : Window
         btnSelectBranch.IsEnabled = true;
     }
 
-    // ──────────────────────────────────────────────────────────────
-    //  Upload — via API
-    // ──────────────────────────────────────────────────────────────
 
     private async void btnUpload_Click(object sender, RoutedEventArgs e)
     {
@@ -333,10 +302,6 @@ public partial class RecordValidatorAndUploaderWindow : Window
             return;
         }
 
-        // Upload records that have a valid RC -OR- a valid chassis number.
-        // Records with an invalid/placeholder RC but a real chassis are still
-        // useful (they appear in chassis searches), but rows with garbage in
-        // BOTH fields would only pollute the database — drop them.
         var uploadableRecords = _records
             .Where(r => IsValidRc(r) || IsValidChassis(r))
             .ToList();
@@ -369,7 +334,6 @@ public partial class RecordValidatorAndUploaderWindow : Window
         var progress = new Progress<(int pct, string msg)>(p =>
         {
             pbr.Value = p.pct;
-            // During BulkCopy the server sends "X / Y" — show that as the count label
             if (p.msg.Contains('/'))
             {
                 txtPBRPct.Text = p.msg;
@@ -411,10 +375,6 @@ public partial class RecordValidatorAndUploaderWindow : Window
             txtPBRPct.Text = "0%";
             txtPBR.Text    = "Upload failed";
 
-            // Capture a DETAILED report (full error chain + HTTP/socket status +
-            // context), save it locally, and send it to the server's central
-            // error log — then show the same detail so it's never a vague
-            // "an error occurred" again. Ctrl+C on the dialog copies the text.
             string context = $"Branch \"{SelectedBranch?.BranchName}\" (id {branchId}); " +
                              $"{uploadRecords.Count:N0} records; failed after {sw.Elapsed.TotalSeconds:F1}s";
             string report  = Diagnostics.LogError("Records Upload", ex, context);

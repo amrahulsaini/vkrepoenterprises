@@ -5,11 +5,9 @@ namespace VRASDesktopApp.Data;
 
 public static class EnvLoader
 {
-    // Look for a .env in the application folder or parent folders named VKdesktopapp\.env
     public static void LoadDotEnv()
     {
         var baseDir = AppDomain.CurrentDomain.BaseDirectory;
-        // Walk up directories from baseDir to find a .env file (either at root or in a VKdesktopapp subfolder)
         var dir = new DirectoryInfo(baseDir);
         while (dir != null)
         {

@@ -6,17 +6,6 @@ using VRASDesktopApp.Data;
 
 namespace VRASDesktopApp.Exports;
 
-// Instant, real .xlsx writer for vehicle rows — no third-party library and no
-// Syncfusion. An .xlsx is just a ZIP of XML parts, so we stream the worksheet
-// XML straight into a ZipArchive entry using inline strings (t="inlineStr").
-// Inline strings skip the shared-string-table dedup pass entirely, so writing
-// is a single linear stream with no in-memory document model — a 100k-row,
-// 34-column sheet writes in ~1-2s instead of the minutes Syncfusion's
-// cell-by-cell API took.
-//
-// Output is a genuine .xlsx that Excel / LibreOffice / Google Sheets open
-// natively (header row bold, numbers preserved as text so chassis/engine
-// numbers aren't mangled into scientific notation).
 internal static class VehicleExcelWriter
 {
     private static readonly string[] Headers =
@@ -31,7 +20,6 @@ internal static class VehicleExcelWriter
         "POS", "TOSS", "Remark", "Region", "Area", "Created On"
     };
 
-    // Real Excel workbook now.
     public const string Extension = "xlsx";
 
     public static void Write(
@@ -50,16 +38,13 @@ internal static class VehicleExcelWriter
         WriteEntry(zip, "xl/_rels/workbook.xml.rels", WorkbookRelsXml);
         WriteEntry(zip, "xl/styles.xml", StylesXml);
 
-        // Worksheet — streamed row by row so we never hold the whole sheet in memory.
         var sheetEntry = zip.CreateEntry("xl/worksheets/sheet1.xml", CompressionLevel.Fastest);
         using var sw = new StreamWriter(sheetEntry.Open(), new UTF8Encoding(false), 1 << 20);
         sw.Write("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>");
         sw.Write("<worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><sheetData>");
 
-        // Header row (style s="1" = bold).
         WriteRow(sw, 1, Headers, styleIndex: 1);
 
-        // Data rows.
         var buf = new string[Headers.Length];
         int r = 2;
         foreach (var v in rows)
@@ -78,14 +63,13 @@ internal static class VehicleExcelWriter
         sw.Write("</sheetData></worksheet>");
     }
 
-    // ── Row writer (inline strings) ─────────────────────────────────────────
     private static void WriteRow(StreamWriter sw, int rowNum, string?[] cells, int styleIndex)
     {
         sw.Write("<row r=\""); sw.Write(rowNum); sw.Write("\">");
         for (int c = 0; c < cells.Length; c++)
         {
             var val = cells[c];
-            if (string.IsNullOrEmpty(val)) continue;   // skip empty cells — smaller + faster
+            if (string.IsNullOrEmpty(val)) continue;
             sw.Write("<c r=\""); sw.Write(ColLetter(c)); sw.Write(rowNum);
             if (styleIndex != 0) { sw.Write("\" s=\""); sw.Write(styleIndex); }
             sw.Write("\" t=\"inlineStr\"><is><t xml:space=\"preserve\">");
@@ -106,14 +90,12 @@ internal static class VehicleExcelWriter
                 case '>': sw.Write("&gt;");   break;
                 case '"': sw.Write("&quot;"); break;
                 default:
-                    // Strip control chars that are illegal in XML 1.0.
                     if (ch >= 0x20 || ch == '\t' || ch == '\n' || ch == '\r') sw.Write(ch);
                     break;
             }
         }
     }
 
-    // 0-based column index → Excel column letters (A, B, ..., Z, AA, AB...).
     private static string ColLetter(int index)
     {
         var sb = new StringBuilder(3);
@@ -143,7 +125,6 @@ internal static class VehicleExcelWriter
         return name.Length > 31 ? name[..31] : name;
     }
 
-    // ── Static OpenXML parts ────────────────────────────────────────────────
     private const string ContentTypesXml =
         "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>" +
         "<Types xmlns=\"http://schemas.openxmlformats.org/package/2006/content-types\">" +
@@ -173,7 +154,6 @@ internal static class VehicleExcelWriter
         "<Relationship Id=\"rId2\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles\" Target=\"styles.xml\"/>" +
         "</Relationships>";
 
-    // 2 fonts (normal, bold) → cellXfs index 1 = bold header.
     private const string StylesXml =
         "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>" +
         "<styleSheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\">" +

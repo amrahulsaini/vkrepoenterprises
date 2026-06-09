@@ -10,17 +10,11 @@
 
     <Grid>
         <Grid.ColumnDefinitions>
-            <!-- Left stats panel is now user-resizable via the GridSplitter
-                 below. MinWidth keeps the stat cards readable; the map takes
-                 the rest. -->
             <ColumnDefinition Name="clmStats" Width="370" MinWidth="300" MaxWidth="640" />
             <ColumnDefinition Width="6" />
             <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
 
-        <!-- ── LEFT PANEL ──────────────────────────────────────────────── -->
-        <!-- No right border here — the GridSplitter (col 1) is the divider, so
-             a border too would draw a doubled, uneven line. -->
         <Border Grid.Column="0"
                 Background="White">
             <Grid>
@@ -30,10 +24,6 @@
                     <RowDefinition Height="*" />
                 </Grid.RowDefinitions>
 
-                <!-- HOME header — title left, refresh icon right. API URL line
-                     removed (internal detail, not useful to the agency).
-                     MinHeight 64 matches the LIVE USERS bar so both dark
-                     headers line up exactly across the splitter. -->
                 <Border Grid.Row="0"
                         Background="{StaticResource Gray900}"
                         Padding="20,12" MinHeight="64">
@@ -67,18 +57,13 @@
                     </Grid>
                 </Border>
 
-                <!-- Stats sections -->
                 <StackPanel Grid.Row="1" Margin="16,16,16,8">
 
-                    <!-- RECORDS AND HEAD OFFICES -->
                     <TextBlock Text="RECORDS AND HEAD OFFICES"
                                Style="{StaticResource Overline}"
                                Margin="2,0,0,8" />
                     <Border Style="{StaticResource DashboardCard}" Padding="6,16" Margin="0,0,0,16">
                         <UniformGrid Columns="3">
-                            <!-- Number TextBlocks wrapped in Viewbox(DownOnly) so 7-8 digit
-                                 record counts auto-shrink to fit the column instead of
-                                 having the last digit clipped on narrow dashboards. -->
                             <StackPanel Margin="6,0">
                                 <Viewbox MaxHeight="32" StretchDirection="DownOnly" HorizontalAlignment="Center">
                                     <TextBlock Name="lblRecords" Text="—"
@@ -115,7 +100,6 @@
                         </UniformGrid>
                     </Border>
 
-                    <!-- APP USERS -->
                     <TextBlock Text="APP USERS"
                                Style="{StaticResource Overline}"
                                Margin="2,0,0,8" />
@@ -158,14 +142,12 @@
                     </Border>
                 </StackPanel>
 
-                <!-- DEVICE CHANGED NOTIFICATIONS -->
                 <Grid Grid.Row="2">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
 
-                    <!-- Section header -->
                     <Border Grid.Row="0"
                             BorderBrush="{StaticResource Gray200}"
                             BorderThickness="0,1,0,1"
@@ -186,7 +168,6 @@
                         </Grid>
                     </Border>
 
-                    <!-- List + empty state -->
                     <Grid Grid.Row="1">
                         <ListView Name="lvDeviceRequests"
                                   BorderThickness="0"
@@ -212,7 +193,6 @@
                                                 <ColumnDefinition Width="Auto" />
                                             </Grid.ColumnDefinitions>
 
-                                            <!-- Avatar circle -->
                                             <Border Grid.Column="0"
                                                     Width="42" Height="42"
                                                     CornerRadius="21"
@@ -226,7 +206,6 @@
                                                            Foreground="{StaticResource Gray700}" />
                                             </Border>
 
-                                            <!-- Info column -->
                                             <StackPanel Grid.Column="1" VerticalAlignment="Center">
                                                 <TextBlock Text="{Binding UserName}"
                                                            FontWeight="SemiBold" FontSize="13" />
@@ -245,7 +224,6 @@
                                                 </Border>
                                             </StackPanel>
 
-                                            <!-- Accept / Deny buttons -->
                                             <StackPanel Grid.Column="2"
                                                         Orientation="Horizontal"
                                                         VerticalAlignment="Center"
@@ -329,24 +307,18 @@
             </Grid>
         </Border>
 
-        <!-- Drag handle between the stats panel and the map. -->
         <GridSplitter Grid.Column="1"
                       Width="6" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
                       Background="{StaticResource Gray200}"
                       ShowsPreview="True" ResizeBehavior="PreviousAndNext"
                       ResizeDirection="Columns" Cursor="SizeWE" />
 
-        <!-- ── RIGHT PANEL: LIVE USERS + MAP ──────────────────────────── -->
         <Grid Grid.Column="2">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />
             </Grid.RowDefinitions>
 
-            <!-- Combined header: title on left, time selector + Apply on right,
-                 all in a single top bar so the map gets maximum vertical space.
-                 MinHeight guarantees the bar is visible even when parent
-                 layout tries to compress it. -->
             <Border Grid.Row="0"
                     Background="{StaticResource Gray900}"
                     Padding="20,12"
@@ -368,7 +340,6 @@
                                    Margin="0,2,0,0" />
                     </StackPanel>
 
-                    <!-- Time picker + Apply, side-by-side, on the same top row. -->
                     <StackPanel Grid.Column="1"
                                 Orientation="Horizontal"
                                 VerticalAlignment="Center">
@@ -406,11 +377,8 @@
                 </Grid>
             </Border>
 
-            <!-- Leaflet map via WebView2 -->
             <wv2:WebView2 Name="mapView" Grid.Row="1" />
 
-            <!-- Shown only when the map fails to load, so a blank panel is
-                 never a silent mystery — the reason is visible on screen. -->
             <Border Name="mapErrorOverlay" Grid.Row="1" Visibility="Collapsed"
                     Background="#1A1A1A">
                 <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="24">

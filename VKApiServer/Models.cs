@@ -93,22 +93,18 @@ public class VehicleSearchResponse
 
 public class VehicleSearchItem
 {
-    // Record Identifier
     public string Id { get; set; } = "";
 
-    // Vehicle
     public string ReleaseStatus { get; set; } = "";
     public string VehicleNo { get; set; } = "";
     public string ChassisNo { get; set; } = "";
     public string Model { get; set; } = "";
     public string EngineNo { get; set; } = "";
 
-    // Customer
     public string CustomerName { get; set; } = "";
     public string CustomerContactNos { get; set; } = "";
     public string CustomerAddress { get; set; } = "";
 
-    // Finance
     public string Financer { get; set; } = "";
     public string BranchName { get; set; } = "";
     public string FirstContactDetails { get; set; } = "";
@@ -126,7 +122,6 @@ public class VehicleSearchItem
     public string Level4 { get; set; } = "";
     public string Level4ContactNos { get; set; } = "";
 
-    // Loan
     public string AgreementNo { get; set; } = "";
     public string Region { get; set; } = "";
     public string Area { get; set; } = "";
@@ -143,7 +138,6 @@ public class VehicleSearchItem
     public string TOSS { get; set; } = "";
     public string Remark { get; set; } = "";
 
-    // Other
     public string CreatedOn { get; set; } = "";
     public string UpdatedOn { get; set; } = "";
 }

@@ -13,7 +13,6 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <!-- Page Header Card -->
         <Border Grid.Row="0" Style="{StaticResource DashboardCard}" Margin="0,0,0,16">
             <Grid>
                 <Grid.ColumnDefinitions>
@@ -78,7 +77,6 @@
             </Grid>
         </Border>
 
-        <!-- Data Grid -->
         <DataGrid Name="dgConfirmations" Grid.Row="2"
                   AutoGenerateColumns="False" Background="White"
                   BorderBrush="{StaticResource Gray200}" BorderThickness="1"

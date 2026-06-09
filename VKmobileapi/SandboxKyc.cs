@@ -1,18 +1,3 @@
-// ─────────────────────────────────────────────────────────────────────────────
-//  Sandbox (api.sandbox.co.in) KYC client for the MOBILE api.
-//
-//  Same integration as VKApiServer/SandboxKyc.cs but exposed as reusable verify
-//  methods the mobile controller calls (it then stores the result against the
-//  agent's app_users row in the tenant DB).
-//
-//  Credentials are read ONLY from environment variables on the vkmobileapi
-//  service — never hardcoded, never sent to the app:
-//      SANDBOX_API_KEY, SANDBOX_API_SECRET, SANDBOX_BASE_URL (optional)
-//
-//  Auth: POST /authenticate (x-api-key + x-api-secret) → data.access_token (24h),
-//  cached in-process; sent on every call in the Authorization header WITHOUT a
-//  "Bearer" prefix, plus x-api-key.
-// ─────────────────────────────────────────────────────────────────────────────
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
@@ -74,7 +59,6 @@ public static class SandboxKyc
         return "Verification failed.";
     }
 
-    // ── Aadhaar OKYC — send OTP → reference_id ─────────────────────────────────
     public static Task<JsonElement> AadhaarOtpAsync(string aadhaar) =>
         CallAsync(HttpMethod.Post, "/kyc/aadhaar/okyc/otp", new Dictionary<string, object?>
         {
@@ -84,7 +68,6 @@ public static class SandboxKyc
             ["reason"] = "KYC verification for recovery-agent onboarding"
         }, "1.0.0");
 
-    // ── Aadhaar OKYC — verify OTP → identity ───────────────────────────────────
     public static Task<JsonElement> AadhaarVerifyAsync(object referenceId, string otp) =>
         CallAsync(HttpMethod.Post, "/kyc/aadhaar/okyc/otp/verify", new Dictionary<string, object?>
         {
@@ -93,7 +76,6 @@ public static class SandboxKyc
             ["otp"] = otp
         }, "1.0.0");
 
-    // ── PAN verify ─────────────────────────────────────────────────────────────
     public static Task<JsonElement> PanVerifyAsync(string pan, string name, string dob) =>
         CallAsync(HttpMethod.Post, "/kyc/pan/verify", new Dictionary<string, object?>
         {
@@ -105,7 +87,6 @@ public static class SandboxKyc
             ["reason"] = "KYC verification for recovery-agent onboarding compliance"
         }, null);
 
-    // ── Bank account (penny-less) ──────────────────────────────────────────────
     public static Task<JsonElement> BankVerifyAsync(string ifsc, string account, string name)
     {
         var q = name.Length > 0 ? "?name=" + Uri.EscapeDataString(name) : "";

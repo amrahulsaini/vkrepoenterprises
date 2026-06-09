@@ -131,7 +131,6 @@ public partial class RecordsEditorWindow : RibbonWindow
                 if (_mappingDetails == null) return;
             }
 
-            // Collect which column type IDs are already mapped so they don't show in the picker
             var alreadyMapped = new HashSet<int>();
             if (_mappedColumns.CI_VehicleNo        != 0) alreadyMapped.Add(1);
             if (_mappedColumns.CI_ChasisNo         != 0) alreadyMapped.Add(2);
@@ -209,11 +208,6 @@ public partial class RecordsEditorWindow : RibbonWindow
 
         try
         {
-            // The chosen workbook may still be open in MS Excel, which keeps
-            // an exclusive lock — sp.Open() on it would fail. Copying the file
-            // first works because we open the SOURCE with FileShare.ReadWrite
-            // (allowed even while Excel holds it); the spreadsheet then loads
-            // the unlocked temp copy. Result: an already-open file uploads fine.
             var srcPath  = openFileDialog.FileName;
             var tempPath = Path.Combine(
                 Path.GetTempPath(),
@@ -251,7 +245,6 @@ public partial class RecordsEditorWindow : RibbonWindow
 
         for (short col = 1; col <= lastColumn; col++)
         {
-            // Clear the label row above the header
             migrantRange.ResetRowColumn(RecordHeadingIndex - 1, col);
             migrantRange.Value = string.Empty;
             sp.ActiveGrid.InvalidateCell(RecordHeadingIndex - 1, col);
@@ -267,7 +260,6 @@ public partial class RecordsEditorWindow : RibbonWindow
                 continue;
             }
 
-            // Highlight mapped column yellow
             migrantRange.CellStyle.ColorIndex = ExcelKnownColors.Yellow;
             sp.ActiveGrid.InvalidateCell(RecordHeadingIndex, col);
 
@@ -307,7 +299,6 @@ public partial class RecordsEditorWindow : RibbonWindow
                 case 32: mapped.CI_Remark              = col; break;
             }
 
-            // Write the standard field name above the column header
             migrantRange.ResetRowColumn(RecordHeadingIndex - 1, col);
             var columnType = _mappingDetails.ColumnTypes.Find(t => t.ColumnTypeId == mapping.ColumnTypeId);
             migrantRange.Value = columnType?.ColumnTypeName ?? string.Empty;
@@ -334,9 +325,6 @@ public partial class RecordsEditorWindow : RibbonWindow
     private void btnVerifyRecords_Click(object sender, RoutedEventArgs e)
     {
         var validator = new RecordValidatorAndUploaderWindow(sp.ActiveSheet, _mappedColumns);
-        // Get the editor out of the way so the verify window is the foreground
-        // window; restore the editor when the verify window closes. Minimize —
-        // do NOT Hide(): a hidden editor drops off the taskbar entirely.
         validator.Closed += (_, __) =>
         {
             if (WindowState == WindowState.Minimized)

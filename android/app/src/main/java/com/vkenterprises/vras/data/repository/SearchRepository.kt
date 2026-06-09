@@ -16,12 +16,6 @@ sealed class SearchResult2 {
 class SearchRepository {
     private val api = ApiClient.api
 
-    // NOTE: we must NOT swallow CancellationException. A fast/typed-ahead search
-    // cancels the previous searchJob; if the cancelled call's CancellationException
-    // were caught here (as runCatching{}.getOrElse{} did), the dead search would
-    // fall through and stomp the live search's results with an error — which made
-    // rapid searching appear to "hang" / show nothing. Rethrow it so the cancelled
-    // coroutine unwinds cleanly and only the latest search updates the UI.
     suspend fun searchRc(last4: String, userId: Long): SearchResult2 =
         try {
             mapSearchResponse(api.searchRc(last4, userId))
@@ -40,7 +34,6 @@ class SearchRepository {
             SearchResult2.Error(com.vkenterprises.vras.utils.NetworkError.friendly(e))
         }
 
-    // Full record for one search result, fetched on tap (search itself is skinny).
     suspend fun getRecord(id: Long, userId: Long): SearchResult? =
         try {
             val resp = api.getRecord(id, userId)

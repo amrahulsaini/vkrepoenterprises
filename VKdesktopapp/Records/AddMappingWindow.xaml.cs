@@ -53,9 +53,6 @@ public partial class AddMappingWindow : Window
             ColumnTypesFiltered.Add(item);
     }
 
-    // Every whitespace-separated word in the query must appear (case-insensitive)
-    // in the name — tolerant of double/extra spaces and word order, where a plain
-    // Contains would miss "a  b" vs "a b".
     private static bool MatchesAllWords(string? target, string? query)
     {
         if (string.IsNullOrWhiteSpace(query)) return true;

@@ -7,11 +7,6 @@ import java.net.UnknownHostException
 import java.util.concurrent.TimeoutException
 import javax.net.ssl.SSLException
 
-// Turns a raw exception into a clean, production-grade message for the user.
-// We NEVER show internal text like "Unable to resolve host
-// api.crmrecoverysoftware.com" or stack/host details — those scare users and
-// leak infrastructure. Instead we say, in plain language, that it's a
-// connection problem on their side and to try again.
 object NetworkError {
     fun friendly(t: Throwable?): String = when (t) {
         is UnknownHostException ->

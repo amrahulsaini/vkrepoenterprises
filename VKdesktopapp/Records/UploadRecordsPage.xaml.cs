@@ -18,16 +18,12 @@ public partial class UploadRecordsPage : Page
     {
         if (_recordsEditorWindow == null)
         {
-            // The actual dashboard window hosting this page (NOT
-            // Application.Current.MainWindow, which still points at the
-            // closed login window).
             var dashboard = Window.GetWindow(this);
 
             _recordsEditorWindow = new RecordsEditorWindow();
             _recordsEditorWindow.Closed += (_, __) =>
             {
                 _recordsEditorWindow = null;
-                // Editor closed → bring the dashboard back to the foreground.
                 if (dashboard != null)
                 {
                     if (dashboard.WindowState == WindowState.Minimized)
@@ -36,10 +32,6 @@ public partial class UploadRecordsPage : Page
                 }
             };
             _recordsEditorWindow.Show();
-            // Get the dashboard out of the way so the editor is the foreground
-            // window. Minimize — do NOT Hide(): the dashboard is shown via
-            // LoginWindow.ShowDialog(), and hiding a modal dialog ends that
-            // modal loop, which makes the login window pop back up.
             if (dashboard != null)
                 dashboard.WindowState = WindowState.Minimized;
         }

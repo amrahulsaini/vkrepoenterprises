@@ -34,12 +34,11 @@
 
     <Grid Margin="16,10,16,10">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />  <!-- header  -->
-            <RowDefinition Height="Auto" />  <!-- filters -->
-            <RowDefinition Height="*"    />  <!-- grid — takes ALL remaining height -->
+            <RowDefinition Height="Auto" />  
+            <RowDefinition Height="Auto" />  
+            <RowDefinition Height="*"    />  
         </Grid.RowDefinitions>
 
-        <!-- ── HEADER ─────────────────────────────────────────────────── -->
         <Border Grid.Row="0" Style="{StaticResource DashboardCard}"
                 Padding="14,10" Margin="0,0,0,8">
             <DockPanel VerticalAlignment="Center">
@@ -93,12 +92,10 @@
             </DockPanel>
         </Border>
 
-        <!-- ── FILTER BAR ─────────────────────────────────────────────── -->
         <Border Grid.Row="1" Style="{StaticResource DashboardCard}"
                 Padding="14,10" Margin="0,0,0,8">
             <WrapPanel Orientation="Horizontal" VerticalAlignment="Center">
 
-                <!-- From -->
                 <StackPanel Margin="0,0,12,0">
                     <TextBlock Text="FROM" Style="{StaticResource FilterLabel}" />
                     <Border Style="{StaticResource FilterInput}">
@@ -108,7 +105,6 @@
                     </Border>
                 </StackPanel>
 
-                <!-- To -->
                 <StackPanel Margin="0,0,12,0">
                     <TextBlock Text="TO" Style="{StaticResource FilterLabel}" />
                     <Border Style="{StaticResource FilterInput}">
@@ -118,7 +114,6 @@
                     </Border>
                 </StackPanel>
 
-                <!-- Agent picker -->
                 <StackPanel Margin="0,0,12,0">
                     <TextBlock Text="AGENT" Style="{StaticResource FilterLabel}" />
                     <Button x:Name="btnPickUser" MinWidth="150" Height="31"
@@ -131,7 +126,6 @@
                     </Button>
                 </StackPanel>
 
-                <!-- Search -->
                 <StackPanel Margin="0,0,12,0">
                     <TextBlock Text="SEARCH VRN / CHASSIS / NAME" Style="{StaticResource FilterLabel}" />
                     <Border Style="{StaticResource FilterInput}" Width="195">
@@ -151,7 +145,6 @@
                     </Border>
                 </StackPanel>
 
-                <!-- Refresh -->
                 <Button VerticalAlignment="Bottom" Style="{StaticResource ActionBtn}"
                         Click="btnRefresh_Click" ToolTip="Reload from server">
                     <StackPanel Orientation="Horizontal">
@@ -161,7 +154,6 @@
                     </StackPanel>
                 </Button>
 
-                <!-- Count / spinner -->
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Bottom" Margin="10,0,0,2">
                     <fa:FontAwesome x:Name="icnLoading" Icon="Solid_CircleNotch"
                                     FontSize="12" Foreground="{StaticResource Orange500}"
@@ -173,7 +165,6 @@
             </WrapPanel>
         </Border>
 
-        <!-- ── LOG GRID — fills ALL remaining height, no bottom padding ─ -->
         <Border Grid.Row="2" Style="{StaticResource DashboardCard}" Padding="0">
             <DataGrid x:Name="dgLogs"
                       Style="{StaticResource MaterialDataGrid}"

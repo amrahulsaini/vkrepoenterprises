@@ -33,7 +33,6 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <!-- Title bar -->
         <Border Grid.Row="0" Background="{StaticResource Gray900}" Padding="18,14"
                 MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
             <DockPanel>
@@ -49,7 +48,6 @@
             </DockPanel>
         </Border>
 
-        <!-- Search box -->
         <Border Grid.Row="1" Background="{StaticResource Gray100}"
                 BorderBrush="{StaticResource Gray200}" BorderThickness="0,0,0,1"
                 Padding="14,10">
@@ -93,12 +91,10 @@
             </Grid>
         </Border>
 
-        <!-- User list -->
         <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" Padding="14,10,14,0">
             <StackPanel x:Name="spUsers" />
         </ScrollViewer>
 
-        <!-- Footer: All Users button -->
         <Border Grid.Row="3" Background="{StaticResource Gray50}"
                 BorderBrush="{StaticResource Gray200}" BorderThickness="0,1,0,0"
                 Padding="14,10">

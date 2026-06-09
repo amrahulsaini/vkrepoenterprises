@@ -16,7 +16,6 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <!-- Title bar -->
         <Grid Grid.Row="0" Background="{StaticResource Gray900}"
               MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
             <Grid.ColumnDefinitions>
@@ -46,7 +45,6 @@
             </Button>
         </Grid>
 
-        <!-- Header: subject + status -->
         <Border Grid.Row="1" Background="White" BorderBrush="{StaticResource Gray100}"
                 BorderThickness="0,0,0,1" Padding="16,12">
             <StackPanel>
@@ -63,22 +61,16 @@
             </StackPanel>
         </Border>
 
-        <!-- Conversation thread -->
         <ScrollViewer Grid.Row="2" Name="threadScroll" VerticalScrollBarVisibility="Auto" Padding="14">
             <StackPanel Name="threadPanel" />
         </ScrollViewer>
 
-        <!-- Reply box -->
         <Border Grid.Row="3" Background="White" BorderBrush="{StaticResource Gray200}"
                 BorderThickness="0,1,0,0" Padding="14,12">
             <DockPanel>
                 <Button DockPanel.Dock="Right" Name="btnSend" Content="Send"
                         Style="{StaticResource PrimaryButton}" Height="40" Width="90"
                         Margin="10,0,0,0" Click="btnSend_Click" />
-                <!-- Plain TextBox with EXPLICIT black-on-white colors — no themed
-                     style/template — so typed text is always visible regardless of
-                     theme. (The old MaterialTextBox path rendered invisibly on some
-                     installs.) -->
                 <TextBox Name="txtReply"
                          Background="White" Foreground="Black" CaretBrush="Black"
                          SelectionBrush="#FFCC80"

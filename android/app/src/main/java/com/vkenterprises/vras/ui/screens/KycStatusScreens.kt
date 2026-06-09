@@ -23,10 +23,6 @@ private val OK_GREEN = Color(0xFF16A34A)
 private val WARN_AMBER = Color(0xFFB45309)
 private val ERR_RED = Color(0xFFDC2626)
 
-// A "Check again" (refresh) + "Back to login" action row for every warning /
-// disclaimer screen (app stopped, blacklisted, inactive, pending approval, KYC).
-// Refresh re-checks the agent's status with the server and routes to the right
-// screen the moment it changes (e.g. admin verified + activated → straight Home).
 @Composable
 internal fun StatusActions(vm: AuthViewModel, nav: NavController) {
     val state by vm.state.collectAsState()
@@ -50,9 +46,6 @@ internal fun StatusActions(vm: AuthViewModel, nav: NavController) {
     }
 }
 
-// Routes a fresh login result to the right destination. Shared by the KYC
-// status screens' "Check again" button so a status change (verified → active,
-// or newly rejected) takes the agent to the correct screen immediately.
 private fun routeAuthState(state: AuthUiState, nav: NavController, vm: AuthViewModel) {
     when (state) {
         is AuthUiState.LoginSuccess -> {

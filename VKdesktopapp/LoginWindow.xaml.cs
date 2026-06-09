@@ -10,15 +10,6 @@ namespace VRASDesktopApp;
 
 public partial class LoginWindow : Window
 {
-    // Remembered branding of the LAST agency the user signed into. Written after
-    // a successful login; on the next launch the login screen shows that agency's
-    // logo + name instead of the generic CRMRS defaults.
-    //
-    // Stored under %LocalAppData%\CRMRS — deliberately NOT the legacy \CRMS dir
-    // the old per-agency installers wrote to. That keeps a FRESH generic CRMRS
-    // install starting as CRMRS (this dir is empty until the user signs in here
-    // at least once) instead of inheriting a previously-installed agency's
-    // leftover branding before any login.
     private static readonly string AgencyCacheDir = System.IO.Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "CRMRS");
     private static readonly string AgencyLogoCachePath = System.IO.Path.Combine(AgencyCacheDir, "agency-logo.png");
@@ -27,12 +18,6 @@ public partial class LoginWindow : Window
     public LoginWindow()
     {
         InitializeComponent();
-        // Login-screen branding:
-        //   * tenant-baked build -> its bundled agency name (branding.json)
-        //   * generic build      -> CRMRS by default; once the user has signed
-        //     in here at least once, the remembered agency (logo + name) is
-        //     shown instead. A fresh install has no remembered agency yet, so it
-        //     starts as CRMRS (see AgencyCacheDir).
         if (Branding.IsTenantBuild)
             lblAppName.Text = Branding.Name;
         Loaded += (_, __) => LoadCachedAgencyBranding();
@@ -40,8 +25,6 @@ public partial class LoginWindow : Window
 
     private void LoadCachedAgencyBranding()
     {
-        // Name first (cheap), then logo. Each one is independent — a missing
-        // file just means we keep the XAML default.
         try
         {
             if (System.IO.File.Exists(AgencyNameCachePath))
@@ -55,9 +38,6 @@ public partial class LoginWindow : Window
         try
         {
             if (!System.IO.File.Exists(AgencyLogoCachePath)) return;
-            // BitmapImage with CacheOption=OnLoad reads the bytes immediately
-            // so the file isn't locked — important because we overwrite it on
-            // every fresh login.
             var bytes = System.IO.File.ReadAllBytes(AgencyLogoCachePath);
             using var ms = new System.IO.MemoryStream(bytes);
             var bmp = new BitmapImage();
@@ -68,11 +48,9 @@ public partial class LoginWindow : Window
             bmp.Freeze();
             imgLogo.Source = bmp;
         }
-        catch { /* fall back to the CRMRS default in XAML */ }
+        catch { }
     }
 
-    /// <summary>Downloads and caches the signed-in agency's logo + name so the
-    /// next sign-in screen shows them instead of the CRMRS defaults.</summary>
     private static async System.Threading.Tasks.Task CacheAgencyBrandingAsync(string agencyName, string logoPath)
     {
         try
@@ -93,10 +71,9 @@ public partial class LoginWindow : Window
             var bytes = await http.GetByteArrayAsync(url);
             await System.IO.File.WriteAllBytesAsync(AgencyLogoCachePath, bytes);
         }
-        catch { /* leave the cached logo unchanged on failure */ }
+        catch { }
     }
 
-    /// <summary>Allow dragging the window by the title bar.</summary>
     private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         if (e.ClickCount == 1)
@@ -153,14 +130,8 @@ public partial class LoginWindow : Window
             password = txtPassword.Password
         };
 
-        // Drop any stale Bearer token from a previous session before signing in,
-        // so the tenant-routing middleware never rejects the login request itself.
         App.HttpClient.DefaultRequestHeaders.Authorization = null;
 
-        // The very first HTTPS call to a host after process start often takes
-        // a few hundred ms longer (DNS + cold TLS handshake) and occasionally
-        // bubbles up a SocketException on flaky networks. Retry once with a
-        // fresh content/token so the user doesn't have to click Sign In twice.
         HttpResponseMessage response = null!;
         for (int attempt = 1; attempt <= 2; attempt++)
         {
@@ -175,12 +146,10 @@ public partial class LoginWindow : Window
             }
             catch (OperationCanceledException) when (attempt < 2)
             {
-                // first attempt timed out — retry once
                 continue;
             }
             catch (HttpRequestException rex) when (rex.InnerException is System.Net.Sockets.SocketException && attempt < 2)
             {
-                // first attempt couldn't open a socket — retry once
                 continue;
             }
             catch (OperationCanceledException)
@@ -226,12 +195,8 @@ public partial class LoginWindow : Window
         App.SignedAppUser = signed;
         App.SetAuthToken(signed.Token);
 
-        // Remember this agency's logo + name so the NEXT launch's login screen
-        // shows them instead of the generic CRMRS defaults. Fire-and-forget so
-        // it never blocks sign-in.
         _ = CacheAgencyBrandingAsync(signed.AgencyName, signed.LogoPath);
 
-        // Construct the main window first to catch any initialization/XAML errors
         MainWindow window;
         try
         {
@@ -239,11 +204,9 @@ public partial class LoginWindow : Window
         }
         catch (Exception)
         {
-            // If main window fails to construct, do not hide the login window — let outer catch handle logging
             throw;
         }
 
-        // Only hide the login window after the main window is successfully constructed.
         lblStatus.Text = "";
         Hide();
         try
@@ -252,7 +215,6 @@ public partial class LoginWindow : Window
         }
         finally
         {
-            // Ensure the login window is visible again if the main window closes or if ShowDialog throws.
             Show();
         }
     }

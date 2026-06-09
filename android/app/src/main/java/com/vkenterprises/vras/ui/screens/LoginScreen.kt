@@ -31,8 +31,6 @@ fun LoginScreen(vm: AuthViewModel, nav: NavController) {
 
     var mobile  by remember { mutableStateOf("") }
     var error   by remember { mutableStateOf("") }
-    // Login is direct (no OTP) — agents log in with just their registered mobile.
-    // White-label build — agency is baked into BuildConfig at compile time.
     val agencySlug = BuildConfig.AGENCY_SLUG
     val agencyName = BuildConfig.AGENCY_NAME
 
@@ -106,7 +104,6 @@ fun LoginScreen(vm: AuthViewModel, nav: NavController) {
         ) {
             Spacer(Modifier.height(40.dp))
 
-            // CRMS logo — bundled as a drawable, white background per brand guide.
             Surface(
                 shape = RoundedCornerShape(20.dp),
                 color = Color.White,

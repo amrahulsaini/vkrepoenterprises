@@ -28,7 +28,6 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <!-- ── Custom Title Bar (Black) ── -->
         <Border Grid.ColumnSpan="4" Background="{StaticResource Gray900}" />
         <Grid Grid.ColumnSpan="4" MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
             <Grid.ColumnDefinitions>
@@ -39,10 +38,6 @@
             </Grid.ColumnDefinitions>
             <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="14,0,0,0"
                         IsHitTestVisible="False">
-                <!-- Top brand = CRMRS (fixed). crmrs-logo.png is NEVER overwritten
-                     by the per-agency build (only favicon.ico / crmrs-fulllogo.png
-                     are), so this always shows the CRMRS mark regardless of agency.
-                     The agency's own logo appears below, in the menu panel. -->
                 <Image Source="public/crmrs-logo.png" Width="20" Height="20" Margin="0,0,8,0"
                        VerticalAlignment="Center" RenderOptions.BitmapScalingMode="HighQuality" />
                 <TextBlock Text="CRMRS" FontSize="14" FontWeight="Bold"
@@ -111,7 +106,6 @@
             </Button>
         </Grid>
 
-        <!-- ── Left Sidebar (Dark) ── -->
         <Border Grid.Column="0" Grid.Row="1" Background="{StaticResource Gray900}" />
         <Grid Grid.Column="0" Grid.Row="1">
             <Grid.RowDefinitions>
@@ -169,7 +163,6 @@
                     Content="&#x1F4E5;" FontFamily="{StaticResource FontBody}" FontSize="20"
                     Foreground="{StaticResource Gray400}" Cursor="Hand"
                     Tag="DirectData" />
-            <!-- Support / report an issue — sits just above Settings -->
             <Button Name="btnSupport" Click="btnSupport_Click"
                     Grid.Row="8" Width="64" Height="56"
                     Background="Transparent" BorderThickness="0"
@@ -177,7 +170,6 @@
                     Content="&#x1F3A7;" FontFamily="{StaticResource FontBody}" FontSize="20"
                     Foreground="{StaticResource Gray400}" Cursor="Hand"
                     ToolTip="Support / Report an issue" />
-            <!-- Unread-reply badge (red, count) overlaid on the Support icon -->
             <Border Name="supportBadge" Grid.Row="8"
                     Width="20" Height="20" CornerRadius="10"
                     Background="#FFE53935"
@@ -195,7 +187,6 @@
                     Foreground="{StaticResource Gray400}" Cursor="Hand" />
         </Grid>
 
-        <!-- ── Slide-out Menu ── -->
         <Border Name="MenuContainer" Grid.Column="1" Grid.Row="1"
             Background="{StaticResource Gray50}" Visibility="Visible"
             BorderBrush="{StaticResource Gray200}" BorderThickness="0,0,1,0">
@@ -215,9 +206,6 @@
                                    HorizontalAlignment="Center" VerticalAlignment="Center"
                                    RenderOptions.BitmapScalingMode="HighQuality" />
                         </Border>
-                        <!-- VerticalAlignment="Top" + explicit LineHeight so long
-                             admin / firm names with descenders (g, y, j) don't
-                             have their bottoms clipped by parent height rules. -->
                         <StackPanel Margin="10,0,0,0" VerticalAlignment="Top" MaxWidth="220">
                             <TextBlock x:Name="lblFirmName" Text="CRMRS"
                                        FontSize="14" FontWeight="Bold"
@@ -372,10 +360,6 @@
                   ResizeBehavior="PreviousAndNext" ResizeDirection="Columns" Cursor="SizeWE" 
                   IsHitTestVisible="True" Panel.ZIndex="50" Margin="0,0,0,0" />
         
-        <!-- ── Content Area ── -->
-        <!-- Padding/Margin=0 so hosted pages (especially the WebView2 map)
-             actually fill all the way to the bottom of the window with no
-             unexpected gutter. -->
         <Border Grid.Column="3" Grid.Row="1" Background="White" Padding="0">
             <Frame Name="PageContainer" NavigationUIVisibility="Hidden"
                    Background="White" Padding="0" Margin="0" />

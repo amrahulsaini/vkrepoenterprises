@@ -1,12 +1,3 @@
-// ─────────────────────────────────────────────────────────────────────
-//  CRMS Agency Portal endpoints — registration + admin manage
-//
-//  Routes under  /api/agency/*  served by VKApiServer (port 5002), proxied
-//  by OpenLiteSpeed for  https://agency.crmrecoverysoftware.com/api/agency/*
-//
-//  Wire-up:  in Program.cs, after the rest of the endpoints, call:
-//      AgencyPortal.Map(app, connStr);
-// ─────────────────────────────────────────────────────────────────────
 using System;
 using System.IO;
 using System.Net;
@@ -24,30 +15,16 @@ namespace VKApiServer;
 
 internal static class AgencyPortal
 {
-    // Hardcoded for now — the /manage password gate
     private const string MANAGE_PASSWORD = "crmrs@kc.12";
 
-    // Where new tenant logos land on disk. Served by OLS via the
-    // /agency-uploads/ static context on the agency vhost.
     private const string LOGO_DIR = "/opt/vkapi/agency-uploads";
 
-    // Server secret used to derive each tenant's DB password deterministically.
-    // Override in env (TENANT_DB_SECRET) for production.
     private static readonly string TenantDbSecret =
         Environment.GetEnvironmentVariable("TENANT_DB_SECRET")
         ?? "crmrs-tenant-secret-rotate-me-2026";
 
-    /// <summary>
-    /// Connection string to crm_master, available to any endpoint after Map()
-    /// has run (i.e. after app startup). Used by code outside this file that
-    /// needs to read/write the cross-agency app_user_registry without
-    /// re-deriving the connection string from env.
-    /// </summary>
     public static string MasterConn { get; private set; } = "";
 
-    // India Standard Time zone — resolved once. The server runs on UTC, so we
-    // convert build timestamps to IST for the manage portal's "built ..."
-    // labels (admins are in India and found the UTC times confusing).
     private static readonly TimeZoneInfo IstZone = ResolveIst();
     private static TimeZoneInfo ResolveIst()
     {
@@ -56,7 +33,6 @@ internal static class AgencyPortal
         return TimeZoneInfo.CreateCustomTimeZone("IST", TimeSpan.FromMinutes(330), "IST", "IST");
     }
 
-    // "yyyy-MM-dd HH:mm IST" for a file's last-write time, or "" if missing.
     private static string BuiltAtIst(string path)
     {
         if (!File.Exists(path)) return "";
@@ -64,8 +40,6 @@ internal static class AgencyPortal
         return ist.ToString("yyyy-MM-dd HH:mm 'IST'");
     }
 
-    // Reads ticket header rows into mutable dictionaries (so callers can attach
-    // a "messages" thread). whereOrder is the WHERE/ORDER tail of the query.
     private static async Task<List<Dictionary<string, object>>> ReadTicketHeaders(
         MySqlConnection conn, string whereOrder, bool withAgency, params (string, object)[] ps)
     {
@@ -99,7 +73,6 @@ internal static class AgencyPortal
         return list;
     }
 
-    // Loads the message thread for a ticket (sender + body + time + id).
     private static async Task<List<object>> LoadMessages(MySqlConnection conn, int ticketId)
     {
         await using var cmd = new MySqlCommand(@"
@@ -130,10 +103,6 @@ internal static class AgencyPortal
         await cmd.ExecuteNonQueryAsync();
     }
 
-    // Lazily ensures the central client-error log table (crm_master). The desktop
-    // app POSTs every failure here so all "unsuccessful things" are captured
-    // centrally; the manage portal reads them. CREATE IF NOT EXISTS keeps it
-    // migration-free.
     private static async Task EnsureClientErrorTable(MySqlConnection conn)
     {
         await using var cmd = new MySqlCommand(@"
@@ -158,7 +127,6 @@ internal static class AgencyPortal
         await cmd.ExecuteNonQueryAsync();
     }
 
-    // Reads { body } (or { message }) from a JSON request body → trimmed string.
     private static async Task<string> ReadBody(HttpRequest req)
     {
         try
@@ -173,10 +141,6 @@ internal static class AgencyPortal
         catch { return ""; }
     }
 
-    // Verifies the desktop's agt1 agency Bearer token and returns (id, slug).
-    // Used by the desktop self-profile endpoints, which live under
-    // /api/agency/* and are therefore skipped by the tenant-routing
-    // middleware — so we read and verify the token here ourselves.
     private static (int id, string slug)? VerifyAgencyBearer(HttpContext ctx)
     {
         var auth = ctx.Request.Headers.Authorization.FirstOrDefault();
@@ -188,12 +152,6 @@ internal static class AgencyPortal
 
     public static void Map(WebApplication app, string mysqlHost, int mysqlPort)
     {
-        // ── Connection strings to crm_master ─────────────────────────
-        // crm_master_app   →  CRUD on crm_master only
-        // crm_provisioner  →  full privileges, used ONLY at approve time
-        // Secrets (passwords, SMTP key, tenant secret) come from the systemd
-        // service environment on the server — NOT committed here. Usernames /
-        // hostnames / ports are fine to keep as defaults.
         string masterConn =
             $"server={mysqlHost};port={mysqlPort};database=crm_master;" +
             $"uid={Env("MASTER_DB_USER",     "crm_master_app")};" +
@@ -206,11 +164,6 @@ internal static class AgencyPortal
             $"pwd={Env("PROVISIONER_DB_PASSWORD", "SET_VIA_ENV")};" +
              "Pooling=false;DefaultCommandTimeout=60;AllowUserVariables=true;";
 
-        // ── SMTP — sends the OTP / approval emails ───────────────────
-        // Default is the local Postfix relay (same box): plain SMTP to
-        // 127.0.0.1:25, which mynetworks trusts (no auth) and OpenDKIM signs
-        // automatically. SMTP_SSL/USER/PASS let us point at an authenticated
-        // submission relay instead, without a code change.
         var smtp = new SmtpConfig {
             Host     = Env("SMTP_HOST",      "127.0.0.1"),
             Port     = int.Parse(Env("SMTP_PORT", "25")),
@@ -221,12 +174,8 @@ internal static class AgencyPortal
             FromName = Env("SMTP_FROM_NAME", "CRMS TEAM"),
         };
 
-        // Best-effort — deploy.sh creates this with the right ownership.
         try { Directory.CreateDirectory(LOGO_DIR); } catch { }
 
-        // =============================================================
-        //   OTP — send & verify
-        // =============================================================
         app.MapPost("/api/agency/otp/send", async (HttpRequest req) =>
         {
             var dto = await ReadJsonAsync(req);
@@ -269,7 +218,6 @@ internal static class AgencyPortal
 
             await using var conn = new MySqlConnection(masterConn);
             await conn.OpenAsync();
-            // Mark the most recent matching OTP consumed
             await using var cmd = new MySqlCommand(@"
                 UPDATE agency_otps
                    SET consumed = 1
@@ -283,9 +231,6 @@ internal static class AgencyPortal
             return Results.Ok(new { verified = true });
         });
 
-        // =============================================================
-        //   Final registration (multipart: text fields + logo)
-        // =============================================================
         app.MapPost("/api/agency/register", async (HttpRequest req) =>
         {
             if (!req.HasFormContentType)
@@ -310,13 +255,11 @@ internal static class AgencyPortal
             await using var conn = new MySqlConnection(masterConn);
             await conn.OpenAsync();
 
-            // Both emails must have a recently-consumed verification OTP
             if (!await WasRecentlyVerified(conn, email1))
                 return Results.BadRequest(new { message = "Primary email is not verified — verify the OTP first." });
             if (!string.IsNullOrEmpty(email2) && !await WasRecentlyVerified(conn, email2))
                 return Results.BadRequest(new { message = "Secondary email is not verified." });
 
-            // Email1 must be unique
             await using (var dup = new MySqlCommand("SELECT COUNT(*) FROM agencies WHERE email1 = @e", conn))
             {
                 dup.Parameters.AddWithValue("@e", email1);
@@ -327,7 +270,6 @@ internal static class AgencyPortal
 
             string slug = await GenerateUniqueSlug(conn, name);
 
-            // Save the logo (already client-side compressed to ~JPEG)
             string? logoRel = null;
             var logoFile = form.Files["logo"];
             if (logoFile != null && logoFile.Length > 0 && logoFile.Length < 5 * 1024 * 1024)
@@ -341,7 +283,6 @@ internal static class AgencyPortal
                 logoRel = "/agency-uploads/" + fname;
             }
 
-            // Insert pending agency
             await using (var ins = new MySqlCommand(@"
                 INSERT INTO agencies
                   (name, slug, mobile1, mobile2, address, logo_path,
@@ -365,10 +306,6 @@ internal static class AgencyPortal
             return Results.Ok(new { ok = true, slug });
         });
 
-        // =============================================================
-        //   /manage  password gate
-        // =============================================================
-        // Where the admin OTP for the manage page is sent. Override in env.
         string manageOtpEmail = Env("MANAGE_OTP_EMAIL", "rahul@loopwar.dev");
 
         app.MapPost("/api/agency/manage/login", async (HttpRequest req) =>
@@ -388,8 +325,6 @@ internal static class AgencyPortal
             return Results.Ok(new { token });
         });
 
-        // Step 1 of the 2-step admin gate: verify the manage password, then
-        // email a 6-digit OTP to the administrator address.
         app.MapPost("/api/agency/manage/otp/request", async (HttpRequest req) =>
         {
             var dto = await ReadJsonAsync(req);
@@ -415,8 +350,6 @@ internal static class AgencyPortal
             return Results.Ok(new { sent = true });
         });
 
-        // Step 2: verify the OTP. On success, issue the same manage token the
-        // /manage/login endpoint hands out.
         app.MapPost("/api/agency/manage/otp/verify", async (HttpRequest req) =>
         {
             var dto = await ReadJsonAsync(req);
@@ -426,7 +359,6 @@ internal static class AgencyPortal
 
             await using var conn = new MySqlConnection(masterConn);
             await conn.OpenAsync();
-            // Consume the most recent matching, unconsumed, unexpired manage OTP.
             int n;
             await using (var upd = new MySqlCommand(@"
                 UPDATE agency_otps
@@ -449,9 +381,6 @@ internal static class AgencyPortal
             return Results.Ok(new { token });
         });
 
-        // =============================================================
-        //   /manage  list / approve / reject
-        // =============================================================
         app.MapGet("/api/agency/manage/list", async (HttpContext ctx, string? status) =>
         {
             if (!await IsManageTokenValid(masterConn, ctx))
@@ -520,11 +449,10 @@ internal static class AgencyPortal
             }
 
             string dbName = "crmr_" + slug;
-            string dbUser = "tu_"   + slug;     // tenant-user (≤16 chars usually fine)
+            string dbUser = "tu_"   + slug;
             if (dbUser.Length > 32) dbUser = dbUser.Substring(0, 32);
             string dbPass = DeriveTenantPassword(slug);
 
-            // Provision the tenant DB + user, then apply the schema template
             try
             {
                 await ProvisionTenant(provConn, mysqlHost, mysqlPort, dbName, dbUser, dbPass);
@@ -534,7 +462,6 @@ internal static class AgencyPortal
                 return Results.Problem("Provisioning failed: " + ex.Message);
             }
 
-            // Save dbName + dbUser onto the agency row; mark approved
             await using (var upd = new MySqlCommand(@"
                 UPDATE agencies
                    SET status = 'approved',
@@ -549,11 +476,10 @@ internal static class AgencyPortal
                 await upd.ExecuteNonQueryAsync();
             }
 
-            // Notify the agency by email — best-effort, non-fatal
             try
             {
                 await SendApprovedEmail(smtp, email1!, name!);
-            } catch { /* ignore */ }
+            } catch { }
 
             return Results.Ok(new { ok = true, dbName });
         });
@@ -578,12 +504,6 @@ internal static class AgencyPortal
             return Results.Ok(new { ok = true });
         });
 
-        // =============================================================
-        //   Manage Agency — read + update agency profile (multi-contact)
-        //   Admin opens "Manage" on an agency row in manage.html and edits
-        //   its primary mobile, secondary mobile, and up to ~20 extra
-        //   contacts (mobiles_extra TEXT, newline-separated).
-        // =============================================================
         app.MapGet("/api/agency/manage/agency/{id:int}", async (HttpContext ctx, int id) =>
         {
             if (!await IsManageTokenValid(masterConn, ctx))
@@ -601,9 +521,6 @@ internal static class AgencyPortal
             await using var rdr = await cmd.ExecuteReaderAsync();
             if (!await rdr.ReadAsync()) return Results.NotFound(new { message = "Agency not found" });
 
-            // Split the newline-separated extras into a clean array — empty
-            // lines and duplicates of mobile1/2 stripped so the admin UI
-            // doesn't double-show them.
             var raw = rdr.GetString(8);
             var extras = raw.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries)
                             .Select(s => s.Trim())
@@ -625,15 +542,11 @@ internal static class AgencyPortal
             });
         });
 
-        // PATCH semantics — body fields that are present overwrite; missing
-        // fields are left alone. The extras list is a full replacement
-        // (sending an empty array clears all extras).
         app.MapPost("/api/agency/manage/agency/{id:int}", async (HttpContext ctx, int id, HttpRequest req) =>
         {
             if (!await IsManageTokenValid(masterConn, ctx))
                 return Results.Json(new { message = "Unauthorized" }, statusCode: 401);
 
-            // Read raw JSON since the body is a flexible field set.
             using var doc = await System.Text.Json.JsonDocument.ParseAsync(req.Body);
             var root = doc.RootElement;
             string? S(string k) => root.TryGetProperty(k, out var v) && v.ValueKind == System.Text.Json.JsonValueKind.String ? v.GetString() : null;
@@ -642,7 +555,7 @@ internal static class AgencyPortal
             var args   = new List<(string, object?)> { ("@id", id) };
             void Maybe(string col, string? val)
             {
-                if (val == null) return;          // field absent → leave alone
+                if (val == null) return;
                 sets.Add($"{col}=@{col}");
                 args.Add(($"@{col}", string.IsNullOrWhiteSpace(val) ? (object?)DBNull.Value : val.Trim()));
             }
@@ -651,7 +564,6 @@ internal static class AgencyPortal
             Maybe("mobile1", S("mobile1"));
             Maybe("mobile2", S("mobile2"));
 
-            // Extras come as an array of strings — collapse to newline-separated.
             if (root.TryGetProperty("extras", out var extrasEl) && extrasEl.ValueKind == System.Text.Json.JsonValueKind.Array)
             {
                 var lines = extrasEl.EnumerateArray()
@@ -676,17 +588,6 @@ internal static class AgencyPortal
             return Results.Ok(new { ok = true });
         });
 
-        // =============================================================
-        //   Desktop agency self-profile — read + update own agency
-        //   The WPF desktop signs in via /api/agency/desktop/login and gets
-        //   an agt1 Bearer token. These endpoints let that signed-in agency
-        //   read and edit its OWN crm_master.agencies row (name, address,
-        //   primary/secondary mobile, up to 20 extra contacts). Because the
-        //   mobile app's Agency panel reads the same crm_master.agencies row
-        //   (MobileRepository.GetAgencyInfoAsync), edits here flow through to
-        //   the mobile app automatically. Auth is the agency Bearer token —
-        //   NOT the manage-portal token — so the agency edits only itself.
-        // =============================================================
         app.MapGet("/api/agency/desktop/profile", async (HttpContext ctx) =>
         {
             var who = VerifyAgencyBearer(ctx);
@@ -764,19 +665,9 @@ internal static class AgencyPortal
             return Results.Ok(new { ok = true });
         });
 
-        // =============================================================
-        //   Support tickets
-        //   Agency (desktop, agt1 Bearer) raises a ticket with an optional
-        //   screenshot; the super-admin sees every agency's tickets in
-        //   manage.html (manage token) and replies / sets status. The agency
-        //   then sees the reply + status back in the app. All rows live in
-        //   crm_master.support_tickets. Screenshots are saved under
-        //   /opt/vkapi/agency-uploads/tickets and served via /agency-uploads/.
-        // =============================================================
         const string TICKETS_DIR = "/opt/vkapi/agency-uploads/tickets";
         try { Directory.CreateDirectory(TICKETS_DIR); } catch { }
 
-        // Agency raises a ticket. Body: { subject, message, screenshotBase64? }
         app.MapPost("/api/agency/desktop/tickets", async (HttpContext ctx, HttpRequest req) =>
         {
             var who = VerifyAgencyBearer(ctx);
@@ -791,7 +682,6 @@ internal static class AgencyPortal
             if (subject.Length < 2 || message.Length < 2)
                 return Results.BadRequest(new { message = "Please enter a subject and a description." });
 
-            // Look up the agency name for display in manage.
             string agencyName = me.slug;
             await using var conn = new MySqlConnection(masterConn);
             await conn.OpenAsync();
@@ -801,7 +691,6 @@ internal static class AgencyPortal
                 if (await nc.ExecuteScalarAsync() is string n) agencyName = n;
             }
 
-            // Optional screenshot — decode base64 → file under tickets dir.
             string? shotPath = null;
             if (!string.IsNullOrEmpty(shotB64))
             {
@@ -809,14 +698,14 @@ internal static class AgencyPortal
                 {
                     var raw = shotB64.Contains(',') ? shotB64[(shotB64.IndexOf(',') + 1)..] : shotB64;
                     var bytes = Convert.FromBase64String(raw);
-                    if (bytes.Length > 0 && bytes.Length <= 8 * 1024 * 1024) // cap 8 MB
+                    if (bytes.Length > 0 && bytes.Length <= 8 * 1024 * 1024)
                     {
                         var fn = $"ticket_{me.slug}_{DateTime.UtcNow:yyyyMMddHHmmssfff}.jpg";
                         await File.WriteAllBytesAsync(Path.Combine(TICKETS_DIR, fn), bytes);
                         shotPath = "tickets/" + fn;
                     }
                 }
-                catch { /* bad image → save the ticket without it */ }
+                catch { }
             }
 
             await using var ins = new MySqlCommand(@"
@@ -832,7 +721,6 @@ internal static class AgencyPortal
             return Results.Ok(new { ok = true, id = ins.LastInsertedId });
         });
 
-        // Agency lists its own tickets, each WITH its full message thread.
         app.MapGet("/api/agency/desktop/tickets", async (HttpContext ctx) =>
         {
             var who = VerifyAgencyBearer(ctx);
@@ -846,7 +734,6 @@ internal static class AgencyPortal
             return Results.Ok(tickets);
         });
 
-        // Agency posts a follow-up message on its own ticket.
         app.MapPost("/api/agency/desktop/tickets/{id:int}/messages", async (HttpContext ctx, int id, HttpRequest req) =>
         {
             var who = VerifyAgencyBearer(ctx);
@@ -855,7 +742,6 @@ internal static class AgencyPortal
             if (body.Length < 1) return Results.BadRequest(new { message = "Empty message" });
             await using var conn = new MySqlConnection(masterConn);
             await conn.OpenAsync();
-            // Ownership check — agency can only post on its own ticket.
             await using (var chk = new MySqlCommand("SELECT agency_slug FROM support_tickets WHERE id=@id", conn))
             {
                 chk.Parameters.AddWithValue("@id", id);
@@ -866,10 +752,6 @@ internal static class AgencyPortal
             return Results.Ok(new { ok = true });
         });
 
-        // ── Client error log ────────────────────────────────────────────────
-        // Desktop app reports ANY failure here (upload errors, crashes, etc.) so
-        // every unsuccessful operation is captured centrally and visible in the
-        // manage portal — no more guessing at vague "error sending request".
         app.MapPost("/api/agency/desktop/client-error", async (HttpContext ctx, HttpRequest req) =>
         {
             var who = VerifyAgencyBearer(ctx);
@@ -927,7 +809,6 @@ internal static class AgencyPortal
             return Results.Ok(new { ok = true, id = ins.LastInsertedId });
         });
 
-        // Manage: list recent client errors (all agencies, or one via ?agency=slug).
         app.MapGet("/api/agency/manage/client-errors", async (HttpContext ctx, string? agency, int? limit) =>
         {
             if (!await IsManageTokenValid(masterConn, ctx))
@@ -957,7 +838,6 @@ internal static class AgencyPortal
             return Results.Ok(list);
         });
 
-        // Manage: list ALL agencies' tickets (headers only — modal loads thread).
         app.MapGet("/api/agency/manage/tickets", async (HttpContext ctx) =>
         {
             if (!await IsManageTokenValid(masterConn, ctx))
@@ -969,7 +849,6 @@ internal static class AgencyPortal
             return Results.Ok(tickets);
         });
 
-        // Manage: full message thread for one ticket.
         app.MapGet("/api/agency/manage/tickets/{id:int}/messages", async (HttpContext ctx, int id) =>
         {
             if (!await IsManageTokenValid(masterConn, ctx))
@@ -979,7 +858,6 @@ internal static class AgencyPortal
             return Results.Ok(await LoadMessages(conn, id));
         });
 
-        // Manage: post an admin message on a ticket (any number, any time).
         app.MapPost("/api/agency/manage/tickets/{id:int}/messages", async (HttpContext ctx, int id, HttpRequest req) =>
         {
             if (!await IsManageTokenValid(masterConn, ctx))
@@ -992,7 +870,6 @@ internal static class AgencyPortal
             return Results.Ok(new { ok = true });
         });
 
-        // Manage: set status only. Body { status }
         app.MapPost("/api/agency/manage/tickets/{id:int}", async (HttpContext ctx, int id, HttpRequest req) =>
         {
             if (!await IsManageTokenValid(masterConn, ctx))
@@ -1000,7 +877,6 @@ internal static class AgencyPortal
             using var doc = await System.Text.Json.JsonDocument.ParseAsync(req.Body);
             var root = doc.RootElement;
             var status = root.TryGetProperty("status", out var v) && v.ValueKind == System.Text.Json.JsonValueKind.String ? v.GetString() : null;
-            // Back-compat: an "adminReply" in the body is treated as a new message.
             var reply  = root.TryGetProperty("adminReply", out var rv) && rv.ValueKind == System.Text.Json.JsonValueKind.String ? rv.GetString() : null;
 
             await using var conn = new MySqlConnection(masterConn);
@@ -1016,22 +892,12 @@ internal static class AgencyPortal
             return Results.Ok(new { ok = true });
         });
 
-        // =============================================================
-        //   Per-agency Android builds — list + download
-        //   The portal serves white-labeled APK / AAB files for each
-        //   approved agency. Files live at:
-        //       /opt/vkapi/agency-apps/<flavor>/app.apk
-        //       /opt/vkapi/agency-apps/<flavor>/app.aab
-        //   <flavor> = slug with underscores stripped (matches Gradle).
-        //   Both endpoints are gated by the manage token.
-        // =============================================================
         const string AGENCY_APPS_ROOT = "/opt/vkapi/agency-apps";
 
         app.MapGet("/api/agency/manage/apps", async (HttpContext ctx) =>
         {
             if (!await IsManageTokenValid(masterConn, ctx)) return Results.Unauthorized();
 
-            // Source of truth for which agencies exist is the master DB.
             await using var conn = new MySqlConnection(masterConn);
             await conn.OpenAsync();
             await using var cmd = new MySqlCommand(
@@ -1045,15 +911,12 @@ internal static class AgencyPortal
                 string name     = rdr.GetString(1);
                 string status   = rdr.GetString(2);
                 string logoPath = rdr.GetString(3);
-                // Gradle flavor name strips underscores from the slug.
                 string flavor = slug.Replace("_", "");
                 string pkg    = $"com.crmrecoverysoftware.{flavor}";
                 string apk      = Path.Combine(AGENCY_APPS_ROOT, flavor, "app.apk");
                 string aab      = Path.Combine(AGENCY_APPS_ROOT, flavor, "app.aab");
                 string setup    = Path.Combine(AGENCY_APPS_ROOT, flavor, "setup.exe");
                 string portable = Path.Combine(AGENCY_APPS_ROOT, flavor, "portable.zip");
-                // Resolve logo URL — logo_path is something like
-                // "/agency-uploads/rk_enterprises.jpg" stored at registration.
                 string logoUrl = "";
                 if (!string.IsNullOrEmpty(logoPath))
                 {
@@ -1084,12 +947,8 @@ internal static class AgencyPortal
             return Results.Ok(new { apps = rows });
         });
 
-        // GET /api/agency/manage/apps/{flavor}/download/{type}   type=apk|aab
-        // Token can be passed as ?token=... so plain <a download> links work
-        // (browsers don't send custom headers on direct downloads).
         app.MapGet("/api/agency/manage/apps/{flavor}/download/{type}", async (HttpContext ctx, string flavor, string type) =>
         {
-            // Accept token via header OR query string for direct-link downloads.
             string? token = ctx.Request.Headers["X-Manage-Token"].FirstOrDefault()
                             ?? ctx.Request.Query["token"].FirstOrDefault();
             if (string.IsNullOrEmpty(token) || token.Length != 64)
@@ -1103,9 +962,6 @@ internal static class AgencyPortal
                 if (await qc.ExecuteScalarAsync() == null) return Results.Unauthorized();
             }
 
-            // Hard sanitize — flavor must be lowercase alphanumeric only.
-            // type ∈ { apk, aab, setup } maps to a fixed file under the
-            // flavor dir; anything else is a path-traversal attempt.
             if (!Regex.IsMatch(flavor, @"^[a-z0-9]+$")) return Results.BadRequest(new { message = "Invalid flavor" });
 
             (string fileName, string mime, string downloadName) = type switch
@@ -1122,16 +978,9 @@ internal static class AgencyPortal
             string path = Path.Combine(AGENCY_APPS_ROOT, flavor, fileName);
             if (!File.Exists(path)) return Results.NotFound(new { message = $"No {type} built for this agency yet." });
 
-            // PhysicalFile streams without loading into memory.
             return Results.File(path, mime, downloadName);
         });
 
-        // =============================================================
-        //   Desktop app login — email + password → agency session token
-        //   The returned token is an HMAC-signed AgencyToken; the desktop
-        //   sends it as a Bearer header and the routing middleware uses it
-        //   to serve every request from the agency's own tenant database.
-        // =============================================================
         app.MapPost("/api/agency/desktop/login", async (HttpRequest req) =>
         {
             var dto = await ReadJsonAsync(req);
@@ -1194,13 +1043,6 @@ internal static class AgencyPortal
             });
         });
 
-        // =============================================================
-        //   Agency WEB portal — 2-step login (password → email OTP)
-        //   The browser portal at agency.crmrecoverysoftware.com signs in with
-        //   email+password (step 1, no token yet) then a 6-digit email OTP
-        //   (step 2 → token). Adds email-OTP 2FA on top of the password for the
-        //   web, without ever putting a shared secret in browser JavaScript.
-        // =============================================================
         app.MapPost("/api/agency/web/login", async (HttpRequest req) =>
         {
             var dto = await ReadJsonAsync(req);
@@ -1282,13 +1124,6 @@ internal static class AgencyPortal
                 mobile1 = mobile1 ?? "", address = address ?? "", logoPath = logoPath ?? "", isAgency = true });
         });
 
-        // =============================================================
-        //   Agency WEB portal — token-authed vehicle search + full record.
-        //   Auth = the agency Bearer token only (resolved to the tenant DB
-        //   below), so it is safe to call straight from browser JS — no shared
-        //   desktop password is exposed. Mirrors the desktop's skinny search +
-        //   full-record-on-tap design.
-        // =============================================================
         app.MapGet("/api/agency/web/search", async (HttpContext ctx, string? q, string? mode) =>
         {
             var who = VerifyAgencyBearer(ctx);
@@ -1380,9 +1215,6 @@ internal static class AgencyPortal
         });
     }
 
-    // ─────────────────────────────────────────────────────────────────
-    //   Helpers
-    // ─────────────────────────────────────────────────────────────────
 
     private static string Env(string key, string fallback) =>
         Environment.GetEnvironmentVariable(key) is { Length: > 0 } v ? v : fallback;
@@ -1414,7 +1246,6 @@ internal static class AgencyPortal
 
     private static string GenerateOtp()
     {
-        // Cryptographic random 6-digit code (000000–999999)
         var bytes = RandomNumberGenerator.GetBytes(4);
         int v = BitConverter.ToInt32(bytes, 0) & 0x7FFFFFFF;
         return (v % 1000000).ToString("D6");
@@ -1426,7 +1257,6 @@ internal static class AgencyPortal
         return Convert.ToHexString(bytes);
     }
 
-    // PBKDF2-SHA256, 100k iterations. Format: pbkdf2$<iter>$<salt-b64>$<hash-b64>
     private static string HashPassword(string password)
     {
         const int iter = 100_000;
@@ -1436,7 +1266,6 @@ internal static class AgencyPortal
         return $"pbkdf2${iter}${Convert.ToBase64String(salt)}${Convert.ToBase64String(hash)}";
     }
 
-    // Used by future Login endpoint (batch 2).
     public static bool VerifyPassword(string password, string stored)
     {
         try
@@ -1453,19 +1282,15 @@ internal static class AgencyPortal
         catch { return false; }
     }
 
-    // Deterministic per-tenant DB password from a server secret + slug — so
-    // we never have to store the cleartext (decryptable) DB password.
     public static string DeriveTenantPassword(string slug)
     {
         using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(TenantDbSecret));
         var bytes = hmac.ComputeHash(Encoding.UTF8.GetBytes("tenant:" + slug));
-        // Use URL-safe base64, trim to a comfortable 28 chars, prepend a marker
         return "T1!" + Convert.ToBase64String(bytes).Replace('+','-').Replace('/','_').Substring(0, 25);
     }
 
     private static async Task<bool> WasRecentlyVerified(MySqlConnection conn, string email)
     {
-        // The most recent consumed OTP for this email must be within last 15 min.
         await using var cmd = new MySqlCommand(@"
             SELECT MAX(expires_at) FROM agency_otps
              WHERE email = @e AND purpose = 'register' AND consumed = 1
@@ -1490,7 +1315,6 @@ internal static class AgencyPortal
 
     private static async Task<string> GenerateUniqueSlug(MySqlConnection conn, string name)
     {
-        // Slugify: lowercase alphanumerics + underscore. Strip everything else.
         string baseSlug = Regex.Replace(name.ToLowerInvariant(), @"[^a-z0-9]+", "_").Trim('_');
         if (baseSlug.Length < 2) baseSlug = "agency";
         if (baseSlug.Length > 40) baseSlug = baseSlug.Substring(0, 40);
@@ -1510,33 +1334,24 @@ internal static class AgencyPortal
     private static async Task ProvisionTenant(string provConn, string mysqlHost, int mysqlPort,
                                               string dbName, string dbUser, string dbPass)
     {
-        // Validate identifiers — defence in depth. Only [a-z0-9_]+
         if (!Regex.IsMatch(dbName, "^[a-z0-9_]+$") || !Regex.IsMatch(dbUser, "^[a-z0-9_]+$"))
             throw new Exception("Internal: invalid identifier in provisioning.");
 
-        // 1) CREATE DATABASE + CREATE USER + GRANT (using crm_provisioner)
         await using (var conn = new MySqlConnection(provConn))
         {
             await conn.OpenAsync();
 
-            // The single SQL block does the trio. Using STATEMENT for each so a partial
-            // failure can be cleanly diagnosed in the log.
             await Exec(conn, $"CREATE DATABASE IF NOT EXISTS `{dbName}` CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;");
             await Exec(conn, $"CREATE USER IF NOT EXISTS `{dbUser}`@`localhost` IDENTIFIED BY @pwd;", ("@pwd", dbPass));
             await Exec(conn, $"GRANT ALL PRIVILEGES ON `{dbName}`.* TO `{dbUser}`@`localhost`;");
             await Exec(conn, "FLUSH PRIVILEGES;");
         }
 
-        // 2) Apply the schema template via a fresh connection AS THE TENANT USER
         string tenantConn =
             $"server={mysqlHost};port={mysqlPort};database={dbName};" +
             $"uid={dbUser};pwd={dbPass};" +
              "Pooling=false;AllowUserVariables=true;DefaultCommandTimeout=120;";
 
-        // tenant_template.sql (schema) + tenant_seed.sql (default column types
-        // / mappings) ship alongside the published app. Both are applied on the
-        // same connection, so every new tenant DB is born seeded — with no
-        // runtime communication with vkre_db1 or any other database.
         string  ddl      = await File.ReadAllTextAsync(ResolveSchemaFile("tenant_template.sql", required: true)!);
         string? seedPath = ResolveSchemaFile("tenant_seed.sql", required: false);
         string? seed     = seedPath is null ? null : await File.ReadAllTextAsync(seedPath);
@@ -1550,8 +1365,6 @@ internal static class AgencyPortal
         }
     }
 
-    // Locates a file shipped under dbschema/ next to the API binary, with a
-    // dev-run fallback to the repo's ../dbschema/ folder.
     private static string? ResolveSchemaFile(string name, bool required)
     {
         string p = Path.Combine(AppContext.BaseDirectory, "dbschema", name);
@@ -1562,14 +1375,6 @@ internal static class AgencyPortal
         return null;
     }
 
-    // Executes a multi-statement SQL script (a mysqldump --no-data file that
-    // may also carry stored routines). MySqlConnector has no MySqlScript and
-    // rejects the mysql-client `DELIMITER` directive, so we parse it ourselves:
-    //   • track the active statement delimiter (a DELIMITER line switches it),
-    //   • skip blank / "--" lines only when between statements,
-    //   • strip mysqldump's `DEFINER=` clause — the tenant user can't set a
-    //     routine's definer to another account, so the routine ends up owned
-    //     by the tenant user instead.
     private static async Task RunSqlScript(MySqlConnection conn, string sql)
     {
         string delimiter = ";";
@@ -1604,7 +1409,6 @@ internal static class AgencyPortal
     private static async Task ExecScriptStatement(MySqlConnection conn, string stmt)
     {
         if (stmt.Length == 0 || stmt == ";") return;
-        // mysqldump tags routines with the source server's DEFINER account.
         stmt = Regex.Replace(stmt, @"DEFINER\s*=\s*`[^`]*`@`[^`]*`\s*", "");
         await using var cmd = new MySqlCommand(stmt, conn);
         await cmd.ExecuteNonQueryAsync();
@@ -1617,7 +1421,6 @@ internal static class AgencyPortal
         await cmd.ExecuteNonQueryAsync();
     }
 
-    // ── Email senders ─────────────────────────────────────────────────
     private sealed class SmtpConfig
     {
         public string Host = ""; public int Port;
@@ -1690,8 +1493,6 @@ internal static class AgencyPortal
             EnableSsl = s.Ssl,
             DeliveryMethod = SmtpDeliveryMethod.Network,
         };
-        // Only authenticate when a user is configured — the local Postfix relay
-        // accepts unauthenticated mail from 127.0.0.1 (mynetworks).
         if (!string.IsNullOrEmpty(s.User))
             client.Credentials = new NetworkCredential(s.User, s.Pass);
         await client.SendMailAsync(msg);

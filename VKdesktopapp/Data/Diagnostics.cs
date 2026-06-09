@@ -8,13 +8,6 @@ using System.Threading.Tasks;
 
 namespace VRASDesktopApp.Data;
 
-// Centralised error capture for the desktop app. On any failure we:
-//   1. build a detailed, human-readable report (full exception chain + HTTP
-//      status + socket error + context + machine/app info),
-//   2. append it to a local log file (always works, even with no network),
-//   3. best-effort POST it to the server so every failure is visible centrally
-//      in the manage portal's Errors tab.
-// Nothing here is allowed to throw — diagnostics must never break the app.
 internal static class Diagnostics
 {
     private static readonly string LogDir = Path.Combine(
@@ -26,11 +19,6 @@ internal static class Diagnostics
     internal static string LogFilePath =>
         Path.Combine(LogDir, $"errors-{DateTime.Now:yyyy-MM-dd}.log");
 
-    /// <summary>
-    /// Records an error: writes the local log, fires the server report
-    /// (fire-and-forget), and returns the full report text so the caller can
-    /// show it to the user.
-    /// </summary>
     internal static string LogError(string operation, Exception ex, string? context = null)
     {
         string detail  = Describe(ex);
@@ -42,13 +30,12 @@ internal static class Diagnostics
             Directory.CreateDirectory(LogDir);
             File.AppendAllText(LogFilePath, report + Environment.NewLine + new string('-', 72) + Environment.NewLine);
         }
-        catch { /* local log is best-effort */ }
+        catch { }
 
         _ = ReportToServerAsync(operation, summary, report, context);
         return report;
     }
 
-    /// <summary>Full exception chain → readable text, with HTTP / socket specifics.</summary>
     internal static string Describe(Exception ex)
     {
         var sb = new StringBuilder();
@@ -117,11 +104,9 @@ internal static class Diagnostics
             {
                 Content = new StringContent(json, Encoding.UTF8, "application/json"),
             };
-            // App.HttpClient already carries the agency Bearer token used by the
-            // other /api/agency/desktop/* calls, so this POST is authenticated.
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
             await App.HttpClient.SendAsync(req, cts.Token);
         }
-        catch { /* reporting is best-effort; the local log is the fallback */ }
+        catch { }
     }
 }

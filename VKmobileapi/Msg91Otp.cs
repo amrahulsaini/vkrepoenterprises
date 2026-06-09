@@ -1,23 +1,3 @@
-// ─────────────────────────────────────────────────────────────────────────────
-//  MSG91 SMS-OTP for verifying an agent's MOBILE NUMBER at registration & login.
-//
-//  Uses the MSG91 "flow" API (https://control.msg91.com/api/v5/flow) — the only
-//  path that actually DELIVERS for the CRMRS_VERIFICATION template (the dedicated
-//  OTP API returned success but never sent / stored anything for this account).
-//  We generate the OTP ourselves, keep it in-process, send it as a template
-//  variable, and verify the user's entry locally.
-//
-//  The template's OTP variable name isn't exposed by any API, so we send the OTP
-//  value under every common variable name at once — MSG91 ignores the keys not
-//  present in the template and fills the one that matches. (Verified live: the
-//  code now renders in the SMS.)
-//
-//  Credentials are read ONLY from environment variables on the vkmobileapi
-//  service — never hardcoded in the repo, never sent to the app:
-//      MSG91_AUTHKEY      — the MSG91 auth key
-//      MSG91_TEMPLATE_ID  — the flow template id (CRMRS_VERIFICATION)
-//      OTP_REQUIRED       — (optional) "0" disables server-side enforcement
-// ─────────────────────────────────────────────────────────────────────────────
 using System.Collections.Concurrent;
 using System.Security.Cryptography;
 using System.Text;
@@ -31,8 +11,6 @@ public static class Msg91Otp
 
     public static bool Configured => AuthKey.Length > 0 && TemplateId.Length > 0;
 
-    // Server-side gate on register/login. On by default when configured; ops can
-    // set OTP_REQUIRED=0 to disable without a redeploy if MSG91 ever has issues.
     public static bool Required =>
         Configured && (Environment.GetEnvironmentVariable("OTP_REQUIRED") ?? "1") != "0";
 
@@ -47,15 +25,12 @@ public static class Msg91Otp
     }
 
     private static readonly ConcurrentDictionary<string, Entry>    _store    = new();
-    // Mobiles that have just passed an OTP check — register/login consult this.
     private static readonly ConcurrentDictionary<string, DateTime> _verified = new();
 
-    private static readonly TimeSpan OtpTtl       = TimeSpan.FromMinutes(10);  // matches the template wording
+    private static readonly TimeSpan OtpTtl       = TimeSpan.FromMinutes(10);
     private static readonly TimeSpan VerifiedTtl  = TimeSpan.FromMinutes(15);
     private static readonly TimeSpan ResendWindow = TimeSpan.FromSeconds(30);
 
-    // The OTP value is sent under all of these so whichever the template was
-    // built with gets filled. MSG91 ignores keys not present in the template.
     private static readonly string[] OtpVarKeys =
     {
         "otp", "OTP", "Otp", "code", "CODE", "Code", "var", "VAR", "var1", "VAR1",
@@ -63,8 +38,6 @@ public static class Msg91Otp
         "value", "pin", "PIN", "number"
     };
 
-    /// <summary>Normalize to a 10-digit Indian mobile — must match the
-    /// controller's NormalizeMobile so the OTP key lines up with register/login.</summary>
     public static string Key(string? mobile)
     {
         var d = new string((mobile ?? "").Where(char.IsDigit).ToArray());
@@ -138,7 +111,6 @@ public static class Msg91Otp
         return (true, "Verified.");
     }
 
-    /// <summary>True if this mobile passed an OTP check within the verified window.</summary>
     public static bool IsRecentlyVerified(string? mobileRaw)
     {
         var key = Key(mobileRaw);
@@ -150,6 +122,5 @@ public static class Msg91Otp
         return false;
     }
 
-    /// <summary>Consume the verification so it can't be reused for another action.</summary>
     public static void ClearVerified(string? mobileRaw) => _verified.TryRemove(Key(mobileRaw), out _);
 }

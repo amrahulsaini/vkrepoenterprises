@@ -238,7 +238,6 @@
             Spin="True"
             Visibility="Collapsed" />
 
-        <!-- Upload progress footer -->
         <Border Grid.Row="3"
                 Background="{StaticResource Gray50}"
                 BorderBrush="{StaticResource Gray200}"

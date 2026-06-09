@@ -21,11 +21,8 @@ import kotlinx.coroutines.flow.first
 fun SplashScreen(vm: AuthViewModel, navigate: (String) -> Unit) {
     LaunchedEffect(Unit) {
         delay(1200)
-        // Decide the route from the LOCAL stored session only. The session
-        // refresh is a network call — fire it in the background and do NOT
-        // wait on it, otherwise a slow connection freezes the splash screen.
         val loggedIn = runCatching { vm.isLoggedIn.first() }.getOrDefault(false)
-        if (loggedIn) vm.refreshSession()   // background, not joined
+        if (loggedIn) vm.refreshSession()
         navigate(if (loggedIn) Screen.Home.route else Screen.Login.route)
     }
 

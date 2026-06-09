@@ -5,7 +5,7 @@ using VKmobileapi;
 using VKmobileapi.Data;
 
 LocalEnv.LoadBestEffort();
-DbFactory.Init();   // capture DB config + build the default/master connections
+DbFactory.Init();
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -22,13 +22,11 @@ builder.Services.AddResponseCompression(opts =>
 builder.Services.Configure<Microsoft.AspNetCore.ResponseCompression.GzipCompressionProviderOptions>(
     opts => opts.Level = CompressionLevel.Fastest);
 
-// Allow any origin — lock down in production
 builder.Services.AddCors(o => o.AddDefaultPolicy(p =>
     p.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader()));
 
 var app = builder.Build();
 
-// Serve uploaded PFP / KYC files under /uploads
 var uploadsPath = Path.Combine(app.Environment.ContentRootPath, "uploads");
 Directory.CreateDirectory(uploadsPath);
 MobileRepository.UploadsPath = uploadsPath;
@@ -41,32 +39,16 @@ app.UseStaticFiles(new StaticFileOptions
 app.UseResponseCompression();
 app.UseCors();
 
-// ── Multi-tenant routing ─────────────────────────────────────────────────────
-// A request carrying a valid mobile tenant token (issued at login) is routed,
-// for its whole lifetime, to that agency's own database. register / login
-// carry no token yet — they bind the tenant themselves from the request body.
-// Any OTHER /api/mobile/* path without a valid token is rejected with 401, so
-// the client can detect a stale session and force re-login instead of getting
-// a confusing "Table 'crm_master.app_users' doesn't exist" 500.
 static bool IsTenantBoundByBody(PathString path)
 {
-    // These endpoints either don't touch the tenant DB or set the tenant
-    // context themselves from the request body.
     var s = path.Value ?? "";
     return s.Equals("/api/mobile/register", StringComparison.OrdinalIgnoreCase)
         || s.Equals("/api/mobile/login",    StringComparison.OrdinalIgnoreCase)
         || s.Equals("/api/mobile/agencies", StringComparison.OrdinalIgnoreCase)
-        // Aadhaar OKYC OTP send + verify run DURING registration — the agent
-        // has no tenant token yet. These don't touch the tenant DB (the OTP is
-        // stateless; verify only persists when an X-User-Id is present, i.e. an
-        // already-logged-in user re-verifying, who will also carry a token).
         || s.Equals("/api/mobile/kyc/aadhaar/otp",    StringComparison.OrdinalIgnoreCase)
         || s.Equals("/api/mobile/kyc/aadhaar/verify", StringComparison.OrdinalIgnoreCase)
-        // Rejected agents have no token yet — resubmit binds tenant via slug+mobile.
         || s.Equals("/api/mobile/kyc/resubmit",       StringComparison.OrdinalIgnoreCase)
-        // Mobile SMS-OTP runs BEFORE login (no token yet); stateless, no tenant DB.
         || s.StartsWith("/api/mobile/otp/", StringComparison.OrdinalIgnoreCase)
-        // Pre-registration "is this number registered?" check — runs before login.
         || s.Equals("/api/mobile/check-mobile", StringComparison.OrdinalIgnoreCase)
         || s.StartsWith("/api/mobile/cache/", StringComparison.OrdinalIgnoreCase)
         || s.StartsWith("/uploads/",        StringComparison.OrdinalIgnoreCase)
@@ -99,7 +81,6 @@ app.MapControllers();
 
 app.MapGet("/", () => Results.Ok(new { status = "VK Mobile API running" }));
 
-// Warm up connection pool on startup so first real request reuses a live socket
 _ = Task.Run(async () =>
 {
     try

@@ -4,25 +4,13 @@ using MySqlConnector;
 
 namespace VKApiServer;
 
-// Streams a real .xlsx straight from a MySqlDataReader into an output stream
-// (the HTTP response body), writing rows as they're read from MySQL. An .xlsx
-// is a ZIP of XML parts; we emit inline-string worksheet XML so there's no
-// shared-string dedup pass and no in-memory document model. Combined with a
-// forward-only DataReader this means a multi-hundred-thousand-row export uses
-// almost no server memory and starts downloading immediately — the client just
-// saves the bytes, so there's no giant-JSON fetch + client-side assembly that
-// made the old paginated export slow.
 internal static class XlsxStream
 {
-    // Writes a full workbook with one sheet. `reader` must already be positioned
-    // before the first row (freshly executed). `colCount` columns are read per
-    // row via GetValue(i).ToString().
     public static async Task WriteAsync(
         Stream dest, string sheetName, string[] headers,
         MySqlDataReader reader, int colCount, CancellationToken ct = default)
     {
         var safeSheet = SanitizeSheetName(sheetName);
-        // leaveOpen so ASP.NET owns the response stream lifecycle.
         using var zip = new ZipArchive(dest, ZipArchiveMode.Create, leaveOpen: true);
 
         WriteText(zip, "[Content_Types].xml", ContentTypes);
@@ -38,7 +26,6 @@ internal static class XlsxStream
         await sw.WriteAsync("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>");
         await sw.WriteAsync("<worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><sheetData>");
 
-        // Header row (style 1 = bold).
         WriteRow(sw, 1, headers, headers.Length, styled: true, getCell: i => headers[i]);
 
         int rowNum = 2;

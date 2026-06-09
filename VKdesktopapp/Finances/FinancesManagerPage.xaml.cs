@@ -22,9 +22,7 @@ public partial class FinancesManagerPage : Page
         InitializeComponent();
         _financeRepo = new FinanceRepository();
         _branchRepo  = new BranchRepository();
-        // Kick off the finances fetch immediately so the page paints fast
         _preloadFinancesTask = _financeRepo.GetFinancesAsync();
-        // Set once; filter manages what's visible — no ItemsSource swapping needed
         dgBranches.ItemsSource = _displayedBranches;
     }
 
@@ -36,24 +34,18 @@ public partial class FinancesManagerPage : Page
     private List<FinanceListItem> _allFinances = new();
     private ICollectionView? _financesView;
 
-    // Branch search — ObservableCollection so the DataGrid ItemsSource never changes
     private readonly ObservableCollection<BranchSummaryItem> _displayedBranches = new();
     private List<BranchSummaryItem> _allCurrentBranches = new();
 
-    // Cache: branchId→ list so re-selecting a finance is instant
     private readonly Dictionary<int, List<BranchSummaryItem>> _branchCache = new();
 
     private int _loadingForFinanceId = -1;
     private bool _isViewAll = false;
     private bool _suppressSelectionChange = false;
 
-    // Spinner storyboards — created once, reused
     private Storyboard? _financeSpinSb;
     private Storyboard? _branchSpinSb;
 
-    // ─────────────────────────────────────────────────────
-    //  Page load
-    // ─────────────────────────────────────────────────────
 
     private async void Page_Loaded(object sender, RoutedEventArgs e)
     {
@@ -73,10 +65,6 @@ public partial class FinancesManagerPage : Page
 
             RebuildFinanceList(finances);
 
-            // Start with NO head office selected — branch pane shows its empty
-            // state instead of auto-loading branches for the first finance.
-            // This matches user expectation: "finances should only open if a
-            // head office is selected".
             dgFinances.SelectedIndex = -1;
             ShowBranchEmptyState("Select a head office to view its finances");
         }
@@ -138,16 +126,7 @@ public partial class FinancesManagerPage : Page
         }
     }
 
-    // ─────────────────────────────────────────────────────
-    //  Search — pure in-memory, 0 ms
-    // ─────────────────────────────────────────────────────
 
-    // Word-token match: every whitespace-separated word in the query must appear
-    // (case-insensitive substring) somewhere in the target. This is tolerant of
-    // double/extra spaces in the stored names (the data has "LTD  NON TBR 1"
-    // with two spaces) and of word order — so typing "tata motors finance ltd
-    // non" still matches "TATA MOTORS FINANCE LTD  NON TBR 1". A plain Contains
-    // failed because "ltd non" (one space) != "ltd  non" (two spaces).
     private static bool MatchesAllWords(string? target, string? query)
     {
         if (string.IsNullOrWhiteSpace(query)) return true;
@@ -163,18 +142,10 @@ public partial class FinancesManagerPage : Page
     private void txtSearch_TextChanged(object sender, TextChangedEventArgs e)
         => _financesView?.Refresh();
 
-    // ─────────────────────────────────────────────────────
-    //  Branch search — pure in-memory, 0 ms
-    // ─────────────────────────────────────────────────────
 
     private void SetBranchItemsSource(List<BranchSummaryItem>? list)
     {
         _allCurrentBranches = list ?? new List<BranchSummaryItem>();
-        // Clear any column-header sort the user applied earlier — otherwise the
-        // DataGrid re-sorts the freshly loaded rows by that stale column and the
-        // server's intended order is lost. For "View All" the server returns
-        // newest-uploaded first; for a single finance it returns most-records
-        // first. We want exactly that order shown.
         dgBranches.Items.SortDescriptions.Clear();
         foreach (var c in dgBranches.Columns) c.SortDirection = null;
         ApplyBranchFilter();
@@ -194,9 +165,6 @@ public partial class FinancesManagerPage : Page
     private void txtBranchSearch_TextChanged(object sender, TextChangedEventArgs e)
         => ApplyBranchFilter();
 
-    // ─────────────────────────────────────────────────────
-    //  Branch loading — cached for instant 2nd+ clicks
-    // ─────────────────────────────────────────────────────
 
     private async void dgFinances_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
@@ -208,8 +176,6 @@ public partial class FinancesManagerPage : Page
             ShowBranchEmptyState("Select a head office to view its finances");
     }
 
-    // Hides the branches grid and shows the empty-state placeholder. Used when
-    // no head office is selected on initial load or after a deletion.
     private void ShowBranchEmptyState(string subtitle)
     {
         _allCurrentBranches = new List<BranchSummaryItem>();
@@ -225,15 +191,11 @@ public partial class FinancesManagerPage : Page
         pnlBranchEmpty.Visibility = Visibility.Collapsed;
     }
 
-    // Per-row kebab menus — same actions as the right-click context menu,
-    // but reached with a single left click on the ⋮ button.
     private void FinanceKebab_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not Button btn) return;
         if (btn.Tag is not FinanceListItem fi) return;
 
-        // Select the row so the existing Edit/Download/Delete handlers (which
-        // read dgFinances.SelectedItem) operate on the right finance.
         var idx = _allFinances.FindIndex(x => x.Id == fi.Id);
         if (idx >= 0)
         {
@@ -280,7 +242,6 @@ public partial class FinancesManagerPage : Page
         menu.IsOpen = true;
     }
 
-    // Refresh buttons — drop caches so the next click re-fetches from the API.
     private async void btnRefreshFinances_Click(object sender, RoutedEventArgs e)
     {
         _branchCache.Clear();
@@ -307,7 +268,6 @@ public partial class FinancesManagerPage : Page
         _loadingForFinanceId   = financeId;
         HideBranchEmptyState();
 
-        // Show cached data instantly — feels ~0 ms on repeat selection
         if (_branchCache.TryGetValue(financeId, out var cached))
             SetBranchItemsSource(cached);
 
@@ -349,9 +309,6 @@ public partial class FinancesManagerPage : Page
         return list;
     }
 
-    // ─────────────────────────────────────────────────────
-    //  View All — shows every branch across all finances
-    // ─────────────────────────────────────────────────────
 
     private async void btnViewAll_Click(object sender, RoutedEventArgs e)
         => await LoadViewAllAsync();
@@ -385,9 +342,6 @@ public partial class FinancesManagerPage : Page
         finally { SetBranchLoading(false); }
     }
 
-    // ─────────────────────────────────────────────────────
-    //  Add Finance
-    // ─────────────────────────────────────────────────────
 
     private async void btnAddFinance_Click(object sender, RoutedEventArgs e)
     {
@@ -411,9 +365,6 @@ public partial class FinancesManagerPage : Page
         }
     }
 
-    // ─────────────────────────────────────────────────────
-    //  Add Branch
-    // ─────────────────────────────────────────────────────
 
     private async void btnAddBranch_Click(object sender, RoutedEventArgs e)
     {
@@ -432,9 +383,6 @@ public partial class FinancesManagerPage : Page
         }
     }
 
-    // ─────────────────────────────────────────────────────
-    //  Context menus — select row on right-click
-    // ─────────────────────────────────────────────────────
 
     private void dgFinances_ContextMenuOpening(object sender, ContextMenuEventArgs e)
     {
@@ -462,9 +410,6 @@ public partial class FinancesManagerPage : Page
         return null;
     }
 
-    // ─────────────────────────────────────────────────────
-    //  Finance Edit / Delete
-    // ─────────────────────────────────────────────────────
 
     private async void FinanceEdit_Click(object sender, RoutedEventArgs e)
     {
@@ -514,9 +459,6 @@ public partial class FinancesManagerPage : Page
         }
     }
 
-    // ─────────────────────────────────────────────────────
-    //  Branch Edit / Delete
-    // ─────────────────────────────────────────────────────
 
     private async void BranchEdit_Click(object sender, RoutedEventArgs e)
     {
@@ -592,9 +534,6 @@ public partial class FinancesManagerPage : Page
         }
     }
 
-    // ─────────────────────────────────────────────────────
-    //  Finance — Download All Records  (chunked export dialog)
-    // ─────────────────────────────────────────────────────
 
     private async void FinanceDownloadAll_Click(object sender, RoutedEventArgs e)
     {
@@ -609,9 +548,6 @@ public partial class FinancesManagerPage : Page
             setLoading: SetFinanceLoading);
     }
 
-    // ─────────────────────────────────────────────────────
-    //  Branch — Download Records / Clear Records
-    // ─────────────────────────────────────────────────────
 
     private async void BranchDownload_Click(object sender, RoutedEventArgs e)
     {
@@ -627,10 +563,6 @@ public partial class FinancesManagerPage : Page
             setLoading: SetBranchLoading);
     }
 
-    // Opens the parts dialog: the admin picks how many records per file
-    // (1–10 lakh), the dialog lists the resulting parts, and each part is
-    // streamed from the SERVER as its own instant .xlsx (offset/limit slice).
-    // Parts again — but instant, because the server builds each file.
     private async Task OpenChunkedExport(
         string title, string baseName, string sheetName,
         Func<Task<DesktopApiClient.ExportPage<DesktopApiClient.ExportVehicleRow>>> probe,
@@ -706,7 +638,6 @@ public partial class FinancesManagerPage : Page
         }
     }
 
-    // Returns the finance ID for a branch — from the branch item (View All) or selected finance
     private int GetFinanceIdForBranch(BranchSummaryItem bi)
     {
         if (bi.FinanceId > 0) return bi.FinanceId;
@@ -714,9 +645,6 @@ public partial class FinancesManagerPage : Page
         return 0;
     }
 
-    // ─────────────────────────────────────────────────────
-    //  Excel export helper (Syncfusion XlsIO)
-    // ─────────────────────────────────────────────────────
 
     private static readonly string[] ExportHeaders =
     {
@@ -740,17 +668,15 @@ public partial class FinancesManagerPage : Page
         var sheet    = workbook.Worksheets[0];
         sheet.Name   = sheetName.Length > 31 ? sheetName[..31] : sheetName;
 
-        // Header row
         for (int c = 0; c < ExportHeaders.Length; c++)
         {
             var cell = sheet[1, c + 1];
             cell.Text = ExportHeaders[c];
             cell.CellStyle.Font.Bold = true;
-            cell.CellStyle.Color = System.Drawing.Color.FromArgb(0xFF, 0xF5, 0xA6, 0x23); // orange header
+            cell.CellStyle.Color = System.Drawing.Color.FromArgb(0xFF, 0xF5, 0xA6, 0x23);
             cell.CellStyle.Font.Color = ExcelKnownColors.White;
         }
 
-        // Data rows — field order must match ExportHeaders
         for (int r = 0; r < rows.Count; r++)
         {
             var v = rows[r];
@@ -773,9 +699,6 @@ public partial class FinancesManagerPage : Page
         workbook.SaveAs(filePath);
     }
 
-    // ─────────────────────────────────────────────────────
-    //  Spinner helpers
-    // ─────────────────────────────────────────────────────
 
     private static Storyboard MakeSpinSb(RotateTransform rt)
     {

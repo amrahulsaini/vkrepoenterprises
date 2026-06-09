@@ -7,11 +7,8 @@ namespace VKmobileapi.Data;
 
 public class MobileRepository
 {
-    // Set from Program.cs after build — physical path to the uploads directory
     public static string UploadsPath { get; set; } = Path.Combine(Directory.GetCurrentDirectory(), "uploads");
 
-    // Decodes a base64 image string and saves it to disk.
-    // Returns the relative URL path (e.g. "pfp/user_42.jpg") or null if input is blank.
     private static async Task<string?> SaveBase64ImageAsync(string? base64, string subFolder, string fileName)
     {
         if (string.IsNullOrWhiteSpace(base64)) return null;
@@ -27,14 +24,9 @@ public class MobileRepository
         catch { return null; }
     }
 
-    // ── In-memory search cache ─────────────────────────────────────────────
-    // Key: "rc:XXXX" or "ch:XXXXX" — value: cached result list with timestamp
     private static readonly ConcurrentDictionary<string, (List<SearchResult> Results, DateTime At)> _cache = new();
     private static readonly TimeSpan CacheTtl = TimeSpan.FromMinutes(1);
 
-    // ── Subscription status cache — avoids DB hit on every request ─────────
-    // Key: "<tenant>:<userId>" — value: (hasActiveSub, cachedAt). TTL 5 min.
-    // The tenant prefix keeps one agency's cached flags out of another's.
     private static readonly ConcurrentDictionary<string, (bool Active, DateTime At)> _subCache = new();
     private static readonly TimeSpan SubCacheTtl = TimeSpan.FromMinutes(5);
 
@@ -45,11 +37,9 @@ public class MobileRepository
 
     public static void InvalidateSubCache(long userId)
     {
-        // Subscription changes are rare — just clear every tenant's cached flags.
         _subCache.Clear();
     }
 
-    // ── Agency registry (crm_master) ───────────────────────────────────────
     public async Task<List<AgencyListItem>> GetApprovedAgenciesAsync()
     {
         await using var conn = DbFactory.CreateMaster();
@@ -78,9 +68,6 @@ public class MobileRepository
                 rdr.GetString(2));
     }
 
-    /// <summary>Full agency profile (name, address, all contact numbers)
-    /// for the in-app "Agency" detail panel. Returns mobile1, mobile2, and
-    /// every line in mobiles_extra de-duped into one flat list.</summary>
     public async Task<AgencyInfo?> GetAgencyInfoAsync(string slug)
     {
         await using var conn = DbFactory.CreateMaster();
@@ -100,10 +87,10 @@ public class MobileRepository
             if (!string.IsNullOrWhiteSpace(s) && !mobiles.Contains(s))
                 mobiles.Add(s);
         }
-        Add(rdr.GetString(2));            // mobile1 (primary)
-        Add(rdr.GetString(3));            // mobile2 (secondary)
+        Add(rdr.GetString(2));
+        Add(rdr.GetString(3));
         foreach (var line in rdr.GetString(4).Split(new[] { '\n','\r' }, StringSplitOptions.RemoveEmptyEntries))
-            Add(line);                    // extras
+            Add(line);
         return new AgencyInfo(
             Name:     rdr.GetString(0),
             Address:  rdr.GetString(1),
@@ -111,13 +98,7 @@ public class MobileRepository
             LogoPath: rdr.GetString(5));
     }
 
-    // ── Cross-agency registration uniqueness ──────────────────────────────
-    // crm_master.app_user_registry holds (mobile, device_id) → agency_slug for
-    // every approved agency user. A given mobile / device may only belong to
-    // ONE agency: this is the check enforced before any tenant INSERT.
 
-    /// <summary>If the mobile OR device is already registered to a DIFFERENT
-    /// agency, returns that agency's slug; else null.</summary>
     public async Task<string?> FindExistingAgencyForMobileOrDevice(string mobile, string deviceId, string currentSlug)
     {
         await using var conn = DbFactory.CreateMaster();
@@ -133,8 +114,6 @@ public class MobileRepository
         return r as string;
     }
 
-    /// <summary>Records that (mobile, device) belongs to slug. UNIQUE on
-    /// mobile guarantees one mobile = one agency atomically.</summary>
     public async Task RegisterInMasterAsync(string mobile, string deviceId, string slug)
     {
         await using var conn = DbFactory.CreateMaster();
@@ -147,14 +126,8 @@ public class MobileRepository
         await cmd.ExecuteNonQueryAsync();
     }
 
-    /// <summary>True if a user with this mobile OR device actually exists in
-    /// the given agency's tenant database. Used to detect orphaned registry
-    /// rows left behind by manual DB cleanup so registration can auto-heal.</summary>
     public async Task<bool> IsMobileOrDeviceLiveInAgencyAsync(string mobile, string deviceId, string slug)
     {
-        // Open the OTHER agency's DB with its dedicated tu_<slug> user — same
-        // route used at login. If the slug or DB is gone, treat the registry
-        // row as orphaned (return false) so the gate doesn't strand new users.
         try
         {
             var connStr = TenantContext.BuildTenantConn(slug);
@@ -169,13 +142,10 @@ public class MobileRepository
         }
         catch (MySqlException)
         {
-            // Tenant DB unreachable / dropped → treat the registry row as orphaned.
             return false;
         }
     }
 
-    /// <summary>Removes (mobile, device) rows for the given slug from the
-    /// cross-agency registry. Safe to call when no rows exist.</summary>
     public async Task PurgeRegistryForMobileOrDeviceAsync(string mobile, string deviceId, string slug)
     {
         await using var conn = DbFactory.CreateMaster();
@@ -191,14 +161,11 @@ public class MobileRepository
     }
 
 
-    // ── Register ──────────────────────────────────────────────────────────
     public async Task<(bool Success, string Reason, long UserId)> RegisterAsync(
         string mobile, string name, string? address, string? pincode,
         string? pfpBase64, string deviceId,
         string? aadhaarFront, string? aadhaarBack, string? panFront,
         string? accountNumber, string? ifscCode,
-        // New registration-time KYC (selfie photo + verified Aadhaar demographics
-        // + live location). All optional / nullable so older callers still work.
         string? selfieWithAadhaar = null,
         string? aadhaarNumber = null, string? aadhaarName = null, string? aadhaarDob = null,
         string? aadhaarGender = null, string? aadhaarAddress = null, bool aadhaarVerified = false,
@@ -216,7 +183,6 @@ public class MobileRepository
             if (cnt > 0) return (false, "mobile_exists", 0);
         }
 
-        // Insert user first (without pfp) to get the auto-increment id
         const string sql = @"
             INSERT INTO app_users (mobile, name, address, pincode, pfp, device_id,
                                    account_number, ifsc_code, is_active, is_admin)
@@ -234,7 +200,6 @@ public class MobileRepository
         cmd.Parameters.AddWithValue("@ifsc",   (object?)ifscCode      ?? DBNull.Value);
         var id = Convert.ToInt64(await cmd.ExecuteScalarAsync());
 
-        // Save PFP image to disk and update pfp column with the relative path
         var pfpPath = await SaveBase64ImageAsync(pfpBase64, "pfp", $"user_{id}.jpg");
         if (pfpPath != null)
         {
@@ -245,9 +210,6 @@ public class MobileRepository
             await pfpCmd.ExecuteNonQueryAsync();
         }
 
-        // Save KYC documents as files; store relative paths in DB. The selfie
-        // (agent holding their Aadhaar in hand) is part of the same set — the
-        // admin eyeballs it against the Aadhaar photos in the WPF review page.
         bool hasKyc = aadhaarFront != null || aadhaarBack != null
                       || panFront != null || selfieWithAadhaar != null || aadhaarPhoto != null;
         if (hasKyc)
@@ -272,9 +234,6 @@ public class MobileRepository
             await kycCmd.ExecuteNonQueryAsync();
         }
 
-        // Persist the live-verified Aadhaar demographics + capture location onto
-        // the user row (only the last 4 of the Aadhaar number are kept). These
-        // come from the on-device Aadhaar OKYC OTP verify done before submit.
         var digits = new string((aadhaarNumber ?? "").Where(char.IsDigit).ToArray());
         var last4  = digits.Length >= 4 ? digits[^4..] : null;
         bool hasDemo = aadhaarVerified || last4 != null || regLat != null || regLng != null
@@ -318,8 +277,6 @@ public class MobileRepository
         return (true, "registered", id);
     }
 
-    // ── KYC: store verified Sandbox results onto the agent's app_users row ────
-    // Dynamic UPDATE of only the supplied columns (all KYC columns are nullable).
     public async Task UpdateKycFieldsAsync(long userId, Dictionary<string, object?> fields)
     {
         if (fields.Count == 0) return;
@@ -332,12 +289,6 @@ public class MobileRepository
         await cmd.ExecuteNonQueryAsync();
     }
 
-    // ── KYC re-submission ─────────────────────────────────────────────────
-    // A rejected agent can't get a tenant token (login is blocked), so resubmit
-    // identifies the user by mobile within the already-selected tenant, re-saves
-    // every document/photo, refreshes the verified demographics, and flips the
-    // status back to 'pending' for another admin review. Returns false if no
-    // matching user exists.
     public async Task<bool> ResubmitKycAsync(
         string mobile,
         string? aadhaarFront, string? aadhaarBack, string? panFront,
@@ -365,7 +316,6 @@ public class MobileRepository
         var selPath   = await SaveBase64ImageAsync(selfieWithAadhaar, kycDir, "selfie.jpg");
         var uidaiPath = await SaveBase64ImageAsync(aadhaarPhoto,      kycDir, "aadhaar_photo.jpg");
 
-        // Upsert the document row, only overwriting columns we actually re-received.
         await using (var kyc = new MySqlCommand(@"
             INSERT INTO user_kyc (user_id, aadhaar_front, aadhaar_back, pan_front, selfie, aadhaar_photo)
             VALUES (@uid, @af, @ab, @pf, @sel, @uidai)
@@ -420,9 +370,6 @@ public class MobileRepository
         return true;
     }
 
-    // ── Pre-registration check: is this mobile already a user here? ─────────
-    // Lets the app tell the agent "already registered, please log in" BEFORE it
-    // spends an SMS OTP. Caller must have set the tenant (UseAgency) first.
     public async Task<bool> IsMobileRegisteredAsync(string mobile)
     {
         await using var conn = DbFactory.Create();
@@ -433,7 +380,6 @@ public class MobileRepository
         return Convert.ToInt64(await cmd.ExecuteScalarAsync()) == 1;
     }
 
-    // ── Login ─────────────────────────────────────────────────────────────
     public async Task<AuthResponse> LoginAsync(string mobile, string deviceId)
     {
         await using var conn = DbFactory.Create();
@@ -504,9 +450,6 @@ public class MobileRepository
                 "device_mismatch", null, null, null, false, null, null);
         }
 
-        // KYC gate comes before the activation gate: a freshly registered agent
-        // sits in 'pending' until an admin reviews their documents in WPF, and
-        // 'failed' if rejected (the note tells them what to re-submit).
         if (string.Equals(kycStatus, "failed", StringComparison.OrdinalIgnoreCase))
             return new AuthResponse(false,
                 string.IsNullOrWhiteSpace(kycRejectNote)
@@ -533,7 +476,6 @@ public class MobileRepository
             id, name, dbMobile, isAdmin, pfp, subEnd == "" ? null : subEnd);
     }
 
-    // ── Heartbeat / live-user location ────────────────────────────────────
     public async Task HeartbeatAsync(long userId, double? lat, double? lng)
     {
         await using var conn = DbFactory.Create();
@@ -568,7 +510,6 @@ public class MobileRepository
         return list;
     }
 
-    // ── Admin check ───────────────────────────────────────────────────────
     public async Task<bool> IsAdminAsync(long userId)
     {
         await using var conn = DbFactory.Create();
@@ -580,7 +521,6 @@ public class MobileRepository
         return v is not (null or DBNull) && Convert.ToInt32(v) == 1;
     }
 
-    // ── Subscription check (cached 5 min) ─────────────────────────────────
     public async Task<bool> HasActiveSubscriptionAsync(long userId)
     {
         var ck = $"{TenantContext.Key}:{userId}";
@@ -598,16 +538,11 @@ public class MobileRepository
         return active;
     }
 
-    // ── Profile ───────────────────────────────────────────────────────────
     public async Task<ProfileResponse?> GetProfileAsync(long userId)
     {
         await using var conn = DbFactory.Create();
         await conn.OpenAsync();
 
-        // Balance is the running total of every subscription ever bought
-        // for this user — sum of subscriptions.amount. The legacy u.balance
-        // column is ignored so the displayed balance always matches what the
-        // user can see on the Subscriptions tab.
         const string sql = @"
             SELECT u.id, u.name, u.mobile, u.address, u.pincode, u.pfp,
                    u.is_active, u.is_admin,
@@ -650,11 +585,6 @@ public class MobileRepository
 
         await rdr.CloseAsync();
 
-        // ── Enrich KYC for the admin review surface ─────────────────────────
-        // selfie + UIDAI photo (user_kyc), and the registration-time Aadhaar
-        // OKYC demographics + capture location + review status (app_users).
-        // Both blocks are guarded so a legacy tenant without these columns still
-        // returns the basic profile. Mirrors VKApiServer's /api/mgr/.../kyc.
         string? selfie = null, uidaiPhoto = null;
         try
         {
@@ -668,7 +598,7 @@ public class MobileRepository
                 uidaiPhoto = kr.IsDBNull(1) ? null : kr.GetString(1);
             }
         }
-        catch { /* legacy user_kyc without selfie/aadhaar_photo */ }
+        catch { }
 
         string  kycStatus = "success"; string? rejectNote = null;
         bool    aaVer = false;
@@ -696,7 +626,7 @@ public class MobileRepository
                 loc        = DS(11);
             }
         }
-        catch { /* legacy schema without OKYC columns — basic profile only */ }
+        catch { }
 
         profile = profile with {
             Kyc = profile.Kyc with {
@@ -717,7 +647,6 @@ public class MobileRepository
             }
         };
 
-        // Load subscriptions
         const string subSql = @"
             SELECT id, DATE_FORMAT(start_date,'%Y-%m-%d'), DATE_FORMAT(end_date,'%Y-%m-%d'),
                    COALESCE(amount,0), notes,
@@ -740,8 +669,6 @@ public class MobileRepository
         return profile;
     }
 
-    // ── Update PFP ─────────────────────────────────────────────────────────
-    // Returns the relative path of the saved file (e.g. "pfp/user_1.jpg") or null.
     public async Task<string?> UpdatePfpAsync(long userId, string? pfpBase64)
     {
         var pfpPath = await SaveBase64ImageAsync(pfpBase64, "pfp", $"user_{userId}.jpg");
@@ -755,7 +682,6 @@ public class MobileRepository
         return pfpPath;
     }
 
-    // ── User status (is_active, is_stopped, is_blacklisted) ──────────────
     public async Task<UserStatusDto> GetUserStatusAsync(long userId)
     {
         await using var conn = DbFactory.Create();
@@ -769,7 +695,6 @@ public class MobileRepository
         return new UserStatusDto(rdr.GetInt32(0)==1, rdr.GetInt32(1)==1, rdr.GetInt32(2)==1);
     }
 
-    // ── Finance restrictions for a user ───────────────────────────────────
     private async Task<List<int>> GetFinanceRestrictionsAsync(long userId)
     {
         await using var conn = DbFactory.Create();
@@ -783,7 +708,6 @@ public class MobileRepository
         return ids;
     }
 
-    // ── RC search (instant — indexed last4, finance-restricted) ───────────
     public async Task<List<SearchResult>> SearchByRcAsync(string last4, long userId)
     {
         var restricted = await GetFinanceRestrictionsAsync(userId);
@@ -801,7 +725,6 @@ public class MobileRepository
             last4.ToUpper());
     }
 
-    // ── Chassis search (instant — indexed last5, finance-restricted) ──────
     public async Task<List<SearchResult>> SearchByChassisAsync(string last5, long userId)
     {
         var restricted = await GetFinanceRestrictionsAsync(userId);
@@ -819,10 +742,6 @@ public class MobileRepository
             last5.ToUpper());
     }
 
-    // ── Skinny search (instant) ───────────────────────────────────────────
-    // Only the fields the result list + finance chooser need — NOT the ~40
-    // heavy columns. Full detail is fetched per-record via GetRecordByIdAsync
-    // when a result is opened. Cuts the response ~10x so search is instant.
     private const string LiteFields = @"
         vr.id, vr.vehicle_no, vr.chassis_no, vr.model,
         COALESCE(f.name,'') AS financer, b.name AS branch_name,
@@ -833,11 +752,6 @@ public class MobileRepository
         var restricted = await GetFinanceRestrictionsAsync(userId);
         var filter = restricted.Count > 0
             ? $"AND b.finance_id NOT IN ({string.Join(",", restricted)})" : "";
-        // No ORDER BY: a common last4 can match thousands of duplicate rows;
-        // sorting them server-side is a filesort (the "common number = seconds"
-        // lag). The app re-sorts this skinny list by vehicle no anyway, so the
-        // server sort is wasted work. Dropping it keeps the query a pure indexed
-        // lookup that stays fast no matter how many rows match.
         return await SearchLiteAsync($@"
             SELECT {LiteFields}
             FROM rc_info ri
@@ -861,8 +775,6 @@ public class MobileRepository
             WHERE ci.last5 = @q {filter}", last5.ToUpper());
     }
 
-    // Maps the 7 skinny columns to a SearchResult with heavy fields left blank
-    // (named args so the 40-field record can't be mis-positioned).
     private static async Task<List<SearchResult>> SearchLiteAsync(string sql, string query)
     {
         var list = new List<SearchResult>();
@@ -886,7 +798,6 @@ public class MobileRepository
         return list;
     }
 
-    // Full record by id — fetched only when a search result is opened.
     public async Task<SearchResult?> GetRecordByIdAsync(long id)
     {
         await using var conn = DbFactory.Create();
@@ -910,7 +821,6 @@ public class MobileRepository
             S(38), S(39));
     }
 
-    // ── Admin: get subscriptions for a specific user ──────────────────────
     public async Task<List<SubscriptionRecord>> GetUserSubscriptionsAsync(long userId)
     {
         await using var conn = DbFactory.Create();
@@ -935,7 +845,6 @@ public class MobileRepository
         return list;
     }
 
-    // ── Verify subscription management password ───────────────────────────
     public async Task<bool> VerifySubsPasswordAsync(string password)
     {
         await using var conn = DbFactory.Create();
@@ -946,7 +855,6 @@ public class MobileRepository
         return stored?.ToString() == password;
     }
 
-    // ── Admin: list users with latest sub end + status flags ──────────────
     public async Task<List<AdminUserItem>> GetAdminUsersAsync()
     {
         await using var conn = DbFactory.Create();
@@ -969,11 +877,6 @@ public class MobileRepository
         return list;
     }
 
-    // ── Admin: verify the agency's common Control Panel password ───────────
-    // Now a single agency-wide password stored in app_settings under
-    // 'control_panel_password' (set from the desktop's Agency Settings),
-    // instead of the old per-user app_users.admin_pass. userId is kept in the
-    // signature for call-site compatibility but is no longer used.
     public async Task<bool> VerifyAdminPasswordAsync(long userId, string password)
     {
         if (string.IsNullOrWhiteSpace(password)) return false;
@@ -986,14 +889,12 @@ public class MobileRepository
         return !string.IsNullOrWhiteSpace(stored) && stored == password;
     }
 
-    // ── Admin: user state toggles ──────────────────────────────────────────
     public async Task SetUserActiveAsync(long userId, bool active)   => await SetUserFlagAsync(userId, "is_active", active);
     public async Task SetUserStoppedAsync(long userId, bool stopped) => await SetUserFlagAsync(userId, "is_stopped", stopped);
     public async Task SetUserAdminAsync(long userId, bool admin)     => await SetUserFlagAsync(userId, "is_admin", admin);
 
     public async Task SetUserBlacklistedAsync(long userId, bool blacklisted)
     {
-        // Blacklisting also stops the app — mirrors the desktop manager.
         await using var conn = DbFactory.Create();
         await conn.OpenAsync();
         await using var cmd = new MySqlCommand(
@@ -1003,10 +904,6 @@ public class MobileRepository
         await cmd.ExecuteNonQueryAsync();
     }
 
-    // ── Admin: KYC review outcome ──────────────────────────────────────────
-    // Mirrors VKApiServer's /api/mgr/.../kyc-status. status: success|failed|pending.
-    // Rejecting ("failed") also deactivates the account and records the note the
-    // agent sees on next login; verifying clears any prior reject note.
     public async Task SetUserKycStatusAsync(long userId, string status, string? note)
     {
         await using var conn = DbFactory.Create();
@@ -1031,7 +928,6 @@ public class MobileRepository
         }
     }
 
-    // col is an internal constant ("is_active"/"is_stopped") — never user input.
     private static async Task SetUserFlagAsync(long userId, string col, bool val)
     {
         await using var conn = DbFactory.Create();
@@ -1043,7 +939,6 @@ public class MobileRepository
         await cmd.ExecuteNonQueryAsync();
     }
 
-    // ── Admin: add subscription ───────────────────────────────────────────
     public async Task AddSubscriptionAsync(long userId, string startDate, string endDate,
         decimal amount, string? notes)
     {
@@ -1061,7 +956,6 @@ public class MobileRepository
         InvalidateSubCache(userId);
     }
 
-    // ── Admin: delete subscription ────────────────────────────────────────
     public async Task DeleteSubscriptionAsync(long subId)
     {
         await using var conn = DbFactory.Create();
@@ -1072,7 +966,6 @@ public class MobileRepository
         await cmd.ExecuteNonQueryAsync();
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────
     private const string SelectFields = @"
         vr.id, vr.vehicle_no, vr.chassis_no, vr.engine_no, vr.model,
         vr.agreement_no, vr.customer_name, vr.customer_contact, vr.customer_address,
@@ -1108,7 +1001,6 @@ public class MobileRepository
         return list;
     }
 
-    // ── Profile picture ───────────────────────────────────────────────────
     public async Task<string?> GetPfpAsync(long userId)
     {
         await using var conn = DbFactory.Create();
@@ -1120,7 +1012,6 @@ public class MobileRepository
         return result is DBNull or null ? null : result.ToString();
     }
 
-    // ── Sync: branch list ──────────────────────────────────────────────────
     public async Task<List<SyncBranch>> GetSyncBranchesAsync()
     {
         await using var conn = DbFactory.Create();
@@ -1143,7 +1034,6 @@ public class MobileRepository
         return list;
     }
 
-    // ── Sync: compact records for one branch (paginated) ──────────────────
     public async Task<List<SyncRecord>> GetSyncRecordsAsync(int branchId, int page, int size)
     {
         await using var conn = DbFactory.Create();
@@ -1173,7 +1063,6 @@ public class MobileRepository
         return list;
     }
 
-    // ── Search log ────────────────────────────────────────────────────────
     public async Task LogSearchAsync(
         long userId, string vehicleNo, string chassisNo, string model,
         double? lat, double? lng, string? address, DateTime deviceTime)
@@ -1196,7 +1085,6 @@ public class MobileRepository
         await cmd.ExecuteNonQueryAsync();
     }
 
-    // ── Stats ──────────────────────────────────────────────────────────────
     public async Task<(long vehicleRecords, long rcRecords, long chassisRecords)> GetStatsAsync()
     {
         await using var conn = DbFactory.Create();

@@ -9,17 +9,12 @@ interface ApiService {
     @GET("api/mobile/agencies")
     suspend fun getAgencies(): Response<List<AgencyListItem>>
 
-    // Full profile for the signed-in agency (name, address, every contact
-    // number including extras). Slug is resolved server-side from the
-    // X-Tenant-Token header added by the OkHttp interceptor.
     @GET("api/mobile/agency")
     suspend fun getAgencyInfo(): Response<AgencyInfo>
 
-    // Pre-registration check: is this mobile already registered with the agency?
     @POST("api/mobile/check-mobile")
     suspend fun checkMobile(@Body body: Map<String, String?>): Response<Map<String, Any>>
 
-    // ── Mobile SMS OTP (MSG91) — phone-number verification before reg/login ──
     @POST("api/mobile/otp/send")
     suspend fun otpSend(@Body body: Map<String, String?>): Response<Map<String, Any>>
 
@@ -32,9 +27,6 @@ interface ApiService {
     @POST("api/mobile/login")
     suspend fun login(@Body request: LoginRequest): Response<AuthResponse>
 
-    // lite=true → skinny list (id, vehicle/chassis no, model, finance, branch,
-    // date) so the search response is tiny and instant. Full detail is fetched
-    // per-record via getRecord() only when a result is opened.
     @GET("api/mobile/search/rc/{last4}")
     suspend fun searchRc(
         @Path("last4")       last4: String,
@@ -49,7 +41,6 @@ interface ApiService {
         @Query("lite")       lite: Boolean = true
     ): Response<SearchResponse>
 
-    // Full record detail for one search result (opened on tap).
     @GET("api/mobile/record/{id}")
     suspend fun getRecord(
         @Path("id")          id: Long,
@@ -81,20 +72,15 @@ interface ApiService {
     @GET("api/mobile/me/status")
     suspend fun getMyStatus(@Header("X-User-Id") userId: Long): Response<UserStatusResponse>
 
-    // ── KYC (Sandbox-backed; verification + storage happen server-side) ──────
     @POST("api/mobile/kyc/aadhaar/otp")
     suspend fun kycAadhaarOtp(@Body body: Map<String, String?>): Response<KycOtpResp>
 
     @POST("api/mobile/kyc/aadhaar/verify")
     suspend fun kycAadhaarVerify(@Header("X-User-Id") userId: Long, @Body body: Map<String, String?>): Response<KycAadhaarResp>
 
-    // Registration flow: no user row exists yet, so no X-User-Id header. The
-    // server verifies the OTP and returns the demographics WITHOUT storing —
-    // the register call then persists them onto the new user.
     @POST("api/mobile/kyc/aadhaar/verify")
     suspend fun kycAadhaarVerifyAnon(@Body body: Map<String, String?>): Response<KycAadhaarResp>
 
-    // KYC re-submission for a rejected agent (no token — slug + mobile in body).
     @POST("api/mobile/kyc/resubmit")
     suspend fun kycResubmit(@Body body: com.vkenterprises.vras.data.models.ResubmitKycRequest): Response<Map<String, Any>>
 
@@ -145,7 +131,6 @@ interface ApiService {
         @Path("subId") subId: Long
     ): Response<Map<String, Any>>
 
-    // ── Control Panel ──────────────────────────────────────────────────────
     @POST("api/mobile/admin/verify-admin-pass")
     suspend fun verifyAdminPass(
         @Header("X-User-Id") userId: Long,
@@ -180,7 +165,6 @@ interface ApiService {
         @Body request: SetUserFlagRequest
     ): Response<Map<String, Any>>
 
-    // KYC review outcome — mirrors the desktop "Mark Verified" / "Reject".
     @PATCH("api/mobile/admin/users/{userId}/kyc-status")
     suspend fun adminSetKycStatus(
         @Header("X-User-Id") adminId: Long,

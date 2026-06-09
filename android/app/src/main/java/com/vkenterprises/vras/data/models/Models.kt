@@ -9,16 +9,13 @@ data class RegisterRequest(
     val pincode: String?,
     val pfpBase64: String?,
     val deviceId: String,
-    // KYC document photos (reviewed by the agency admin in WPF)
     val aadhaarFront: String?,
     val aadhaarBack: String?,
     val panFront: String?,
     val accountNumber: String?,
     val ifscCode: String?,
-    // Agency the user is joining + the agency's primary mobile (verification gate)
     val slug: String? = null,
     val agencyMobile: String? = null,
-    // ── Registration-time KYC (Aadhaar OKYC + selfie + location) ───────────
     val selfieWithAadhaar: String? = null,
     val aadhaarNumber: String? = null,
     val aadhaarName: String? = null,
@@ -38,7 +35,6 @@ data class LoginRequest(
     val slug: String? = null
 )
 
-// KYC re-submission by a rejected agent (no token — keyed by slug + mobile).
 data class ResubmitKycRequest(
     val slug: String,
     val mobile: String,
@@ -68,14 +64,9 @@ data class AuthResponse(
     val isAdmin: Boolean,
     val pfpUrl: String?,
     val subscriptionEndDate: String?,
-    // Signed tenant token — sent back as the X-Tenant-Token header so every
-    // later request is routed to this agency's database.
     val tenantToken: String? = null
 )
 
-// One entry of the agency picker on the register / login screens.
-// logoPath is the server-relative path (e.g. /agency-uploads/<slug>.jpg);
-// the app prepends BuildConfig.BASE_URL to render it.
 data class AgencyListItem(
     val id: Long,
     val name: String,
@@ -83,9 +74,6 @@ data class AgencyListItem(
     val logoPath: String = ""
 )
 
-// Full agency profile from GET /api/mobile/agency — used by the in-app
-// Agency panel on the vehicle detail screen so every admin-set mobile
-// number is shown (and tap-to-dial works on each).
 data class AgencyInfo(
     val name: String = "",
     val address: String = "",
@@ -149,16 +137,14 @@ data class ApiError(
     val message: String
 )
 
-// KYC + Profile models
 data class KycInfo(
     val kycSubmitted: Boolean,
     val aadhaarFront: String?,
     val aadhaarBack: String?,
     val panFront: String?,
-    // Admin review surface — mirrors the desktop WPF KYC page.
     val selfie: String? = null,
-    val aadhaarPhoto: String? = null,        // UIDAI photo
-    val kycStatus: String? = null,           // "pending" | "success" | "failed"
+    val aadhaarPhoto: String? = null,
+    val kycStatus: String? = null,
     val rejectNote: String? = null,
     val aadhaarVerified: Boolean = false,
     val aadhaarNumber: String? = null,
@@ -240,7 +226,6 @@ data class SearchLogRequest(
     val deviceTimeIso: String
 )
 
-// Local session stored in DataStore
 data class SessionUser(
     val userId: Long,
     val name: String,
@@ -249,7 +234,6 @@ data class SessionUser(
     val subscriptionEndDate: String?
 )
 
-// Admin subs management
 data class VerifySubsPassRequest(val password: String)
 data class AdminUserItem(
     val id: Long,
@@ -269,8 +253,6 @@ data class AdminAddSubRequest(
     val notes: String?
 )
 
-// Control Panel
 data class VerifyAdminPassRequest(val password: String)
 data class SetUserFlagRequest(val value: Boolean)
-// KYC review outcome. status: "success" | "failed" | "pending".
 data class SetKycStatusRequest(val status: String, val note: String?)

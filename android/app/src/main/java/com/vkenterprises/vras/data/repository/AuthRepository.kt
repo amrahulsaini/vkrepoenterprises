@@ -55,14 +55,12 @@ class AuthRepository {
         }
     }.getOrElse { AuthResult.Error(com.vkenterprises.vras.utils.NetworkError.friendly(it)) }
 
-    // ── Pre-registration: is this mobile already registered? ────────────────
     suspend fun checkMobileRegistered(mobile: String, slug: String): AuthResult<Boolean> = runCatching {
         val resp = api.checkMobile(mapOf("mobile" to mobile, "slug" to slug))
         if (resp.isSuccessful) AuthResult.Success(resp.body()?.get("registered") == true)
         else AuthResult.Error(parseError(resp))
     }.getOrElse { AuthResult.Error(com.vkenterprises.vras.utils.NetworkError.friendly(it)) }
 
-    // ── Mobile SMS OTP ──────────────────────────────────────────────────────
     suspend fun sendOtp(mobile: String): AuthResult<String> = runCatching {
         val resp = api.otpSend(mapOf("mobile" to mobile))
         if (resp.isSuccessful) AuthResult.Success("OTP sent.")
