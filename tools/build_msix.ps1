@@ -35,7 +35,7 @@ $ErrorActionPreference='Stop'
 $root   = Split-Path $PSScriptRoot -Parent
 $pkg    = Join-Path $root "CRMRS.Package"
 $layout = Join-Path $pkg  "pkg_layout"
-$csproj = Join-Path $root "VKdesktopapp\VRASDesktopApp.csproj"
+$csproj = Join-Path $root "VKdesktopapp\CRMRSDesktopApp.csproj"
 
 $makeappx = Get-ChildItem (Join-Path $PSScriptRoot "_sdk") -Recurse -Filter makeappx.exe |
             Where-Object { $_.FullName -match 'x64' } | Select-Object -First 1

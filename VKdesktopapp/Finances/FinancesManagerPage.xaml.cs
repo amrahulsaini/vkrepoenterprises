@@ -10,10 +10,10 @@ using System.Windows.Media;
 using System.Windows.Media.Animation;
 using Microsoft.Win32;
 using Syncfusion.XlsIO;
-using VRASDesktopApp.Models;
-using VRASDesktopApp.Data;
+using CRMRSDesktopApp.Models;
+using CRMRSDesktopApp.Data;
 
-namespace VRASDesktopApp.Finances;
+namespace CRMRSDesktopApp.Finances;
 
 public partial class FinancesManagerPage : Page
 {
@@ -588,7 +588,7 @@ public partial class FinancesManagerPage : Page
             return;
         }
 
-        var win = new VRASDesktopApp.Exports.ChunkedExportDialog { Owner = Window.GetWindow(this) };
+        var win = new CRMRSDesktopApp.Exports.ChunkedExportDialog { Owner = Window.GetWindow(this) };
         win.Configure(
             title:      title,
             subtitle:   $"{total:N0} records — choose records-per-file, then download each part.",

@@ -3,9 +3,9 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
-using VRASDesktopApp.Data;
+using CRMRSDesktopApp.Data;
 
-namespace VRASDesktopApp.Blacklist;
+namespace CRMRSDesktopApp.Blacklist;
 
 public class BlacklistUserItem
 {

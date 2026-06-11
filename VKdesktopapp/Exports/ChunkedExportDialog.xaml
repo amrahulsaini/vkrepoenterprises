@@ -1,5 +1,5 @@
 <Window
-    x:Class="VRASDesktopApp.Exports.ChunkedExportDialog"
+    x:Class="CRMRSDesktopApp.Exports.ChunkedExportDialog"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     Title="Download Records"

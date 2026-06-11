@@ -1,0 +1,359 @@
+package com.vkenterprises.crmrs.ui.screens
+
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import com.vkenterprises.crmrs.utils.compressImageToBase64
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.foundation.*
+import androidx.compose.foundation.gestures.rememberTransformableState
+import androidx.compose.foundation.gestures.transformable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.*
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.*
+import androidx.navigation.NavController
+import coil.compose.AsyncImage
+import com.vkenterprises.crmrs.data.models.ProfileResponse
+import com.vkenterprises.crmrs.data.models.SubscriptionRecord
+import com.vkenterprises.crmrs.viewmodel.ProfileUiState
+import com.vkenterprises.crmrs.viewmodel.ProfileViewModel
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ProfileScreen(
+    vm: ProfileViewModel,
+    userId: Long,
+    nav: NavController
+) {
+    val context = LocalContext.current
+    val state   by vm.state.collectAsState()
+    val pfpUpdating by vm.pfpUpdating.collectAsState()
+
+    LaunchedEffect(userId) { if (userId > 0) vm.load(userId) }
+
+    val pfpPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        uri?.let { vm.updatePfp(userId, compressImageToBase64(context, it)) }
+    }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("My Profile") },
+                navigationIcon = {
+                    IconButton(onClick = { nav.popBackStack() }) {
+                        Icon(Icons.Default.ArrowBack, null)
+                    }
+                },
+                actions = {
+                    if (pfpUpdating)
+                        CircularProgressIndicator(Modifier.size(20.dp).padding(end = 8.dp), strokeWidth = 2.dp)
+                }
+            )
+        }
+    ) { pad ->
+        when (val s = state) {
+            is ProfileUiState.Loading -> Box(
+                Modifier.fillMaxSize().padding(pad),
+                contentAlignment = Alignment.Center
+            ) { CircularProgressIndicator() }
+
+            is ProfileUiState.Error -> Box(
+                Modifier.fillMaxSize().padding(pad),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(s.message, color = MaterialTheme.colorScheme.error)
+                    Button(onClick = { vm.load(userId) }) { Text("Retry") }
+                }
+            }
+
+            is ProfileUiState.Success -> ProfileContent(
+                profile = s.profile,
+                pad     = pad,
+                onChangePfp = { pfpPicker.launch("image/*") }
+            )
+        }
+    }
+}
+
+@Composable
+private fun ProfileContent(
+    profile: ProfileResponse,
+    pad: PaddingValues,
+    onChangePfp: () -> Unit
+) {
+    var previewUrl by remember { mutableStateOf<String?>(null) }
+    val onPreview: (String?) -> Unit = { url -> if (!url.isNullOrBlank()) previewUrl = url }
+    Column(
+        Modifier
+            .padding(pad)
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+    ) {
+        Surface(
+            color = MaterialTheme.colorScheme.primaryContainer,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Box(contentAlignment = Alignment.BottomEnd) {
+                    if (!profile.pfpUrl.isNullOrBlank()) {
+                        AsyncImage(
+                            model = profile.pfpUrl, contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.size(96.dp).clip(CircleShape)
+                                .border(3.dp, MaterialTheme.colorScheme.primary, CircleShape)
+                        )
+                    } else {
+                        Box(
+                            Modifier.size(96.dp).clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                profile.name.firstOrNull()?.uppercase() ?: "?",
+                                style = MaterialTheme.typography.headlineLarge,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                    SmallFloatingActionButton(
+                        onClick = onChangePfp,
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor   = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.size(28.dp)
+                    ) { Icon(Icons.Default.CameraAlt, null, Modifier.size(14.dp)) }
+                }
+                Text(profile.name, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer)
+                Text(profile.mobile, style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.75f))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (profile.isAdmin)
+                        AssistChip(onClick = {}, label = { Text("Admin") },
+                            leadingIcon = { Icon(Icons.Default.AdminPanelSettings, null, Modifier.size(16.dp)) })
+                    if (profile.isActive)
+                        AssistChip(onClick = {}, label = { Text("Active") },
+                            leadingIcon = { Icon(Icons.Default.CheckCircle, null, Modifier.size(16.dp)) })
+                    else
+                        AssistChip(onClick = {}, label = { Text("Inactive") },
+                            colors = AssistChipDefaults.assistChipColors(
+                                containerColor = MaterialTheme.colorScheme.errorContainer))
+                }
+            }
+        }
+
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+
+            ProfileSection(title = "Personal Information") {
+                InfoRow(Icons.Default.LocationOn, "Address", profile.address ?: "—")
+                InfoRow(Icons.Default.PinDrop, "Pincode", profile.pincode ?: "—")
+                InfoRow(Icons.Default.CalendarToday, "Joined", profile.createdAt)
+                InfoRow(Icons.Default.AccountBalance, "Balance", "₹${profile.balance}")
+            }
+
+            ProfileSection(title = "KYC Documents") {
+                val kyc = profile.kyc
+                if (kyc.kycSubmitted) {
+                    Row(Modifier.padding(vertical = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.VerifiedUser, null,
+                            Modifier.size(18.dp), tint = Color(0xFF2E7D32))
+                        Text("KYC Submitted", color = Color(0xFF2E7D32),
+                            style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Text("Tap a document to preview",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        KycDocThumb("Aadhaar Front", kyc.aadhaarFront, Modifier.weight(1f)) { onPreview(kyc.aadhaarFront) }
+                        KycDocThumb("Aadhaar Back",  kyc.aadhaarBack,  Modifier.weight(1f)) { onPreview(kyc.aadhaarBack) }
+                        KycDocThumb("PAN Front",     kyc.panFront,     Modifier.weight(1f)) { onPreview(kyc.panFront) }
+                    }
+                    if (!kyc.selfie.isNullOrBlank() || !kyc.aadhaarPhoto.isNullOrBlank()) {
+                        Spacer(Modifier.height(8.dp))
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            KycDocThumb("Selfie",      kyc.selfie,       Modifier.weight(1f)) { onPreview(kyc.selfie) }
+                            KycDocThumb("UIDAI Photo", kyc.aadhaarPhoto, Modifier.weight(1f)) { onPreview(kyc.aadhaarPhoto) }
+                            Spacer(Modifier.weight(1f))
+                        }
+                    }
+                } else {
+                    Row(verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Icon(Icons.Default.Warning, null,
+                            Modifier.size(18.dp), tint = MaterialTheme.colorScheme.error)
+                        Text("KYC not submitted", color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
+            }
+
+            ProfileSection(title = "Subscriptions (${profile.subscriptions.size})") {
+                if (profile.subscriptions.isEmpty()) {
+                    Text("No subscription records.", style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                } else {
+                    profile.subscriptions.forEach { sub ->
+                        SubRow(sub)
+                        if (sub != profile.subscriptions.last())
+                            HorizontalDivider(Modifier.padding(vertical = 4.dp))
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(16.dp))
+        }
+    }
+
+    previewUrl?.let { url -> KycImagePreviewDialog(url) { previewUrl = null } }
+}
+
+@Composable
+private fun ProfileSection(title: String, content: @Composable ColumnScope.() -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary)
+            HorizontalDivider(color = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
+            content()
+        }
+    }
+}
+
+@Composable
+private fun InfoRow(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, value: String) {
+    Row(verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Icon(icon, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
+        Column {
+            Text(label, style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(value, style = MaterialTheme.typography.bodyMedium)
+        }
+    }
+}
+
+@Composable
+private fun KycDocThumb(
+    label: String,
+    url: String?,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit = {}
+) {
+    OutlinedCard(modifier = modifier.height(80.dp)) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            if (!url.isNullOrBlank()) {
+                AsyncImage(
+                    model = url, contentDescription = label,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize().clickable { onClick() }
+                )
+                Box(
+                    Modifier.fillMaxWidth().align(Alignment.BottomCenter)
+                        .background(Color.Black.copy(alpha = 0.5f))
+                        .padding(2.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(label, style = MaterialTheme.typography.labelSmall, color = Color.White)
+                }
+            } else {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(Icons.Default.HideImage, null,
+                        Modifier.size(20.dp), tint = MaterialTheme.colorScheme.outlineVariant)
+                    Text(label, style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.outlineVariant,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        modifier = Modifier.padding(top = 2.dp))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SubRow(sub: SubscriptionRecord) {
+    Row(
+        Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column {
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    Modifier.size(8.dp).clip(CircleShape)
+                        .background(if (sub.isActive) Color(0xFF2E7D32) else MaterialTheme.colorScheme.outline)
+                )
+                Text("${sub.startDate}  →  ${sub.endDate}",
+                    style = MaterialTheme.typography.bodySmall)
+            }
+            if (!sub.notes.isNullOrBlank())
+                Text(sub.notes, style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        Text("₹${sub.amount}", style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.primary)
+    }
+}
+
+@Composable
+private fun KycImagePreviewDialog(url: String, onDismiss: () -> Unit) {
+    androidx.compose.ui.window.Dialog(
+        onDismissRequest = onDismiss,
+        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        var scale by remember { mutableStateOf(1f) }
+        var offsetX by remember { mutableStateOf(0f) }
+        var offsetY by remember { mutableStateOf(0f) }
+        val tState = rememberTransformableState { zoom, pan, _ ->
+            scale = (scale * zoom).coerceIn(1f, 5f)
+            offsetX += pan.x; offsetY += pan.y
+        }
+        Box(
+            Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.92f))
+                .clickable { onDismiss() },
+            contentAlignment = Alignment.Center
+        ) {
+            AsyncImage(
+                model = url, contentDescription = "KYC document",
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.fillMaxSize().padding(12.dp)
+                    .graphicsLayer(
+                        scaleX = scale, scaleY = scale,
+                        translationX = offsetX, translationY = offsetY)
+                    .transformable(tState)
+            )
+            Surface(
+                shape = CircleShape,
+                color = Color.White.copy(alpha = 0.15f),
+                modifier = Modifier.align(Alignment.TopEnd).padding(16.dp)
+            ) {
+                IconButton(onClick = onDismiss) {
+                    Icon(Icons.Default.Close, "Close", tint = Color.White)
+                }
+            }
+        }
+    }
+}

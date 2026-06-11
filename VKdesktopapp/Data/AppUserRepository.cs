@@ -1,6 +1,6 @@
-using VRASDesktopApp.Models;
+using CRMRSDesktopApp.Models;
 
-namespace VRASDesktopApp.Data;
+namespace CRMRSDesktopApp.Data;
 
 public class AppUserRepository
 {

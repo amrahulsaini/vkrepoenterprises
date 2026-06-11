@@ -2,7 +2,7 @@ using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Input;
 
-namespace VRASDesktopApp.AppUsers;
+namespace CRMRSDesktopApp.AppUsers;
 
 public partial class SubscriptionEditorWindow : Window
 {

@@ -1,6 +1,6 @@
 using System;
 
-namespace VRASDesktopApp.Models;
+namespace CRMRSDesktopApp.Models;
 
 public class Firm
 {

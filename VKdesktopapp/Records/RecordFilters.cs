@@ -1,4 +1,4 @@
-namespace VRASDesktopApp.Records;
+namespace CRMRSDesktopApp.Records;
 
 public enum RecordFilters
 {

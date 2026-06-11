@@ -11,10 +11,10 @@ using Syncfusion.UI.Xaml.Spreadsheet.Helpers;
 using Syncfusion.Windows.Tools;
 using Syncfusion.Windows.Tools.Controls;
 using Syncfusion.XlsIO;
-using VRASDesktopApp.Data;
-using VRASDesktopApp.Models;
+using CRMRSDesktopApp.Data;
+using CRMRSDesktopApp.Models;
 
-namespace VRASDesktopApp.Records;
+namespace CRMRSDesktopApp.Records;
 
 public partial class RecordsEditorWindow : RibbonWindow
 {

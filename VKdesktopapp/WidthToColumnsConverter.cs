@@ -2,7 +2,7 @@ using System;
 using System.Globalization;
 using System.Windows.Data;
 
-namespace VRASDesktopApp;
+namespace CRMRSDesktopApp;
 
 public class WidthToColumnsConverter : IValueConverter
 {

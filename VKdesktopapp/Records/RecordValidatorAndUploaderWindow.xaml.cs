@@ -7,11 +7,11 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using Syncfusion.XlsIO;
-using VRASDesktopApp.Data;
-using VRASDesktopApp.Finances;
-using VRASDesktopApp.Models;
+using CRMRSDesktopApp.Data;
+using CRMRSDesktopApp.Finances;
+using CRMRSDesktopApp.Models;
 
-namespace VRASDesktopApp.Records;
+namespace CRMRSDesktopApp.Records;
 
 public partial class RecordValidatorAndUploaderWindow : Window
 {

@@ -5,16 +5,16 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using VRASDesktopApp.AppUsers;
-using VRASDesktopApp.Blacklist;
-using VRASDesktopApp.Confirmations;
-using VRASDesktopApp.Data;
-using VRASDesktopApp.Finances;
-using VRASDesktopApp.DirectData;
-using VRASDesktopApp.Records;
-using VRASDesktopApp.Reports;
+using CRMRSDesktopApp.AppUsers;
+using CRMRSDesktopApp.Blacklist;
+using CRMRSDesktopApp.Confirmations;
+using CRMRSDesktopApp.Data;
+using CRMRSDesktopApp.Finances;
+using CRMRSDesktopApp.DirectData;
+using CRMRSDesktopApp.Records;
+using CRMRSDesktopApp.Reports;
 
-namespace VRASDesktopApp;
+namespace CRMRSDesktopApp;
 
 public partial class MainWindow : Window
 {

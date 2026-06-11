@@ -41,7 +41,7 @@
     <GenerateAppInstallerFile>False</GenerateAppInstallerFile>
     <AppInstallerUpdateFrequency>1</AppInstallerUpdateFrequency>
     <AppInstallerCheckForUpdateFrequency>OnApplicationRun</AppInstallerCheckForUpdateFrequency>
-    <EntryPointProjectUniqueName>..\VKdesktopapp\VRASDesktopApp.csproj</EntryPointProjectUniqueName>
+    <EntryPointProjectUniqueName>..\VKdesktopapp\CRMRSDesktopApp.csproj</EntryPointProjectUniqueName>
   </PropertyGroup>
   <ItemGroup>
     <AppxManifest Include="Package.appxmanifest">
@@ -53,7 +53,7 @@
   </ItemGroup>
   <ItemGroup>
     <!-- The WPF app is the package's entry point. -->
-    <ProjectReference Include="..\VKdesktopapp\VRASDesktopApp.csproj">
+    <ProjectReference Include="..\VKdesktopapp\CRMRSDesktopApp.csproj">
       <SkipGetTargetFrameworkProperties>True</SkipGetTargetFrameworkProperties>
     </ProjectReference>
   </ItemGroup>

@@ -1,9 +1,9 @@
 using System.Net.Http.Json;
 using System.Windows;
 using System.Windows.Controls;
-using VRASDesktopApp.Models;
+using CRMRSDesktopApp.Models;
 
-namespace VRASDesktopApp;
+namespace CRMRSDesktopApp;
 
 public partial class AcceptPaymentsPage : Page
 {

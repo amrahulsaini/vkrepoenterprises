@@ -3,11 +3,11 @@ using System.Net.Http.Headers;
 using System.Text.RegularExpressions;
 using System.Windows;
 using Syncfusion.Licensing;
-using VRASDesktopApp.Models;
-using VRASDesktopApp.Properties;
-using VRASDesktopApp.Data;
+using CRMRSDesktopApp.Models;
+using CRMRSDesktopApp.Properties;
+using CRMRSDesktopApp.Data;
 
-namespace VRASDesktopApp;
+namespace CRMRSDesktopApp;
 
 public partial class App : Application
 {

@@ -1,7 +1,7 @@
 using System.IO;
 using System.Text.Json;
 
-namespace VRASDesktopApp;
+namespace CRMRSDesktopApp;
 
 public static class Branding
 {

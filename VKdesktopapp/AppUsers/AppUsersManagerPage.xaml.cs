@@ -5,10 +5,10 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media.Imaging;
-using VRASDesktopApp.Data;
-using VRASDesktopApp.Models;
+using CRMRSDesktopApp.Data;
+using CRMRSDesktopApp.Models;
 
-namespace VRASDesktopApp.AppUsers;
+namespace CRMRSDesktopApp.AppUsers;
 
 public class FinanceRestrictionItem
 {

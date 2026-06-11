@@ -6,7 +6,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace VRASDesktopApp.Data;
+namespace CRMRSDesktopApp.Data;
 
 internal static class Diagnostics
 {

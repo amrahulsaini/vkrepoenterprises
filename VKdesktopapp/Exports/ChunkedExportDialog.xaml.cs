@@ -12,9 +12,9 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using Microsoft.Win32;
-using VRASDesktopApp.Data;
+using CRMRSDesktopApp.Data;
 
-namespace VRASDesktopApp.Exports;
+namespace CRMRSDesktopApp.Exports;
 
 public partial class ChunkedExportDialog : Window
 {

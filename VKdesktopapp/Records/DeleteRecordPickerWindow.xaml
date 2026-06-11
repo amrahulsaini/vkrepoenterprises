@@ -1,4 +1,4 @@
-<Window x:Class="VRASDesktopApp.Records.DeleteRecordPickerWindow"
+<Window x:Class="CRMRSDesktopApp.Records.DeleteRecordPickerWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Delete Vehicle Record"

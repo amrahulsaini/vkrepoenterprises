@@ -1,7 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
 
-namespace VRASDesktopApp.Material
+namespace CRMRSDesktopApp.Material
 {
     public class MaterialButton : Button
     {

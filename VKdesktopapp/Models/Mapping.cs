@@ -1,4 +1,4 @@
-namespace VRASDesktopApp.Models;
+namespace CRMRSDesktopApp.Models;
 
 public class Mapping
 {

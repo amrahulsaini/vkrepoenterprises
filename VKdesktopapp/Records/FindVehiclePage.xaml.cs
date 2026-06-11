@@ -8,10 +8,10 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Threading;
-using VRASDesktopApp.Data;
-using VRASDesktopApp.Models;
+using CRMRSDesktopApp.Data;
+using CRMRSDesktopApp.Models;
 
-namespace VRASDesktopApp.Records;
+namespace CRMRSDesktopApp.Records;
 
 public partial class FindVehiclePage : Page
 {
@@ -302,7 +302,7 @@ public partial class FindVehiclePage : Page
     {
         if (brdDetails.DataContext is VehicleSearchItem record)
         {
-            var window = new VRASDesktopApp.Confirmations.ManageConfirmationWindow(record);
+            var window = new CRMRSDesktopApp.Confirmations.ManageConfirmationWindow(record);
             window.Owner = Window.GetWindow(this);
             window.ShowDialog();
         }

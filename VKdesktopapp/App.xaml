@@ -1,8 +1,8 @@
 <Application
-    x:Class="VRASDesktopApp.App"
+    x:Class="CRMRSDesktopApp.App"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:local="clr-namespace:VRASDesktopApp"
+    xmlns:local="clr-namespace:CRMRSDesktopApp"
     StartupUri="LoginWindow.xaml">
     <Application.Resources>
         <ResourceDictionary>
