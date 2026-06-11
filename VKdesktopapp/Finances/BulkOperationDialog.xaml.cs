@@ -1,6 +1,6 @@
 using System.Windows;
 
-namespace VRASDesktopApp.Finances;
+namespace CRMRSDesktopApp.Finances;
 
 public partial class BulkOperationDialog : Window
 {

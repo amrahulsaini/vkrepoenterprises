@@ -1,8 +1,8 @@
 <Page
-    x:Class="VRASDesktopApp.Feedbacks.FeedbacksManagerPage"
+    x:Class="CRMRSDesktopApp.Feedbacks.FeedbacksManagerPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:local="clr-namespace:VRASDesktopApp.Feedbacks"
+    xmlns:local="clr-namespace:CRMRSDesktopApp.Feedbacks"
     Title="Feedbacks Manager"
     Background="White"
     FontFamily="Roboto">

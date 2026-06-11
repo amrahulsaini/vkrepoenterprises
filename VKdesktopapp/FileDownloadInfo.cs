@@ -1,4 +1,4 @@
-namespace VRASDesktopApp;
+namespace CRMRSDesktopApp;
 
 public class FileDownloadInfo
 {

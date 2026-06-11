@@ -1,7 +1,7 @@
 # Publishing CRMRS to the Microsoft Store (MSIX)
 
 This folder is the **MSIX packaging project** for the universal CRMRS desktop app.
-It wraps the WPF project (`..\VKdesktopapp\VRASDesktopApp.csproj`) into a Store-ready
+It wraps the WPF project (`..\VKdesktopapp\CRMRSDesktopApp.csproj`) into a Store-ready
 `.msixupload`. The Microsoft Store **signs the package for you**, so you do **not**
 need to buy a code-signing certificate.
 
@@ -27,7 +27,7 @@ logo + name on the next launch. One app, every agency.
 
 ## 1. Add this project to the solution (one time)
 
-In Visual Studio, open `VRASDesktopApp.sln`, then:
+In Visual Studio, open `CRMRSDesktopApp.sln`, then:
 
 - **Solution Explorer ▸ right-click the solution ▸ Add ▸ Existing Project…**
 - pick `CRMRS.Package\CRMRS.Package.wapproj`.

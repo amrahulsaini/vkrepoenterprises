@@ -11,9 +11,9 @@ using Microsoft.Win32;
 using Syncfusion.Pdf;
 using Syncfusion.Pdf.Graphics;
 using Syncfusion.Pdf.Tables;
-using VRASDesktopApp.Models;
+using CRMRSDesktopApp.Models;
 
-namespace VRASDesktopApp.Confirmations;
+namespace CRMRSDesktopApp.Confirmations;
 
 public partial class ConfirmationsManagerPage : Page
 {

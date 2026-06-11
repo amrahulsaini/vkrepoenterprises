@@ -1,5 +1,5 @@
 <Window
-    x:Class="VRASDesktopApp.AppUsers.SubscriptionEditorWindow"
+    x:Class="CRMRSDesktopApp.AppUsers.SubscriptionEditorWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     Title="Add Subscription Plan"

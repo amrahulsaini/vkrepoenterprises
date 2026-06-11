@@ -1,7 +1,7 @@
 using System.Windows;
-using VRASDesktopApp.Data;
+using CRMRSDesktopApp.Data;
 
-namespace VRASDesktopApp.Finances;
+namespace CRMRSDesktopApp.Finances;
 
 public partial class BranchEditorWindow : Window
 {

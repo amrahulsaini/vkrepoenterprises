@@ -1,8 +1,8 @@
 <Page
-    x:Class="VRASDesktopApp.Records.UploadRecordsPage"
+    x:Class="CRMRSDesktopApp.Records.UploadRecordsPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:md="clr-namespace:VRASDesktopApp.Material"
+    xmlns:md="clr-namespace:CRMRSDesktopApp.Material"
     Background="{StaticResource Gray50}"
     FontFamily="{StaticResource FontBody}"
     Loaded="Page_Loaded">

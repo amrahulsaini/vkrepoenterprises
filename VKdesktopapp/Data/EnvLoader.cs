@@ -1,7 +1,7 @@
 using System;
 using System.IO;
 
-namespace VRASDesktopApp.Data;
+namespace CRMRSDesktopApp.Data;
 
 public static class EnvLoader
 {

@@ -1,9 +1,9 @@
 using System;
 using System.IO;
 using System.Windows;
-using VRASDesktopApp.Data;
+using CRMRSDesktopApp.Data;
 
-namespace VRASDesktopApp.Records;
+namespace CRMRSDesktopApp.Records;
 
 public partial class MapPointWindow : Window
 {

@@ -9,9 +9,9 @@ using Syncfusion.Pdf;
 using Syncfusion.Pdf.Graphics;
 using Syncfusion.Pdf.Grid;
 using Syncfusion.XlsIO;
-using VRASDesktopApp.Data;
+using CRMRSDesktopApp.Data;
 
-namespace VRASDesktopApp.Reports;
+namespace CRMRSDesktopApp.Reports;
 
 public partial class ReportsPage : Page
 {
@@ -131,7 +131,7 @@ public partial class ReportsPage : Page
             return;
         }
 
-        var win = new VRASDesktopApp.Exports.ChunkedExportDialog
+        var win = new CRMRSDesktopApp.Exports.ChunkedExportDialog
         { Owner = Window.GetWindow(this) };
         win.Configure(
             title:      $"Download {sheet}",

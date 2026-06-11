@@ -1,0 +1,23 @@
+package com.vkenterprises.crmrs.di
+
+import android.content.Context
+import com.vkenterprises.crmrs.data.api.ApiClient
+import com.vkenterprises.crmrs.utils.PreferencesManager
+import dagger.Module
+import dagger.Provides
+import dagger.hilt.InstallIn
+import dagger.hilt.android.qualifiers.ApplicationContext
+import dagger.hilt.components.SingletonComponent
+import javax.inject.Singleton
+
+@Module
+@InstallIn(SingletonComponent::class)
+object AppModule {
+
+    @Provides @Singleton
+    fun providePreferencesManager(@ApplicationContext ctx: Context): PreferencesManager =
+        PreferencesManager(ctx)
+
+    @Provides @Singleton
+    fun provideApiService() = ApiClient.api
+}

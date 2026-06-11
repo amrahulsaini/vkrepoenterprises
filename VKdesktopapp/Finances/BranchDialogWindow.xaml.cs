@@ -5,10 +5,10 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
-using VRASDesktopApp.Data;
-using VRASDesktopApp.Models;
+using CRMRSDesktopApp.Data;
+using CRMRSDesktopApp.Models;
 
-namespace VRASDesktopApp.Finances;
+namespace CRMRSDesktopApp.Finances;
 
 public partial class BranchDialogWindow : Window
 {

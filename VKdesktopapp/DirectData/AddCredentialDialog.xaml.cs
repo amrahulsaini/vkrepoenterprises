@@ -1,6 +1,6 @@
 using System.Windows;
 
-namespace VRASDesktopApp.DirectData;
+namespace CRMRSDesktopApp.DirectData;
 
 public partial class AddCredentialDialog : Window
 {

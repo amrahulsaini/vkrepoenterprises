@@ -4,10 +4,10 @@ using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Input;
-using VRASDesktopApp.Data;
-using VRASDesktopApp.Properties;
+using CRMRSDesktopApp.Data;
+using CRMRSDesktopApp.Properties;
 
-namespace VRASDesktopApp;
+namespace CRMRSDesktopApp;
 
 public partial class ServerSettingsWindow : Window
 {

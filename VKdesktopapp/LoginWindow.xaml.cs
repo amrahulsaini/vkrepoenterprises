@@ -4,9 +4,9 @@ using System.Text.Json;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media.Imaging;
-using VRASDesktopApp.Models;
+using CRMRSDesktopApp.Models;
 
-namespace VRASDesktopApp;
+namespace CRMRSDesktopApp;
 
 public partial class LoginWindow : Window
 {

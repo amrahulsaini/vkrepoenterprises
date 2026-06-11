@@ -4,9 +4,9 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using VRASDesktopApp.Data;
+using CRMRSDesktopApp.Data;
 
-namespace VRASDesktopApp;
+namespace CRMRSDesktopApp;
 
 public partial class TicketThreadWindow : Window
 {

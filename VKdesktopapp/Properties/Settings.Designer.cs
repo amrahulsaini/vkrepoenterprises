@@ -3,7 +3,7 @@ using System.Configuration;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 
-namespace VRASDesktopApp.Properties
+namespace CRMRSDesktopApp.Properties
 {
     [CompilerGenerated]
     [GeneratedCode("Microsoft.VisualStudio.Editors.SettingsDesigner.SettingsSingleFileGenerator", "17.1.0.0")]

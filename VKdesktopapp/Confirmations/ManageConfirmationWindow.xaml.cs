@@ -1,8 +1,8 @@
 using System.Net.Http.Json;
 using System.Windows;
-using VRASDesktopApp.Models;
+using CRMRSDesktopApp.Models;
 
-namespace VRASDesktopApp.Confirmations;
+namespace CRMRSDesktopApp.Confirmations;
 
 public partial class ManageConfirmationWindow : Window
 {

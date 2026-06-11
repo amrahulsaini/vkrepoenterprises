@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace VRASDesktopApp.Models;
+namespace CRMRSDesktopApp.Models;
 
 public class Branch
 {

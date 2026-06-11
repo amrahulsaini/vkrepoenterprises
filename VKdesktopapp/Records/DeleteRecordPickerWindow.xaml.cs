@@ -3,9 +3,9 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
 using System.Windows;
-using VRASDesktopApp.Models;
+using CRMRSDesktopApp.Models;
 
-namespace VRASDesktopApp.Records;
+namespace CRMRSDesktopApp.Records;
 
 public partial class DeleteRecordPickerWindow : Window
 {

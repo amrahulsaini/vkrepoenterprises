@@ -41,7 +41,7 @@ val tenants: List<Tenant> = run {
 }
 
 android {
-    namespace   = "com.vkenterprises.vras"
+    namespace   = "com.vkenterprises.crmrs"
     compileSdk  = 35
 
     defaultConfig {

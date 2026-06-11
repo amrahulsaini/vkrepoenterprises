@@ -2,9 +2,9 @@ using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Text;
-using VRASDesktopApp.Data;
+using CRMRSDesktopApp.Data;
 
-namespace VRASDesktopApp.Exports;
+namespace CRMRSDesktopApp.Exports;
 
 internal static class VehicleExcelWriter
 {

@@ -8,9 +8,9 @@ using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
-using VRASDesktopApp.Models;
+using CRMRSDesktopApp.Models;
 
-namespace VRASDesktopApp.Data;
+namespace CRMRSDesktopApp.Data;
 
 internal static class DesktopApiClient
 {

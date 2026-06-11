@@ -421,7 +421,7 @@ The desktop installer is **built locally** with Inno Setup (the server has
 no Windows toolchain). Flow:
 ```powershell
 # 1. Build a self-contained .NET publish locally
-dotnet publish VKdesktopapp\VRASDesktopApp.csproj -c Release -r win-x64 `
+dotnet publish VKdesktopapp\CRMRSDesktopApp.csproj -c Release -r win-x64 `
     --self-contained true -p:PublishSingleFile=false `
     -o VKdesktopapp\publish-fresh
 

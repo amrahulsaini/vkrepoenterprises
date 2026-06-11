@@ -6,7 +6,7 @@ using System.Windows;
 using System.Windows.Controls;
 using Microsoft.Win32;
 
-namespace VRASDesktopApp.DirectData;
+namespace CRMRSDesktopApp.DirectData;
 
 public partial class DirectDataPage : Page
 {

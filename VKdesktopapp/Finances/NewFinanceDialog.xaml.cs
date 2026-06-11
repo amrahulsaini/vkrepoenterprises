@@ -1,7 +1,7 @@
 using System.Windows;
 using System.Windows.Input;
 
-namespace VRASDesktopApp.Finances;
+namespace CRMRSDesktopApp.Finances;
 
 public partial class NewFinanceDialog : Window
 {
