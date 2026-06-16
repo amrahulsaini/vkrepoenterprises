@@ -13,9 +13,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -441,6 +443,13 @@ fun HomeScreen(
                 }
             }
 
+            val gridState = rememberLazyGridState()
+            val listState = rememberLazyListState()
+            LaunchedEffect(ui.lastQuery) {
+                gridState.scrollToItem(0)
+                listState.scrollToItem(0)
+            }
+
             if (ui.results.isNotEmpty()) {
                 Surface(color = MaterialTheme.colorScheme.primaryContainer) {
                     Row(
@@ -478,6 +487,7 @@ fun HomeScreen(
                     }
                     LazyVerticalGrid(
                         columns = GridCells.Fixed(2),
+                        state = gridState,
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(0.dp)
                     ) {
@@ -489,7 +499,7 @@ fun HomeScreen(
                         }
                     }
                 } else {
-                    LazyColumn(modifier = Modifier.fillMaxSize()) {
+                    LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
                         items(ui.results, key = { it.id }) { item ->
                             VehicleListRow(item, ui.mode) {
                                 searchVm.selectResult(item)
