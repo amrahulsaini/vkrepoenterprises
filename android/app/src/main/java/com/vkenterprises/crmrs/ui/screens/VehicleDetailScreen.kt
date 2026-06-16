@@ -318,7 +318,7 @@ fun VehicleDetailScreen(
                             }
                             if (entry.financer.isNotBlank()) {
                                 Text(
-                                    "Head Office: ${entry.financer}",
+                                    "Head Office: ${entry.financer.uppercase()}",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.padding(top = 3.dp)
@@ -971,7 +971,7 @@ private fun SRow(
         )
         Text(
             text = annotated,
-            style = MaterialTheme.typography.bodyLarge.copy(
+            style = MaterialTheme.typography.bodyMedium.copy(
                 color      = baseColor,
                 fontWeight = if (display.isBlank()) FontWeight.Normal else FontWeight.Black,
                 fontFamily = FontFamily.Default
