@@ -708,7 +708,10 @@ public class MobileRepository
         return ids;
     }
 
-    public async Task<List<SearchResult>> SearchByRcAsync(string last4, long userId)
+    private static string FinanceScope(int financeId) =>
+        financeId > 0 ? $"AND b.finance_id = {financeId}" : "";
+
+    public async Task<List<SearchResult>> SearchByRcAsync(string last4, long userId, int financeId = 0)
     {
         var restricted = await GetFinanceRestrictionsAsync(userId);
         var filter = restricted.Count > 0
@@ -720,12 +723,12 @@ public class MobileRepository
             INNER JOIN vehicle_records vr ON vr.id = ri.vehicle_record_id
             INNER JOIN branches b ON b.id = vr.branch_id
             LEFT  JOIN finances f ON f.id = b.finance_id
-            WHERE ri.last4 = @q {filter}
+            WHERE ri.last4 = @q {filter} {FinanceScope(financeId)}
             ORDER BY b.name, vr.vehicle_no",
             last4.ToUpper());
     }
 
-    public async Task<List<SearchResult>> SearchByChassisAsync(string last5, long userId)
+    public async Task<List<SearchResult>> SearchByChassisAsync(string last5, long userId, int financeId = 0)
     {
         var restricted = await GetFinanceRestrictionsAsync(userId);
         var filter = restricted.Count > 0
@@ -737,7 +740,7 @@ public class MobileRepository
             INNER JOIN vehicle_records vr ON vr.id = ci.vehicle_record_id
             INNER JOIN branches b ON b.id = vr.branch_id
             LEFT  JOIN finances f ON f.id = b.finance_id
-            WHERE ci.last5 = @q {filter}
+            WHERE ci.last5 = @q {filter} {FinanceScope(financeId)}
             ORDER BY b.name, vr.chassis_no",
             last5.ToUpper());
     }
@@ -747,7 +750,7 @@ public class MobileRepository
         COALESCE(f.name,'') AS financer, b.name AS branch_name,
         COALESCE(DATE_FORMAT(vr.created_at,'%d %b %Y, %h:%i %p'),'') AS created_on";
 
-    public async Task<List<SearchResult>> SearchByRcLiteAsync(string last4, long userId)
+    public async Task<List<SearchResult>> SearchByRcLiteAsync(string last4, long userId, int financeId = 0)
     {
         var restricted = await GetFinanceRestrictionsAsync(userId);
         var filter = restricted.Count > 0
@@ -758,10 +761,10 @@ public class MobileRepository
             INNER JOIN vehicle_records vr ON vr.id = ri.vehicle_record_id
             INNER JOIN branches b ON b.id = vr.branch_id
             LEFT  JOIN finances f ON f.id = b.finance_id
-            WHERE ri.last4 = @q {filter}", last4.ToUpper());
+            WHERE ri.last4 = @q {filter} {FinanceScope(financeId)}", last4.ToUpper());
     }
 
-    public async Task<List<SearchResult>> SearchByChassisLiteAsync(string last5, long userId)
+    public async Task<List<SearchResult>> SearchByChassisLiteAsync(string last5, long userId, int financeId = 0)
     {
         var restricted = await GetFinanceRestrictionsAsync(userId);
         var filter = restricted.Count > 0
@@ -772,7 +775,96 @@ public class MobileRepository
             INNER JOIN vehicle_records vr ON vr.id = ci.vehicle_record_id
             INNER JOIN branches b ON b.id = vr.branch_id
             LEFT  JOIN finances f ON f.id = b.finance_id
-            WHERE ci.last5 = @q {filter}", last5.ToUpper());
+            WHERE ci.last5 = @q {filter} {FinanceScope(financeId)}", last5.ToUpper());
+    }
+
+    public async Task<List<HeadOffice>> GetHeadOfficesAsync(long userId)
+    {
+        var restricted = await GetFinanceRestrictionsAsync(userId);
+        var filter = restricted.Count > 0
+            ? $"AND f.id NOT IN ({string.Join(",", restricted)})" : "";
+        await using var conn = DbFactory.Create();
+        await conn.OpenAsync();
+        await using var cmd = new MySqlCommand($@"
+            SELECT f.id, f.name, COALESCE(SUM(b.total_records),0) AS total_records
+            FROM finances f
+            LEFT JOIN branches b ON b.finance_id = f.id AND b.is_active = 1
+            WHERE f.is_active = 1 {filter}
+            GROUP BY f.id, f.name
+            ORDER BY f.name ASC", conn) { CommandTimeout = 15 };
+        var list = new List<HeadOffice>();
+        await using var r = await cmd.ExecuteReaderAsync();
+        while (await r.ReadAsync())
+            list.Add(new HeadOffice(r.GetInt64(0), r.GetString(1), r.GetInt64(2)));
+        return list;
+    }
+
+    public async Task<RepoLetterSettings> GetRepoSettingsAsync(int financeId)
+    {
+        await using var conn = DbFactory.Create();
+        await conn.OpenAsync();
+        await using var cmd = new MySqlCommand(@"
+            SELECT finance_id, agency_name, authorized_by, police_station, police_address
+            FROM repo_letter_settings WHERE finance_id IN (0, @fid)", conn) { CommandTimeout = 10 };
+        cmd.Parameters.AddWithValue("@fid", financeId);
+
+        string? agencyLvlName = null, agencyLvlAuth = null, police = null, policeAddr = null;
+        string? finName = null, finAuth = null;
+        await using (var r = await cmd.ExecuteReaderAsync())
+        {
+            string? S(int i) => r.IsDBNull(i) ? null : r.GetString(i);
+            while (await r.ReadAsync())
+            {
+                if (r.GetInt32(0) == 0)
+                {
+                    agencyLvlName = S(1); agencyLvlAuth = S(2);
+                    police = S(3); policeAddr = S(4);
+                }
+                else
+                {
+                    finName = S(1); finAuth = S(2);
+                }
+            }
+        }
+        return new RepoLetterSettings(
+            financeId,
+            finName ?? agencyLvlName,
+            finAuth ?? agencyLvlAuth,
+            police,
+            policeAddr);
+    }
+
+    public async Task SaveRepoSettingsAsync(int financeId, SaveRepoSettingsRequest req)
+    {
+        await using var conn = DbFactory.Create();
+        await conn.OpenAsync();
+
+        // Police-station block is agency-wide -> always stored on row 0.
+        await using (var cmd = new MySqlCommand(@"
+            INSERT INTO repo_letter_settings (finance_id, police_station, police_address)
+            VALUES (0, @ps, @pa)
+            ON DUPLICATE KEY UPDATE
+                police_station = VALUES(police_station),
+                police_address = VALUES(police_address)", conn) { CommandTimeout = 10 })
+        {
+            cmd.Parameters.AddWithValue("@ps", (object?)req.PoliceStation ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@pa", (object?)req.PoliceAddress ?? DBNull.Value);
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        // Agency name + authorized-by are remembered per head office.
+        await using (var cmd = new MySqlCommand(@"
+            INSERT INTO repo_letter_settings (finance_id, agency_name, authorized_by)
+            VALUES (@fid, @an, @ab)
+            ON DUPLICATE KEY UPDATE
+                agency_name   = VALUES(agency_name),
+                authorized_by = VALUES(authorized_by)", conn) { CommandTimeout = 10 })
+        {
+            cmd.Parameters.AddWithValue("@fid", financeId);
+            cmd.Parameters.AddWithValue("@an", (object?)req.AgencyName ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@ab", (object?)req.AuthorizedBy ?? DBNull.Value);
+            await cmd.ExecuteNonQueryAsync();
+        }
     }
 
     private static async Task<List<SearchResult>> SearchLiteAsync(string sql, string query)

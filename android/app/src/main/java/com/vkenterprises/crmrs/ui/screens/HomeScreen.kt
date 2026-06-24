@@ -636,6 +636,13 @@ private fun AgencyLandingPanel(
         ) { nav.navigate(Screen.Settings.route) }
         Spacer(Modifier.height(10.dp))
         LandingTile(
+            label    = "REPOSSESSION LETTER",
+            icon     = Icons.Default.Description,
+            subtitle = "Generate Pre / Post repossession PDF",
+            accent   = Color(0xFFF57F17)
+        ) { nav.navigate(Screen.RepoType.route) }
+        Spacer(Modifier.height(10.dp))
+        LandingTile(
             label    = "MY ACCOUNT",
             icon     = Icons.Default.AccountCircle,
             subtitle = "View profile, KYC and subscriptions",

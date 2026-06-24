@@ -186,7 +186,8 @@ public class MobileController : ControllerBase
     public async Task<IActionResult> SearchRc(
         string last4,
         [FromHeader(Name = "X-User-Id")] long userId,
-        [FromQuery] bool lite = false)
+        [FromQuery] bool lite = false,
+        [FromQuery] int financeId = 0)
     {
         try
         {
@@ -200,8 +201,8 @@ public class MobileController : ControllerBase
             if (!await _repo.HasActiveSubscriptionAsync(userId))
                 return StatusCode(402, new ApiError(false, "subscription_expired"));
 
-            var results = lite ? await _repo.SearchByRcLiteAsync(last4, userId)
-                               : await _repo.SearchByRcAsync(last4, userId);
+            var results = lite ? await _repo.SearchByRcLiteAsync(last4, userId, financeId)
+                               : await _repo.SearchByRcAsync(last4, userId, financeId);
             return Ok(new SearchResponse(true, "rc", last4.ToUpper(), results.Count, results));
         }
         catch (Exception ex)
@@ -214,7 +215,8 @@ public class MobileController : ControllerBase
     public async Task<IActionResult> SearchChassis(
         string last5,
         [FromHeader(Name = "X-User-Id")] long userId,
-        [FromQuery] bool lite = false)
+        [FromQuery] bool lite = false,
+        [FromQuery] int financeId = 0)
     {
         try
         {
@@ -228,8 +230,8 @@ public class MobileController : ControllerBase
             if (!await _repo.HasActiveSubscriptionAsync(userId))
                 return StatusCode(402, new ApiError(false, "subscription_expired"));
 
-            var results = lite ? await _repo.SearchByChassisLiteAsync(last5, userId)
-                               : await _repo.SearchByChassisAsync(last5, userId);
+            var results = lite ? await _repo.SearchByChassisLiteAsync(last5, userId, financeId)
+                               : await _repo.SearchByChassisAsync(last5, userId, financeId);
             return Ok(new SearchResponse(true, "chassis", last5.ToUpper(), results.Count, results));
         }
         catch (Exception ex)
@@ -259,6 +261,59 @@ public class MobileController : ControllerBase
         catch (Exception ex)
         {
             return StatusCode(500, new ApiError(false, $"Fetch failed: {ex.Message}"));
+        }
+    }
+
+    [HttpGet("repo/head-offices")]
+    public async Task<IActionResult> GetHeadOffices(
+        [FromHeader(Name = "X-User-Id")] long userId)
+    {
+        try
+        {
+            var status = await _repo.GetUserStatusAsync(userId);
+            if (status.IsBlacklisted) return StatusCode(403, new ApiError(false, "blacklisted"));
+            if (!status.IsActive)     return StatusCode(403, new ApiError(false, "inactive"));
+            if (status.IsStopped)     return StatusCode(403, new ApiError(false, "app_stopped"));
+            if (!await _repo.HasActiveSubscriptionAsync(userId))
+                return StatusCode(402, new ApiError(false, "subscription_expired"));
+
+            return Ok(await _repo.GetHeadOfficesAsync(userId));
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new ApiError(false, $"Failed to load head offices: {ex.Message}"));
+        }
+    }
+
+    [HttpGet("repo/settings/{financeId:int}")]
+    public async Task<IActionResult> GetRepoSettings(
+        int financeId,
+        [FromHeader(Name = "X-User-Id")] long userId)
+    {
+        try
+        {
+            return Ok(await _repo.GetRepoSettingsAsync(financeId));
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new ApiError(false, $"Failed to load settings: {ex.Message}"));
+        }
+    }
+
+    [HttpPut("repo/settings/{financeId:int}")]
+    public async Task<IActionResult> SaveRepoSettings(
+        int financeId,
+        [FromHeader(Name = "X-User-Id")] long userId,
+        [FromBody] SaveRepoSettingsRequest req)
+    {
+        try
+        {
+            await _repo.SaveRepoSettingsAsync(financeId, req);
+            return Ok(new { success = true });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new ApiError(false, $"Failed to save settings: {ex.Message}"));
         }
     }
 

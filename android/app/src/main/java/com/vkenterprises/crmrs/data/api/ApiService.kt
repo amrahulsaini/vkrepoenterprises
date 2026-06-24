@@ -47,6 +47,40 @@ interface ApiService {
         @Header("X-User-Id") userId: Long
     ): Response<SearchResult>
 
+    @GET("api/mobile/repo/head-offices")
+    suspend fun getHeadOffices(
+        @Header("X-User-Id") userId: Long
+    ): Response<List<HeadOffice>>
+
+    @GET("api/mobile/search/rc/{last4}")
+    suspend fun searchRcInFinance(
+        @Path("last4")        last4: String,
+        @Header("X-User-Id")  userId: Long,
+        @Query("financeId")   financeId: Long,
+        @Query("lite")        lite: Boolean = true
+    ): Response<SearchResponse>
+
+    @GET("api/mobile/search/chassis/{last5}")
+    suspend fun searchChassisInFinance(
+        @Path("last5")        last5: String,
+        @Header("X-User-Id")  userId: Long,
+        @Query("financeId")   financeId: Long,
+        @Query("lite")        lite: Boolean = true
+    ): Response<SearchResponse>
+
+    @GET("api/mobile/repo/settings/{financeId}")
+    suspend fun getRepoSettings(
+        @Path("financeId")   financeId: Long,
+        @Header("X-User-Id") userId: Long
+    ): Response<RepoLetterSettings>
+
+    @PUT("api/mobile/repo/settings/{financeId}")
+    suspend fun saveRepoSettings(
+        @Path("financeId")   financeId: Long,
+        @Header("X-User-Id") userId: Long,
+        @Body body: SaveRepoSettingsRequest
+    ): Response<Map<String, Any>>
+
     @GET("api/mobile/profile/{userId}")
     suspend fun getProfile(@Path("userId") userId: Long): Response<ProfileResponse>
 

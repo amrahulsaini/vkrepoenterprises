@@ -38,6 +38,7 @@ fun VKNavHost() {
     val navController = rememberNavController()
     val authVm: AuthViewModel     = hiltViewModel()
     val searchVm: SearchViewModel = hiltViewModel()
+    val repoVm: com.vkenterprises.crmrs.viewmodel.RepoViewModel = hiltViewModel()
 
     NavHost(navController = navController, startDestination = Screen.Splash.route) {
 
@@ -145,6 +146,19 @@ fun VKNavHost() {
         composable(Screen.LiveUsers.route) {
             val userId by authVm.userId.collectAsState(initial = -1L)
             LiveUsersScreen(userId = userId, navController = navController)
+        }
+
+        composable(Screen.RepoType.route) {
+            RepoTypeScreen(repoVm, authVm, navController)
+        }
+        composable(Screen.RepoHeadOffices.route) {
+            RepoHeadOfficeScreen(repoVm, authVm, navController)
+        }
+        composable(Screen.RepoSearch.route) {
+            RepoSearchScreen(repoVm, authVm, navController)
+        }
+        composable(Screen.RepoPreview.route) {
+            RepoPreviewScreen(repoVm, authVm, navController)
         }
     }
 }

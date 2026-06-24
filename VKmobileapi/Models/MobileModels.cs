@@ -200,6 +200,21 @@ public record StatsResponse(
     long RcRecords,
     long ChassisRecords);
 
+public record HeadOffice(long Id, string Name, long TotalRecords);
+
+public record RepoLetterSettings(
+    int     FinanceId,
+    string? AgencyName,
+    string? AuthorizedBy,
+    string? PoliceStation,
+    string? PoliceAddress);
+
+public record SaveRepoSettingsRequest(
+    string? AgencyName,
+    string? AuthorizedBy,
+    string? PoliceStation,
+    string? PoliceAddress);
+
 public record LiveUserItem(
     long    Id,
     string  Name,
