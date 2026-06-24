@@ -124,6 +124,27 @@ data class SearchResult(
     val createdOn: String
 )
 
+data class HeadOffice(
+    val id: Long,
+    val name: String,
+    val totalRecords: Long = 0
+)
+
+data class RepoLetterSettings(
+    val financeId: Long = 0,
+    val agencyName: String? = null,
+    val authorizedBy: String? = null,
+    val policeStation: String? = null,
+    val policeAddress: String? = null
+)
+
+data class SaveRepoSettingsRequest(
+    val agencyName: String?,
+    val authorizedBy: String?,
+    val policeStation: String?,
+    val policeAddress: String?
+)
+
 data class SearchResponse(
     val success: Boolean,
     val mode: String,
