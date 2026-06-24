@@ -538,14 +538,11 @@ DELIMITER ;
 /*!50001 SET character_set_client      = @saved_cs_client */;
 /*!50001 SET character_set_results     = @saved_cs_results */;
 /*!50001 SET collation_connection      = @saved_col_connection */;
---
--- Table structure for table `repo_letter_settings`
---
 DROP TABLE IF EXISTS `repo_letter_settings`;
 CREATE TABLE `repo_letter_settings` (
-  `finance_id`     INT          NOT NULL DEFAULT 0 COMMENT '0 = agency-level defaults; otherwise finances.id',
+  `finance_id`     INT          NOT NULL DEFAULT 0,
   `agency_name`    VARCHAR(255) NULL,
-  `authorized_by`  VARCHAR(255) NULL COMMENT 'head office name override; defaults to finances.name',
+  `authorized_by`  VARCHAR(255) NULL,
   `police_station` VARCHAR(255) NULL,
   `police_address` TEXT         NULL,
   `updated_at`     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

@@ -36,8 +36,6 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-/* ----------------------------------------------------------- Step 1: Pre / Post */
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RepoTypeScreen(
@@ -125,8 +123,6 @@ private fun RepoBigTile(
         }
     }
 }
-
-/* ----------------------------------------------------------- Step 2: Head offices */
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -223,8 +219,6 @@ private fun HeadOfficeRow(ho: HeadOffice, onClick: () -> Unit) {
     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f), thickness = 0.5.dp)
 }
 
-/* ----------------------------------------------------------- Step 3: Search a vehicle */
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RepoSearchScreen(
@@ -258,7 +252,6 @@ fun RepoSearchScreen(
     ) { pad ->
         Column(Modifier.padding(pad).fillMaxSize()) {
 
-            // Search tray (centered when no results, top when results show)
             if (!hasResults) Spacer(Modifier.weight(1f))
 
             Surface(color = MaterialTheme.colorScheme.surfaceVariant, modifier = Modifier.fillMaxWidth()) {
@@ -344,8 +337,6 @@ fun RepoSearchScreen(
     }
 }
 
-/* ----------------------------------------------------------- Step 4: Preview + generate */
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RepoPreviewScreen(
@@ -364,7 +355,6 @@ fun RepoPreviewScreen(
     val todayLong = remember { SimpleDateFormat("dd MMM yyyy", Locale.ENGLISH).format(Date()) }
     val headOfficeName = ui.selectedHeadOffice?.name?.uppercase().orEmpty()
 
-    // Editable fields, prefilled from record + saved settings + defaults.
     var dateText by remember { mutableStateOf(today) }
     var policeStation by remember(ui.settings) { mutableStateOf(ui.settings?.policeStation ?: "") }
     var policeAddress by remember(ui.settings) { mutableStateOf(ui.settings?.policeAddress ?: "") }
@@ -397,7 +387,6 @@ fun RepoPreviewScreen(
                     onClick = {
                         generating = true
                         scope.launch {
-                            // Remember the editable defaults for next time.
                             repoVm.saveSettings(userId, SaveRepoSettingsRequest(
                                 agencyName = agencyName.trim().ifBlank { null },
                                 authorizedBy = authorizedBy.trim().ifBlank { null },

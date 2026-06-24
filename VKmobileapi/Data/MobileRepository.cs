@@ -839,7 +839,6 @@ public class MobileRepository
         await using var conn = DbFactory.Create();
         await conn.OpenAsync();
 
-        // Police-station block is agency-wide -> always stored on row 0.
         await using (var cmd = new MySqlCommand(@"
             INSERT INTO repo_letter_settings (finance_id, police_station, police_address)
             VALUES (0, @ps, @pa)
@@ -852,7 +851,6 @@ public class MobileRepository
             await cmd.ExecuteNonQueryAsync();
         }
 
-        // Agency name + authorized-by are remembered per head office.
         await using (var cmd = new MySqlCommand(@"
             INSERT INTO repo_letter_settings (finance_id, agency_name, authorized_by)
             VALUES (@fid, @an, @ab)
