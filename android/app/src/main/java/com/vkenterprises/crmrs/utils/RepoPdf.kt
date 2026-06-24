@@ -14,7 +14,6 @@ import androidx.core.content.FileProvider
 import java.io.File
 import java.io.FileOutputStream
 
-/** Builds and shares the universal Pre-Repossession intimation PDF. */
 object RepoPdf {
 
     data class LetterData(
@@ -31,7 +30,6 @@ object RepoPdf {
         val authLetterDate: String
     )
 
-    // A4 @ 72dpi
     private const val PAGE_W = 595
     private const val PAGE_H = 842
     private const val MARGIN = 50f
@@ -51,11 +49,9 @@ object RepoPdf {
         val bold = TextPaint(normal).apply { typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD) }
         val titlePaint = TextPaint(bold).apply { textSize = 12f }
 
-        // Date (top-left)
         canvas.drawText("Date:  ${d.dateText}", MARGIN, y + 10f, bold)
         y += 28f
 
-        // Centered, underlined title
         val title = "Pre-Repossession Intimation to Police Station"
         val titleW = titlePaint.measureText(title)
         val titleX = (PAGE_W - titleW) / 2f
@@ -63,7 +59,6 @@ object RepoPdf {
         canvas.drawLine(titleX, y + 13f, titleX + titleW, y + 13f, titlePaint)
         y += 34f
 
-        // To-block
         y = line(canvas, "To,", MARGIN, y, bold)
         y = line(canvas, "The Senior Inspector", MARGIN, y, bold)
         if (d.policeStation.isNotBlank()) y = line(canvas, d.policeStation, MARGIN, y, bold)
@@ -76,7 +71,6 @@ object RepoPdf {
         y = line(canvas, "Subject: Pre-Repo Intimation", MARGIN, y, bold)
         y += 10f
 
-        // Field block: bold label, colon, value
         val labelW = 200f
         y = field(canvas, "Loan A/c No.", d.loanAcNo, MARGIN, y, labelW, contentW, bold, normal)
         y = field(canvas, "Vehicle Registration No.", d.vehicleRegNo, MARGIN, y, labelW, contentW, bold, normal)
@@ -140,8 +134,6 @@ object RepoPdf {
         runCatching { context.startActivity(intent) }
             .onFailure { share(context, file) }
     }
-
-    // ---- drawing helpers ----
 
     private fun line(canvas: Canvas, text: String, x: Float, y: Float, paint: TextPaint): Float {
         canvas.drawText(text, x, y + paint.textSize, paint)

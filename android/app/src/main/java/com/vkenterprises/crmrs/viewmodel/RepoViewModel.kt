@@ -148,7 +148,6 @@ class RepoViewModel @Inject constructor() : ViewModel() {
             isSearching = false, searchError = null) }
     }
 
-    /** Fetch the full record (for the editable fields) then invoke [onReady] to navigate. */
     fun selectVehicle(id: Long, userId: Long, onReady: () -> Unit) {
         _ui.update { it.copy(loadingRecord = true, selectedRecord = null) }
         viewModelScope.launch {
@@ -160,7 +159,6 @@ class RepoViewModel @Inject constructor() : ViewModel() {
         }
     }
 
-    /** Persist the agency name / authorized-by (per head office) and police block (agency-wide). */
     suspend fun saveSettings(userId: Long, req: SaveRepoSettingsRequest) {
         val financeId = _ui.value.selectedHeadOffice?.id ?: return
         withContext(Dispatchers.IO) {
