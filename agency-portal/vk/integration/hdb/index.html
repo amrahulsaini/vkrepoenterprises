@@ -3,87 +3,159 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>HDB Integration — CRMRS</title>
+<title>HDB Secure Data Portal — V K Enterprises</title>
+<meta name="robots" content="noindex,nofollow">
 <link rel="icon" href="/assets/favicon.ico">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800;900&family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
 <style>
   :root{
-    --ink:#100f0c; --ink2:#2a2823; --muted:#756f62; --line:#e6ddca;
-    --bg:#f8f4ec; --card:#fffdf8; --orange:#ff4d00; --orange-d:#d63e00;
-    --ok:#1e8e5a; --shadow:0 1px 3px rgba(16,15,12,.06),0 1px 2px rgba(16,15,12,.04);
+    --ink:#0b1220; --ink2:#27324a; --muted:#6b7689; --line:#e4e9f2;
+    --bg:#eef2f8; --card:#ffffff; --brand:#0a3d8f; --brand-d:#072c69;
+    --accent:#1565d8; --ok:#147a4b; --okbg:#e7f6ee; --errbg:#fdecec; --err:#c0322b;
+    --shadow:0 1px 2px rgba(11,18,32,.06),0 6px 24px rgba(11,18,32,.06);
     --head:'Archivo',sans-serif; --body:'Hanken Grotesk',system-ui,sans-serif; --mono:'JetBrains Mono',ui-monospace,monospace;
   }
   *{box-sizing:border-box} html,body{margin:0;min-height:100%}
-  body{font-family:var(--body);color:var(--ink);background:var(--bg)}
+  body{font-family:var(--body);color:var(--ink);background:
+    radial-gradient(1200px 480px at 50% -120px,#dbe7fb 0,transparent 60%),var(--bg)}
   .hidden{display:none!important}
-  .btn{font:inherit;font-weight:600;border:none;border-radius:8px;padding:11px 16px;cursor:pointer}
-  .btn-primary{background:var(--orange);color:#fff;width:100%} .btn-primary:hover{background:var(--orange-d)}
-  .btn-primary:disabled{opacity:.6;cursor:not-allowed}
-  .btn-ghost{background:transparent;color:var(--ink2);font-weight:600;width:100%;margin-top:6px}
-  input[type=text],input[type=password]{font:inherit;width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink)}
-  input:focus{outline:none;border-color:var(--orange)}
-  .lbl{font-size:12px;font-weight:600;color:var(--muted);margin:0 0 5px}
-  .msg{font-size:13px;margin-top:12px;min-height:18px} .msg.err{color:#dc2626} .msg.ok{color:var(--ok)}
-  .wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
-  .card{width:100%;max-width:560px;background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:30px 26px}
-  .card.narrow{max-width:380px;text-align:center}
-  .card img.logo{width:84px;height:84px;border-radius:18px;border:1px solid var(--line);padding:8px;background:#fff}
-  h1{font-family:var(--head);font-size:22px;margin:14px 0 2px} p.sub{color:var(--muted);font-size:13px;margin:0 0 18px}
-  .field{text-align:left;margin-bottom:12px}
-  .drop{border:2px dashed var(--line);border-radius:12px;padding:30px;text-align:center;color:var(--muted);background:#fff;cursor:pointer}
-  .drop:hover{border-color:var(--orange)}
-  .drop b{color:var(--ink)}
-  .cols{margin-top:18px}
-  .cols h4{font-family:var(--head);font-size:13px;margin:0 0 8px}
+  .btn{font:inherit;font-weight:700;border:none;border-radius:10px;padding:12px 16px;cursor:pointer;transition:background .15s}
+  .btn-primary{background:var(--brand);color:#fff;width:100%} .btn-primary:hover{background:var(--brand-d)}
+  .btn-primary:disabled{opacity:.55;cursor:not-allowed}
+  .btn-ghost{background:transparent;color:var(--ink2);font-weight:600;cursor:pointer}
+  input[type=text],input[type=password]{font:inherit;width:100%;padding:12px 13px;border:1px solid var(--line);border-radius:10px;background:#fbfcff;color:var(--ink)}
+  input:focus{outline:none;border-color:var(--accent);background:#fff;box-shadow:0 0 0 3px rgba(21,101,216,.12)}
+  .lbl{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin:0 0 6px}
+  .msg{font-size:13px;margin-top:12px;min-height:18px;border-radius:8px}
+  .msg.err{color:var(--err);background:var(--errbg);padding:10px 12px}
+  .msg.ok{color:var(--ok);background:var(--okbg);padding:10px 12px}
+  .msg.info{color:var(--ink2)}
+  .wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:28px}
+
+  .brandbar{display:flex;align-items:center;gap:12px;justify-content:center;margin-bottom:18px}
+  .brandbar img{width:46px;height:46px;border-radius:11px;border:1px solid var(--line);padding:5px;background:#fff}
+  .brandbar .nm{font-family:var(--head);font-weight:900;font-size:18px;line-height:1.05}
+  .brandbar .nm small{display:block;font-family:var(--body);font-weight:600;font-size:11px;color:var(--muted);letter-spacing:.02em}
+
+  .login-card{width:100%;max-width:410px;background:var(--card);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);padding:30px 28px}
+  .login-card h1{font-family:var(--head);font-size:21px;margin:2px 0 3px;text-align:center}
+  .login-card p.sub{color:var(--muted);font-size:13px;margin:0 0 20px;text-align:center}
+  .field{margin-bottom:14px}
+  .secure-pill{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;color:var(--brand);background:#e8f0fd;border:1px solid #d3e2fb;border-radius:999px;padding:4px 11px}
+  .login-foot{margin-top:18px;text-align:center;font-size:11.5px;color:var(--muted);line-height:1.55}
+  .login-foot b{color:var(--ink2)}
+
+  .shell{width:100%;max-width:1040px}
+  .topbar{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:14px 18px;margin-bottom:18px}
+  .topbar img{width:40px;height:40px;border-radius:10px;border:1px solid var(--line);padding:4px;background:#fff}
+  .topbar .t{font-family:var(--head);font-weight:800;font-size:16px}
+  .topbar .s{color:var(--muted);font-size:12px}
+  .grid{display:grid;grid-template-columns:1.15fr .85fr;gap:18px;align-items:start}
+  @media(max-width:860px){.grid{grid-template-columns:1fr}}
+  .panel{background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);overflow:hidden}
+  .panel .ph{padding:15px 18px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between}
+  .panel .ph h3{margin:0;font-family:var(--head);font-size:14px}
+  .panel .ph .cnt{background:#eef2f8;color:var(--ink2);border-radius:999px;padding:2px 10px;font-size:12px;font-weight:700}
+  .panel .pb{padding:18px}
+
+  .drop{border:2px dashed #c4d2ea;border-radius:14px;padding:34px 20px;text-align:center;color:var(--muted);background:linear-gradient(#fbfdff,#f4f8ff);cursor:pointer;transition:border-color .15s,background .15s}
+  .drop:hover,.drop.drag{border-color:var(--accent);background:#eef5ff}
+  .drop .ic{font-size:30px} .drop b{color:var(--ink);display:block;margin-top:6px}
+  .drop .hint{font-size:12px;margin-top:4px}
+
+  .cols h4{font-family:var(--head);font-size:12px;margin:18px 0 8px;color:var(--ink2)}
   .chips{display:flex;flex-wrap:wrap;gap:6px}
-  .chip{background:#eef1f6;color:var(--ink2);border-radius:7px;padding:3px 9px;font-size:12px;font-family:var(--mono)}
-  .topline{display:flex;align-items:center;gap:10px;margin-bottom:18px}
-  .topline img{width:38px;height:38px;border-radius:9px;border:1px solid var(--line);padding:4px;background:#fff}
-  .topline .t{font-family:var(--head);font-weight:800}
-  .topline .s{color:var(--muted);font-size:12px}
-  .row-end{display:flex;justify-content:flex-end;margin-top:14px}
-  .link{color:var(--orange);font-weight:600;cursor:pointer;font-size:13px}
+  .chip{background:#eef2f8;color:var(--ink2);border:1px solid var(--line);border-radius:7px;padding:3px 9px;font-size:11.5px;font-family:var(--mono)}
+
+  .trust{list-style:none;margin:0;padding:0;display:grid;gap:13px}
+  .trust li{display:flex;gap:11px;align-items:flex-start}
+  .trust .ti{flex:0 0 30px;height:30px;border-radius:9px;background:#e8f0fd;color:var(--brand);display:flex;align-items:center;justify-content:center;font-size:15px}
+  .trust .tt{font-weight:700;font-size:13.5px;margin:0 0 2px}
+  .trust .td{color:var(--muted);font-size:12.5px;line-height:1.5;margin:0}
+
+  table.tbl{border-collapse:collapse;width:100%;font-size:13px}
+  table.tbl th,table.tbl td{border-bottom:1px solid var(--line);padding:10px 12px;text-align:left}
+  table.tbl th{font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);font-weight:700}
+  table.tbl td.num{font-family:var(--mono);font-weight:600}
+  .empty{padding:26px;text-align:center;color:var(--muted);font-size:13px}
+  .spin{display:inline-block;width:13px;height:13px;border:2px solid #c7d3e6;border-top-color:var(--brand);border-radius:50%;animation:s .7s linear infinite;vertical-align:-2px}
+  @keyframes s{to{transform:rotate(360deg)}}
+  .foot{text-align:center;color:var(--muted);font-size:11.5px;margin:20px 0 4px}
 </style>
 </head>
 <body>
 
 <div id="login" class="wrap">
-  <div class="card narrow">
-    <img class="logo" src="/assets/crmrs-logo.webp" alt="CRMRS" onerror="this.onerror=null;this.src='/assets/logo-short.webp'">
-    <h1>HDB Data Integration</h1>
-    <p class="sub">V K Enterprises — sign in to upload records</p>
-    <div class="field"><div class="lbl">USERNAME</div><input id="li-user" type="text" autocomplete="username" placeholder="username"></div>
-    <div class="field"><div class="lbl">PASSWORD</div><input id="li-pass" type="password" autocomplete="current-password" placeholder="password"></div>
-    <button class="btn btn-primary" id="li-btn">Sign in</button>
+  <div class="login-card">
+    <div class="brandbar">
+      <img src="/assets/crmrs-logo.webp" alt="CRMRS" onerror="this.onerror=null;this.src='/assets/logo-short.webp'">
+      <div class="nm">HDB Secure Portal<small>V K Enterprises · Recovery Operations</small></div>
+    </div>
+    <h1>Authorised Bank Sign In</h1>
+    <p class="sub">Upload recovery records over an encrypted, access-controlled channel.</p>
+    <div style="text-align:center;margin-bottom:16px"><span class="secure-pill">🔒 256-bit TLS · Private workspace</span></div>
+    <div class="field"><div class="lbl">Username</div><input id="li-user" type="text" autocomplete="username" placeholder="Bank username"></div>
+    <div class="field"><div class="lbl">Password</div><input id="li-pass" type="password" autocomplete="current-password" placeholder="Password"></div>
+    <button class="btn btn-primary" id="li-btn">Sign in securely</button>
     <div class="msg" id="li-msg"></div>
+    <div class="login-foot">This is a <b>private</b> data exchange portal for authorised HDB personnel only. All activity is logged. Files you upload are stored inside V K Enterprises' secured systems and are <b>never publicly accessible</b>.</div>
   </div>
 </div>
 
-<div id="upload" class="wrap hidden">
-  <div class="card">
-    <div class="topline">
+<div id="app" class="wrap hidden" style="align-items:flex-start">
+  <div class="shell">
+    <div class="topbar">
       <img src="/assets/crmrs-logo.webp" alt="" onerror="this.onerror=null;this.src='/assets/logo-short.webp'">
       <div>
-        <div class="t">HDB Data Upload</div>
-        <div class="s">V K Enterprises</div>
+        <div class="t">HDB Secure Data Upload</div>
+        <div class="s">V K Enterprises · signed in as <span id="who-user">—</span></div>
       </div>
       <div style="flex:1"></div>
-      <span class="link" id="logout">Sign out</span>
+      <span class="secure-pill">🔒 Encrypted session</span>
+      <button class="btn btn-ghost" id="logout" style="margin-left:10px">Sign out</button>
     </div>
 
-    <div class="drop" id="drop">
-      <p style="margin:0 0 6px"><b>Click to choose an Excel file</b> (.xlsx / .xls)</p>
-      <p style="margin:0;font-size:12px">The first row must be the column headers.</p>
-    </div>
-    <input id="file" type="file" accept=".xlsx,.xls" class="hidden">
+    <div class="grid">
+      <div style="display:grid;gap:18px">
+        <div class="panel">
+          <div class="ph"><h3>Upload recovery file</h3></div>
+          <div class="pb">
+            <div class="drop" id="drop">
+              <div class="ic">📑</div>
+              <b>Click to choose an Excel file</b>
+              <div class="hint">.xlsx or .xls · first row must contain the column headers</div>
+            </div>
+            <input id="file" type="file" accept=".xlsx,.xls" class="hidden">
+            <div class="msg" id="up-msg"></div>
+            <div class="cols">
+              <h4>Accepted column names</h4>
+              <div class="chips" id="chips"></div>
+              <p style="color:var(--muted);font-size:12px;margin:10px 0 0">Any column that does not match one of the names above will cause the file to be rejected. Spacing, case and punctuation are ignored.</p>
+            </div>
+          </div>
+        </div>
 
-    <div class="msg" id="up-msg"></div>
+        <div class="panel">
+          <div class="ph"><h3>Your uploaded files</h3><span class="cnt" id="files-cnt">0</span></div>
+          <div id="files-body"><div class="empty">Loading…</div></div>
+        </div>
+      </div>
 
-    <div class="cols">
-      <h4>ACCEPTED COLUMN NAMES</h4>
-      <div class="chips" id="chips"></div>
+      <div class="panel">
+        <div class="ph"><h3>Your data is protected</h3></div>
+        <div class="pb">
+          <ul class="trust">
+            <li><div class="ti">🔐</div><div><p class="tt">Encrypted in transit</p><p class="td">Every upload travels over 256-bit TLS (HTTPS). Data is never sent in the clear.</p></div></li>
+            <li><div class="ti">🗄️</div><div><p class="tt">Stored directly in our system</p><p class="td">Files are saved straight into V K Enterprises' private servers — not on any public website, link or shared drive.</p></div></li>
+            <li><div class="ti">🚫</div><div><p class="tt">Not publicly accessible</p><p class="td">There is no public URL to your files. They can only be viewed by V K Enterprises' authorised recovery staff after secure sign-in.</p></div></li>
+            <li><div class="ti">👤</div><div><p class="tt">Access-controlled</p><p class="td">This portal is restricted to authorised HDB credentials. Each sign-in and upload is recorded.</p></div></li>
+            <li><div class="ti">📚</div><div><p class="tt">Every upload retained</p><p class="td">All files you submit are kept on record — nothing is overwritten — so the full history is always available.</p></div></li>
+          </ul>
+        </div>
+      </div>
     </div>
+    <div class="foot">CRM Recovery Software · Secure Bank Integration · For authorised use only</div>
   </div>
 </div>
 
@@ -93,6 +165,7 @@ const API='https://api.crmrecoverysoftware.com/api/integration/vk/hdb';
 const $=s=>document.querySelector(s);
 const ALLOWED={vehicleno:'Vehicle No',chassisno:'Chassis No',engineno:'Engine No',model:'Model',agreementno:'Agreement No',bucket:'Bucket',gv:'GV',od:'OD',seasoning:'Seasoning',tbr:'TBR',sec9:'Sec 9',sec17:'Sec 17',customername:'Customer Name',customeraddress:'Customer Address',customercontact:'Customer Contact',region:'Region',area:'Area',branch:'Branch',level1:'Level 1',level1contact:'Level 1 Contact',level2:'Level 2',level2contact:'Level 2 Contact',level3:'Level 3',level3contact:'Level 3 Contact',level4:'Level 4',level4contact:'Level 4 Contact',sendermail1:'Sender Mail 1',sendermail2:'Sender Mail 2',executivename:'Executive Name',pos:'POS',toss:'TOSS',remark:'Remark'};
 const norm=s=>(s||'').toString().replace(/[^A-Za-z0-9]/g,'').toLowerCase();
+const esc=s=>(''+s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
 let creds={user:'',pass:''};
 
 $('#chips').innerHTML=Object.values(ALLOWED).map(n=>'<span class="chip">'+n+'</span>').join('');
@@ -100,27 +173,51 @@ $('#chips').innerHTML=Object.values(ALLOWED).map(n=>'<span class="chip">'+n+'</s
 function liMsg(t,c){const m=$('#li-msg');m.textContent=t||'';m.className='msg '+(c||'');}
 function upMsg(t,c){const m=$('#up-msg');m.textContent=t||'';m.className='msg '+(c||'');}
 
-$('#li-btn').onclick=async()=>{
+$('#li-btn').onclick=signIn;
+$('#li-pass').addEventListener('keydown',e=>{if(e.key==='Enter')signIn();});
+
+async function signIn(){
   const user=$('#li-user').value.trim(), pass=$('#li-pass').value;
-  if(!user||!pass){liMsg('Enter username and password.','err');return;}
-  $('#li-btn').disabled=true; liMsg('Signing in…');
+  if(!user||!pass){liMsg('Enter your username and password.','err');return;}
+  $('#li-btn').disabled=true; liMsg('Verifying credentials…','info');
   try{
     const r=await fetch(API+'/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:user,password:pass})});
     const b=await r.json().catch(()=>null);
     if(!r.ok) throw new Error((b&&b.message)||('Error '+r.status));
     creds={user,pass};
-    $('#login').classList.add('hidden'); $('#upload').classList.remove('hidden');
+    $('#who-user').textContent=user;
+    $('#login').classList.add('hidden'); $('#app').classList.remove('hidden');
+    loadFiles();
   }catch(e){ liMsg(e.message,'err'); }
   $('#li-btn').disabled=false;
-};
+}
 
-$('#logout').onclick=()=>{ creds={user:'',pass:''}; $('#upload').classList.add('hidden'); $('#login').classList.remove('hidden'); $('#li-pass').value=''; liMsg(''); upMsg(''); };
+$('#logout').onclick=()=>{ creds={user:'',pass:''}; $('#app').classList.add('hidden'); $('#login').classList.remove('hidden'); $('#li-pass').value=''; liMsg(''); upMsg(''); };
 
-$('#drop').onclick=()=>$('#file').click();
+const drop=$('#drop');
+drop.onclick=()=>$('#file').click();
+drop.addEventListener('dragover',e=>{e.preventDefault();drop.classList.add('drag');});
+drop.addEventListener('dragleave',()=>drop.classList.remove('drag'));
+drop.addEventListener('drop',e=>{e.preventDefault();drop.classList.remove('drag');const f=e.dataTransfer.files[0];if(f)handleFile(f);});
 $('#file').onchange=e=>{ const f=e.target.files[0]; if(f) handleFile(f); e.target.value=''; };
 
+async function loadFiles(){
+  const b=$('#files-body'); b.innerHTML='<div class="empty"><span class="spin"></span> Loading…</div>';
+  try{
+    const r=await fetch(API+'/files',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:creds.user,password:creds.pass})});
+    const data=await r.json().catch(()=>null);
+    if(!r.ok) throw new Error((data&&data.message)||('Error '+r.status));
+    const files=(data&&data.files)||[];
+    $('#files-cnt').textContent=files.length;
+    if(!files.length){ b.innerHTML='<div class="empty">No files uploaded yet.</div>'; return; }
+    b.innerHTML='<table class="tbl"><thead><tr><th>File</th><th>Records</th><th>Uploaded</th></tr></thead><tbody>'+
+      files.map(f=>'<tr><td>'+esc(f.fileName)+'</td><td class="num">'+(f.totalRecords||0)+'</td><td>'+esc(f.uploadedAt||'')+'</td></tr>').join('')+
+      '</tbody></table>';
+  }catch(e){ b.innerHTML='<div class="empty">'+esc(e.message)+'</div>'; }
+}
+
 async function handleFile(file){
-  upMsg('Reading '+file.name+'…');
+  upMsg('Reading '+file.name+'…','info');
   try{
     const data=await file.arrayBuffer();
     const wb=XLSX.read(data,{type:'array'});
@@ -137,13 +234,14 @@ async function handleFile(file){
       rows.push(headers.map((_,j)=>r[j]==null?'':r[j].toString()));
     }
     if(!rows.length){ upMsg('No data rows found below the header.','err'); return; }
-    upMsg('Uploading '+rows.length+' rows…');
+    upMsg('Uploading '+rows.length+' rows securely…','info');
     const resp=await fetch(API+'/upload',{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({username:creds.user,password:creds.pass,fileName:file.name,vehicleType:'',headers,rows})});
     const b=await resp.json().catch(()=>null);
     if(!resp.ok) throw new Error((b&&b.message)||('Error '+resp.status));
-    upMsg('Uploaded successfully — '+((b&&b.records)||rows.length)+' rows are now live in V K Enterprises Direct Data.','ok');
-  }catch(e){ upMsg(e.message,'err'); }
+    upMsg('✓ Uploaded securely — '+((b&&b.records)||rows.length)+' records saved to V K Enterprises.','ok');
+    loadFiles();
+  }catch(e){ upMsg(esc(e.message),'err'); }
 }
 </script>
 </body>

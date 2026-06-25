@@ -3107,6 +3107,32 @@ app.MapPost("/api/integration/vk/hdb/login", async (IntegrationLoginDto dto) =>
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
 
+app.MapPost("/api/integration/vk/hdb/files", async (IntegrationLoginDto dto) =>
+{
+    var connStr = TenantContext.BuildTenantConn(mysqlHost, mysqlPort, hdbSlug);
+    try
+    {
+        if (!await IntegValidateCreds(connStr, dto.Username, dto.Password))
+            return Results.Json(new { message = "Invalid username or password." }, statusCode: 401);
+        await using var c = new MySqlConnection(connStr);
+        await c.OpenAsync();
+        var files = new List<object>();
+        await using var cmd = new MySqlCommand(@"
+            SELECT wf.file_name, wf.total_records,
+                   COALESCE(DATE_FORMAT(wf.created_at,'%d %b %Y %h:%i %p'),'')
+            FROM webhook_files wf
+            INNER JOIN webhook_banks wb ON wb.id = wf.bank_id
+            WHERE wb.bank_name = @b
+            ORDER BY wf.id DESC", c) { CommandTimeout = 15 };
+        cmd.Parameters.AddWithValue("@b", hdbBank);
+        await using var rdr = await cmd.ExecuteReaderAsync();
+        while (await rdr.ReadAsync())
+            files.Add(new { fileName = rdr.GetString(0), totalRecords = rdr.GetInt32(1), uploadedAt = rdr.GetString(2) });
+        return Results.Ok(new { files });
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
 app.MapPost("/api/integration/vk/hdb/upload", async (IntegrationUploadDto dto) =>
 {
     var connStr = TenantContext.BuildTenantConn(mysqlHost, mysqlPort, hdbSlug);
