@@ -81,11 +81,12 @@
                     <DataGridTemplateColumn Header="Download" Width="100">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
-                                <Button Content="⬇ CSV" Cursor="Hand"
+                                <Button Content="⬇ CSV"
                                         Tag="{Binding Id}"
                                         Click="btnDownload_Click"
+                                        IsEnabled="False"
                                         Height="26" Padding="8,2"
-                                        Background="{StaticResource Orange500}"
+                                        Background="#FFBDBDBD"
                                         Foreground="White" BorderThickness="0" />
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
