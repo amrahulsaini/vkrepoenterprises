@@ -74,6 +74,10 @@
   .empty{padding:34px;text-align:center;color:var(--muted);font-size:13px}
   .spin{display:inline-block;width:13px;height:13px;border:2px solid #cbd5e1;border-top-color:var(--orange);border-radius:50%;animation:s .7s linear infinite;vertical-align:-2px}
   @keyframes s{to{transform:rotate(360deg)}}
+  .dd-table{border-collapse:collapse;width:100%;font-size:13px}
+  .dd-table th,.dd-table td{border:1px solid var(--line);padding:7px 10px;text-align:left;white-space:nowrap}
+  .dd-table th{background:#f8fafc;font-weight:700;position:sticky;top:0}
+  .dd-table tbody tr:nth-child(even){background:#fafafa}
 </style>
 </head>
 <body>
@@ -109,6 +113,7 @@
     <a data-view="dashboard">📊 Dashboard</a>
     <a data-view="confirmations">✅ Confirmations</a>
     <a data-view="branches">🏦 Branches &amp; Finances</a>
+    <a data-view="directdata">📥 Direct Data</a>
     <a data-view="tickets">🎫 Support Tickets</a>
     <a data-view="settings">⚙️ Settings</a>
     <div class="spacer"></div>
@@ -149,6 +154,11 @@
     <section id="view-dashboard" class="hidden"><h2 class="view-title">Dashboard</h2><div class="soon">Dashboard coming in the next update.</div></section>
     <section id="view-confirmations" class="hidden"><h2 class="view-title">Confirmations</h2><div class="soon">Confirmations coming in the next update.</div></section>
     <section id="view-branches" class="hidden"><h2 class="view-title">Branches &amp; Finances</h2><div class="soon">Branches &amp; Finances coming in the next update.</div></section>
+    <section id="view-directdata" class="hidden">
+      <h2 class="view-title">Direct Data</h2>
+      <p class="view-sub" id="dd-sub">Latest data uploaded by your integrated bank.</p>
+      <div id="dd-body"><div class="empty">Loading…</div></div>
+    </section>
     <section id="view-tickets" class="hidden"><h2 class="view-title">Support Tickets</h2><div class="soon">Support tickets coming in the next update.</div></section>
     <section id="view-settings" class="hidden"><h2 class="view-title">Settings</h2><div class="soon">Settings coming in the next update.</div></section>
   </main>
@@ -218,8 +228,23 @@ document.querySelectorAll('.side a[data-view]').forEach(a=>{
     document.querySelectorAll('.main > section').forEach(s=>s.classList.add('hidden'));
     $('#view-'+v).classList.remove('hidden');
     $('#bc').textContent=a.textContent.trim().replace(/^[^A-Za-z]+/,'');
+    if(v==='directdata') loadDirectData();
   };
 });
+
+async function loadDirectData(){
+  const b=$('#dd-body'); b.innerHTML='<div class="empty"><span class="spin"></span> Loading…</div>';
+  try{
+    const r=await api('/web/directdata');
+    if(!r||!r.hasData){ $('#dd-sub').textContent='Latest data uploaded by your integrated bank.'; b.innerHTML='<div class="empty">No data uploaded yet.</div>'; return; }
+    $('#dd-sub').textContent=[r.bankName,r.fileName,(r.totalRecords+' rows'),r.uploadedAt].filter(Boolean).join(' · ');
+    if(!r.columns||!r.columns.length){ b.innerHTML='<div class="empty">File is empty.</div>'; return; }
+    let h='<div class="panel" style="overflow:auto;max-height:calc(100vh - 180px)"><table class="dd-table"><thead><tr>'+r.columns.map(c=>'<th>'+esc(c)+'</th>').join('')+'</tr></thead><tbody>';
+    h+=(r.rows||[]).map(row=>'<tr>'+r.columns.map((_,i)=>'<td>'+esc(row[i]!=null?row[i]:'')+'</td>').join('')+'</tr>').join('');
+    h+='</tbody></table></div>';
+    b.innerHTML=h;
+  }catch(e){ b.innerHTML='<div class="empty">'+e.message+'</div>'; }
+}
 
 // ── search ──
 function setMode(m){

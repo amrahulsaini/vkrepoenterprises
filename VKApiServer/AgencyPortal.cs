@@ -1213,6 +1213,84 @@ internal static class AgencyPortal
             }
             catch (Exception ex) { return Results.Problem(ex.Message); }
         });
+
+        app.MapGet("/api/agency/web/directdata", async (HttpContext ctx) =>
+        {
+            var who = VerifyAgencyBearer(ctx);
+            if (who is not { } me) return Results.Unauthorized();
+            try
+            {
+                await using var conn = new MySqlConnection(TenantContext.BuildTenantConn(mysqlHost, mysqlPort, me.slug));
+                await conn.OpenAsync();
+                string fileName = "", bankName = "", uploadedAt = "", relPath = "";
+                int totalRecords = 0;
+                await using (var cmd = new MySqlCommand(@"
+                    SELECT wf.file_name, wb.bank_name, wf.file_path, wf.total_records,
+                           COALESCE(DATE_FORMAT(wf.created_at,'%d %b %Y %h:%i %p'),'')
+                    FROM webhook_files wf
+                    INNER JOIN webhook_banks wb ON wb.id = wf.bank_id
+                    ORDER BY wf.id DESC LIMIT 1", conn) { CommandTimeout = 15 })
+                await using (var rdr = await cmd.ExecuteReaderAsync())
+                {
+                    if (!await rdr.ReadAsync()) return Results.Ok(new { hasData = false });
+                    fileName     = rdr.GetString(0);
+                    bankName     = rdr.GetString(1);
+                    relPath      = rdr.IsDBNull(2) ? "" : rdr.GetString(2);
+                    totalRecords = rdr.GetInt32(3);
+                    uploadedAt   = rdr.GetString(4);
+                }
+
+                var columns = new System.Collections.Generic.List<string>();
+                var rows = new System.Collections.Generic.List<System.Collections.Generic.List<string>>();
+                var fullPath = Path.Combine(app.Environment.ContentRootPath, relPath.TrimStart('/', '\\'));
+                if (!string.IsNullOrEmpty(relPath) && File.Exists(fullPath))
+                {
+                    var text = await File.ReadAllTextAsync(fullPath, System.Text.Encoding.UTF8);
+                    var parsed = ParseCsv(text, 5001);
+                    if (parsed.Count > 0) columns = parsed[0];
+                    if (parsed.Count > 1) rows = parsed.GetRange(1, parsed.Count - 1);
+                }
+                return Results.Ok(new { hasData = true, fileName, bankName, uploadedAt, totalRecords, columns, rows });
+            }
+            catch (Exception ex) { return Results.Problem(ex.Message); }
+        });
+    }
+
+    private static System.Collections.Generic.List<System.Collections.Generic.List<string>> ParseCsv(string text, int maxLines)
+    {
+        var result = new System.Collections.Generic.List<System.Collections.Generic.List<string>>();
+        var field = new System.Text.StringBuilder();
+        var row = new System.Collections.Generic.List<string>();
+        bool inQuotes = false;
+        int n = text.Length;
+        for (int i = 0; i < n; i++)
+        {
+            char ch = text[i];
+            if (inQuotes)
+            {
+                if (ch == '"')
+                {
+                    if (i + 1 < n && text[i + 1] == '"') { field.Append('"'); i++; }
+                    else inQuotes = false;
+                }
+                else field.Append(ch);
+            }
+            else
+            {
+                if (ch == '"') inQuotes = true;
+                else if (ch == ',') { row.Add(field.ToString()); field.Clear(); }
+                else if (ch == '\r') { }
+                else if (ch == '\n')
+                {
+                    row.Add(field.ToString()); field.Clear();
+                    result.Add(row); row = new System.Collections.Generic.List<string>();
+                    if (result.Count >= maxLines) return result;
+                }
+                else field.Append(ch);
+            }
+        }
+        if (field.Length > 0 || row.Count > 0) { row.Add(field.ToString()); result.Add(row); }
+        return result;
     }
 
 

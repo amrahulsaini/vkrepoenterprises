@@ -117,7 +117,7 @@ if [ -d "$AGENCY_DOCROOT" ]; then
     chmod o+x /home/crmrecoverysoftware.com "$AGENCY_PARENT" "$AGENCY_DOCROOT" 2>/dev/null || true
     AGENCY_OWNER=$(stat -c '%U:%G' "$AGENCY_DOCROOT" 2>/dev/null)
     # Re-sync the portal files (html / css / js / assets), keep any logs folder.
-    for item in .htaccess index.html app.html register.html manage.html status.html css js assets; do
+    for item in .htaccess index.html app.html register.html manage.html status.html css js assets vk; do
         rm -rf "$AGENCY_DOCROOT/$item"
         if [ -e "$REPO_DIR/agency-portal/$item" ]; then
             cp -r "$REPO_DIR/agency-portal/$item" "$AGENCY_DOCROOT/$item"
