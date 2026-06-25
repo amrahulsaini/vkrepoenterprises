@@ -3057,6 +3057,134 @@ app.MapDelete("/api/webhooks/users/{id:int}", async (HttpContext ctx, int id) =>
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
 
+var hdbAllowedHeaders = new Dictionary<string, string>
+{
+    ["vehicleno"] = "Vehicle No", ["chassisno"] = "Chassis No", ["engineno"] = "Engine No",
+    ["model"] = "Model", ["agreementno"] = "Agreement No", ["bucket"] = "Bucket",
+    ["gv"] = "GV", ["od"] = "OD", ["seasoning"] = "Seasoning", ["tbr"] = "TBR",
+    ["sec9"] = "Sec 9", ["sec17"] = "Sec 17", ["customername"] = "Customer Name",
+    ["customeraddress"] = "Customer Address", ["customercontact"] = "Customer Contact",
+    ["region"] = "Region", ["area"] = "Area", ["branch"] = "Branch",
+    ["level1"] = "Level 1", ["level1contact"] = "Level 1 Contact",
+    ["level2"] = "Level 2", ["level2contact"] = "Level 2 Contact",
+    ["level3"] = "Level 3", ["level3contact"] = "Level 3 Contact",
+    ["level4"] = "Level 4", ["level4contact"] = "Level 4 Contact",
+    ["sendermail1"] = "Sender Mail 1", ["sendermail2"] = "Sender Mail 2",
+    ["executivename"] = "Executive Name", ["pos"] = "POS", ["toss"] = "TOSS", ["remark"] = "Remark"
+};
+
+const string hdbSlug = "v_k_enterprises";
+const string hdbBank = "HDB";
+
+static string IntegNorm(string s) =>
+    System.Text.RegularExpressions.Regex.Replace(s ?? "", "[^A-Za-z0-9]", "").ToLowerInvariant();
+
+async Task<bool> IntegValidateCreds(string connStr, string? user, string? pass)
+{
+    await using var c = new MySqlConnection(connStr);
+    await c.OpenAsync();
+    await using var cmd = new MySqlCommand(
+        "SELECT password_hash FROM webhook_users WHERE username=@u LIMIT 1", c);
+    cmd.Parameters.AddWithValue("@u", user ?? "");
+    var stored = await cmd.ExecuteScalarAsync() as string;
+    if (stored == null) return false;
+    if (stored.StartsWith("$2a$") || stored.StartsWith("$2b$"))
+        return BCrypt.Net.BCrypt.Verify(pass, stored);
+    var sha = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
+        System.Text.Encoding.UTF8.GetBytes(pass ?? ""))).ToLowerInvariant();
+    return sha == stored;
+}
+
+app.MapPost("/api/integration/vk/hdb/login", async (IntegrationLoginDto dto) =>
+{
+    var connStr = TenantContext.BuildTenantConn(mysqlHost, mysqlPort, hdbSlug);
+    try
+    {
+        if (!await IntegValidateCreds(connStr, dto.Username, dto.Password))
+            return Results.Json(new { message = "Invalid username or password." }, statusCode: 401);
+        return Results.Ok(new { ok = true });
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+app.MapPost("/api/integration/vk/hdb/upload", async (IntegrationUploadDto dto) =>
+{
+    var connStr = TenantContext.BuildTenantConn(mysqlHost, mysqlPort, hdbSlug);
+    if (dto.Headers == null || dto.Headers.Count == 0 || dto.Rows == null)
+        return Results.BadRequest(new { message = "Empty sheet." });
+    try
+    {
+        if (!await IntegValidateCreds(connStr, dto.Username, dto.Password))
+            return Results.Json(new { message = "Invalid username or password." }, statusCode: 401);
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+
+    var unknown = dto.Headers
+        .Where(h => !string.IsNullOrWhiteSpace(h) && !hdbAllowedHeaders.ContainsKey(IntegNorm(h)))
+        .ToList();
+    if (unknown.Count > 0)
+        return Results.BadRequest(new
+        {
+            message = "These column names are not recognised and must be removed or renamed: " + string.Join(", ", unknown),
+            unknownColumns = unknown
+        });
+
+    var safeSlug = System.Text.RegularExpressions.Regex.Replace(hdbSlug, "[^a-z0-9_-]", "");
+    var slotDir  = Path.Combine(webhookFilesRoot, safeSlug);
+    Directory.CreateDirectory(slotDir);
+    var baseName = string.IsNullOrWhiteSpace(dto.FileName) ? "hdb-upload" : dto.FileName.Replace(" ", "_");
+    var csvName  = $"{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}-{baseName}.csv";
+    var csvPath  = Path.Combine(slotDir, csvName);
+    var relPath  = Path.Combine("webhook-files", safeSlug, csvName);
+
+    static string Csv(string v) => "\"" + (v ?? "").Replace("\"", "\"\"") + "\"";
+    int totalRows = 0;
+    try
+    {
+        await using var sw = new StreamWriter(csvPath, false, System.Text.Encoding.UTF8);
+        await sw.WriteLineAsync(string.Join(",", dto.Headers.Select(Csv)));
+        foreach (var row in dto.Rows)
+        {
+            var cells = new List<string>(dto.Headers.Count);
+            for (int i = 0; i < dto.Headers.Count; i++)
+                cells.Add(Csv(row != null && i < row.Count ? row[i] : ""));
+            await sw.WriteLineAsync(string.Join(",", cells));
+            totalRows++;
+        }
+    }
+    catch (Exception ex) { return Results.Problem($"CSV write failed: {ex.Message}"); }
+
+    try
+    {
+        await using var c = new MySqlConnection(connStr);
+        await c.OpenAsync();
+        await MgrExec("DELETE FROM webhook_files", c, 60);
+
+        await using var bankCmd = new MySqlCommand(@"
+            INSERT INTO webhook_banks (bank_name) VALUES (@n)
+            ON DUPLICATE KEY UPDATE bank_name=bank_name;
+            SELECT id FROM webhook_banks WHERE bank_name=@n LIMIT 1;", c);
+        bankCmd.Parameters.AddWithValue("@n", hdbBank);
+        var bankId = Convert.ToInt32(await bankCmd.ExecuteScalarAsync());
+
+        await using var fileCmd = new MySqlCommand(@"
+            INSERT INTO webhook_files
+                (bank_id, file_name, file_path, vehicle_type, uploaded_by, uploaded_date, total_records)
+            VALUES (@bid, @fn, @fp, @vt, @ub, @ud, @tr)", c);
+        fileCmd.Parameters.AddWithValue("@bid", bankId);
+        fileCmd.Parameters.AddWithValue("@fn",  dto.FileName ?? csvName);
+        fileCmd.Parameters.AddWithValue("@fp",  relPath);
+        fileCmd.Parameters.AddWithValue("@vt",  dto.VehicleType ?? "");
+        fileCmd.Parameters.AddWithValue("@ub",  dto.Username ?? "");
+        fileCmd.Parameters.AddWithValue("@ud",  DateTime.UtcNow.ToString("dd MMM yyyy"));
+        fileCmd.Parameters.AddWithValue("@tr",  totalRows);
+        await fileCmd.ExecuteNonQueryAsync();
+    }
+    catch (Exception ex) { return Results.Problem($"DB insert failed: {ex.Message}"); }
+
+    return Results.Ok(new { ok = true, records = totalRows });
+});
+
 AgencyPortal.Map(app, mysqlHost, mysqlPort);
 
 SandboxKyc.Map(app, ctx => MgrAuth(ctx, desktopLoginPassword));
@@ -3101,3 +3229,7 @@ record WebhookFileInfoDto(
 record WebhookProviderRequest(
     WebhookFileInfoDto? FileInfo,
     List<Dictionary<string, object?>>? Data);
+record IntegrationLoginDto(string Username, string Password);
+record IntegrationUploadDto(
+    string Username, string Password, string? FileName, string? VehicleType,
+    List<string> Headers, List<List<string>> Rows);

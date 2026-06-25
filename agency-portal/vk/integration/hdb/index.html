@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HDB Integration — CRMRS</title>
+<link rel="icon" href="/assets/favicon.ico">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800;900&family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#100f0c; --ink2:#2a2823; --muted:#756f62; --line:#e6ddca;
+    --bg:#f8f4ec; --card:#fffdf8; --orange:#ff4d00; --orange-d:#d63e00;
+    --ok:#1e8e5a; --shadow:0 1px 3px rgba(16,15,12,.06),0 1px 2px rgba(16,15,12,.04);
+    --head:'Archivo',sans-serif; --body:'Hanken Grotesk',system-ui,sans-serif; --mono:'JetBrains Mono',ui-monospace,monospace;
+  }
+  *{box-sizing:border-box} html,body{margin:0;min-height:100%}
+  body{font-family:var(--body);color:var(--ink);background:var(--bg)}
+  .hidden{display:none!important}
+  .btn{font:inherit;font-weight:600;border:none;border-radius:8px;padding:11px 16px;cursor:pointer}
+  .btn-primary{background:var(--orange);color:#fff;width:100%} .btn-primary:hover{background:var(--orange-d)}
+  .btn-primary:disabled{opacity:.6;cursor:not-allowed}
+  .btn-ghost{background:transparent;color:var(--ink2);font-weight:600;width:100%;margin-top:6px}
+  input[type=text],input[type=password]{font:inherit;width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink)}
+  input:focus{outline:none;border-color:var(--orange)}
+  .lbl{font-size:12px;font-weight:600;color:var(--muted);margin:0 0 5px}
+  .msg{font-size:13px;margin-top:12px;min-height:18px} .msg.err{color:#dc2626} .msg.ok{color:var(--ok)}
+  .wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+  .card{width:100%;max-width:560px;background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:30px 26px}
+  .card.narrow{max-width:380px;text-align:center}
+  .card img.logo{width:84px;height:84px;border-radius:18px;border:1px solid var(--line);padding:8px;background:#fff}
+  h1{font-family:var(--head);font-size:22px;margin:14px 0 2px} p.sub{color:var(--muted);font-size:13px;margin:0 0 18px}
+  .field{text-align:left;margin-bottom:12px}
+  .drop{border:2px dashed var(--line);border-radius:12px;padding:30px;text-align:center;color:var(--muted);background:#fff;cursor:pointer}
+  .drop:hover{border-color:var(--orange)}
+  .drop b{color:var(--ink)}
+  .cols{margin-top:18px}
+  .cols h4{font-family:var(--head);font-size:13px;margin:0 0 8px}
+  .chips{display:flex;flex-wrap:wrap;gap:6px}
+  .chip{background:#eef1f6;color:var(--ink2);border-radius:7px;padding:3px 9px;font-size:12px;font-family:var(--mono)}
+  .topline{display:flex;align-items:center;gap:10px;margin-bottom:18px}
+  .topline img{width:38px;height:38px;border-radius:9px;border:1px solid var(--line);padding:4px;background:#fff}
+  .topline .t{font-family:var(--head);font-weight:800}
+  .topline .s{color:var(--muted);font-size:12px}
+  .row-end{display:flex;justify-content:flex-end;margin-top:14px}
+  .link{color:var(--orange);font-weight:600;cursor:pointer;font-size:13px}
+</style>
+</head>
+<body>
+
+<div id="login" class="wrap">
+  <div class="card narrow">
+    <img class="logo" src="/assets/crmrs-logo.webp" alt="CRMRS" onerror="this.onerror=null;this.src='/assets/logo-short.webp'">
+    <h1>HDB Data Integration</h1>
+    <p class="sub">V K Enterprises — sign in to upload records</p>
+    <div class="field"><div class="lbl">USERNAME</div><input id="li-user" type="text" autocomplete="username" placeholder="username"></div>
+    <div class="field"><div class="lbl">PASSWORD</div><input id="li-pass" type="password" autocomplete="current-password" placeholder="password"></div>
+    <button class="btn btn-primary" id="li-btn">Sign in</button>
+    <div class="msg" id="li-msg"></div>
+  </div>
+</div>
+
+<div id="upload" class="wrap hidden">
+  <div class="card">
+    <div class="topline">
+      <img src="/assets/crmrs-logo.webp" alt="" onerror="this.onerror=null;this.src='/assets/logo-short.webp'">
+      <div>
+        <div class="t">HDB Data Upload</div>
+        <div class="s">V K Enterprises</div>
+      </div>
+      <div style="flex:1"></div>
+      <span class="link" id="logout">Sign out</span>
+    </div>
+
+    <div class="drop" id="drop">
+      <p style="margin:0 0 6px"><b>Click to choose an Excel file</b> (.xlsx / .xls)</p>
+      <p style="margin:0;font-size:12px">The first row must be the column headers.</p>
+    </div>
+    <input id="file" type="file" accept=".xlsx,.xls" class="hidden">
+
+    <div class="msg" id="up-msg"></div>
+
+    <div class="cols">
+      <h4>ACCEPTED COLUMN NAMES</h4>
+      <div class="chips" id="chips"></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<script>
+const API='https://api.crmrecoverysoftware.com/api/integration/vk/hdb';
+const $=s=>document.querySelector(s);
+const ALLOWED={vehicleno:'Vehicle No',chassisno:'Chassis No',engineno:'Engine No',model:'Model',agreementno:'Agreement No',bucket:'Bucket',gv:'GV',od:'OD',seasoning:'Seasoning',tbr:'TBR',sec9:'Sec 9',sec17:'Sec 17',customername:'Customer Name',customeraddress:'Customer Address',customercontact:'Customer Contact',region:'Region',area:'Area',branch:'Branch',level1:'Level 1',level1contact:'Level 1 Contact',level2:'Level 2',level2contact:'Level 2 Contact',level3:'Level 3',level3contact:'Level 3 Contact',level4:'Level 4',level4contact:'Level 4 Contact',sendermail1:'Sender Mail 1',sendermail2:'Sender Mail 2',executivename:'Executive Name',pos:'POS',toss:'TOSS',remark:'Remark'};
+const norm=s=>(s||'').toString().replace(/[^A-Za-z0-9]/g,'').toLowerCase();
+let creds={user:'',pass:''};
+
+$('#chips').innerHTML=Object.values(ALLOWED).map(n=>'<span class="chip">'+n+'</span>').join('');
+
+function liMsg(t,c){const m=$('#li-msg');m.textContent=t||'';m.className='msg '+(c||'');}
+function upMsg(t,c){const m=$('#up-msg');m.textContent=t||'';m.className='msg '+(c||'');}
+
+$('#li-btn').onclick=async()=>{
+  const user=$('#li-user').value.trim(), pass=$('#li-pass').value;
+  if(!user||!pass){liMsg('Enter username and password.','err');return;}
+  $('#li-btn').disabled=true; liMsg('Signing in…');
+  try{
+    const r=await fetch(API+'/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:user,password:pass})});
+    const b=await r.json().catch(()=>null);
+    if(!r.ok) throw new Error((b&&b.message)||('Error '+r.status));
+    creds={user,pass};
+    $('#login').classList.add('hidden'); $('#upload').classList.remove('hidden');
+  }catch(e){ liMsg(e.message,'err'); }
+  $('#li-btn').disabled=false;
+};
+
+$('#logout').onclick=()=>{ creds={user:'',pass:''}; $('#upload').classList.add('hidden'); $('#login').classList.remove('hidden'); $('#li-pass').value=''; liMsg(''); upMsg(''); };
+
+$('#drop').onclick=()=>$('#file').click();
+$('#file').onchange=e=>{ const f=e.target.files[0]; if(f) handleFile(f); e.target.value=''; };
+
+async function handleFile(file){
+  upMsg('Reading '+file.name+'…');
+  try{
+    const data=await file.arrayBuffer();
+    const wb=XLSX.read(data,{type:'array'});
+    const ws=wb.Sheets[wb.SheetNames[0]];
+    const aoa=XLSX.utils.sheet_to_json(ws,{header:1,blankrows:false,defval:''});
+    if(!aoa.length){ upMsg('The sheet is empty.','err'); return; }
+    const headers=aoa[0].map(h=>(h==null?'':h.toString().trim())).filter(h=>h!=='');
+    const unknown=headers.filter(h=>!ALLOWED[norm(h)]);
+    if(unknown.length){ upMsg('These columns are not recognised and must be removed or renamed: '+unknown.join(', '),'err'); return; }
+    const rows=[];
+    for(let i=1;i<aoa.length;i++){
+      const r=aoa[i]||[];
+      if(r.every(c=>c==null||c.toString().trim()==='')) continue;
+      rows.push(headers.map((_,j)=>r[j]==null?'':r[j].toString()));
+    }
+    if(!rows.length){ upMsg('No data rows found below the header.','err'); return; }
+    upMsg('Uploading '+rows.length+' rows…');
+    const resp=await fetch(API+'/upload',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({username:creds.user,password:creds.pass,fileName:file.name,vehicleType:'',headers,rows})});
+    const b=await resp.json().catch(()=>null);
+    if(!resp.ok) throw new Error((b&&b.message)||('Error '+resp.status));
+    upMsg('Uploaded successfully — '+((b&&b.records)||rows.length)+' rows are now live in V K Enterprises Direct Data.','ok');
+  }catch(e){ upMsg(e.message,'err'); }
+}
+</script>
+</body>
+</html>
