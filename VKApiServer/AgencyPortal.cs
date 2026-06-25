@@ -1222,6 +1222,38 @@ internal static class AgencyPortal
             {
                 await using var conn = new MySqlConnection(TenantContext.BuildTenantConn(mysqlHost, mysqlPort, me.slug));
                 await conn.OpenAsync();
+                var files = new System.Collections.Generic.List<object>();
+                await using var cmd = new MySqlCommand(@"
+                    SELECT wf.id, wb.bank_name, wf.file_name, wf.total_records,
+                           COALESCE(wf.uploaded_by,''),
+                           COALESCE(DATE_FORMAT(wf.created_at,'%d %b %Y %h:%i %p'),'')
+                    FROM webhook_files wf
+                    INNER JOIN webhook_banks wb ON wb.id = wf.bank_id
+                    ORDER BY wf.id DESC", conn) { CommandTimeout = 15 };
+                await using var rdr = await cmd.ExecuteReaderAsync();
+                while (await rdr.ReadAsync())
+                    files.Add(new
+                    {
+                        id           = rdr.GetInt32(0),
+                        bankName     = rdr.GetString(1),
+                        fileName     = rdr.GetString(2),
+                        totalRecords = rdr.GetInt32(3),
+                        uploadedBy   = rdr.GetString(4),
+                        uploadedAt   = rdr.GetString(5),
+                    });
+                return Results.Ok(new { files });
+            }
+            catch (Exception ex) { return Results.Problem(ex.Message); }
+        });
+
+        app.MapGet("/api/agency/web/directdata/{id:int}", async (HttpContext ctx, int id) =>
+        {
+            var who = VerifyAgencyBearer(ctx);
+            if (who is not { } me) return Results.Unauthorized();
+            try
+            {
+                await using var conn = new MySqlConnection(TenantContext.BuildTenantConn(mysqlHost, mysqlPort, me.slug));
+                await conn.OpenAsync();
                 string fileName = "", bankName = "", uploadedAt = "", relPath = "";
                 int totalRecords = 0;
                 await using (var cmd = new MySqlCommand(@"
@@ -1229,10 +1261,11 @@ internal static class AgencyPortal
                            COALESCE(DATE_FORMAT(wf.created_at,'%d %b %Y %h:%i %p'),'')
                     FROM webhook_files wf
                     INNER JOIN webhook_banks wb ON wb.id = wf.bank_id
-                    ORDER BY wf.id DESC LIMIT 1", conn) { CommandTimeout = 15 })
-                await using (var rdr = await cmd.ExecuteReaderAsync())
+                    WHERE wf.id = @id LIMIT 1", conn) { CommandTimeout = 15 })
                 {
-                    if (!await rdr.ReadAsync()) return Results.Ok(new { hasData = false });
+                    cmd.Parameters.AddWithValue("@id", id);
+                    await using var rdr = await cmd.ExecuteReaderAsync();
+                    if (!await rdr.ReadAsync()) return Results.NotFound();
                     fileName     = rdr.GetString(0);
                     bankName     = rdr.GetString(1);
                     relPath      = rdr.IsDBNull(2) ? "" : rdr.GetString(2);
@@ -1250,7 +1283,7 @@ internal static class AgencyPortal
                     if (parsed.Count > 0) columns = parsed[0];
                     if (parsed.Count > 1) rows = parsed.GetRange(1, parsed.Count - 1);
                 }
-                return Results.Ok(new { hasData = true, fileName, bankName, uploadedAt, totalRecords, columns, rows });
+                return Results.Ok(new { fileName, bankName, uploadedAt, totalRecords, columns, rows });
             }
             catch (Exception ex) { return Results.Problem(ex.Message); }
         });

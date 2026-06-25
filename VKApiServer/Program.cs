@@ -3158,7 +3158,6 @@ app.MapPost("/api/integration/vk/hdb/upload", async (IntegrationUploadDto dto) =
     {
         await using var c = new MySqlConnection(connStr);
         await c.OpenAsync();
-        await MgrExec("DELETE FROM webhook_files", c, 60);
 
         await using var bankCmd = new MySqlCommand(@"
             INSERT INTO webhook_banks (bank_name) VALUES (@n)
