@@ -156,8 +156,17 @@
     <section id="view-branches" class="hidden"><h2 class="view-title">Branches &amp; Finances</h2><div class="soon">Branches &amp; Finances coming in the next update.</div></section>
     <section id="view-directdata" class="hidden">
       <h2 class="view-title">Direct Data</h2>
-      <p class="view-sub" id="dd-sub">Latest data uploaded by your integrated bank.</p>
-      <div id="dd-body"><div class="empty">Loading…</div></div>
+      <p class="view-sub">Files uploaded by your integrated banks. Click a file to view its records.</p>
+      <div class="grid2">
+        <div class="panel">
+          <h3>UPLOADED FILES <span class="cnt" id="dd-cnt">0</span></h3>
+          <div id="dd-list"><div class="empty">Loading…</div></div>
+        </div>
+        <div class="panel">
+          <h3 id="dd-detail-title">RECORDS</h3>
+          <div id="dd-body"><div class="empty">Select a file to view its records.</div></div>
+        </div>
+      </div>
     </section>
     <section id="view-tickets" class="hidden"><h2 class="view-title">Support Tickets</h2><div class="soon">Support tickets coming in the next update.</div></section>
     <section id="view-settings" class="hidden"><h2 class="view-title">Settings</h2><div class="soon">Settings coming in the next update.</div></section>
@@ -233,13 +242,26 @@ document.querySelectorAll('.side a[data-view]').forEach(a=>{
 });
 
 async function loadDirectData(){
-  const b=$('#dd-body'); b.innerHTML='<div class="empty"><span class="spin"></span> Loading…</div>';
+  const list=$('#dd-list'); list.innerHTML='<div class="empty"><span class="spin"></span> Loading…</div>';
+  $('#dd-body').innerHTML='<div class="empty">Select a file to view its records.</div>';
+  $('#dd-detail-title').textContent='RECORDS';
   try{
     const r=await api('/web/directdata');
-    if(!r||!r.hasData){ $('#dd-sub').textContent='Latest data uploaded by your integrated bank.'; b.innerHTML='<div class="empty">No data uploaded yet.</div>'; return; }
-    $('#dd-sub').textContent=[r.bankName,r.fileName,(r.totalRecords+' rows'),r.uploadedAt].filter(Boolean).join(' · ');
+    const files=(r&&r.files)||[];
+    $('#dd-cnt').textContent=files.length;
+    if(!files.length){ list.innerHTML='<div class="empty">No files uploaded yet.</div>'; return; }
+    list.innerHTML=files.map(f=>'<div class="row" data-id="'+f.id+'"><div class="v">'+esc(f.fileName)+'</div><div class="m">'+[f.bankName,(f.totalRecords+' rows'),f.uploadedAt].filter(Boolean).join(' · ')+'</div></div>').join('');
+    list.querySelectorAll('.row').forEach(el=>el.onclick=()=>openDirectFile(el.dataset.id,el));
+  }catch(e){ list.innerHTML='<div class="empty">'+e.message+'</div>'; }
+}
+async function openDirectFile(id,el){
+  $('#dd-list').querySelectorAll('.row').forEach(x=>x.classList.remove('active')); el.classList.add('active');
+  const b=$('#dd-body'); b.innerHTML='<div class="empty"><span class="spin"></span> Loading…</div>';
+  try{
+    const r=await api('/web/directdata/'+id);
+    $('#dd-detail-title').textContent=esc(r.fileName||'RECORDS');
     if(!r.columns||!r.columns.length){ b.innerHTML='<div class="empty">File is empty.</div>'; return; }
-    let h='<div class="panel" style="overflow:auto;max-height:calc(100vh - 180px)"><table class="dd-table"><thead><tr>'+r.columns.map(c=>'<th>'+esc(c)+'</th>').join('')+'</tr></thead><tbody>';
+    let h='<div style="overflow:auto;max-height:calc(100vh - 220px)"><table class="dd-table"><thead><tr>'+r.columns.map(c=>'<th>'+esc(c)+'</th>').join('')+'</tr></thead><tbody>';
     h+=(r.rows||[]).map(row=>'<tr>'+r.columns.map((_,i)=>'<td>'+esc(row[i]!=null?row[i]:'')+'</td>').join('')+'</tr>').join('');
     h+='</tbody></table></div>';
     b.innerHTML=h;
