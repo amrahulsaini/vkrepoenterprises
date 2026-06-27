@@ -22,6 +22,8 @@ import javax.inject.Inject
 
 enum class RepoType { PRE, POST }
 
+enum class RepoFlow { LETTER, BILLING }
+
 data class RepoUiState(
     val headOffices: List<HeadOffice>       = emptyList(),
     val loadingHeadOffices: Boolean         = false,
@@ -40,7 +42,10 @@ data class RepoUiState(
     val loadingRecord: Boolean              = false,
 
     val settings: RepoLetterSettings?       = null,
-    val uploadingLogo: Boolean              = false
+    val uploadingLogo: Boolean              = false,
+
+    val flowMode: RepoFlow                  = RepoFlow.LETTER,
+    val billingSettings: com.vkenterprises.crmrs.data.models.BillingSettings? = null
 )
 
 @HiltViewModel
@@ -53,6 +58,24 @@ class RepoViewModel @Inject constructor() : ViewModel() {
     private var searchJob: Job? = null
 
     private val requiredLen get() = if (_ui.value.mode == SearchMode.RC) 4 else 5
+
+    fun setFlow(flow: RepoFlow) {
+        _ui.update { it.copy(flowMode = flow) }
+    }
+
+    fun loadBillingSettings(userId: Long) {
+        viewModelScope.launch {
+            val s = withContext(Dispatchers.IO) {
+                runCatching { api.getBillingSettings(userId).body() }.getOrNull()
+            }
+            _ui.update { it.copy(billingSettings = s ?: com.vkenterprises.crmrs.data.models.BillingSettings()) }
+        }
+    }
+
+    suspend fun saveBillingSettings(userId: Long, req: com.vkenterprises.crmrs.data.models.BillingSettings) {
+        withContext(Dispatchers.IO) { runCatching { api.saveBillingSettings(userId, req) } }
+        _ui.update { it.copy(billingSettings = req) }
+    }
 
     fun loadHeadOffices(userId: Long) {
         _ui.update { it.copy(loadingHeadOffices = true, headOfficeError = null) }

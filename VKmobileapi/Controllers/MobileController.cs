@@ -336,6 +336,36 @@ public class MobileController : ControllerBase
         }
     }
 
+    [HttpGet("billing/settings")]
+    public async Task<IActionResult> GetBillingSettings(
+        [FromHeader(Name = "X-User-Id")] long userId)
+    {
+        try
+        {
+            return Ok(await _repo.GetBillingSettingsAsync());
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new ApiError(false, $"Failed to load billing settings: {ex.Message}"));
+        }
+    }
+
+    [HttpPut("billing/settings")]
+    public async Task<IActionResult> SaveBillingSettings(
+        [FromHeader(Name = "X-User-Id")] long userId,
+        [FromBody] BillingSettings req)
+    {
+        try
+        {
+            await _repo.SaveBillingSettingsAsync(req);
+            return Ok(new { success = true });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new ApiError(false, $"Failed to save billing settings: {ex.Message}"));
+        }
+    }
+
     [HttpPost("admin/verify-subs-pass")]
     public async Task<IActionResult> VerifySubsPass(
         [FromHeader(Name = "X-User-Id")] long userId,

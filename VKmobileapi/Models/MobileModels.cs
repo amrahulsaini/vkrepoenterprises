@@ -218,6 +218,21 @@ public record SaveRepoSettingsRequest(
 
 public record UploadRepoLogoRequest(string? ImageBase64);
 
+public record BillingSettings(
+    string? AgencyName,
+    string? HeaderAddress,
+    string? HeaderContact,
+    string? HeaderEmail,
+    string? PanNo,
+    string? GstState,
+    string? BankAccountName,
+    string? AccountNo,
+    string? IfscCode,
+    string? BankBranch,
+    string? ParkingYard,
+    string? PaymentName,
+    string? FooterLine);
+
 public record LiveUserItem(
     long    Id,
     string  Name,

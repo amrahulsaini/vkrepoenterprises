@@ -835,6 +835,49 @@ public class MobileRepository
             finLogo ?? agencyLvlLogo);
     }
 
+    public async Task<BillingSettings> GetBillingSettingsAsync()
+    {
+        await using var conn = DbFactory.Create();
+        await conn.OpenAsync();
+        await using var cmd = new MySqlCommand(@"
+            SELECT agency_name, header_address, header_contact, header_email,
+                   pan_no, gst_state, bank_account_name, account_no, ifsc_code,
+                   bank_branch, parking_yard, payment_name, footer_line
+            FROM billing_settings WHERE id = 1 LIMIT 1", conn) { CommandTimeout = 10 };
+        await using var r = await cmd.ExecuteReaderAsync();
+        string? S(int i) => r.IsDBNull(i) ? null : r.GetString(i);
+        if (!await r.ReadAsync())
+            return new BillingSettings(null, null, null, null, null, null, null, null, null, null, null, null, null);
+        return new BillingSettings(
+            S(0), S(1), S(2), S(3), S(4), S(5), S(6), S(7), S(8), S(9), S(10), S(11), S(12));
+    }
+
+    public async Task SaveBillingSettingsAsync(BillingSettings b)
+    {
+        await using var conn = DbFactory.Create();
+        await conn.OpenAsync();
+        await using var cmd = new MySqlCommand(@"
+            INSERT INTO billing_settings
+              (id, agency_name, header_address, header_contact, header_email,
+               pan_no, gst_state, bank_account_name, account_no, ifsc_code,
+               bank_branch, parking_yard, payment_name, footer_line)
+            VALUES (1, @an, @ha, @hc, @he, @pan, @gst, @ban, @acc, @ifsc, @bb, @py, @pn, @fl)
+            ON DUPLICATE KEY UPDATE
+               agency_name=VALUES(agency_name), header_address=VALUES(header_address),
+               header_contact=VALUES(header_contact), header_email=VALUES(header_email),
+               pan_no=VALUES(pan_no), gst_state=VALUES(gst_state),
+               bank_account_name=VALUES(bank_account_name), account_no=VALUES(account_no),
+               ifsc_code=VALUES(ifsc_code), bank_branch=VALUES(bank_branch),
+               parking_yard=VALUES(parking_yard), payment_name=VALUES(payment_name),
+               footer_line=VALUES(footer_line)", conn) { CommandTimeout = 10 };
+        void P(string k, string? v) => cmd.Parameters.AddWithValue(k, (object?)v ?? DBNull.Value);
+        P("@an", b.AgencyName); P("@ha", b.HeaderAddress); P("@hc", b.HeaderContact); P("@he", b.HeaderEmail);
+        P("@pan", b.PanNo); P("@gst", b.GstState); P("@ban", b.BankAccountName); P("@acc", b.AccountNo);
+        P("@ifsc", b.IfscCode); P("@bb", b.BankBranch); P("@py", b.ParkingYard); P("@pn", b.PaymentName);
+        P("@fl", b.FooterLine);
+        await cmd.ExecuteNonQueryAsync();
+    }
+
     public async Task<string?> SaveRepoLogoAsync(int financeId, string? imageBase64)
     {
         var slug = TenantContext.Key;
