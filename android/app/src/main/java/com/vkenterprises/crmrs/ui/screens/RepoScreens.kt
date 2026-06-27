@@ -1,5 +1,7 @@
 package com.vkenterprises.crmrs.ui.screens
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -27,11 +29,17 @@ import androidx.navigation.NavController
 import com.vkenterprises.crmrs.data.models.HeadOffice
 import com.vkenterprises.crmrs.data.models.SaveRepoSettingsRequest
 import com.vkenterprises.crmrs.navigation.Screen
+import com.vkenterprises.crmrs.utils.RepoDocType
+import com.vkenterprises.crmrs.utils.RepoDocx
 import com.vkenterprises.crmrs.utils.RepoPdf
+import com.vkenterprises.crmrs.utils.compressImageToBase64
 import com.vkenterprises.crmrs.viewmodel.AuthViewModel
 import com.vkenterprises.crmrs.viewmodel.RepoViewModel
 import com.vkenterprises.crmrs.viewmodel.SearchMode
+import coil.compose.AsyncImage
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -75,11 +83,14 @@ fun RepoTypeScreen(
 
             RepoBigTile(
                 title = "POST-REPOSSESSION",
-                subtitle = "Coming soon",
+                subtitle = "Post-Repo intimation to police station",
                 icon = Icons.Default.AssignmentTurnedIn,
-                accent = MaterialTheme.colorScheme.outline,
-                enabled = false
-            ) { }
+                accent = Color(0xFF6A1B9A),
+                enabled = true
+            ) {
+                if (userId > 0) repoVm.loadHeadOffices(userId)
+                nav.navigate(Screen.RepoHeadOffices.route)
+            }
         }
     }
 }
@@ -371,6 +382,52 @@ fun RepoPreviewScreen(
     }
     var authLetterDate by remember { mutableStateOf(todayLong) }
     var generating by remember { mutableStateOf(false) }
+    var asDocx by remember { mutableStateOf(false) }
+
+    val logoPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri != null) scope.launch {
+            val b64 = withContext(Dispatchers.IO) { compressImageToBase64(context, uri) }
+            if (b64 != null) repoVm.uploadLogo(userId, b64)
+        }
+    }
+
+    fun doGenerate(type: RepoDocType) {
+        generating = true
+        scope.launch {
+            repoVm.saveSettings(userId, SaveRepoSettingsRequest(
+                agencyName = agencyName.trim().ifBlank { null },
+                authorizedBy = authorizedBy.trim().ifBlank { null },
+                policeStation = policeStation.trim().ifBlank { null },
+                policeAddress = policeAddress.trim().ifBlank { null }
+            ))
+            val logoUrl = repoVm.ui.value.settings?.logoUrl
+            val result = withContext(Dispatchers.IO) {
+                val logo = if (!logoUrl.isNullOrBlank()) RepoPdf.loadBitmap(logoUrl) else null
+                val data = RepoPdf.LetterData(
+                    docType = type,
+                    dateText = dateText.trim(),
+                    policeStation = policeStation.trim(),
+                    policeAddress = policeAddress.trim(),
+                    loanAcNo = loanAcNo.trim(),
+                    vehicleRegNo = vehicleRegNo.trim(),
+                    assets = assets.trim(),
+                    borrowerName = borrowerName.trim(),
+                    residenceAddress = residenceAddress.trim(),
+                    agencyName = agencyName.trim(),
+                    headOffice = authorizedBy.trim().ifBlank { headOfficeName },
+                    authLetterDate = authLetterDate.trim(),
+                    logo = logo
+                )
+                if (asDocx)
+                    RepoDocx.generate(context, data) to
+                        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                else
+                    RepoPdf.generate(context, data) to "application/pdf"
+            }
+            generating = false
+            RepoPdf.open(context, result.first, result.second)
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -383,43 +440,34 @@ fun RepoPreviewScreen(
         },
         bottomBar = {
             Surface(shadowElevation = 8.dp) {
-                Button(
-                    onClick = {
-                        generating = true
-                        scope.launch {
-                            repoVm.saveSettings(userId, SaveRepoSettingsRequest(
-                                agencyName = agencyName.trim().ifBlank { null },
-                                authorizedBy = authorizedBy.trim().ifBlank { null },
-                                policeStation = policeStation.trim().ifBlank { null },
-                                policeAddress = policeAddress.trim().ifBlank { null }
-                            ))
-                            val file = RepoPdf.generate(context, RepoPdf.LetterData(
-                                dateText = dateText.trim(),
-                                policeStation = policeStation.trim(),
-                                policeAddress = policeAddress.trim(),
-                                loanAcNo = loanAcNo.trim(),
-                                vehicleRegNo = vehicleRegNo.trim(),
-                                assets = assets.trim(),
-                                borrowerName = borrowerName.trim(),
-                                residenceAddress = residenceAddress.trim(),
-                                agencyName = agencyName.trim(),
-                                headOffice = authorizedBy.trim().ifBlank { headOfficeName },
-                                authLetterDate = authLetterDate.trim()
-                            ))
-                            generating = false
-                            RepoPdf.open(context, file)
+                Column(Modifier.navigationBarsPadding().padding(horizontal = 12.dp, vertical = 10.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Format", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+                        FilterChip(selected = !asDocx, onClick = { asDocx = false },
+                            label = { Text("PDF") },
+                            leadingIcon = { Icon(Icons.Default.PictureAsPdf, null, Modifier.size(16.dp)) })
+                        FilterChip(selected = asDocx, onClick = { asDocx = true },
+                            label = { Text("DOCX") },
+                            leadingIcon = { Icon(Icons.Default.Description, null, Modifier.size(16.dp)) })
+                        if (generating) {
+                            Spacer(Modifier.weight(1f))
+                            CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
                         }
-                    },
-                    enabled = !generating,
-                    shape = RoundedCornerShape(10.dp),
-                    modifier = Modifier.fillMaxWidth().navigationBarsPadding().padding(12.dp).height(50.dp)
-                ) {
-                    if (generating) {
-                        CircularProgressIndicator(Modifier.size(20.dp), color = MaterialTheme.colorScheme.onPrimary,
-                            strokeWidth = 2.dp)
-                    } else {
-                        Icon(Icons.Default.PictureAsPdf, null); Spacer(Modifier.width(8.dp))
-                        Text("Generate PDF", fontWeight = FontWeight.Bold)
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Button(onClick = { doGenerate(RepoDocType.PRE) }, enabled = !generating,
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier.weight(1f).height(48.dp)) {
+                            Text("Generate Pre", fontWeight = FontWeight.Bold)
+                        }
+                        Button(onClick = { doGenerate(RepoDocType.POST) }, enabled = !generating,
+                            shape = RoundedCornerShape(10.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6A1B9A)),
+                            modifier = Modifier.weight(1f).height(48.dp)) {
+                            Text("Generate Post", fontWeight = FontWeight.Bold)
+                        }
                     }
                 }
             }
@@ -430,6 +478,13 @@ fun RepoPreviewScreen(
                 .padding(horizontal = 14.dp, vertical = 10.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            SectionLabel("Head Office Logo")
+            LogoRow(
+                logoUrl = ui.settings?.logoUrl,
+                uploading = ui.uploadingLogo,
+                onPick = { logoPicker.launch("image/*") }
+            )
+
             SectionLabel("Letter")
             RepoField("Date", dateText) { dateText = it }
             RepoField("Police Station", policeStation, "e.g. Miraj Rural Police Station") { policeStation = it }
@@ -448,7 +503,40 @@ fun RepoPreviewScreen(
             RepoField("Authorized By (Head Office)", authorizedBy) { authorizedBy = it }
             RepoField("Authorization Letter Dated", authLetterDate) { authLetterDate = it }
 
-            Spacer(Modifier.height(70.dp))
+            Spacer(Modifier.height(80.dp))
+        }
+    }
+}
+
+@Composable
+private fun LogoRow(logoUrl: String?, uploading: Boolean, onPick: () -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+        Surface(
+            shape = RoundedCornerShape(10.dp),
+            color = MaterialTheme.colorScheme.surfaceVariant,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+            modifier = Modifier.size(72.dp)
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                when {
+                    uploading -> CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp)
+                    !logoUrl.isNullOrBlank() -> AsyncImage(
+                        model = logoUrl, contentDescription = "Logo",
+                        modifier = Modifier.fillMaxSize().padding(6.dp))
+                    else -> Icon(Icons.Default.Image, null, tint = MaterialTheme.colorScheme.outline)
+                }
+            }
+        }
+        Column(Modifier.weight(1f)) {
+            Text(
+                if (logoUrl.isNullOrBlank()) "No logo for this head office" else "Logo set — appears top-right of the letter",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(Modifier.height(6.dp))
+            OutlinedButton(onClick = onPick, enabled = !uploading, shape = RoundedCornerShape(8.dp)) {
+                Icon(Icons.Default.Upload, null, Modifier.size(16.dp)); Spacer(Modifier.width(6.dp))
+                Text(if (logoUrl.isNullOrBlank()) "Upload Logo" else "Change Logo")
+            }
         }
     }
 }
