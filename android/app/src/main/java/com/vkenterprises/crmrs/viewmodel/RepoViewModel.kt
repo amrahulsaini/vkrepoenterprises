@@ -39,7 +39,8 @@ data class RepoUiState(
     val selectedRecord: SearchResult?       = null,
     val loadingRecord: Boolean              = false,
 
-    val settings: RepoLetterSettings?       = null
+    val settings: RepoLetterSettings?       = null,
+    val uploadingLogo: Boolean              = false
 )
 
 @HiltViewModel
@@ -156,6 +157,23 @@ class RepoViewModel @Inject constructor() : ViewModel() {
             }
             _ui.update { it.copy(loadingRecord = false, selectedRecord = rec) }
             if (rec != null) onReady()
+        }
+    }
+
+    fun uploadLogo(userId: Long, imageBase64: String) {
+        val financeId = _ui.value.selectedHeadOffice?.id ?: return
+        _ui.update { it.copy(uploadingLogo = true) }
+        viewModelScope.launch {
+            val url = withContext(Dispatchers.IO) {
+                runCatching {
+                    val resp = api.saveRepoLogo(financeId, userId, com.vkenterprises.crmrs.data.models.UploadRepoLogoRequest(imageBase64))
+                    if (resp.isSuccessful) resp.body()?.get("logoUrl") as? String else null
+                }.getOrNull()
+            }
+            _ui.update {
+                val s = it.settings ?: RepoLetterSettings(financeId = financeId)
+                it.copy(uploadingLogo = false, settings = s.copy(logoUrl = url ?: s.logoUrl))
+            }
         }
     }
 

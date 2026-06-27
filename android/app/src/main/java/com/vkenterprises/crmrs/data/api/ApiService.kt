@@ -81,6 +81,13 @@ interface ApiService {
         @Body body: SaveRepoSettingsRequest
     ): Response<Map<String, Any>>
 
+    @PUT("api/mobile/repo/settings/{financeId}/logo")
+    suspend fun saveRepoLogo(
+        @Path("financeId")   financeId: Long,
+        @Header("X-User-Id") userId: Long,
+        @Body body: UploadRepoLogoRequest
+    ): Response<Map<String, Any>>
+
     @GET("api/mobile/profile/{userId}")
     suspend fun getProfile(@Path("userId") userId: Long): Response<ProfileResponse>
 

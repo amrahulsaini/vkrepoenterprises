@@ -804,12 +804,12 @@ public class MobileRepository
         await using var conn = DbFactory.Create();
         await conn.OpenAsync();
         await using var cmd = new MySqlCommand(@"
-            SELECT finance_id, agency_name, authorized_by, police_station, police_address
+            SELECT finance_id, agency_name, authorized_by, police_station, police_address, logo_path
             FROM repo_letter_settings WHERE finance_id IN (0, @fid)", conn) { CommandTimeout = 10 };
         cmd.Parameters.AddWithValue("@fid", financeId);
 
-        string? agencyLvlName = null, agencyLvlAuth = null, police = null, policeAddr = null;
-        string? finName = null, finAuth = null;
+        string? agencyLvlName = null, agencyLvlAuth = null, police = null, policeAddr = null, agencyLvlLogo = null;
+        string? finName = null, finAuth = null, finLogo = null;
         await using (var r = await cmd.ExecuteReaderAsync())
         {
             string? S(int i) => r.IsDBNull(i) ? null : r.GetString(i);
@@ -818,11 +818,11 @@ public class MobileRepository
                 if (r.GetInt32(0) == 0)
                 {
                     agencyLvlName = S(1); agencyLvlAuth = S(2);
-                    police = S(3); policeAddr = S(4);
+                    police = S(3); policeAddr = S(4); agencyLvlLogo = S(5);
                 }
                 else
                 {
-                    finName = S(1); finAuth = S(2);
+                    finName = S(1); finAuth = S(2); finLogo = S(5);
                 }
             }
         }
@@ -831,7 +831,26 @@ public class MobileRepository
             finName ?? agencyLvlName,
             finAuth ?? agencyLvlAuth,
             police,
-            policeAddr);
+            policeAddr,
+            finLogo ?? agencyLvlLogo);
+    }
+
+    public async Task<string?> SaveRepoLogoAsync(int financeId, string? imageBase64)
+    {
+        var slug = TenantContext.Key;
+        var relPath = await SaveBase64ImageAsync(imageBase64, "repo-logos", $"{slug}_finance_{financeId}.jpg");
+        if (relPath == null) return null;
+
+        await using var conn = DbFactory.Create();
+        await conn.OpenAsync();
+        await using var cmd = new MySqlCommand(@"
+            INSERT INTO repo_letter_settings (finance_id, logo_path)
+            VALUES (@fid, @lp)
+            ON DUPLICATE KEY UPDATE logo_path = VALUES(logo_path)", conn) { CommandTimeout = 10 };
+        cmd.Parameters.AddWithValue("@fid", financeId);
+        cmd.Parameters.AddWithValue("@lp", relPath);
+        await cmd.ExecuteNonQueryAsync();
+        return relPath;
     }
 
     public async Task SaveRepoSettingsAsync(int financeId, SaveRepoSettingsRequest req)

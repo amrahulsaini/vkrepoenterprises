@@ -207,13 +207,16 @@ public record RepoLetterSettings(
     string? AgencyName,
     string? AuthorizedBy,
     string? PoliceStation,
-    string? PoliceAddress);
+    string? PoliceAddress,
+    string? LogoUrl = null);
 
 public record SaveRepoSettingsRequest(
     string? AgencyName,
     string? AuthorizedBy,
     string? PoliceStation,
     string? PoliceAddress);
+
+public record UploadRepoLogoRequest(string? ImageBase64);
 
 public record LiveUserItem(
     long    Id,

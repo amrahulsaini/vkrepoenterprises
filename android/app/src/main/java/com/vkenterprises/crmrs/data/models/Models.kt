@@ -135,7 +135,8 @@ data class RepoLetterSettings(
     val agencyName: String? = null,
     val authorizedBy: String? = null,
     val policeStation: String? = null,
-    val policeAddress: String? = null
+    val policeAddress: String? = null,
+    val logoUrl: String? = null
 )
 
 data class SaveRepoSettingsRequest(
@@ -143,6 +144,10 @@ data class SaveRepoSettingsRequest(
     val authorizedBy: String?,
     val policeStation: String?,
     val policeAddress: String?
+)
+
+data class UploadRepoLogoRequest(
+    val imageBase64: String?
 )
 
 data class SearchResponse(

@@ -628,34 +628,48 @@ private fun AgencyLandingPanel(
             }
         ) { }
         Spacer(Modifier.height(10.dp))
-        LandingTile(
-            label    = "OFFLINE RECORDS",
-            icon     = Icons.Default.CloudDownload,
-            subtitle = "Saved on this phone",
-            accent   = MaterialTheme.colorScheme.primary
-        ) { nav.navigate(Screen.Settings.route) }
-        Spacer(Modifier.height(10.dp))
-        LandingTile(
-            label    = "REPOSSESSION LETTER",
-            icon     = Icons.Default.Description,
-            subtitle = "Generate Pre / Post repossession PDF",
-            accent   = Color(0xFFF57F17)
-        ) { nav.navigate(Screen.RepoType.route) }
-        Spacer(Modifier.height(10.dp))
-        LandingTile(
-            label    = "MY ACCOUNT",
-            icon     = Icons.Default.AccountCircle,
-            subtitle = "View profile, KYC and subscriptions",
-            accent   = MaterialTheme.colorScheme.primary
-        ) { nav.navigate(Screen.Profile.route) }
-        if (isAdmin) {
-            Spacer(Modifier.height(10.dp))
+        Row(
+            Modifier.fillMaxWidth().height(IntrinsicSize.Min),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
             LandingTile(
-                label    = "CONTROL PANEL",
-                icon     = Icons.Default.Lock,
-                subtitle = "Manage users, subscriptions, search logs",
-                accent   = Color(0xFF6A1B9A)
-            ) { nav.navigate(Screen.ControlPanel.route) }
+                label    = "OFFLINE RECORDS",
+                icon     = Icons.Default.CloudDownload,
+                subtitle = "Saved on this phone",
+                accent   = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.weight(1f).fillMaxHeight()
+            ) { nav.navigate(Screen.Settings.route) }
+            LandingTile(
+                label    = "MY ACCOUNT",
+                icon     = Icons.Default.AccountCircle,
+                subtitle = "Profile, KYC, subscriptions",
+                accent   = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.weight(1f).fillMaxHeight()
+            ) { nav.navigate(Screen.Profile.route) }
+        }
+        Spacer(Modifier.height(10.dp))
+        Row(
+            Modifier.fillMaxWidth().height(IntrinsicSize.Min),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            LandingTile(
+                label    = "PRE POST INTIMATION",
+                icon     = Icons.Default.Description,
+                subtitle = "Generate Pre / Post letter",
+                accent   = Color(0xFFF57F17),
+                modifier = Modifier.weight(1f).fillMaxHeight()
+            ) { nav.navigate(Screen.RepoType.route) }
+            if (isAdmin) {
+                LandingTile(
+                    label    = "CONTROL PANEL",
+                    icon     = Icons.Default.Lock,
+                    subtitle = "Users, subscriptions, logs",
+                    accent   = Color(0xFF6A1B9A),
+                    modifier = Modifier.weight(1f).fillMaxHeight()
+                ) { nav.navigate(Screen.ControlPanel.route) }
+            } else {
+                Spacer(Modifier.weight(1f))
+            }
         }
         Spacer(Modifier.weight(1f))
         Spacer(Modifier.height(12.dp))
@@ -681,13 +695,14 @@ private fun LandingTile(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     subtitle: String,
     accent: Color,
+    modifier: Modifier = Modifier.fillMaxWidth(),
     onClick: () -> Unit
 ) {
     Card(
         onClick = onClick,
         shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-        modifier = Modifier.fillMaxWidth()
+        modifier = modifier
     ) {
         Row(
             Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
