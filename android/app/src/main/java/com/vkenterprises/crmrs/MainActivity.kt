@@ -65,7 +65,7 @@ fun VKNavHost() {
         }
 
         composable(Screen.Home.route) {
-            HomeScreen(searchVm, authVm, navController)
+            HomeScreen(searchVm, authVm, repoVm, navController)
         }
 
         composable(Screen.VehicleDetail.route) {
@@ -159,6 +159,9 @@ fun VKNavHost() {
         }
         composable(Screen.RepoPreview.route) {
             RepoPreviewScreen(repoVm, authVm, navController)
+        }
+        composable(Screen.BillingPreview.route) {
+            BillingPreviewScreen(repoVm, authVm, navController)
         }
     }
 }

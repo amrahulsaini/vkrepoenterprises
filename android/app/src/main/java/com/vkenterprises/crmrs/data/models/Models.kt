@@ -150,6 +150,22 @@ data class UploadRepoLogoRequest(
     val imageBase64: String?
 )
 
+data class BillingSettings(
+    val agencyName: String? = null,
+    val headerAddress: String? = null,
+    val headerContact: String? = null,
+    val headerEmail: String? = null,
+    val panNo: String? = null,
+    val gstState: String? = null,
+    val bankAccountName: String? = null,
+    val accountNo: String? = null,
+    val ifscCode: String? = null,
+    val bankBranch: String? = null,
+    val parkingYard: String? = null,
+    val paymentName: String? = null,
+    val footerLine: String? = null
+)
+
 data class SearchResponse(
     val success: Boolean,
     val mode: String,

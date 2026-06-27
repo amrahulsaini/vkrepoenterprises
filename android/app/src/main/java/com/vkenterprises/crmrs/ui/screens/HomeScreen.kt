@@ -65,6 +65,7 @@ private val RobotoFamily = FontFamily(
 fun HomeScreen(
     searchVm: SearchViewModel,
     authVm: AuthViewModel,
+    repoVm: com.vkenterprises.crmrs.viewmodel.RepoViewModel,
     nav: NavController
 ) {
     val ui          by searchVm.ui.collectAsState()
@@ -531,7 +532,17 @@ fun HomeScreen(
                     subEndDate    = subEnd,
                     offlineCount  = ui.offlineCount,
                     isAdmin       = isAdmin,
-                    nav           = nav
+                    nav           = nav,
+                    onOpenLetters = {
+                        repoVm.setFlow(com.vkenterprises.crmrs.viewmodel.RepoFlow.LETTER)
+                        if (userId > 0) repoVm.loadHeadOffices(userId)
+                        nav.navigate(Screen.RepoType.route)
+                    },
+                    onOpenBilling = {
+                        repoVm.setFlow(com.vkenterprises.crmrs.viewmodel.RepoFlow.BILLING)
+                        if (userId > 0) { repoVm.loadHeadOffices(userId); repoVm.loadBillingSettings(userId) }
+                        nav.navigate(Screen.RepoHeadOffices.route)
+                    }
                 )
             }
         }
@@ -548,6 +559,8 @@ private fun AgencyLandingPanel(
     offlineCount: Long,
     isAdmin: Boolean,
     nav: NavController,
+    onOpenLetters: () -> Unit,
+    onOpenBilling: () -> Unit,
 ) {
     val daysLeft = remember(subEndDate) {
         if (subEndDate.isNullOrBlank()) null
@@ -647,19 +660,32 @@ private fun AgencyLandingPanel(
                 modifier = Modifier.weight(1f).fillMaxHeight()
             ) { nav.navigate(Screen.Profile.route) }
         }
-        Spacer(Modifier.height(10.dp))
-        Row(
-            Modifier.fillMaxWidth().height(IntrinsicSize.Min),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            LandingTile(
-                label    = "PRE POST INTIMATION",
-                icon     = Icons.Default.Description,
-                subtitle = "Generate Pre / Post letter",
-                accent   = Color(0xFFF57F17),
-                modifier = Modifier.weight(1f).fillMaxHeight()
-            ) { nav.navigate(Screen.RepoType.route) }
-            if (isAdmin) {
+        if (isAdmin) {
+            Spacer(Modifier.height(10.dp))
+            Row(
+                Modifier.fillMaxWidth().height(IntrinsicSize.Min),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                LandingTile(
+                    label    = "PRE POST INTIMATION",
+                    icon     = Icons.Default.Description,
+                    subtitle = "Generate Pre / Post letter",
+                    accent   = Color(0xFFF57F17),
+                    modifier = Modifier.weight(1f).fillMaxHeight()
+                ) { onOpenLetters() }
+                LandingTile(
+                    label    = "BILLING",
+                    icon     = Icons.Default.ReceiptLong,
+                    subtitle = "Generate repossession bill",
+                    accent   = Color(0xFF00897B),
+                    modifier = Modifier.weight(1f).fillMaxHeight()
+                ) { onOpenBilling() }
+            }
+            Spacer(Modifier.height(10.dp))
+            Row(
+                Modifier.fillMaxWidth().height(IntrinsicSize.Min),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
                 LandingTile(
                     label    = "CONTROL PANEL",
                     icon     = Icons.Default.Lock,
@@ -667,7 +693,6 @@ private fun AgencyLandingPanel(
                     accent   = Color(0xFF6A1B9A),
                     modifier = Modifier.weight(1f).fillMaxHeight()
                 ) { nav.navigate(Screen.ControlPanel.route) }
-            } else {
                 Spacer(Modifier.weight(1f))
             }
         }

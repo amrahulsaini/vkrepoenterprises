@@ -26,4 +26,5 @@ sealed class Screen(val route: String) {
     object RepoHeadOffices     : Screen("repo_head_offices")
     object RepoSearch          : Screen("repo_search")
     object RepoPreview         : Screen("repo_preview")
+    object BillingPreview      : Screen("billing_preview")
 }
