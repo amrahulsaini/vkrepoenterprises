@@ -842,14 +842,30 @@ public class MobileRepository
         await using var cmd = new MySqlCommand(@"
             SELECT agency_name, header_address, header_contact, header_email,
                    pan_no, gst_state, bank_account_name, account_no, ifsc_code,
-                   bank_branch, parking_yard, payment_name, footer_line
+                   bank_branch, parking_yard, payment_name, footer_line, logo_path
             FROM billing_settings WHERE id = 1 LIMIT 1", conn) { CommandTimeout = 10 };
         await using var r = await cmd.ExecuteReaderAsync();
         string? S(int i) => r.IsDBNull(i) ? null : r.GetString(i);
         if (!await r.ReadAsync())
-            return new BillingSettings(null, null, null, null, null, null, null, null, null, null, null, null, null);
+            return new BillingSettings(null, null, null, null, null, null, null, null, null, null, null, null, null, null);
         return new BillingSettings(
-            S(0), S(1), S(2), S(3), S(4), S(5), S(6), S(7), S(8), S(9), S(10), S(11), S(12));
+            S(0), S(1), S(2), S(3), S(4), S(5), S(6), S(7), S(8), S(9), S(10), S(11), S(12), S(13));
+    }
+
+    public async Task<string?> SaveBillingLogoAsync(string? imageBase64)
+    {
+        var slug = TenantContext.Key;
+        var relPath = await SaveBase64ImageAsync(imageBase64, "billing-logos", $"{slug}_letterhead.jpg");
+        if (relPath == null) return null;
+
+        await using var conn = DbFactory.Create();
+        await conn.OpenAsync();
+        await using var cmd = new MySqlCommand(@"
+            INSERT INTO billing_settings (id, logo_path) VALUES (1, @lp)
+            ON DUPLICATE KEY UPDATE logo_path = VALUES(logo_path)", conn) { CommandTimeout = 10 };
+        cmd.Parameters.AddWithValue("@lp", relPath);
+        await cmd.ExecuteNonQueryAsync();
+        return relPath;
     }
 
     public async Task SaveBillingSettingsAsync(BillingSettings b)

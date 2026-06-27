@@ -163,7 +163,8 @@ data class BillingSettings(
     val bankBranch: String? = null,
     val parkingYard: String? = null,
     val paymentName: String? = null,
-    val footerLine: String? = null
+    val footerLine: String? = null,
+    val logoUrl: String? = null
 )
 
 data class SearchResponse(

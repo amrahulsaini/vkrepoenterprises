@@ -342,11 +342,29 @@ public class MobileController : ControllerBase
     {
         try
         {
-            return Ok(await _repo.GetBillingSettingsAsync());
+            var s = await _repo.GetBillingSettingsAsync();
+            return Ok(s with { LogoUrl = AbsUrl(s.LogoUrl) });
         }
         catch (Exception ex)
         {
             return StatusCode(500, new ApiError(false, $"Failed to load billing settings: {ex.Message}"));
+        }
+    }
+
+    [HttpPut("billing/settings/logo")]
+    public async Task<IActionResult> SaveBillingLogo(
+        [FromHeader(Name = "X-User-Id")] long userId,
+        [FromBody] UploadRepoLogoRequest req)
+    {
+        try
+        {
+            var rel = await _repo.SaveBillingLogoAsync(req.ImageBase64);
+            if (rel == null) return BadRequest(new ApiError(false, "No image provided."));
+            return Ok(new { success = true, logoUrl = AbsUrl(rel) });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new ApiError(false, $"Failed to save logo: {ex.Message}"));
         }
     }
 
