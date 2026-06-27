@@ -566,6 +566,7 @@ CREATE TABLE `billing_settings` (
   `parking_yard`      VARCHAR(255) NULL,
   `payment_name`      VARCHAR(255) NULL,
   `footer_line`       VARCHAR(255) NULL,
+  `logo_path`         VARCHAR(512) NULL,
   `updated_at`        TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;

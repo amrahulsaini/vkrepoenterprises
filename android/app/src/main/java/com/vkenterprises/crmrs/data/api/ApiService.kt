@@ -99,6 +99,12 @@ interface ApiService {
         @Body body: BillingSettings
     ): Response<Map<String, Any>>
 
+    @PUT("api/mobile/billing/settings/logo")
+    suspend fun saveBillingLogo(
+        @Header("X-User-Id") userId: Long,
+        @Body body: UploadRepoLogoRequest
+    ): Response<Map<String, Any>>
+
     @GET("api/mobile/profile/{userId}")
     suspend fun getProfile(@Path("userId") userId: Long): Response<ProfileResponse>
 

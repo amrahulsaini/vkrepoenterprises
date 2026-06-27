@@ -73,8 +73,25 @@ class RepoViewModel @Inject constructor() : ViewModel() {
     }
 
     suspend fun saveBillingSettings(userId: Long, req: com.vkenterprises.crmrs.data.models.BillingSettings) {
+        val existingLogo = _ui.value.billingSettings?.logoUrl
         withContext(Dispatchers.IO) { runCatching { api.saveBillingSettings(userId, req) } }
-        _ui.update { it.copy(billingSettings = req) }
+        _ui.update { it.copy(billingSettings = req.copy(logoUrl = req.logoUrl ?: existingLogo)) }
+    }
+
+    fun uploadBillingLogo(userId: Long, imageBase64: String) {
+        _ui.update { it.copy(uploadingLogo = true) }
+        viewModelScope.launch {
+            val url = withContext(Dispatchers.IO) {
+                runCatching {
+                    val resp = api.saveBillingLogo(userId, com.vkenterprises.crmrs.data.models.UploadRepoLogoRequest(imageBase64))
+                    if (resp.isSuccessful) resp.body()?.get("logoUrl") as? String else null
+                }.getOrNull()
+            }
+            _ui.update {
+                val s = it.billingSettings ?: com.vkenterprises.crmrs.data.models.BillingSettings()
+                it.copy(uploadingLogo = false, billingSettings = s.copy(logoUrl = url ?: s.logoUrl))
+            }
+        }
     }
 
     fun loadHeadOffices(userId: Long) {

@@ -231,7 +231,8 @@ public record BillingSettings(
     string? BankBranch,
     string? ParkingYard,
     string? PaymentName,
-    string? FooterLine);
+    string? FooterLine,
+    string? LogoUrl = null);
 
 public record LiveUserItem(
     long    Id,

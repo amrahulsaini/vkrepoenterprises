@@ -12,6 +12,8 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -570,7 +572,8 @@ private fun AgencyLandingPanel(
         }.getOrNull()
     }
     Column(
-        Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 18.dp),
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState())
+            .padding(horizontal = 20.dp, vertical = 18.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Surface(
@@ -641,63 +644,53 @@ private fun AgencyLandingPanel(
             }
         ) { }
         Spacer(Modifier.height(10.dp))
-        Row(
-            Modifier.fillMaxWidth().height(IntrinsicSize.Min),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            LandingTile(
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            GridTile(
                 label    = "OFFLINE RECORDS",
                 icon     = Icons.Default.CloudDownload,
                 subtitle = "Saved on this phone",
                 accent   = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.weight(1f).fillMaxHeight()
+                modifier = Modifier.weight(1f)
             ) { nav.navigate(Screen.Settings.route) }
-            LandingTile(
+            GridTile(
                 label    = "MY ACCOUNT",
                 icon     = Icons.Default.AccountCircle,
                 subtitle = "Profile, KYC, subscriptions",
                 accent   = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.weight(1f).fillMaxHeight()
+                modifier = Modifier.weight(1f)
             ) { nav.navigate(Screen.Profile.route) }
         }
         if (isAdmin) {
             Spacer(Modifier.height(10.dp))
-            Row(
-                Modifier.fillMaxWidth().height(IntrinsicSize.Min),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                LandingTile(
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                GridTile(
                     label    = "PRE POST INTIMATION",
                     icon     = Icons.Default.Description,
                     subtitle = "Generate Pre / Post letter",
                     accent   = Color(0xFFF57F17),
-                    modifier = Modifier.weight(1f).fillMaxHeight()
+                    modifier = Modifier.weight(1f)
                 ) { onOpenLetters() }
-                LandingTile(
+                GridTile(
                     label    = "BILLING",
                     icon     = Icons.Default.ReceiptLong,
                     subtitle = "Generate repossession bill",
                     accent   = Color(0xFF00897B),
-                    modifier = Modifier.weight(1f).fillMaxHeight()
+                    modifier = Modifier.weight(1f)
                 ) { onOpenBilling() }
             }
             Spacer(Modifier.height(10.dp))
-            Row(
-                Modifier.fillMaxWidth().height(IntrinsicSize.Min),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                LandingTile(
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                GridTile(
                     label    = "CONTROL PANEL",
                     icon     = Icons.Default.Lock,
                     subtitle = "Users, subscriptions, logs",
                     accent   = Color(0xFF6A1B9A),
-                    modifier = Modifier.weight(1f).fillMaxHeight()
+                    modifier = Modifier.weight(1f)
                 ) { nav.navigate(Screen.ControlPanel.route) }
                 Spacer(Modifier.weight(1f))
             }
         }
-        Spacer(Modifier.weight(1f))
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(24.dp))
         Text("SOFTWARE DESIGNED BY",
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.outline,
@@ -711,6 +704,53 @@ private fun AgencyLandingPanel(
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.outline)
         Spacer(Modifier.height(8.dp))
+    }
+}
+
+@Composable
+private fun GridTile(
+    label: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    subtitle: String,
+    accent: Color,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    Card(
+        onClick = onClick,
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        modifier = modifier.height(120.dp)
+    ) {
+        Column(
+            Modifier.fillMaxSize().padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Surface(
+                shape = RoundedCornerShape(10.dp),
+                color = accent.copy(alpha = 0.15f),
+                modifier = Modifier.size(38.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(icon, null, tint = accent, modifier = Modifier.size(20.dp))
+                }
+            }
+            Text(
+                label,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                lineHeight = 16.sp
+            )
+            Text(
+                subtitle,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
     }
 }
 

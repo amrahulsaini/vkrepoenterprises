@@ -1,5 +1,8 @@
 package com.vkenterprises.crmrs.ui.screens
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -19,8 +22,10 @@ import com.vkenterprises.crmrs.R
 import com.vkenterprises.crmrs.data.models.BillingSettings
 import com.vkenterprises.crmrs.utils.BillingDoc
 import com.vkenterprises.crmrs.utils.RepoPdf
+import com.vkenterprises.crmrs.utils.compressImageToBase64
 import com.vkenterprises.crmrs.viewmodel.AuthViewModel
 import com.vkenterprises.crmrs.viewmodel.RepoViewModel
+import coil.compose.AsyncImage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -93,6 +98,13 @@ fun BillingPreviewScreen(
     var generating by remember { mutableStateOf(false) }
     var asDocx by remember { mutableStateOf(false) }
 
+    val logoPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri != null) scope.launch {
+            val b64 = withContext(Dispatchers.IO) { compressImageToBase64(context, uri) }
+            if (b64 != null) repoVm.uploadBillingLogo(userId, b64)
+        }
+    }
+
     fun doGenerate() {
         generating = true
         scope.launch {
@@ -111,8 +123,10 @@ fun BillingPreviewScreen(
                 paymentName = paymentName.trim(),
                 footerLine = footerLine.trim()
             ))
+            val logoUrl = repoVm.ui.value.billingSettings?.logoUrl
             val result = withContext(Dispatchers.IO) {
-                val logo = BillingDoc.drawableToBitmap(context, R.drawable.agency_logo)
+                val logo = if (!logoUrl.isNullOrBlank()) RepoPdf.loadBitmap(logoUrl)
+                           else BillingDoc.drawableToBitmap(context, R.drawable.agency_logo)
                 val data = BillingDoc.BillingData(
                     logo = logo,
                     agencyName = agencyName.trim(),
@@ -191,6 +205,13 @@ fun BillingPreviewScreen(
                 .padding(horizontal = 14.dp, vertical = 10.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
+            BillSection("Letterhead Logo")
+            BillLogoRow(
+                logoUrl = ui.billingSettings?.logoUrl,
+                uploading = ui.uploadingLogo,
+                onPick = { logoPicker.launch("image/*") }
+            )
+
             BillSection("Invoice")
             BillField("To (Head Office)", toFinance) { toFinance = it }
             BillField("Invoice Date", invoiceDate) { invoiceDate = it }
@@ -230,6 +251,40 @@ fun BillingPreviewScreen(
             BillField("Footer Line", footerLine, "e.g. Pune 411027") { footerLine = it }
 
             Spacer(Modifier.height(80.dp))
+        }
+    }
+}
+
+@Composable
+private fun BillLogoRow(logoUrl: String?, uploading: Boolean, onPick: () -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+        Surface(
+            shape = RoundedCornerShape(10.dp),
+            color = MaterialTheme.colorScheme.surfaceVariant,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+            modifier = Modifier.size(72.dp)
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                when {
+                    uploading -> CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp)
+                    !logoUrl.isNullOrBlank() -> AsyncImage(
+                        model = logoUrl, contentDescription = "Letterhead logo",
+                        modifier = Modifier.fillMaxSize().padding(6.dp))
+                    else -> Icon(Icons.Default.Image, null, tint = MaterialTheme.colorScheme.outline)
+                }
+            }
+        }
+        Column(Modifier.weight(1f)) {
+            Text(
+                if (logoUrl.isNullOrBlank()) "Using the app's agency logo. Upload a custom letterhead logo."
+                else "Custom letterhead logo set — appears on top of the bill.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(Modifier.height(6.dp))
+            OutlinedButton(onClick = onPick, enabled = !uploading, shape = RoundedCornerShape(8.dp)) {
+                Icon(Icons.Default.Upload, null, Modifier.size(16.dp)); Spacer(Modifier.width(6.dp))
+                Text(if (logoUrl.isNullOrBlank()) "Upload Logo" else "Change Logo")
+            }
         }
     }
 }
