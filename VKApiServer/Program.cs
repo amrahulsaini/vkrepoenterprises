@@ -2041,7 +2041,10 @@ app.MapPost("/api/mgr/records/upload", async (HttpContext ctx) =>
     {
         string line;
         if (inserted.HasValue)
-            line = $"{{\"pct\":{pct},\"msg\":\"{msg}\",\"inserted\":{inserted.Value},\"elapsedSeconds\":{elapsed!.Value:F2}}}";
+        {
+            var es = elapsed!.Value.ToString("F2", System.Globalization.CultureInfo.InvariantCulture);
+            line = $"{{\"pct\":{pct},\"msg\":\"{msg}\",\"inserted\":{inserted.Value},\"elapsedSeconds\":{es}}}";
+        }
         else
             line = $"{{\"pct\":{pct},\"msg\":\"{msg}\"}}";
         await ctx.Response.WriteAsync(line + "\n");
