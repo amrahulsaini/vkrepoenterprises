@@ -2232,11 +2232,11 @@ app.MapPost("/api/mgr/records/upload", async (HttpContext ctx) =>
     }
     catch (Exception ex)
     {
-        await ctx.Response.WriteAsync($"{{\"pct\":-1,\"msg\":\"{ex.Message.Replace("\"", "'")}\"}}\n");
+        await ctx.Response.WriteAsync($"{{\"pct\":-1,\"msg\":{System.Text.Json.JsonSerializer.Serialize(ex.Message)}}}\n");
         await ctx.Response.Body.FlushAsync();
     }
 
-    return Results.Ok();
+    return new NoopResult();
 });
 
 
@@ -3258,3 +3258,8 @@ record IntegrationLoginDto(string Username, string Password);
 record IntegrationUploadDto(
     string Username, string Password, string? FileName, string? VehicleType,
     List<string> Headers, List<List<string>> Rows);
+
+sealed class NoopResult : IResult
+{
+    public Task ExecuteAsync(HttpContext httpContext) => Task.CompletedTask;
+}
