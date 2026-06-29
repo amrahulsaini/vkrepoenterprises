@@ -9,6 +9,10 @@ public static class Msg91Otp
     private static readonly string AuthKey    = Environment.GetEnvironmentVariable("MSG91_AUTHKEY") ?? "";
     private static readonly string TemplateId = Environment.GetEnvironmentVariable("MSG91_TEMPLATE_ID") ?? "";
 
+    private static readonly string DemoKey = Key(Environment.GetEnvironmentVariable("DEMO_MOBILE"));
+    private static readonly string DemoOtp = (Environment.GetEnvironmentVariable("DEMO_OTP") ?? "123456").Trim();
+    public static bool IsDemo(string? mobileRaw) => DemoKey.Length == 10 && Key(mobileRaw) == DemoKey;
+
     public static bool Configured => AuthKey.Length > 0 && TemplateId.Length > 0;
 
     public static bool Required =>
@@ -55,6 +59,11 @@ public static class Msg91Otp
     {
         var key = Key(mobileRaw);
         if (key.Length != 10) return (false, "Enter a valid 10-digit mobile number.");
+        if (IsDemo(mobileRaw))
+        {
+            _store[key] = new Entry { Otp = DemoOtp, Expiry = DateTime.UtcNow + OtpTtl, Attempts = 0, LastSent = DateTime.UtcNow };
+            return (true, "OTP sent.");
+        }
         if (!Configured)      return (false, "OTP service is not configured on the server.");
 
         if (_store.TryGetValue(key, out var prev) && DateTime.UtcNow - prev.LastSent < ResendWindow)
@@ -96,6 +105,11 @@ public static class Msg91Otp
         var code = new string((otp ?? "").Where(char.IsDigit).ToArray());
         if (key.Length != 10) return (false, "Enter a valid 10-digit mobile number.");
         if (code.Length == 0) return (false, "Enter the OTP.");
+        if (IsDemo(mobileRaw))
+        {
+            if (code == DemoOtp) { _verified[key] = DateTime.UtcNow + VerifiedTtl; return (true, "Verified."); }
+            return (false, "Incorrect OTP. Please try again.");
+        }
         if (!_store.TryGetValue(key, out var e)) return (false, "Please request an OTP first.");
         if (DateTime.UtcNow > e.Expiry) { _store.TryRemove(key, out _); return (false, "OTP expired. Please request a new one."); }
         if (e.Attempts >= 5)            { _store.TryRemove(key, out _); return (false, "Too many attempts. Please request a new OTP."); }
@@ -113,6 +127,7 @@ public static class Msg91Otp
 
     public static bool IsRecentlyVerified(string? mobileRaw)
     {
+        if (IsDemo(mobileRaw)) return true;
         var key = Key(mobileRaw);
         if (_verified.TryGetValue(key, out var until))
         {
