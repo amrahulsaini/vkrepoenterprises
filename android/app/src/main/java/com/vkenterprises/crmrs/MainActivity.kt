@@ -160,8 +160,5 @@ fun VKNavHost() {
         composable(Screen.RepoPreview.route) {
             RepoPreviewScreen(repoVm, authVm, navController)
         }
-        composable(Screen.BillingPreview.route) {
-            BillingPreviewScreen(repoVm, authVm, navController)
-        }
     }
 }

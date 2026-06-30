@@ -324,9 +324,7 @@ fun RepoSearchScreen(
                             Modifier.fillMaxWidth()
                                 .clickable {
                                     repoVm.selectVehicle(item.id, userId) {
-                                        val dest = if (repoVm.ui.value.flowMode == com.vkenterprises.crmrs.viewmodel.RepoFlow.BILLING)
-                                            Screen.BillingPreview.route else Screen.RepoPreview.route
-                                        nav.navigate(dest)
+                                        nav.navigate(Screen.RepoPreview.route)
                                     }
                                 }
                                 .padding(horizontal = 12.dp, vertical = 12.dp),
