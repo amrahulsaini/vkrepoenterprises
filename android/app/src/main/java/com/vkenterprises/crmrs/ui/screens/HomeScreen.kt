@@ -248,6 +248,7 @@ fun HomeScreen(
 
     Scaffold(
         topBar = {
+            if (ui.results.isEmpty() && ui.inputText.isEmpty() && !ui.isSearching)
             TopAppBar(
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -384,7 +385,9 @@ fun HomeScreen(
                             Text(
                                 if (ui.mode == SearchMode.RC) "Enter last 4 digits of RC"
                                 else "Enter last 5 digits of Chassis",
-                                style = MaterialTheme.typography.bodySmall
+                                fontFamily = RobotoFamily,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 16.sp
                             )
                         },
                         leadingIcon = { Icon(Icons.Default.Search, null, Modifier.size(18.dp)) },
@@ -425,9 +428,10 @@ fun HomeScreen(
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
                         shape = RoundedCornerShape(8.dp),
-                        textStyle = MaterialTheme.typography.bodyMedium.copy(
-                            fontFamily = FontFamily.Monospace,
+                        textStyle = MaterialTheme.typography.bodyLarge.copy(
+                            fontFamily = RobotoFamily,
                             fontWeight = FontWeight.Bold,
+                            fontSize = 18.sp,
                             letterSpacing = 3.sp
                         ),
                         colors = OutlinedTextFieldDefaults.colors(

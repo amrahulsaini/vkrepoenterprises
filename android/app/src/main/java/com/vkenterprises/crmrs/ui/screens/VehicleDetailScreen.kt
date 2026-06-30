@@ -289,7 +289,6 @@ fun VehicleDetailScreen(
                             showBranchSheet = false
                         },
                         shape    = RoundedCornerShape(10.dp),
-                        border   = if (isSelected) BorderStroke(2.dp, Color(0xFFF57F17)) else null,
                         colors   = CardDefaults.cardColors(
                             containerColor = if (isSelected) Color(0xFFFFF8E1)
                                              else MaterialTheme.colorScheme.surfaceVariant
@@ -530,7 +529,7 @@ private fun QuickSearchBar(
                 searchVm.onInputChange(digits, userId)
                 if (digits.length == maxLen) onSubmit()
             },
-            placeholder = { Text(placeholder, style = MaterialTheme.typography.bodySmall) },
+            placeholder = { Text(placeholder, fontWeight = FontWeight.Bold, fontSize = 16.sp) },
             leadingIcon = { Icon(Icons.Default.Search, null, Modifier.size(18.dp)) },
             keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
                 keyboardType = androidx.compose.ui.text.input.KeyboardType.Number
