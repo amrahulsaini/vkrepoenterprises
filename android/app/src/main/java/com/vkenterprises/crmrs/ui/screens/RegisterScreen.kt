@@ -432,13 +432,18 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
                 )
             }
 
+            if (!mobileVerified) {
+                SectionHeader("Aadhaar Verification")
+                Text(
+                    "Verify your mobile number above first. Aadhaar verification unlocks after that.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = ERR_RED
+                )
+            }
+
+            if (mobileVerified) {
+
             SectionHeader("Aadhaar Verification")
-            Text(
-                "Upload your Aadhaar front photo — we read the number automatically — " +
-                    "then verify it with the OTP sent to your Aadhaar-linked mobile.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
 
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 KycImageCard(
@@ -593,6 +598,8 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
                 modifier = Modifier.fillMaxWidth().height(120.dp),
                 onClick = { panFrontPicker.launch("image/*") }
             )
+
+            }
 
             SectionHeader("Current Location")
             Surface(

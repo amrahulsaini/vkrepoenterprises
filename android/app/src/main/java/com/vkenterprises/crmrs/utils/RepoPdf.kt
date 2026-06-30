@@ -18,8 +18,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
-import java.net.HttpURLConnection
-import java.net.URL
 
 enum class RepoDocType(val title: String, val subject: String) {
     PRE("Pre-Repossession Intimation to Police Station", "Pre-Repo Intimation"),
@@ -50,10 +48,8 @@ object RepoPdf {
 
     suspend fun loadBitmap(url: String): Bitmap? = withContext(Dispatchers.IO) {
         runCatching {
-            val conn = URL(url).openConnection() as HttpURLConnection
-            conn.connectTimeout = 8000
-            conn.readTimeout = 8000
-            conn.inputStream.use { BitmapFactory.decodeStream(it) }
+            val bytes = com.vkenterprises.crmrs.data.api.ApiClient.downloadBytes(url)
+            if (bytes != null) BitmapFactory.decodeByteArray(bytes, 0, bytes.size) else null
         }.getOrNull()
     }
 

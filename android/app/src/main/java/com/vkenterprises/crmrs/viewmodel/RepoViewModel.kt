@@ -22,8 +22,6 @@ import javax.inject.Inject
 
 enum class RepoType { PRE, POST }
 
-enum class RepoFlow { LETTER, BILLING }
-
 data class RepoUiState(
     val headOffices: List<HeadOffice>       = emptyList(),
     val loadingHeadOffices: Boolean         = false,
@@ -42,10 +40,7 @@ data class RepoUiState(
     val loadingRecord: Boolean              = false,
 
     val settings: RepoLetterSettings?       = null,
-    val uploadingLogo: Boolean              = false,
-
-    val flowMode: RepoFlow                  = RepoFlow.LETTER,
-    val billingSettings: com.vkenterprises.crmrs.data.models.BillingSettings? = null
+    val uploadingLogo: Boolean              = false
 )
 
 @HiltViewModel
@@ -58,41 +53,6 @@ class RepoViewModel @Inject constructor() : ViewModel() {
     private var searchJob: Job? = null
 
     private val requiredLen get() = if (_ui.value.mode == SearchMode.RC) 4 else 5
-
-    fun setFlow(flow: RepoFlow) {
-        _ui.update { it.copy(flowMode = flow) }
-    }
-
-    fun loadBillingSettings(userId: Long) {
-        viewModelScope.launch {
-            val s = withContext(Dispatchers.IO) {
-                runCatching { api.getBillingSettings(userId).body() }.getOrNull()
-            }
-            _ui.update { it.copy(billingSettings = s ?: com.vkenterprises.crmrs.data.models.BillingSettings()) }
-        }
-    }
-
-    suspend fun saveBillingSettings(userId: Long, req: com.vkenterprises.crmrs.data.models.BillingSettings) {
-        val existingLogo = _ui.value.billingSettings?.logoUrl
-        withContext(Dispatchers.IO) { runCatching { api.saveBillingSettings(userId, req) } }
-        _ui.update { it.copy(billingSettings = req.copy(logoUrl = req.logoUrl ?: existingLogo)) }
-    }
-
-    fun uploadBillingLogo(userId: Long, imageBase64: String) {
-        _ui.update { it.copy(uploadingLogo = true) }
-        viewModelScope.launch {
-            val url = withContext(Dispatchers.IO) {
-                runCatching {
-                    val resp = api.saveBillingLogo(userId, com.vkenterprises.crmrs.data.models.UploadRepoLogoRequest(imageBase64))
-                    if (resp.isSuccessful) resp.body()?.get("logoUrl") as? String else null
-                }.getOrNull()
-            }
-            _ui.update {
-                val s = it.billingSettings ?: com.vkenterprises.crmrs.data.models.BillingSettings()
-                it.copy(uploadingLogo = false, billingSettings = s.copy(logoUrl = url ?: s.logoUrl))
-            }
-        }
-    }
 
     fun loadHeadOffices(userId: Long) {
         _ui.update { it.copy(loadingHeadOffices = true, headOfficeError = null) }

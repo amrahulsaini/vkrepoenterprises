@@ -536,14 +536,8 @@ fun HomeScreen(
                     isAdmin       = isAdmin,
                     nav           = nav,
                     onOpenLetters = {
-                        repoVm.setFlow(com.vkenterprises.crmrs.viewmodel.RepoFlow.LETTER)
                         if (userId > 0) repoVm.loadHeadOffices(userId)
                         nav.navigate(Screen.RepoType.route)
-                    },
-                    onOpenBilling = {
-                        repoVm.setFlow(com.vkenterprises.crmrs.viewmodel.RepoFlow.BILLING)
-                        if (userId > 0) { repoVm.loadHeadOffices(userId); repoVm.loadBillingSettings(userId) }
-                        nav.navigate(Screen.RepoHeadOffices.route)
                     }
                 )
             }
@@ -562,7 +556,6 @@ private fun AgencyLandingPanel(
     isAdmin: Boolean,
     nav: NavController,
     onOpenLetters: () -> Unit,
-    onOpenBilling: () -> Unit,
 ) {
     val daysLeft = remember(subEndDate) {
         if (subEndDate.isNullOrBlank()) null
@@ -671,23 +664,12 @@ private fun AgencyLandingPanel(
                     modifier = Modifier.weight(1f)
                 ) { onOpenLetters() }
                 GridTile(
-                    label    = "BILLING",
-                    icon     = Icons.Default.ReceiptLong,
-                    subtitle = "Generate repossession bill",
-                    accent   = Color(0xFF00897B),
-                    modifier = Modifier.weight(1f)
-                ) { onOpenBilling() }
-            }
-            Spacer(Modifier.height(10.dp))
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                GridTile(
                     label    = "CONTROL PANEL",
                     icon     = Icons.Default.Lock,
                     subtitle = "Users, subscriptions, logs",
                     accent   = Color(0xFF6A1B9A),
                     modifier = Modifier.weight(1f)
                 ) { nav.navigate(Screen.ControlPanel.route) }
-                Spacer(Modifier.weight(1f))
             }
         }
         Spacer(Modifier.height(24.dp))
@@ -720,19 +702,19 @@ private fun GridTile(
         onClick = onClick,
         shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-        modifier = modifier.height(120.dp)
+        modifier = modifier.height(148.dp)
     ) {
         Column(
-            Modifier.fillMaxSize().padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            Modifier.fillMaxSize().padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             Surface(
                 shape = RoundedCornerShape(10.dp),
                 color = accent.copy(alpha = 0.15f),
-                modifier = Modifier.size(38.dp)
+                modifier = Modifier.size(34.dp)
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    Icon(icon, null, tint = accent, modifier = Modifier.size(20.dp))
+                    Icon(icon, null, tint = accent, modifier = Modifier.size(18.dp))
                 }
             }
             Text(
@@ -741,14 +723,15 @@ private fun GridTile(
                 fontWeight = FontWeight.Bold,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
-                lineHeight = 16.sp
+                lineHeight = 15.sp
             )
             Text(
                 subtitle,
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                lineHeight = 13.sp
             )
         }
     }

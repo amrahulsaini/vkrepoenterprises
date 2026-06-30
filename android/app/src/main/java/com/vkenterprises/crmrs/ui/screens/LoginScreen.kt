@@ -201,13 +201,6 @@ fun LoginScreen(vm: AuthViewModel, nav: NavController) {
                 Text("CREATE ACCOUNT", fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
             }
 
-            Text(
-                "Enter your registered mobile number to log in.\nNo password required.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center
-            )
-
             Spacer(Modifier.height(40.dp))
         }
     }

@@ -83,6 +83,13 @@ object ApiClient {
         .build()
         .create(ApiService::class.java)
 
+    fun downloadBytes(url: String): ByteArray? = runCatching {
+        val req = okhttp3.Request.Builder().url(url).get().build()
+        okHttp.newCall(req).execute().use { resp ->
+            if (resp.isSuccessful) resp.body?.bytes() else null
+        }
+    }.getOrNull()
+
     fun warmUp() {
         runCatching {
             val req = okhttp3.Request.Builder().url(BuildConfig.BASE_URL).get().build()
