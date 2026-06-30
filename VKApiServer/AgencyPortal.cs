@@ -171,7 +171,7 @@ internal static class AgencyPortal
             Pass     = Env("SMTP_PASS",      ""),
             Ssl      = Env("SMTP_SSL", "false").Trim().ToLowerInvariant() is "true" or "1" or "yes",
             FromAddr = Env("SMTP_FROM",      "team@crmrecoverysoftware.com"),
-            FromName = Env("SMTP_FROM_NAME", "CRMS TEAM"),
+            FromName = Env("SMTP_FROM_NAME", "CRMRS TEAM"),
         };
 
         try { Directory.CreateDirectory(LOGO_DIR); } catch { }
@@ -1021,8 +1021,8 @@ internal static class AgencyPortal
                 string msg = status switch
                 {
                     "pending"   => "Your agency account is still awaiting verification. You'll be able to sign in once an administrator approves it.",
-                    "rejected"  => "Your agency registration was not approved. Please contact CRMS support.",
-                    "suspended" => "Your agency account has been suspended. Please contact CRMS support.",
+                    "rejected"  => "Your agency registration was not approved. Please contact CRMRS support.",
+                    "suspended" => "Your agency account has been suspended. Please contact CRMRS support.",
                     _           => "Your agency account is not active.",
                 };
                 return Results.Json(new { message = msg }, statusCode: 403);
@@ -1542,48 +1542,60 @@ internal static class AgencyPortal
 
     private static async Task SendOtpEmail(SmtpConfig s, string to, string code)
     {
-        string subject = $"Your CRMS verification code: {code}";
+        string subject = $"Your CRMRS verification code: {code}";
         string html = $@"
-<div style=""font-family:Inter,Segoe UI,Arial,sans-serif;max-width:520px;margin:0 auto;padding:32px;color:#0F172A;background:#F6F8FB;"">
-  <div style=""background:#fff;border-radius:14px;border:1px solid #E4E9F0;padding:32px;"">
-    <h2 style=""margin:0 0 8px;font-size:20px;font-weight:800;color:#4F46E5;"">CRMS Agency Portal</h2>
-    <p style=""margin:0 0 22px;color:#64748B;font-size:14px;"">Use the code below to verify your email address. It is valid for 10 minutes.</p>
-    <div style=""font-size:36px;font-weight:800;letter-spacing:.18em;text-align:center;padding:18px;background:#EEF2FF;color:#4338CA;border-radius:10px;"">{code}</div>
-    <p style=""margin:22px 0 0;color:#64748B;font-size:12.5px;"">If you did not request this code, you can safely ignore this email.</p>
+<div style=""font-family:'Hanken Grotesk',Segoe UI,Arial,sans-serif;max-width:520px;margin:0 auto;padding:32px;color:#100f0c;background:#fbfaf7;"">
+  <div style=""background:#ffffff;border-radius:16px;border:1px solid #ece9e2;padding:36px;"">
+    <div style=""text-align:center;margin-bottom:26px;"">
+      <span style=""font-family:'Archivo',Segoe UI,Arial,sans-serif;font-weight:900;font-size:24px;letter-spacing:-0.5px;color:#100f0c;"">CRM<span style=""color:#ff5500;"">RS</span></span>
+      <div style=""font-size:9px;letter-spacing:3px;color:#ff5500;font-weight:700;margin-top:3px;"">RECOVERY SOFTWARE</div>
+    </div>
+    <h2 style=""margin:0 0 8px;font-family:'Archivo',Segoe UI,Arial,sans-serif;font-size:20px;font-weight:800;color:#100f0c;text-align:center;"">Verify your email</h2>
+    <p style=""margin:0 0 24px;color:#5a574f;font-size:14px;text-align:center;"">Use the code below to verify your email address. It is valid for 10 minutes.</p>
+    <div style=""font-family:'Archivo',Segoe UI,Arial,sans-serif;font-size:36px;font-weight:800;letter-spacing:.18em;text-align:center;padding:18px;background:#fff1ea;color:#cc3c00;border-radius:12px;border:1px solid #ffd9c2;"">{code}</div>
+    <p style=""margin:24px 0 0;color:#9a978f;font-size:12.5px;text-align:center;"">If you did not request this code, you can safely ignore this email.</p>
   </div>
-  <p style=""text-align:center;color:#94A3B8;font-size:11px;margin-top:14px;"">© CRMS · team@crmrecoverysoftware.com</p>
+  <p style=""text-align:center;color:#9a978f;font-size:11px;margin-top:16px;"">© CRMRS · team@crmrecoverysoftware.com</p>
 </div>";
         await SendMail(s, to, subject, html);
     }
 
     private static async Task SendApprovedEmail(SmtpConfig s, string to, string agencyName)
     {
-        string subject = "Your CRMS agency has been approved";
+        string subject = "Your CRMRS agency has been approved";
         string html = $@"
-<div style=""font-family:Inter,Segoe UI,Arial,sans-serif;max-width:520px;margin:0 auto;padding:32px;color:#0F172A;background:#F6F8FB;"">
-  <div style=""background:#fff;border-radius:14px;border:1px solid #E4E9F0;padding:32px;"">
-    <h2 style=""margin:0 0 8px;font-size:22px;font-weight:800;color:#10B981;"">You're approved 🎉</h2>
-    <p style=""margin:0 0 18px;color:#0F172A;font-size:15px;""><strong>{System.Net.WebUtility.HtmlEncode(agencyName)}</strong>, your CRMS agency account is now active.</p>
-    <p style=""margin:0 0 18px;color:#64748B;font-size:14px;"">You can sign in to the desktop application using your primary email and the password you set during registration.</p>
-    <p style=""margin:0;color:#64748B;font-size:13px;"">Your agency has its own private workspace — your data is fully isolated from every other agency.</p>
+<div style=""font-family:'Hanken Grotesk',Segoe UI,Arial,sans-serif;max-width:520px;margin:0 auto;padding:32px;color:#100f0c;background:#fbfaf7;"">
+  <div style=""background:#ffffff;border-radius:16px;border:1px solid #ece9e2;padding:36px;"">
+    <div style=""text-align:center;margin-bottom:26px;"">
+      <span style=""font-family:'Archivo',Segoe UI,Arial,sans-serif;font-weight:900;font-size:24px;letter-spacing:-0.5px;color:#100f0c;"">CRM<span style=""color:#ff5500;"">RS</span></span>
+      <div style=""font-size:9px;letter-spacing:3px;color:#ff5500;font-weight:700;margin-top:3px;"">RECOVERY SOFTWARE</div>
+    </div>
+    <h2 style=""margin:0 0 10px;font-family:'Archivo',Segoe UI,Arial,sans-serif;font-size:22px;font-weight:800;color:#ff5500;text-align:center;"">You're approved 🎉</h2>
+    <p style=""margin:0 0 18px;color:#100f0c;font-size:15px;text-align:center;""><strong>{System.Net.WebUtility.HtmlEncode(agencyName)}</strong>, your CRMRS agency account is now active.</p>
+    <p style=""margin:0 0 18px;color:#5a574f;font-size:14px;"">You can sign in to the desktop application using your primary email and the password you set during registration.</p>
+    <p style=""margin:0;color:#5a574f;font-size:13px;"">Your agency has its own private workspace — your data is fully isolated from every other agency.</p>
   </div>
-  <p style=""text-align:center;color:#94A3B8;font-size:11px;margin-top:14px;"">© CRMS · team@crmrecoverysoftware.com</p>
+  <p style=""text-align:center;color:#9a978f;font-size:11px;margin-top:16px;"">© CRMRS · team@crmrecoverysoftware.com</p>
 </div>";
         await SendMail(s, to, subject, html);
     }
 
     private static async Task SendManageOtpEmail(SmtpConfig s, string to, string code)
     {
-        string subject = $"CRMS admin sign-in code: {code}";
+        string subject = $"CRMRS admin sign-in code: {code}";
         string html = $@"
-<div style=""font-family:Inter,Segoe UI,Arial,sans-serif;max-width:520px;margin:0 auto;padding:32px;color:#0F172A;background:#F6F8FB;"">
-  <div style=""background:#fff;border-radius:14px;border:1px solid #E4E9F0;padding:32px;"">
-    <h2 style=""margin:0 0 8px;font-size:20px;font-weight:800;color:#EA580C;"">CRMS Administrator</h2>
-    <p style=""margin:0 0 22px;color:#64748B;font-size:14px;"">Use the code below to finish signing in to the manage page. It is valid for 10 minutes.</p>
-    <div style=""font-size:36px;font-weight:800;letter-spacing:.18em;text-align:center;padding:18px;background:#FFF3EA;color:#9A3412;border-radius:10px;"">{code}</div>
-    <p style=""margin:22px 0 0;color:#64748B;font-size:12.5px;"">If you did not request this code, someone may have tried to access the admin page — you can safely ignore the email.</p>
+<div style=""font-family:'Hanken Grotesk',Segoe UI,Arial,sans-serif;max-width:520px;margin:0 auto;padding:32px;color:#100f0c;background:#fbfaf7;"">
+  <div style=""background:#ffffff;border-radius:16px;border:1px solid #ece9e2;padding:36px;"">
+    <div style=""text-align:center;margin-bottom:26px;"">
+      <span style=""font-family:'Archivo',Segoe UI,Arial,sans-serif;font-weight:900;font-size:24px;letter-spacing:-0.5px;color:#100f0c;"">CRM<span style=""color:#ff5500;"">RS</span></span>
+      <div style=""font-size:9px;letter-spacing:3px;color:#ff5500;font-weight:700;margin-top:3px;"">RECOVERY SOFTWARE</div>
+    </div>
+    <h2 style=""margin:0 0 8px;font-family:'Archivo',Segoe UI,Arial,sans-serif;font-size:20px;font-weight:800;color:#100f0c;text-align:center;"">Administrator sign-in</h2>
+    <p style=""margin:0 0 24px;color:#5a574f;font-size:14px;text-align:center;"">Use the code below to finish signing in to the manage page. It is valid for 10 minutes.</p>
+    <div style=""font-family:'Archivo',Segoe UI,Arial,sans-serif;font-size:36px;font-weight:800;letter-spacing:.18em;text-align:center;padding:18px;background:#fff1ea;color:#cc3c00;border-radius:12px;border:1px solid #ffd9c2;"">{code}</div>
+    <p style=""margin:24px 0 0;color:#9a978f;font-size:12.5px;text-align:center;"">If you did not request this code, someone may have tried to access the admin page — you can safely ignore the email.</p>
   </div>
-  <p style=""text-align:center;color:#94A3B8;font-size:11px;margin-top:14px;"">© CRMS · admin sign-in</p>
+  <p style=""text-align:center;color:#9a978f;font-size:11px;margin-top:16px;"">© CRMRS · admin sign-in</p>
 </div>";
         await SendMail(s, to, subject, html);
     }
