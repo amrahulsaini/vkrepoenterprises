@@ -188,7 +188,8 @@ class RepoViewModel @Inject constructor() : ViewModel() {
                 agencyName = req.agencyName,
                 authorizedBy = req.authorizedBy,
                 policeStation = req.policeStation,
-                policeAddress = req.policeAddress
+                policeAddress = req.policeAddress,
+                logoUrl = it.settings?.logoUrl
             ))
         }
     }
