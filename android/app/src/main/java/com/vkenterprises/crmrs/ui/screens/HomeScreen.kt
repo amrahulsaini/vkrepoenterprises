@@ -541,7 +541,7 @@ fun HomeScreen(
                     nav           = nav,
                     onOpenLetters = {
                         if (userId > 0) repoVm.loadHeadOffices(userId)
-                        nav.navigate(Screen.RepoType.route)
+                        nav.navigate(Screen.RepoHeadOffices.route)
                     }
                 )
             }

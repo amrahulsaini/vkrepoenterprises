@@ -148,9 +148,6 @@ fun VKNavHost() {
             LiveUsersScreen(userId = userId, navController = navController)
         }
 
-        composable(Screen.RepoType.route) {
-            RepoTypeScreen(repoVm, authVm, navController)
-        }
         composable(Screen.RepoHeadOffices.route) {
             RepoHeadOfficeScreen(repoVm, authVm, navController)
         }
