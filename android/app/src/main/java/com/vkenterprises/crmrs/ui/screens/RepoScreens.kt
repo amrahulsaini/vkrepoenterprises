@@ -345,22 +345,26 @@ fun RepoPreviewScreen(
         },
         bottomBar = {
             Surface(shadowElevation = 8.dp) {
-                Row(Modifier.navigationBarsPadding().padding(horizontal = 12.dp, vertical = 10.dp),
+                Row(Modifier.navigationBarsPadding().padding(horizontal = 12.dp, vertical = 12.dp),
                     horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     Button(onClick = { doGenerate(RepoDocType.PRE) }, enabled = !generating,
                         shape = RoundedCornerShape(10.dp),
-                        modifier = Modifier.weight(1f).height(48.dp)) {
+                        contentPadding = PaddingValues(horizontal = 8.dp),
+                        modifier = Modifier.weight(1f).height(52.dp)) {
                         if (generating) CircularProgressIndicator(Modifier.size(18.dp),
                             strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
-                        else Text("Generate Pre (DOCX)", fontWeight = FontWeight.Bold)
+                        else Text("Generate Pre", fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp, maxLines = 1)
                     }
                     Button(onClick = { doGenerate(RepoDocType.POST) }, enabled = !generating,
                         shape = RoundedCornerShape(10.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6A1B9A)),
-                        modifier = Modifier.weight(1f).height(48.dp)) {
+                        modifier = Modifier.weight(1f).height(52.dp)) {
                         if (generating) CircularProgressIndicator(Modifier.size(18.dp),
                             strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
-                        else Text("Generate Post (DOCX)", fontWeight = FontWeight.Bold)
+                        else Text("Generate Post", fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp, maxLines = 1)
                     }
                 }
             }
