@@ -956,7 +956,7 @@ private fun SRow(
             label,
             fontSize   = 14.sp,
             fontFamily = FontFamily.Default,
-            fontWeight = FontWeight.Bold,
+            fontWeight = FontWeight.Normal,
             color      = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier   = Modifier.width(if (sel) 104.dp else 128.dp)
         )
@@ -964,7 +964,7 @@ private fun SRow(
             ":",
             fontSize   = 14.sp,
             fontFamily = FontFamily.Default,
-            fontWeight = FontWeight.Bold,
+            fontWeight = FontWeight.Normal,
             color      = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier   = Modifier.padding(end = 8.dp)
         )

@@ -46,97 +46,6 @@ import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun RepoTypeScreen(
-    repoVm: RepoViewModel,
-    authVm: AuthViewModel,
-    nav: NavController
-) {
-    val userId by authVm.userId.collectAsState(initial = -1L)
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Repossession Letter", fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = { nav.popBackStack() }) { Icon(Icons.Default.ArrowBack, null) }
-                }
-            )
-        }
-    ) { pad ->
-        Column(
-            Modifier.padding(pad).fillMaxSize().padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            Text("Choose the letter to generate",
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
-
-            RepoBigTile(
-                title = "PRE-REPOSSESSION",
-                subtitle = "Pre-Repo intimation to police station",
-                icon = Icons.Default.Description,
-                accent = MaterialTheme.colorScheme.primary,
-                enabled = true
-            ) {
-                if (userId > 0) repoVm.loadHeadOffices(userId)
-                nav.navigate(Screen.RepoHeadOffices.route)
-            }
-
-            RepoBigTile(
-                title = "POST-REPOSSESSION",
-                subtitle = "Post-Repo intimation to police station",
-                icon = Icons.Default.AssignmentTurnedIn,
-                accent = Color(0xFF6A1B9A),
-                enabled = true
-            ) {
-                if (userId > 0) repoVm.loadHeadOffices(userId)
-                nav.navigate(Screen.RepoHeadOffices.route)
-            }
-        }
-    }
-}
-
-@Composable
-private fun RepoBigTile(
-    title: String,
-    subtitle: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    accent: Color,
-    enabled: Boolean,
-    onClick: () -> Unit
-) {
-    Card(
-        onClick = onClick,
-        enabled = enabled,
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (enabled) MaterialTheme.colorScheme.surfaceVariant
-                             else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-        ),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Row(
-            Modifier.padding(18.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            Surface(shape = RoundedCornerShape(12.dp), color = accent.copy(alpha = 0.15f),
-                modifier = Modifier.size(52.dp)) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(icon, null, tint = accent, modifier = Modifier.size(28.dp))
-                }
-            }
-            Column(Modifier.weight(1f)) {
-                Text(title, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-                Text(subtitle, style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            if (enabled) Icon(Icons.Default.ChevronRight, null, tint = MaterialTheme.colorScheme.outline)
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
 fun RepoHeadOfficeScreen(
     repoVm: RepoViewModel,
     authVm: AuthViewModel,
@@ -382,7 +291,6 @@ fun RepoPreviewScreen(
     }
     var authLetterDate by remember { mutableStateOf(todayLong) }
     var generating by remember { mutableStateOf(false) }
-    var asDocx by remember { mutableStateOf(false) }
 
     val logoPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri != null) scope.launch {
@@ -418,11 +326,8 @@ fun RepoPreviewScreen(
                     authLetterDate = authLetterDate.trim(),
                     logo = logo
                 )
-                if (asDocx)
-                    RepoDocx.generate(context, data) to
-                        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                else
-                    RepoPdf.generate(context, data) to "application/pdf"
+                RepoDocx.generate(context, data) to
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
             }
             generating = false
             RepoPdf.open(context, result.first, result.second)
@@ -440,34 +345,22 @@ fun RepoPreviewScreen(
         },
         bottomBar = {
             Surface(shadowElevation = 8.dp) {
-                Column(Modifier.navigationBarsPadding().padding(horizontal = 12.dp, vertical = 10.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("Format", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
-                        FilterChip(selected = !asDocx, onClick = { asDocx = false },
-                            label = { Text("PDF") },
-                            leadingIcon = { Icon(Icons.Default.PictureAsPdf, null, Modifier.size(16.dp)) })
-                        FilterChip(selected = asDocx, onClick = { asDocx = true },
-                            label = { Text("DOCX") },
-                            leadingIcon = { Icon(Icons.Default.Description, null, Modifier.size(16.dp)) })
-                        if (generating) {
-                            Spacer(Modifier.weight(1f))
-                            CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
-                        }
+                Row(Modifier.navigationBarsPadding().padding(horizontal = 12.dp, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Button(onClick = { doGenerate(RepoDocType.PRE) }, enabled = !generating,
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.weight(1f).height(48.dp)) {
+                        if (generating) CircularProgressIndicator(Modifier.size(18.dp),
+                            strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
+                        else Text("Generate Pre (DOCX)", fontWeight = FontWeight.Bold)
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Button(onClick = { doGenerate(RepoDocType.PRE) }, enabled = !generating,
-                            shape = RoundedCornerShape(10.dp),
-                            modifier = Modifier.weight(1f).height(48.dp)) {
-                            Text("Generate Pre", fontWeight = FontWeight.Bold)
-                        }
-                        Button(onClick = { doGenerate(RepoDocType.POST) }, enabled = !generating,
-                            shape = RoundedCornerShape(10.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6A1B9A)),
-                            modifier = Modifier.weight(1f).height(48.dp)) {
-                            Text("Generate Post", fontWeight = FontWeight.Bold)
-                        }
+                    Button(onClick = { doGenerate(RepoDocType.POST) }, enabled = !generating,
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6A1B9A)),
+                        modifier = Modifier.weight(1f).height(48.dp)) {
+                        if (generating) CircularProgressIndicator(Modifier.size(18.dp),
+                            strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
+                        else Text("Generate Post (DOCX)", fontWeight = FontWeight.Bold)
                     }
                 }
             }
