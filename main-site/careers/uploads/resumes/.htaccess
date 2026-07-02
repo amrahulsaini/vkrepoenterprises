@@ -1,0 +1,7 @@
+<FilesMatch "\.(php|phtml|phar|php3|php4|php5|php7|pht|cgi|pl|py|sh)$">
+  Require all denied
+</FilesMatch>
+Options -ExecCGI
+AddHandler cgi-script .php .phtml .phar .cgi .pl .py
+RemoveHandler .php .phtml .phar
+php_flag engine off

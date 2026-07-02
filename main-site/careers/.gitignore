@@ -1,0 +1,4 @@
+config.local.php
+uploads/resumes/*
+!uploads/resumes/.gitkeep
+!uploads/resumes/.htaccess

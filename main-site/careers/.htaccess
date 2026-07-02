@@ -1,0 +1,18 @@
+<FilesMatch "\.(sql|md|log)$">
+  Require all denied
+</FilesMatch>
+<Files "config.php">
+  Require all denied
+</Files>
+<Files "config.local.php">
+  Require all denied
+</Files>
+<Files "config.local.example.php">
+  Require all denied
+</Files>
+<Files "bootstrap.php">
+  Require all denied
+</Files>
+<Files "helpers.php">
+  Require all denied
+</Files>
