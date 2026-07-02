@@ -66,6 +66,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $job) {
         ]);
         if ($inserted) {
             $submitted = true;
+            sendApplicationEmails([
+                'full_name' => $old['full_name'],
+                'email' => $old['email'],
+                'phone' => $old['phone'],
+                'job_title' => $job['job_title'],
+            ]);
         } else {
             $errors[] = 'Something went wrong while submitting. Please try again.';
         }
@@ -119,15 +125,15 @@ require __DIR__ . '/partials/site-head.php';
     <span class="kicker">Careers at CRMRS</span>
     <h1 style="font-size:clamp(28px,5vw,40px);margin:14px 0 14px">Position not available</h1>
     <p class="lead" style="font-size:17px;color:var(--ink-soft);margin-bottom:24px">This opening may have been closed or does not exist.</p>
-    <a class="btn btn-orange" href="/careers.php">View open positions</a>
+    <a class="btn btn-orange" href="/careers/">View open positions</a>
   </div>
 <?php } else { ?>
   <div class="jd">
-    <a class="jd-back" href="/careers.php">Back to all openings</a>
+    <a class="jd-back" href="/careers/">Back to all openings</a>
 
     <?php if ($submitted) { ?>
       <div class="alert ok"><strong>Application received.</strong> Thank you for applying for <?php echo e($job['job_title']); ?>. Our team will review your profile and get back to you.</div>
-      <a class="btn btn-ghost" href="/careers.php">Browse more roles</a>
+      <a class="btn btn-ghost" href="/careers/">Browse more roles</a>
     <?php } else { ?>
 
     <div class="jd-head">
@@ -169,7 +175,7 @@ require __DIR__ . '/partials/site-head.php';
         </div>
       <?php } ?>
 
-      <form action="job.php?id=<?php echo (int) $job['id']; ?>" method="post" enctype="multipart/form-data">
+      <form action="/careers/<?php echo e(jobUrl($job)); ?>" method="post" enctype="multipart/form-data">
         <div class="field">
           <label for="full_name">Full name *</label>
           <input type="text" id="full_name" name="full_name" value="<?php echo e($old['full_name']); ?>" required>
