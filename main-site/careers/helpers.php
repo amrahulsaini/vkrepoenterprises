@@ -31,6 +31,19 @@ function clearAuthCookie()
     unset($_COOKIE['series_id'], $_COOKIE['remember_token']);
 }
 
+function slugify($text)
+{
+    $text = strtolower(trim($text));
+    $text = preg_replace('/[^a-z0-9]+/', '-', $text);
+    $text = trim($text, '-');
+    return $text === '' ? 'job' : $text;
+}
+
+function jobUrl($job)
+{
+    return 'job/' . slugify($job['job_title']) . '-' . (int) $job['id'];
+}
+
 function formatDate($value, $format = 'd M Y')
 {
     if (empty($value) || $value === '0000-00-00') {

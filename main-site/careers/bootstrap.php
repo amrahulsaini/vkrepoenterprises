@@ -5,6 +5,7 @@ error_reporting(E_ALL & ~E_DEPRECATED & ~E_NOTICE);
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/lib/MysqliDb/MysqliDb.php';
 require_once __DIR__ . '/helpers.php';
+require_once __DIR__ . '/mailer.php';
 
 function getDbInstance()
 {
