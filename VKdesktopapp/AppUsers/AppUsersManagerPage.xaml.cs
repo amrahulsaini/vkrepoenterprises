@@ -60,7 +60,7 @@ public partial class AppUsersManagerPage : Page
 
     private void ApplyFilter()
     {
-        if (_allUsers == null) return;
+        if (_allUsers == null || icUsers == null || txtSearch == null) return;
         IEnumerable<AppUserListItem> list = _allUsers;
 
         switch (cmbFilter?.SelectedIndex ?? 0)
