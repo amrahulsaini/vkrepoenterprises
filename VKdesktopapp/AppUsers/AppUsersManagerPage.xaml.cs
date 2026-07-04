@@ -60,18 +60,29 @@ public partial class AppUsersManagerPage : Page
 
     private void ApplyFilter()
     {
-        var q = txtSearch.Text.Trim().ToLower();
-        var filtered = string.IsNullOrEmpty(q)
-            ? _allUsers
-            : new ObservableCollection<AppUserListItem>(
-                _allUsers.Where(u =>
-                    u.Name.Contains(q, StringComparison.OrdinalIgnoreCase) ||
-                    u.Mobile.Contains(q, StringComparison.OrdinalIgnoreCase) ||
-                    (u.Address?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false)));
-        icUsers.ItemsSource = filtered;
+        if (_allUsers == null) return;
+        IEnumerable<AppUserListItem> list = _allUsers;
+
+        switch (cmbFilter?.SelectedIndex ?? 0)
+        {
+            case 1: list = list.Where(u => u.IsActive); break;
+            case 2: list = list.Where(u => u.IsAdmin); break;
+            case 3: list = list.Where(u => !u.IsAdmin); break;
+        }
+
+        var q = txtSearch.Text.Trim();
+        if (!string.IsNullOrEmpty(q))
+            list = list.Where(u =>
+                u.Name.Contains(q, StringComparison.OrdinalIgnoreCase) ||
+                u.Mobile.Contains(q, StringComparison.OrdinalIgnoreCase) ||
+                (u.Address?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false));
+
+        icUsers.ItemsSource = new ObservableCollection<AppUserListItem>(list);
     }
 
     private void txtSearch_TextChanged(object sender, TextChangedEventArgs e) => ApplyFilter();
+
+    private void cmbFilter_SelectionChanged(object sender, SelectionChangedEventArgs e) => ApplyFilter();
 
     private async void UserRow_Click(object sender, MouseButtonEventArgs e)
     {
@@ -726,6 +737,10 @@ public partial class AppUsersManagerPage : Page
         {
             var subs = await _repo.GetSubscriptionsAsync(userId);
             dgSubscriptions.ItemsSource = subs;
+            var total = subs.Sum(s => s.Amount);
+            txtProfileBalance.Text = $"₹{total:N2}";
+            if (_selectedUser != null && _selectedUser.Id == userId)
+                _selectedUser.Balance = total;
         }
         catch { }
     }
@@ -791,12 +806,12 @@ public partial class AppUsersManagerPage : Page
         if (_selectedUser == null) return;
 
         var existing = await _repo.GetSubscriptionsAsync(_selectedUser.Id);
-        if (existing.Count > 0)
+        if (existing.Any(s => s.IsActive))
         {
             MessageBox.Show(
-                "This user already has a plan. Delete the existing plan first " +
-                "(right-click the plan row → Delete Plan), then add a new one.",
-                "Plan already exists",
+                "This user already has an active plan. Add a new plan once the current one expires, " +
+                "or delete the active plan first (right-click the plan row → Delete Plan).",
+                "Active plan exists",
                 MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }

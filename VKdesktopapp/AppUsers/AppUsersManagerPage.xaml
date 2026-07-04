@@ -302,6 +302,20 @@
                         </Grid>
                     </Border>
 
+                    <Border DockPanel.Dock="Top" Margin="14,0,14,4">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="Show:" VerticalAlignment="Center"
+                                       Foreground="{StaticResource Gray400}" FontSize="13" Margin="2,0,8,0" />
+                            <ComboBox Name="cmbFilter" Width="170" SelectedIndex="0"
+                                      SelectionChanged="cmbFilter_SelectionChanged">
+                                <ComboBoxItem Content="All users" />
+                                <ComboBoxItem Content="Active" />
+                                <ComboBoxItem Content="Admins" />
+                                <ComboBoxItem Content="Users (non-admin)" />
+                            </ComboBox>
+                        </StackPanel>
+                    </Border>
+
                     <Grid DockPanel.Dock="Top" Margin="14,6,14,0">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="44" />
