@@ -18,8 +18,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.*
 import androidx.navigation.NavController
 import com.vkenterprises.crmrs.BuildConfig
+import com.vkenterprises.crmrs.utils.getCurrentLocation
+import com.vkenterprises.crmrs.utils.googleMapsLink
+import com.vkenterprises.crmrs.utils.reverseGeocodeAddress
 import com.vkenterprises.crmrs.viewmodel.AuthViewModel
 import com.vkenterprises.crmrs.viewmodel.SearchViewModel
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -64,6 +68,29 @@ fun ConfirmScreen(
 
     var vehicleAddress by remember { mutableStateOf("") }
     var carriesGoods   by remember { mutableStateOf("") }
+    var vehicleLat by remember { mutableStateOf<Double?>(null) }
+    var vehicleLng by remember { mutableStateOf<Double?>(null) }
+    var locating   by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+
+    fun fetchLocation() {
+        if (locating) return
+        locating = true
+        scope.launch {
+            val loc = getCurrentLocation(context)
+            if (loc != null) {
+                vehicleLat = loc.latitude
+                vehicleLng = loc.longitude
+                val addr = reverseGeocodeAddress(context, loc.latitude, loc.longitude)
+                if (!addr.isNullOrBlank() && vehicleAddress.isBlank()) vehicleAddress = addr
+            }
+            locating = false
+        }
+    }
+
+    LaunchedEffect(item?.id) { if (item != null) fetchLocation() }
+
+    val mapLink: String? = vehicleLat?.let { la -> vehicleLng?.let { ln -> googleMapsLink(la, ln) } }
 
     val screenTitle = when (actionType) {
         "okrepo" -> "OK for Repo"
@@ -84,6 +111,7 @@ fun ConfirmScreen(
         appendLine("Chassis No: *${item?.chassisNo?.trim().orEmpty()}*")
         appendLine("Engine No: *${item?.engineNo?.trim().orEmpty().ifBlank { "-" }}*")
         appendLine("Vehicle location: *${vehicleAddress.trim().ifBlank { "-" }}*")
+        mapLink?.let { appendLine("Location on Map: $it") }
         appendLine("Load details: *${carriesGoods.trim().ifBlank { "-" }}*")
         appendLine()
         appendLine("Status: *$status*")
@@ -119,6 +147,7 @@ fun ConfirmScreen(
         line("BKT",           item?.bucket)
         line("OD",            item?.od)
         appendLine("Vehicle location: *${vehicleAddress.trim().ifBlank { "-" }}*")
+        mapLink?.let { appendLine("Location on Map: $it") }
         appendLine("Load details: *${carriesGoods.trim().ifBlank { "-" }}*")
 
         fun levelLine(label: String, name: String?, contact: String?) {
@@ -283,8 +312,18 @@ fun ConfirmScreen(
             OutlinedTextField(
                 value = vehicleAddress,
                 onValueChange = { vehicleAddress = it },
-                label         = { Text("Vehicle Location / Address") },
+                label         = { Text(if (locating) "Fetching current location…" else "Vehicle Location / Address") },
                 leadingIcon   = { Icon(Icons.Default.LocationOn, null) },
+                trailingIcon  = {
+                    if (locating) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+                    else IconButton(onClick = { fetchLocation() }) {
+                        Icon(Icons.Default.MyLocation, contentDescription = "Use my current location")
+                    }
+                },
+                supportingText = {
+                    if (mapLink != null) Text("📍 Current location attached — a Google Maps link will be shared.",
+                        style = MaterialTheme.typography.labelSmall, color = Color(0xFF2E7D32))
+                },
                 modifier      = Modifier.fillMaxWidth(),
                 shape         = RoundedCornerShape(10.dp),
                 maxLines      = 3
