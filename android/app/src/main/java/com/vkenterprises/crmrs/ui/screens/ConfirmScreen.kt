@@ -320,10 +320,6 @@ fun ConfirmScreen(
                         Icon(Icons.Default.MyLocation, contentDescription = "Use my current location")
                     }
                 },
-                supportingText = {
-                    if (mapLink != null) Text("📍 Current location attached — a Google Maps link will be shared.",
-                        style = MaterialTheme.typography.labelSmall, color = Color(0xFF2E7D32))
-                },
                 modifier      = Modifier.fillMaxWidth(),
                 shape         = RoundedCornerShape(10.dp),
                 maxLines      = 3
