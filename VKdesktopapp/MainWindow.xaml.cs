@@ -6,6 +6,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using CRMRSDesktopApp.AppUsers;
+using CRMRSDesktopApp.Billing;
 using CRMRSDesktopApp.Blacklist;
 using CRMRSDesktopApp.Confirmations;
 using CRMRSDesktopApp.Data;
@@ -28,6 +29,7 @@ public partial class MainWindow : Window
     private readonly Page _reportsPage;
     private readonly Page _blacklistPage;
     private readonly Page _directDataPage;
+    private readonly Page _billingPage;
     private RecordsEditorWindow? _recordsEditorWindow;
 
     private static readonly SolidColorBrush ActiveBrush =
@@ -49,6 +51,7 @@ public partial class MainWindow : Window
         _reportsPage = new ReportsPage();
         _blacklistPage = new BlacklistPage();
         _directDataPage = new DirectDataPage();
+        _billingPage = new BillingPage();
 
         RefreshFirmLabels();
     }
@@ -183,6 +186,7 @@ public partial class MainWindow : Window
             case "Reports": LoadPage(_reportsPage); break;
             case "Blacklist": LoadPage(_blacklistPage); break;
             case "DirectData": LoadPage(_directDataPage); break;
+            case "Billing": LoadPage(_billingPage); break;
         }
     }
 
