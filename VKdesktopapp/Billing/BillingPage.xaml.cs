@@ -6,12 +6,14 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media.Imaging;
 using Microsoft.Win32;
-using Syncfusion.Pdf;
-using Syncfusion.Pdf.Graphics;
-using Syncfusion.Pdf.Grid;
+using Syncfusion.DocIO;
+using Syncfusion.DocIO.DLS;
 using CRMRSDesktopApp.Data;
 using CRMRSDesktopApp.Models;
+using SFColor = Syncfusion.Drawing.Color;
+using DocAlign = Syncfusion.DocIO.DLS.HorizontalAlignment;
 
 namespace CRMRSDesktopApp.Billing;
 
@@ -20,6 +22,7 @@ public partial class BillingPage : Page
     private readonly FinanceRepository _finances = new();
     private readonly VehicleSearchRepository _search = new();
     private List<VehicleSearchItem> _results = new();
+    private string _headerImagePath = "";
 
     private class FinanceOption { public int Id { get; set; } public string Name { get; set; } = ""; }
 
@@ -31,11 +34,8 @@ public partial class BillingPage : Page
 
     private async void BillingPage_Loaded(object sender, RoutedEventArgs e)
     {
-        txtInvoiceDate.Text = DateTime.Today.ToString("dd/MM/yyyy");
-        txtDateRepo.Text    = DateTime.Today.ToString("dd-MM-yyyy");
-        if (string.IsNullOrWhiteSpace(txtEnclosed.Text)) txtEnclosed.Text = "REPO KIT";
-        if (string.IsNullOrWhiteSpace(txtQty.Text)) txtQty.Text = "01";
-        if (string.IsNullOrWhiteSpace(txtAddlCharges.Text)) txtAddlCharges.Text = "NA";
+        txtBillDate.Text = DateTime.Today.ToString("dd/MM/yyyy");
+        txtRepoDate.Text = DateTime.Today.ToString("dd/MM/yyyy");
 
         LoadSettingsIntoForm();
 
@@ -45,52 +45,84 @@ public partial class BillingPage : Page
             cmbFinance.ItemsSource = list.Select(f => new FinanceOption { Id = f.Id, Name = f.Name })
                                          .OrderBy(f => f.Name).ToList();
         }
-        catch (Exception ex)
-        {
-            txtSearchStatus.Text = "Could not load head offices: " + ex.Message;
-        }
+        catch (Exception ex) { txtSearchStatus.Text = "Could not load head offices: " + ex.Message; }
     }
 
     private void LoadSettingsIntoForm()
     {
         var s = BillingSettings.Load();
         var u = App.SignedAppUser;
-        txtAgencyName.Text     = string.IsNullOrWhiteSpace(s.AgencyName) ? (u?.AgencyName ?? App.Firm.FirmName) : s.AgencyName;
-        txtHeaderAddress.Text  = string.IsNullOrWhiteSpace(s.HeaderAddress) ? (u?.Address ?? App.Firm.Address) : s.HeaderAddress;
-        txtHeaderContact.Text  = string.IsNullOrWhiteSpace(s.HeaderContact) ? (u?.Mobile1 ?? App.Firm.ContactNos) : s.HeaderContact;
-        txtHeaderEmail.Text    = string.IsNullOrWhiteSpace(s.HeaderEmail) ? (u?.Email ?? "") : s.HeaderEmail;
-        txtPan.Text            = s.PanNo;
-        txtGst.Text            = s.GstState;
-        txtBankAcName.Text     = s.BankAccountName;
+
+        txtAgencyName.Text    = string.IsNullOrWhiteSpace(s.AgencyName) ? (u?.AgencyName ?? App.Firm.FirmName) : s.AgencyName;
+        txtAgencyAddress.Text = string.IsNullOrWhiteSpace(s.AgencyAddress) ? (u?.Address ?? App.Firm.Address) : s.AgencyAddress;
+        txtState.Text         = s.State;
+        txtPan.Text           = s.PanNo;
+        txtVendorCode.Text    = s.VendorCode;
+        txtSub.Text           = string.IsNullOrWhiteSpace(s.Sub) ? "Claim of Repossession Charges" : s.Sub;
+        txtDescGoods.Text     = string.IsNullOrWhiteSpace(s.DescriptionGoods) ? "REPOSESSION CHARGES" : s.DescriptionGoods;
+        txtHsn.Text           = s.HsnSac;
+        txtBankName.Text       = s.BankName;
+        txtBankBranch.Text     = s.BankBranch;
+        txtAcHolder.Text       = string.IsNullOrWhiteSpace(s.AcHolderName) ? txtAgencyName.Text : s.AcHolderName;
         txtAccountNo.Text      = s.AccountNo;
         txtIfsc.Text           = s.IfscCode;
-        txtBankBranch.Text     = s.BankBranch;
-        txtParkingYard.Text    = s.ParkingYard;
-        txtPaymentName.Text    = string.IsNullOrWhiteSpace(s.PaymentName) ? txtAgencyName.Text : s.PaymentName;
-        txtFooter.Text         = s.FooterLine;
+
+        _headerImagePath = s.HeaderImagePath;
+        ShowHeaderPreview();
     }
 
     private void SaveSettingsFromForm()
     {
         new BillingSettings
         {
-            AgencyName      = txtAgencyName.Text.Trim(),
-            HeaderAddress   = txtHeaderAddress.Text.Trim(),
-            HeaderContact   = txtHeaderContact.Text.Trim(),
-            HeaderEmail     = txtHeaderEmail.Text.Trim(),
-            PanNo           = txtPan.Text.Trim(),
-            GstState        = txtGst.Text.Trim(),
-            BankAccountName = txtBankAcName.Text.Trim(),
-            AccountNo       = txtAccountNo.Text.Trim(),
-            IfscCode        = txtIfsc.Text.Trim(),
-            BankBranch      = txtBankBranch.Text.Trim(),
-            ParkingYard     = txtParkingYard.Text.Trim(),
-            PaymentName     = txtPaymentName.Text.Trim(),
-            FooterLine      = txtFooter.Text.Trim()
+            AgencyName       = txtAgencyName.Text.Trim(),
+            AgencyAddress    = txtAgencyAddress.Text.Trim(),
+            State            = txtState.Text.Trim(),
+            PanNo            = txtPan.Text.Trim(),
+            VendorCode       = txtVendorCode.Text.Trim(),
+            Sub              = txtSub.Text.Trim(),
+            DescriptionGoods = txtDescGoods.Text.Trim(),
+            HsnSac           = txtHsn.Text.Trim(),
+            BankName         = txtBankName.Text.Trim(),
+            BankBranch       = txtBankBranch.Text.Trim(),
+            AcHolderName     = txtAcHolder.Text.Trim(),
+            AccountNo        = txtAccountNo.Text.Trim(),
+            IfscCode         = txtIfsc.Text.Trim(),
+            HeaderImagePath  = _headerImagePath
         }.Save();
     }
 
-    private void cmbFinance_SelectionChanged(object sender, SelectionChangedEventArgs e) { }
+    private void ShowHeaderPreview()
+    {
+        try
+        {
+            if (!string.IsNullOrWhiteSpace(_headerImagePath) && File.Exists(_headerImagePath))
+            {
+                var bmp = new BitmapImage();
+                bmp.BeginInit();
+                bmp.CacheOption = BitmapCacheOption.OnLoad;
+                bmp.UriSource = new Uri(_headerImagePath);
+                bmp.EndInit();
+                imgHeader.Source = bmp;
+            }
+        }
+        catch { }
+    }
+
+    private void btnHeaderImg_Click(object sender, RoutedEventArgs e)
+    {
+        var dlg = new OpenFileDialog { Filter = "Images (*.png;*.jpg;*.jpeg)|*.png;*.jpg;*.jpeg" };
+        if (dlg.ShowDialog() != true) return;
+        _headerImagePath = BillingSettings.CopyHeaderImage(dlg.FileName);
+        ShowHeaderPreview();
+        SaveSettingsFromForm();
+    }
+
+    private void cmbFinance_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (cmbFinance.SelectedItem is FinanceOption f && string.IsNullOrWhiteSpace(txtBankTo.Text))
+            txtBankTo.Text = f.Name;
+    }
 
     private void txtVehSearch_KeyDown(object sender, KeyEventArgs e)
     {
@@ -111,10 +143,7 @@ public partial class BillingPage : Page
             lstResults.ItemsSource = _results;
             txtSearchStatus.Text = $"{_results.Count} vehicle(s) found.";
         }
-        catch (Exception ex)
-        {
-            txtSearchStatus.Text = "Search failed: " + ex.Message;
-        }
+        catch (Exception ex) { txtSearchStatus.Text = "Search failed: " + ex.Message; }
     }
 
     private async void lstResults_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -125,32 +154,29 @@ public partial class BillingPage : Page
         {
             try { rec = await _search.GetRecordByIdAsync(id) ?? sel; } catch { }
         }
-        txtAgriLoan.Text  = rec.AgreementNo;
-        txtCustomer.Text  = rec.CustomerName;
-        txtMakeModel.Text = rec.Model;
-        txtRcNo.Text      = rec.VehicleNo;
-        txtBranch.Text    = string.IsNullOrWhiteSpace(rec.BranchName) ? rec.BranchFromExcel : rec.BranchName;
+        txtCustomer.Text = rec.CustomerName;
+        txtRcNo.Text     = rec.VehicleNo;
+        txtModel.Text    = rec.Model;
     }
 
     private void btnGenerate_Click(object sender, RoutedEventArgs e)
     {
         SaveSettingsFromForm();
 
-        var toFinance = (cmbFinance.SelectedItem as FinanceOption)?.Name ?? "";
         var safe = new string(txtRcNo.Text.Where(char.IsLetterOrDigit).ToArray());
         if (safe.Length == 0) safe = "bill";
 
         var dlg = new SaveFileDialog
         {
             Title = "Save Repossession Bill",
-            Filter = "PDF file (*.pdf)|*.pdf",
-            FileName = $"RepoBill_{safe}_{DateTime.Now:yyyyMMdd_HHmmss}.pdf"
+            Filter = "Word document (*.docx)|*.docx",
+            FileName = $"RepoBill_{safe}_{DateTime.Now:yyyyMMdd_HHmmss}.docx"
         };
         if (dlg.ShowDialog() != true) return;
 
         try
         {
-            BuildPdf(dlg.FileName, toFinance);
+            BuildDocx(dlg.FileName);
             txtGenStatus.Text = "Bill generated.";
             Process.Start(new ProcessStartInfo(dlg.FileName) { UseShellExecute = true });
         }
@@ -160,106 +186,122 @@ public partial class BillingPage : Page
         }
     }
 
-    private void BuildPdf(string filePath, string toFinance)
+    private const string FontName = "Times New Roman";
+
+    private void BuildDocx(string filePath)
     {
-        using var doc = new PdfDocument();
-        doc.PageSettings.Margins.All = 28;
-        var page = doc.Pages.Add();
-        var g = page.Graphics;
-        float w = page.GetClientSize().Width;
+        using var doc = new WordDocument();
+        var sec = doc.AddSection();
+        sec.PageSetup.Margins.All = 40;
+        float pageW = sec.PageSetup.PageSize.Width - 80;
 
-        var nameFont   = new PdfStandardFont(PdfFontFamily.Helvetica, 18, PdfFontStyle.Bold);
-        var smallFont  = new PdfStandardFont(PdfFontFamily.Helvetica, 8);
-        var boldFont   = new PdfStandardFont(PdfFontFamily.Helvetica, 9, PdfFontStyle.Bold);
-
-        float y = 0;
-        void Centered(string text, PdfFont f)
+        if (!string.IsNullOrWhiteSpace(_headerImagePath) && File.Exists(_headerImagePath))
         {
-            if (string.IsNullOrWhiteSpace(text)) return;
-            float tw = f.MeasureString(text).Width;
-            g.DrawString(text, f, PdfBrushes.Black, new Syncfusion.Drawing.PointF((w - tw) / 2f, y));
-            y += f.Height + 2;
+            var hp = sec.AddParagraph();
+            hp.ParagraphFormat.HorizontalAlignment = DocAlign.Center;
+            var pic = hp.AppendPicture(File.ReadAllBytes(_headerImagePath));
+            if (pic.Width > pageW) { float r = pageW / pic.Width; pic.Width *= r; pic.Height *= r; }
+        }
+        else
+        {
+            Line(sec, txtAgencyName.Text.Trim(), bold: true, size: 16, align: DocAlign.Center);
         }
 
-        Centered(txtAgencyName.Text.Trim(), nameFont);
-        Centered(txtHeaderAddress.Text.Trim(), smallFont);
-        Centered(txtHeaderContact.Text.Trim(), smallFont);
-        Centered(txtHeaderEmail.Text.Trim(), smallFont);
-        y += 4;
-        g.DrawLine(new PdfPen(Syncfusion.Drawing.Color.FromArgb(255, 176, 0, 32), 1.2f),
-            new Syncfusion.Drawing.PointF(0, y), new Syncfusion.Drawing.PointF(w, y));
-        y += 8;
-        Centered($"To,  {toFinance},", boldFont);
-        Centered("SUBJECT–SUBMISSION OF REPOSSESSION BILL.", boldFont);
-        y += 6;
+        var rule = sec.AddParagraph();
+        rule.ParagraphFormat.Borders.Bottom.BorderType = BorderStyle.Single;
+        rule.ParagraphFormat.Borders.Bottom.Color = SFColor.Red;
+        rule.ParagraphFormat.Borders.Bottom.LineWidth = 1.5f;
 
-        var rows = new List<(string label, string val, string amt, bool span)>
-        {
-            ("INVOICE DATE", txtInvoiceDate.Text.Trim(), "", false),
-            ("INVOICE NO", txtInvoiceNo.Text.Trim(), "", false),
-            ("BRANCH", txtBranch.Text.Trim(), "", false),
-            ("CONFIRMATION BY", txtConfirmationBy.Text.Trim(), "", false),
-            ("DESCRIPTION EXPENSE", "ALL DETAILS", "AMOUNT", false),
-            ("AGRI-LOAN NO", txtAgriLoan.Text.Trim(), "", false),
-            ("NAME OF CUSTOMER", txtCustomer.Text.Trim(), "", false),
-            ("MAKE-MODEL", txtMakeModel.Text.Trim(), "", false),
-            ("RC NO", txtRcNo.Text.Trim(), "", false),
-            ("DATE OF REPOSSESSION", txtDateRepo.Text.Trim(), "", false),
-            ("PARKING YARD NAME", txtParkingYard.Text.Trim(), "", false),
-            ("NAME OF AGNCY", txtAgencyName.Text.Trim(), "", false),
-            ("ENCLOSED", txtEnclosed.Text.Trim(), "", false),
-            ("QTY", txtQty.Text.Trim(), "", false),
-            ("REPO CHARGES", txtRepoWords.Text.Trim(), txtRepoAmount.Text.Trim(), false),
-            ("ADDITIONAL CHARGES", txtAddlCharges.Text.Trim(), "", false),
-            ("PAN NO", txtPan.Text.Trim(), "", false),
-            ("GST STATE", txtGst.Text.Trim(), "", false),
-            ("BANK ACCOUNT NAME", txtBankAcName.Text.Trim(), "", false),
-            ("ACCOUNT NO", txtAccountNo.Text.Trim(), "", false),
-            ("IFSC CODE", txtIfsc.Text.Trim(), "", false),
-            ("BRANCH", txtBankBranch.Text.Trim(), "", false),
-            ("TOTAL GROSS AMOUNT", txtTotalWords.Text.Trim(), txtTotalAmount.Text.Trim(), false),
-            ($"KINDLY RELEASE THE PAYMENT IN THE NAME OF {txtPaymentName.Text.Trim()}", "", "", true),
-        };
+        Line(sec, $"BILL DATE: {txtBillDate.Text.Trim()}", bold: true, align: DocAlign.Right);
+        Blank(sec);
 
-        var grid = new PdfGrid();
-        grid.Style.Font = smallFont;
-        grid.Columns.Add(3);
-        grid.Columns[0].Width = w * 0.34f;
-        grid.Columns[1].Width = w * 0.46f;
-        grid.Columns[2].Width = w * 0.20f;
+        Line(sec, txtBankTo.Text.Trim());
+        foreach (var l in SplitLines(txtBankAddress.Text)) Line(sec, l);
+        if (!string.IsNullOrWhiteSpace(txtStateCode.Text)) Line(sec, $"STATE CODE- {txtStateCode.Text.Trim()}");
+        Blank(sec);
+        Line(sec, $"From, Name: - {txtAgencyName.Text.Trim()}");
+        Line(sec, $"Address: - {txtAgencyAddress.Text.Trim()}");
+        Blank(sec);
+        Line(sec, $"State:- {txtState.Text.Trim()}");
+        Line(sec, $"Bill No: {txtBillNo.Text.Trim()}");
+        Line(sec, $"PAN No : {txtPan.Text.Trim()}");
+        Line(sec, $"Vendor code: - {txtVendorCode.Text.Trim()}");
+        Line(sec, $"Sub: - {txtSub.Text.Trim()}");
+        Blank(sec);
+        Line(sec, "Dear Madam/ Sir, As per subject, here we are claim repossessed commercial Vehicle charges as per below mentioned customers.");
+        Blank(sec);
 
-        foreach (var r in rows)
-        {
-            var row = grid.Rows.Add();
-            row.Cells[0].Value = r.label;
-            row.Cells[0].Style.Font = boldFont;
-            if (r.span)
-            {
-                row.Cells[0].ColumnSpan = 3;
-            }
-            else
-            {
-                row.Cells[1].Value = r.val;
-                row.Cells[2].Value = r.amt;
-                row.Cells[2].Style.Font = boldFont;
-            }
-        }
+        var t = sec.AddTable();
+        t.ResetCells(4, 9);
+        TableBorders(t);
+        string[] hdr = { "Sr No", "Description of Goods", "HSN/SAC CODE", "APAC No", "Customer Name", "Vehicle No", "Model", "Repo Date", "Repo Charges (P.F)Amt" };
+        for (int c = 0; c < hdr.Length; c++) Cell(t, 0, c, hdr[c], bold: true, center: true);
+        Cell(t, 1, 0, "1", center: true);
+        Cell(t, 1, 1, txtDescGoods.Text.Trim());
+        Cell(t, 1, 2, txtHsn.Text.Trim(), center: true);
+        Cell(t, 1, 3, txtApac.Text.Trim());
+        Cell(t, 1, 4, txtCustomer.Text.Trim());
+        Cell(t, 1, 5, txtRcNo.Text.Trim());
+        Cell(t, 1, 6, txtModel.Text.Trim());
+        Cell(t, 1, 7, txtRepoDate.Text.Trim(), center: true);
+        Cell(t, 1, 8, txtRepoAmount.Text.Trim(), center: true);
+        for (int c = 0; c < 9; c++) Cell(t, 2, c, "");
+        Cell(t, 3, 7, "TOTAL", bold: true, center: true);
+        Cell(t, 3, 8, string.IsNullOrWhiteSpace(txtTotalAmount.Text) ? txtRepoAmount.Text.Trim() : txtTotalAmount.Text.Trim(), bold: true, center: true);
 
-        var result = grid.Draw(page, new Syncfusion.Drawing.RectangleF(0, y, w, page.GetClientSize().Height - y));
-        float fy = (result?.Bounds.Bottom ?? y) + 20;
+        Blank(sec);
 
-        void Right(string text, PdfFont f)
-        {
-            if (string.IsNullOrWhiteSpace(text)) return;
-            float tw = f.MeasureString(text).Width;
-            page.Graphics.DrawString(text, f, PdfBrushes.Black, new Syncfusion.Drawing.PointF(w - tw, fy));
-            fy += f.Height + 2;
-        }
-        Right("Thank You", boldFont);
-        Right(txtAgencyName.Text.Trim(), boldFont);
-        Right(txtFooter.Text.Trim(), smallFont);
+        var b = sec.AddTable();
+        b.ResetCells(2, 5);
+        TableBorders(b);
+        string[] bh = { "Name of Bank", "Branch", "A/C Holder Name", "Account Number", "IFSC Code" };
+        for (int c = 0; c < bh.Length; c++) Cell(b, 0, c, bh[c], bold: true, center: true);
+        Cell(b, 1, 0, txtBankName.Text.Trim(), center: true);
+        Cell(b, 1, 1, txtBankBranch.Text.Trim(), center: true);
+        Cell(b, 1, 2, txtAcHolder.Text.Trim(), center: true);
+        Cell(b, 1, 3, txtAccountNo.Text.Trim(), center: true);
+        Cell(b, 1, 4, txtIfsc.Text.Trim(), center: true);
+
+        Blank(sec);
+        Blank(sec);
+        Line(sec, "Thank You", align: DocAlign.Right);
+        Line(sec, txtAgencyName.Text.Trim(), align: DocAlign.Right);
 
         using var fs = new FileStream(filePath, FileMode.Create, FileAccess.Write);
-        doc.Save(fs);
+        doc.Save(fs, FormatType.Docx);
+    }
+
+    private static IEnumerable<string> SplitLines(string s) =>
+        (s ?? "").Replace("\r", "").Split('\n').Select(x => x.Trim()).Where(x => x.Length > 0);
+
+    private static void Line(IWSection sec, string text, bool bold = false, float size = 10.5f, DocAlign align = DocAlign.Left)
+    {
+        var p = sec.AddParagraph();
+        p.ParagraphFormat.HorizontalAlignment = align;
+        var r = p.AppendText(text ?? "");
+        r.CharacterFormat.FontName = FontName;
+        r.CharacterFormat.FontSize = size;
+        r.CharacterFormat.Bold = bold;
+    }
+
+    private static void Blank(IWSection sec) => sec.AddParagraph();
+
+    private static void Cell(IWTable t, int row, int col, string text, bool bold = false, bool center = false)
+    {
+        var p = t[row, col].AddParagraph();
+        if (center) p.ParagraphFormat.HorizontalAlignment = DocAlign.Center;
+        var r = p.AppendText(text ?? "");
+        r.CharacterFormat.FontName = FontName;
+        r.CharacterFormat.FontSize = 8.5f;
+        r.CharacterFormat.Bold = bold;
+    }
+
+    private static void TableBorders(IWTable t)
+    {
+        t.TableFormat.Borders.BorderType = BorderStyle.Single;
+        t.TableFormat.Borders.LineWidth = 0.5f;
+        t.TableFormat.Borders.Color = SFColor.Black;
+        t.TableFormat.Borders.Horizontal.BorderType = BorderStyle.Single;
+        t.TableFormat.Borders.Vertical.BorderType = BorderStyle.Single;
     }
 }
