@@ -47,6 +47,7 @@ public partial class BillingPage : Page
             : App.Firm.FirmName;
         txtAgencyName.Text = realAgency;
         txtAgencyName.IsReadOnly = true;
+        txtPaymentName.Text = realAgency;
 
         try
         {
@@ -60,7 +61,6 @@ public partial class BillingPage : Page
                 txtIfsc.Text       = s.IfscCode;
                 txtBankBranch.Text = s.BankBranch;
                 txtParkingYard.Text = s.ParkingYard;
-                txtPaymentName.Text = string.IsNullOrWhiteSpace(s.PaymentName) ? realAgency : s.PaymentName;
                 txtFooter.Text     = s.FooterLine;
                 _letterheadUrl = s.LetterheadUrl;
                 _backgroundUrl = s.BackgroundUrl;
