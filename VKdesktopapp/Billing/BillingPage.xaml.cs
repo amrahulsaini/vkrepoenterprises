@@ -305,7 +305,7 @@ public partial class BillingPage : Page
         float wa = pageW - wl - wd;
 
         var t = sec.AddTable();
-        t.ResetCells(22, 3);
+        t.ResetCells(23, 3);
         t.TableFormat.Borders.BorderType = BorderStyle.Single;
         t.TableFormat.Borders.LineWidth = 0.5f;
         t.TableFormat.Borders.Color = SFColor.Black;
