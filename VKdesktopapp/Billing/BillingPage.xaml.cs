@@ -42,12 +42,17 @@ public partial class BillingPage : Page
         if (string.IsNullOrWhiteSpace(txtQty.Text)) txtQty.Text = "01";
         if (string.IsNullOrWhiteSpace(txtAddlCharges.Text)) txtAddlCharges.Text = "NA";
 
+        var realAgency = (App.SignedAppUser?.IsAgency == true && !string.IsNullOrWhiteSpace(App.SignedAppUser.AgencyName))
+            ? App.SignedAppUser!.AgencyName
+            : App.Firm.FirmName;
+        txtAgencyName.Text = realAgency;
+        txtAgencyName.IsReadOnly = true;
+
         try
         {
             var s = await DesktopApiClient.GetBillingSettingsAsync();
             if (s != null)
             {
-                txtAgencyName.Text = s.AgencyName;
                 txtPan.Text        = s.PanNo;
                 txtGst.Text        = s.GstState;
                 txtAcHolder.Text   = s.BankAccountName;
@@ -55,7 +60,7 @@ public partial class BillingPage : Page
                 txtIfsc.Text       = s.IfscCode;
                 txtBankBranch.Text = s.BankBranch;
                 txtParkingYard.Text = s.ParkingYard;
-                txtPaymentName.Text = string.IsNullOrWhiteSpace(s.PaymentName) ? s.AgencyName : s.PaymentName;
+                txtPaymentName.Text = string.IsNullOrWhiteSpace(s.PaymentName) ? realAgency : s.PaymentName;
                 txtFooter.Text     = s.FooterLine;
                 _letterheadUrl = s.LetterheadUrl;
                 _backgroundUrl = s.BackgroundUrl;
@@ -210,10 +215,15 @@ public partial class BillingPage : Page
         {
             try
             {
-                doc.Watermark = new PictureWatermark();
-                var wm = (PictureWatermark)doc.Watermark;
-                wm.Scaling = 150f;
-                wm.LoadPicture(background);
+                var hpara = sec.HeadersFooters.Header.AddParagraph();
+                var bgPic = hpara.AppendPicture(background);
+                bgPic.TextWrappingStyle  = TextWrappingStyle.Behind;
+                bgPic.HorizontalOrigin   = HorizontalOrigin.Page;
+                bgPic.VerticalOrigin     = VerticalOrigin.Page;
+                bgPic.HorizontalPosition = 0f;
+                bgPic.VerticalPosition   = 0f;
+                bgPic.Width  = sec.PageSetup.PageSize.Width;
+                bgPic.Height = sec.PageSetup.PageSize.Height;
             }
             catch { }
         }
