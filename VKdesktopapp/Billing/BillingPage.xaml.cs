@@ -230,11 +230,6 @@ public partial class BillingPage : Page
             lhBottom = marginTop + 30f;
         }
 
-        var rule = sec.AddParagraph();
-        rule.ParagraphFormat.Borders.Bottom.BorderType = BorderStyle.Single;
-        rule.ParagraphFormat.Borders.Bottom.Color = SFColor.Red;
-        rule.ParagraphFormat.Borders.Bottom.LineWidth = 1.5f;
-
         if (background != null)
         {
             try
@@ -242,7 +237,7 @@ public partial class BillingPage : Page
                 var hpara = sec.HeadersFooters.Header.AddParagraph();
                 var bgPic = hpara.AppendPicture(background);
                 float pageH = sec.PageSetup.PageSize.Height;
-                float bgTop = lhBottom + 28f;
+                float bgTop = lhBottom + 8f;
                 bgPic.TextWrappingStyle  = TextWrappingStyle.Behind;
                 bgPic.HorizontalOrigin   = HorizontalOrigin.Page;
                 bgPic.VerticalOrigin     = VerticalOrigin.Page;
