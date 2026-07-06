@@ -300,6 +300,8 @@ public partial class BillingPage : Page
         }
 
         var pay = string.IsNullOrWhiteSpace(txtPaymentName.Text) ? txtAgencyName.Text.Trim() : txtPaymentName.Text.Trim();
+        var agencyAddr = (App.SignedAppUser?.IsAgency == true && !string.IsNullOrWhiteSpace(App.SignedAppUser.Address))
+            ? App.SignedAppUser!.Address : App.Firm.Address;
         float wl = pageW * 0.317f;
         float wd = pageW * 0.507f;
         float wa = pageW - wl - wd;
@@ -350,7 +352,10 @@ public partial class BillingPage : Page
         CellText(t, ri, 0, $"KINDIY RELEASE THE PAYMENT IN THE NAME OF M/S {pay}");
         t.ApplyHorizontalMerge(ri, 0, 2); ri++;
 
-        CellLines(t, ri, 0, new[] { "", "", "", "", "Thank You", txtAgencyName.Text.Trim(), txtFooter.Text.Trim() }, align: DocAlign.Right);
+        var tyLines = new List<string> { "", "", "", "", "Thank You", txtAgencyName.Text.Trim() };
+        if (!string.IsNullOrWhiteSpace(agencyAddr)) tyLines.Add(agencyAddr.Trim());
+        if (!string.IsNullOrWhiteSpace(txtFooter.Text)) tyLines.Add(txtFooter.Text.Trim());
+        CellLines(t, ri, 0, tyLines.ToArray(), align: DocAlign.Right);
         t.ApplyHorizontalMerge(ri, 0, 2);
 
         using var fs = new FileStream(filePath, FileMode.Create, FileAccess.Write);
