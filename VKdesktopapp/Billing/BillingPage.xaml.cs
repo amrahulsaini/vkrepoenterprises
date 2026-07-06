@@ -32,6 +32,59 @@ public partial class BillingPage : Page
     {
         InitializeComponent();
         Loaded += BillingPage_Loaded;
+        txtRepoAmount.TextChanged  += (_, __) => Recompute();
+        txtAddlCharges.TextChanged += (_, __) => Recompute();
+    }
+
+    private void Recompute()
+    {
+        long repo  = ParseAmt(txtRepoAmount.Text);
+        long addl  = ParseAmt(txtAddlCharges.Text);
+        long total = repo + addl;
+        txtRepoWords.Text   = Words(repo);
+        txtTotalAmount.Text = Rs(total);
+        txtTotalWords.Text  = Words(total);
+    }
+
+    private static long ParseAmt(string? s)
+    {
+        var m = System.Text.RegularExpressions.Regex.Match(s ?? "", @"\d+(\.\d+)?");
+        return m.Success && decimal.TryParse(m.Value, out var v) ? (long)Math.Round(v) : 0;
+    }
+
+    private static string Rs(long n) => n > 0 ? $"RS.{n}/-" : "";
+    private static string Words(long n) => n > 0 ? IndianWords(n) + " ONLY" : "";
+
+    private static readonly string[] _ones =
+        { "", "ONE", "TWO", "THREE", "FOUR", "FIVE", "SIX", "SEVEN", "EIGHT", "NINE", "TEN",
+          "ELEVEN", "TWELVE", "THIRTEEN", "FOURTEEN", "FIFTEEN", "SIXTEEN", "SEVENTEEN", "EIGHTEEN", "NINETEEN" };
+    private static readonly string[] _tens =
+        { "", "", "TWENTY", "THIRTY", "FORTY", "FIFTY", "SIXTY", "SEVENTY", "EIGHTY", "NINETY" };
+
+    private static string TwoDigits(int n) =>
+        n < 20 ? _ones[n] : (_tens[n / 10] + (n % 10 > 0 ? " " + _ones[n % 10] : "")).Trim();
+
+    private static string ThreeDigits(int n)
+    {
+        var s = "";
+        if (n >= 100) { s += _ones[n / 100] + " HUNDRED"; n %= 100; if (n > 0) s += " "; }
+        if (n > 0) s += TwoDigits(n);
+        return s;
+    }
+
+    private static string IndianWords(long n)
+    {
+        if (n <= 0) return "";
+        var parts = new List<string>();
+        long crore = n / 10000000; n %= 10000000;
+        int lakh = (int)(n / 100000); n %= 100000;
+        int thousand = (int)(n / 1000); n %= 1000;
+        int hundred = (int)n;
+        if (crore > 0)    parts.Add(IndianWords(crore) + " CRORE");
+        if (lakh > 0)     parts.Add(ThreeDigits(lakh) + " LAKH");
+        if (thousand > 0) parts.Add(ThreeDigits(thousand) + " THOUSAND");
+        if (hundred > 0)  parts.Add(ThreeDigits(hundred));
+        return string.Join(" ", parts);
     }
 
     private async void BillingPage_Loaded(object sender, RoutedEventArgs e)
@@ -247,7 +300,6 @@ public partial class BillingPage : Page
         }
 
         var pay = string.IsNullOrWhiteSpace(txtPaymentName.Text) ? txtAgencyName.Text.Trim() : txtPaymentName.Text.Trim();
-        var totalAmt = string.IsNullOrWhiteSpace(txtTotalAmount.Text) ? txtRepoAmount.Text.Trim() : txtTotalAmount.Text.Trim();
         float wl = pageW * 0.317f;
         float wd = pageW * 0.507f;
         float wa = pageW - wl - wd;
@@ -285,7 +337,7 @@ public partial class BillingPage : Page
         KV("NAME OF AGNCY", txtAgencyName.Text.Trim());
         KV("ENCLOSED", txtEnclosed.Text.Trim());
         KV("QTY", txtQty.Text.Trim());
-        KV("REPO CHARGES", txtRepoWords.Text.Trim(), txtRepoAmount.Text.Trim());
+        KV("REPO CHARGES", txtRepoWords.Text.Trim(), Rs(ParseAmt(txtRepoAmount.Text)));
         KV("ADDITIONAL CHARGES", txtAddlCharges.Text.Trim());
         KV("PAN NO", txtPan.Text.Trim());
         KV("GST STATE", txtGst.Text.Trim());
@@ -293,7 +345,7 @@ public partial class BillingPage : Page
         KV("ACCOUNT NO", txtAccountNo.Text.Trim());
         KV("IFSC CODE", txtIfsc.Text.Trim());
         KV("BRANCH", txtBankBranch.Text.Trim());
-        KV("TOTAL GROSS AMOUNT", txtTotalWords.Text.Trim(), totalAmt);
+        KV("TOTAL GROSS AMOUNT", txtTotalWords.Text.Trim(), Rs(ParseAmt(txtTotalAmount.Text)));
 
         CellText(t, ri, 0, $"KINDIY RELEASE THE PAYMENT IN THE NAME OF M/S {pay}");
         t.ApplyHorizontalMerge(ri, 0, 2); ri++;
