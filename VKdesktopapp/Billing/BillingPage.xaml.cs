@@ -211,29 +211,15 @@ public partial class BillingPage : Page
         sec.PageSetup.Margins.All = 36;
         float pageW = sec.PageSetup.PageSize.Width - 72;
 
-        if (background != null)
-        {
-            try
-            {
-                var hpara = sec.HeadersFooters.Header.AddParagraph();
-                var bgPic = hpara.AppendPicture(background);
-                bgPic.TextWrappingStyle  = TextWrappingStyle.Behind;
-                bgPic.HorizontalOrigin   = HorizontalOrigin.Page;
-                bgPic.VerticalOrigin     = VerticalOrigin.Page;
-                bgPic.HorizontalPosition = 0f;
-                bgPic.VerticalPosition   = 0f;
-                bgPic.Width  = sec.PageSetup.PageSize.Width;
-                bgPic.Height = sec.PageSetup.PageSize.Height;
-            }
-            catch { }
-        }
-
+        float marginTop = sec.PageSetup.Margins.Top;
+        float lhBottom = marginTop;
         if (letterhead != null)
         {
             var hp = sec.AddParagraph();
             hp.ParagraphFormat.HorizontalAlignment = DocAlign.Center;
             var pic = hp.AppendPicture(letterhead);
             if (pic.Width > pageW) { float r = pageW / pic.Width; pic.Width *= r; pic.Height *= r; }
+            lhBottom = marginTop + pic.Height;
         }
         else
         {
@@ -241,12 +227,32 @@ public partial class BillingPage : Page
             p.ParagraphFormat.HorizontalAlignment = DocAlign.Center;
             var r = p.AppendText(txtAgencyName.Text.Trim());
             r.CharacterFormat.FontName = FontName; r.CharacterFormat.FontSize = 18; r.CharacterFormat.Bold = true;
+            lhBottom = marginTop + 30f;
         }
 
         var rule = sec.AddParagraph();
         rule.ParagraphFormat.Borders.Bottom.BorderType = BorderStyle.Single;
         rule.ParagraphFormat.Borders.Bottom.Color = SFColor.Red;
         rule.ParagraphFormat.Borders.Bottom.LineWidth = 1.5f;
+
+        if (background != null)
+        {
+            try
+            {
+                var hpara = sec.HeadersFooters.Header.AddParagraph();
+                var bgPic = hpara.AppendPicture(background);
+                float pageH = sec.PageSetup.PageSize.Height;
+                float bgTop = lhBottom + 28f;
+                bgPic.TextWrappingStyle  = TextWrappingStyle.Behind;
+                bgPic.HorizontalOrigin   = HorizontalOrigin.Page;
+                bgPic.VerticalOrigin     = VerticalOrigin.Page;
+                bgPic.HorizontalPosition = sec.PageSetup.Margins.Left;
+                bgPic.VerticalPosition   = bgTop;
+                bgPic.Width  = pageW;
+                bgPic.Height = pageH - bgTop - sec.PageSetup.Margins.Bottom;
+            }
+            catch { }
+        }
 
         var pay = string.IsNullOrWhiteSpace(txtPaymentName.Text) ? txtAgencyName.Text.Trim() : txtPaymentName.Text.Trim();
         var totalAmt = string.IsNullOrWhiteSpace(txtTotalAmount.Text) ? txtRepoAmount.Text.Trim() : txtTotalAmount.Text.Trim();
@@ -298,7 +304,7 @@ public partial class BillingPage : Page
             switch (row.Kind)
             {
                 case RowKind.Span:
-                    CellText(t, i, 0, row.A, bold: i < 2, align: DocAlign.Center);
+                    CellText(t, i, 0, row.A, align: DocAlign.Center);
                     t.ApplyHorizontalMerge(i, 0, 2);
                     break;
                 case RowKind.SpanRight:
@@ -322,7 +328,7 @@ public partial class BillingPage : Page
         doc.Save(fs, FormatType.Docx);
     }
 
-    private static void CellText(IWTable t, int row, int col, string text, bool bold = false, DocAlign align = DocAlign.Left)
+    private static void CellText(IWTable t, int row, int col, string text, bool bold = true, DocAlign align = DocAlign.Left)
     {
         var p = t[row, col].AddParagraph();
         p.ParagraphFormat.HorizontalAlignment = align;
