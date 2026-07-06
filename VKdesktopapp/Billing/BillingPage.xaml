@@ -11,27 +11,31 @@
         <Border Grid.Column="0" Background="White" CornerRadius="8" Padding="14" Margin="0,0,14,0"
                 BorderBrush="#E0E0E0" BorderThickness="1">
             <DockPanel>
-                <TextBlock DockPanel.Dock="Top" Text="Repossession Bill" FontSize="18" FontWeight="Bold" Margin="0,0,0,12" />
+                <TextBlock DockPanel.Dock="Top" Text="Repossession Bill" FontSize="18" FontWeight="Bold" Margin="0,0,0,10" />
 
-                <TextBlock DockPanel.Dock="Top" Text="Header / Letterhead Image" FontSize="12" Foreground="#666" Margin="0,0,0,4" />
-                <Border DockPanel.Dock="Top" BorderBrush="#E0E0E0" BorderThickness="1" CornerRadius="6" Height="80" Margin="0,0,0,6">
-                    <Image Name="imgHeader" Stretch="Uniform" Margin="4" />
+                <TextBlock DockPanel.Dock="Top" Text="Letterhead Image (top of bill)" FontSize="12" Foreground="#666" Margin="0,0,0,4" />
+                <Border DockPanel.Dock="Top" BorderBrush="#E0E0E0" BorderThickness="1" CornerRadius="6" Height="64" Margin="0,0,0,4">
+                    <Image Name="imgLetterhead" Stretch="Uniform" Margin="3" />
                 </Border>
-                <Button DockPanel.Dock="Top" Name="btnHeaderImg" Content="Upload Header Image" Height="30"
-                        Margin="0,0,0,12" Click="btnHeaderImg_Click" />
+                <Button DockPanel.Dock="Top" Name="btnLetterhead" Content="Upload Letterhead" Height="28" Margin="0,0,0,10" Click="btnLetterhead_Click" />
+
+                <TextBlock DockPanel.Dock="Top" Text="Background / Template Image (watermark)" FontSize="12" Foreground="#666" Margin="0,0,0,4" />
+                <Border DockPanel.Dock="Top" BorderBrush="#E0E0E0" BorderThickness="1" CornerRadius="6" Height="64" Margin="0,0,0,4">
+                    <Image Name="imgBackground" Stretch="Uniform" Margin="3" />
+                </Border>
+                <Button DockPanel.Dock="Top" Name="btnBackground" Content="Upload Background" Height="28" Margin="0,0,0,12" Click="btnBackground_Click" />
 
                 <TextBlock DockPanel.Dock="Top" Text="Head Office (To)" FontSize="12" Foreground="#666" Margin="0,0,0,4" />
-                <ComboBox DockPanel.Dock="Top" Name="cmbFinance" Height="30" Margin="0,0,0,12"
+                <ComboBox DockPanel.Dock="Top" Name="cmbFinance" Height="30" Margin="0,0,0,10"
                           DisplayMemberPath="Name" SelectionChanged="cmbFinance_SelectionChanged" />
 
                 <TextBlock DockPanel.Dock="Top" Text="Find Vehicle" FontSize="12" Foreground="#666" Margin="0,0,0,4" />
-                <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,8">
+                <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,6">
                     <RadioButton Name="rbRc" Content="RC (last 4)" IsChecked="True" GroupName="mode" Margin="0,0,12,0" VerticalAlignment="Center" />
                     <RadioButton Name="rbChassis" Content="Chassis (last 5)" GroupName="mode" VerticalAlignment="Center" />
                 </StackPanel>
-                <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
-                    <Button DockPanel.Dock="Right" Name="btnSearch" Content="Search" Width="72" Height="30"
-                            Margin="8,0,0,0" Click="btnSearch_Click" />
+                <DockPanel DockPanel.Dock="Top" Margin="0,0,0,6">
+                    <Button DockPanel.Dock="Right" Name="btnSearch" Content="Search" Width="72" Height="30" Margin="8,0,0,0" Click="btnSearch_Click" />
                     <TextBox Name="txtVehSearch" Height="30" VerticalContentAlignment="Center" KeyDown="txtVehSearch_KeyDown" />
                 </DockPanel>
 
@@ -53,51 +57,52 @@
 
                 <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="18,14">
                     <StackPanel>
-                        <TextBlock Text="TO (BANK / HEAD OFFICE)" FontWeight="Bold" Foreground="#00897B" Margin="0,0,0,6" />
+                        <TextBlock Text="INVOICE" FontWeight="Bold" Foreground="#00897B" Margin="0,0,0,6" />
                         <UniformGrid Columns="2">
-                            <StackPanel Margin="0,0,8,8"><TextBlock Text="Bank Name" Foreground="#666" FontSize="12" /><TextBox Name="txtBankTo" Height="30" /></StackPanel>
-                            <StackPanel Margin="0,0,0,8"><TextBlock Text="State Code" Foreground="#666" FontSize="12" /><TextBox Name="txtStateCode" Height="30" /></StackPanel>
-                        </UniformGrid>
-                        <TextBlock Text="Bank Address" Foreground="#666" FontSize="12" Margin="0,0,0,0" />
-                        <TextBox Name="txtBankAddress" Height="52" AcceptsReturn="True" TextWrapping="Wrap" Margin="0,0,0,8" />
-
-                        <TextBlock Text="BILL DETAILS" FontWeight="Bold" Foreground="#00897B" Margin="0,10,0,6" />
-                        <UniformGrid Columns="3">
-                            <StackPanel Margin="0,0,8,8"><TextBlock Text="Bill Date" Foreground="#666" FontSize="12" /><TextBox Name="txtBillDate" Height="30" /></StackPanel>
-                            <StackPanel Margin="0,0,8,8"><TextBlock Text="Bill No" Foreground="#666" FontSize="12" /><TextBox Name="txtBillNo" Height="30" /></StackPanel>
-                            <StackPanel Margin="0,0,0,8"><TextBlock Text="Vendor Code" Foreground="#666" FontSize="12" /><TextBox Name="txtVendorCode" Height="30" /></StackPanel>
-                            <StackPanel Margin="0,0,8,8"><TextBlock Text="State" Foreground="#666" FontSize="12" /><TextBox Name="txtState" Height="30" /></StackPanel>
-                            <StackPanel Margin="0,0,8,8"><TextBlock Text="PAN No" Foreground="#666" FontSize="12" /><TextBox Name="txtPan" Height="30" /></StackPanel>
-                            <StackPanel Margin="0,0,0,8"><TextBlock Text="Subject" Foreground="#666" FontSize="12" /><TextBox Name="txtSub" Height="30" /></StackPanel>
-                        </UniformGrid>
-
-                        <TextBlock Text="CHARGES (table row)" FontWeight="Bold" Foreground="#00897B" Margin="0,10,0,6" />
-                        <UniformGrid Columns="3">
-                            <StackPanel Margin="0,0,8,8"><TextBlock Text="Description of Goods" Foreground="#666" FontSize="12" /><TextBox Name="txtDescGoods" Height="30" /></StackPanel>
-                            <StackPanel Margin="0,0,8,8"><TextBlock Text="HSN/SAC Code" Foreground="#666" FontSize="12" /><TextBox Name="txtHsn" Height="30" /></StackPanel>
-                            <StackPanel Margin="0,0,0,8"><TextBlock Text="APAC No" Foreground="#666" FontSize="12" /><TextBox Name="txtApac" Height="30" /></StackPanel>
-                            <StackPanel Margin="0,0,8,8"><TextBlock Text="Customer Name" Foreground="#666" FontSize="12" /><TextBox Name="txtCustomer" Height="30" /></StackPanel>
-                            <StackPanel Margin="0,0,8,8"><TextBlock Text="Vehicle No" Foreground="#666" FontSize="12" /><TextBox Name="txtRcNo" Height="30" /></StackPanel>
-                            <StackPanel Margin="0,0,0,8"><TextBlock Text="Model" Foreground="#666" FontSize="12" /><TextBox Name="txtModel" Height="30" /></StackPanel>
-                            <StackPanel Margin="0,0,8,8"><TextBlock Text="Repo Date" Foreground="#666" FontSize="12" /><TextBox Name="txtRepoDate" Height="30" /></StackPanel>
-                            <StackPanel Margin="0,0,8,8"><TextBlock Text="Repo Charges (P.F) Amt" Foreground="#666" FontSize="12" /><TextBox Name="txtRepoAmount" Height="30" /></StackPanel>
-                            <StackPanel Margin="0,0,0,8"><TextBlock Text="Total Amount" Foreground="#666" FontSize="12" /><TextBox Name="txtTotalAmount" Height="30" /></StackPanel>
-                        </UniformGrid>
-
-                        <TextBlock Text="BANK DETAILS (your account — saved)" FontWeight="Bold" Foreground="#00897B" Margin="0,10,0,6" />
-                        <UniformGrid Columns="3">
-                            <StackPanel Margin="0,0,8,8"><TextBlock Text="Name of Bank" Foreground="#666" FontSize="12" /><TextBox Name="txtBankName" Height="30" /></StackPanel>
-                            <StackPanel Margin="0,0,8,8"><TextBlock Text="Branch" Foreground="#666" FontSize="12" /><TextBox Name="txtBankBranch" Height="30" /></StackPanel>
-                            <StackPanel Margin="0,0,0,8"><TextBlock Text="A/C Holder Name" Foreground="#666" FontSize="12" /><TextBox Name="txtAcHolder" Height="30" /></StackPanel>
-                            <StackPanel Margin="0,0,8,8"><TextBlock Text="Account Number" Foreground="#666" FontSize="12" /><TextBox Name="txtAccountNo" Height="30" /></StackPanel>
-                            <StackPanel Margin="0,0,8,8"><TextBlock Text="IFSC Code" Foreground="#666" FontSize="12" /><TextBox Name="txtIfsc" Height="30" /></StackPanel>
+                            <StackPanel Margin="0,0,8,8"><TextBlock Text="To (Bank / Head Office)" Foreground="#666" FontSize="12" /><TextBox Name="txtBankTo" Height="30" /></StackPanel>
+                            <StackPanel Margin="0,0,0,8"><TextBlock Text="Invoice Date" Foreground="#666" FontSize="12" /><TextBox Name="txtInvoiceDate" Height="30" /></StackPanel>
+                            <StackPanel Margin="0,0,8,8"><TextBlock Text="Invoice No" Foreground="#666" FontSize="12" /><TextBox Name="txtInvoiceNo" Height="30" /></StackPanel>
+                            <StackPanel Margin="0,0,0,8"><TextBlock Text="Branch" Foreground="#666" FontSize="12" /><TextBox Name="txtBranch" Height="30" /></StackPanel>
+                            <StackPanel Margin="0,0,8,8"><TextBlock Text="Confirmation By" Foreground="#666" FontSize="12" /><TextBox Name="txtConfirmationBy" Height="30" /></StackPanel>
                             <StackPanel Margin="0,0,0,8" />
                         </UniformGrid>
 
-                        <TextBlock Text="FROM (AGENCY — saved)" FontWeight="Bold" Foreground="#00897B" Margin="0,10,0,6" />
-                        <StackPanel Margin="0,0,0,8"><TextBlock Text="Agency Name" Foreground="#666" FontSize="12" /><TextBox Name="txtAgencyName" Height="30" /></StackPanel>
-                        <TextBlock Text="Agency Address" Foreground="#666" FontSize="12" />
-                        <TextBox Name="txtAgencyAddress" Height="48" AcceptsReturn="True" TextWrapping="Wrap" Margin="0,0,0,8" />
+                        <TextBlock Text="VEHICLE (auto-filled)" FontWeight="Bold" Foreground="#00897B" Margin="0,10,0,6" />
+                        <UniformGrid Columns="2">
+                            <StackPanel Margin="0,0,8,8"><TextBlock Text="Agri-Loan No" Foreground="#666" FontSize="12" /><TextBox Name="txtAgriLoan" Height="30" /></StackPanel>
+                            <StackPanel Margin="0,0,0,8"><TextBlock Text="Name of Customer" Foreground="#666" FontSize="12" /><TextBox Name="txtCustomer" Height="30" /></StackPanel>
+                            <StackPanel Margin="0,0,8,8"><TextBlock Text="Make-Model" Foreground="#666" FontSize="12" /><TextBox Name="txtMakeModel" Height="30" /></StackPanel>
+                            <StackPanel Margin="0,0,0,8"><TextBlock Text="RC No" Foreground="#666" FontSize="12" /><TextBox Name="txtRcNo" Height="30" /></StackPanel>
+                        </UniformGrid>
+
+                        <TextBlock Text="REPOSSESSION" FontWeight="Bold" Foreground="#00897B" Margin="0,10,0,6" />
+                        <UniformGrid Columns="3">
+                            <StackPanel Margin="0,0,8,8"><TextBlock Text="Date of Repossession" Foreground="#666" FontSize="12" /><TextBox Name="txtDateRepo" Height="30" /></StackPanel>
+                            <StackPanel Margin="0,0,8,8"><TextBlock Text="Parking Yard Name" Foreground="#666" FontSize="12" /><TextBox Name="txtParkingYard" Height="30" /></StackPanel>
+                            <StackPanel Margin="0,0,0,8"><TextBlock Text="Enclosed" Foreground="#666" FontSize="12" /><TextBox Name="txtEnclosed" Height="30" /></StackPanel>
+                            <StackPanel Margin="0,0,8,8"><TextBlock Text="Qty" Foreground="#666" FontSize="12" /><TextBox Name="txtQty" Height="30" /></StackPanel>
+                            <StackPanel Margin="0,0,8,8"><TextBlock Text="Additional Charges" Foreground="#666" FontSize="12" /><TextBox Name="txtAddlCharges" Height="30" /></StackPanel>
+                            <StackPanel Margin="0,0,0,8" />
+                            <StackPanel Margin="0,0,8,8"><TextBlock Text="Repo Charges (in words)" Foreground="#666" FontSize="12" /><TextBox Name="txtRepoWords" Height="30" /></StackPanel>
+                            <StackPanel Margin="0,0,8,8"><TextBlock Text="Repo Charges (amount)" Foreground="#666" FontSize="12" /><TextBox Name="txtRepoAmount" Height="30" /></StackPanel>
+                            <StackPanel Margin="0,0,0,8" />
+                            <StackPanel Margin="0,0,8,8"><TextBlock Text="Total Gross (in words)" Foreground="#666" FontSize="12" /><TextBox Name="txtTotalWords" Height="30" /></StackPanel>
+                            <StackPanel Margin="0,0,8,8"><TextBlock Text="Total Gross (amount)" Foreground="#666" FontSize="12" /><TextBox Name="txtTotalAmount" Height="30" /></StackPanel>
+                            <StackPanel Margin="0,0,0,8" />
+                        </UniformGrid>
+
+                        <TextBlock Text="AGENCY &amp; BANK (saved in cloud, per agency)" FontWeight="Bold" Foreground="#00897B" Margin="0,10,0,6" />
+                        <UniformGrid Columns="3">
+                            <StackPanel Margin="0,0,8,8"><TextBlock Text="Name of Agency" Foreground="#666" FontSize="12" /><TextBox Name="txtAgencyName" Height="30" /></StackPanel>
+                            <StackPanel Margin="0,0,8,8"><TextBlock Text="PAN No" Foreground="#666" FontSize="12" /><TextBox Name="txtPan" Height="30" /></StackPanel>
+                            <StackPanel Margin="0,0,0,8"><TextBlock Text="GST State" Foreground="#666" FontSize="12" /><TextBox Name="txtGst" Height="30" /></StackPanel>
+                            <StackPanel Margin="0,0,8,8"><TextBlock Text="Bank Account Name" Foreground="#666" FontSize="12" /><TextBox Name="txtAcHolder" Height="30" /></StackPanel>
+                            <StackPanel Margin="0,0,8,8"><TextBlock Text="Account No" Foreground="#666" FontSize="12" /><TextBox Name="txtAccountNo" Height="30" /></StackPanel>
+                            <StackPanel Margin="0,0,0,8"><TextBlock Text="IFSC Code" Foreground="#666" FontSize="12" /><TextBox Name="txtIfsc" Height="30" /></StackPanel>
+                            <StackPanel Margin="0,0,8,8"><TextBlock Text="Bank Branch" Foreground="#666" FontSize="12" /><TextBox Name="txtBankBranch" Height="30" /></StackPanel>
+                            <StackPanel Margin="0,0,8,8"><TextBlock Text="Pay In The Name Of" Foreground="#666" FontSize="12" /><TextBox Name="txtPaymentName" Height="30" /></StackPanel>
+                            <StackPanel Margin="0,0,0,8"><TextBlock Text="Footer Line" Foreground="#666" FontSize="12" /><TextBox Name="txtFooter" Height="30" /></StackPanel>
+                        </UniformGrid>
                     </StackPanel>
                 </ScrollViewer>
             </DockPanel>

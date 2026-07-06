@@ -82,6 +82,30 @@ internal static class DesktopApiClient
         return (await resp.Content.ReadFromJsonAsync<List<FinanceDto>>(_json))!;
     }
 
+    internal record BillingSettingsDto(
+        string AgencyName, string PanNo, string GstState, string BankAccountName,
+        string AccountNo, string IfscCode, string BankBranch, string ParkingYard,
+        string PaymentName, string FooterLine, string? LetterheadUrl, string? BackgroundUrl);
+
+    private record UrlResult(string? Url);
+
+    internal static async Task<BillingSettingsDto?> GetBillingSettingsAsync()
+    {
+        var resp = await Send(HttpMethod.Get, "api/mgr/billing/settings");
+        return await resp.Content.ReadFromJsonAsync<BillingSettingsDto>(_json);
+    }
+
+    internal static async Task SaveBillingSettingsAsync(object dto)
+    {
+        (await Send(HttpMethod.Put, "api/mgr/billing/settings", dto)).Dispose();
+    }
+
+    internal static async Task<string?> UploadBillingImageAsync(string kind, string base64)
+    {
+        var resp = await Send(HttpMethod.Post, $"api/mgr/billing/{kind}", new { ImageBase64 = base64 });
+        return (await resp.Content.ReadFromJsonAsync<UrlResult>(_json))?.Url;
+    }
+
     internal static async Task<int> CreateFinanceAsync(string name, string? description)
     {
         var resp = await Send(HttpMethod.Post, "api/mgr/finances",
