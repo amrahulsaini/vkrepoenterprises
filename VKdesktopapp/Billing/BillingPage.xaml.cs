@@ -201,9 +201,6 @@ public partial class BillingPage : Page
 
     private const string FontName = "Times New Roman";
 
-    private enum RowKind { Span, SpanRight, Kv, Hdr }
-    private record Row(RowKind Kind, string A, string B = "", string C = "");
-
     private void BuildDocx(string filePath, byte[]? letterhead, byte[]? background)
     {
         using var doc = new WordDocument();
@@ -251,85 +248,78 @@ public partial class BillingPage : Page
 
         var pay = string.IsNullOrWhiteSpace(txtPaymentName.Text) ? txtAgencyName.Text.Trim() : txtPaymentName.Text.Trim();
         var totalAmt = string.IsNullOrWhiteSpace(txtTotalAmount.Text) ? txtRepoAmount.Text.Trim() : txtTotalAmount.Text.Trim();
-        var rows = new List<Row>
-        {
-            new(RowKind.Span, $"To,  {txtBankTo.Text.Trim()},"),
-            new(RowKind.Span, "SUBJECT–SUBMISSION OF REPOSSESSION BILL."),
-            new(RowKind.Kv, "INVOICE DATE -", txtInvoiceDate.Text.Trim()),
-            new(RowKind.Kv, "INVOICE NO-", txtInvoiceNo.Text.Trim()),
-            new(RowKind.Kv, "BRANCH-", txtBranch.Text.Trim()),
-            new(RowKind.Kv, "CONFIRMATION BY-", txtConfirmationBy.Text.Trim()),
-            new(RowKind.Hdr, "DESCRIPTION EXPENSE", "ALL DETAILS", "AMOUNT"),
-            new(RowKind.Kv, "AGRI-LOAN NO", txtAgriLoan.Text.Trim()),
-            new(RowKind.Kv, "NAME OF CUSTOMER", txtCustomer.Text.Trim()),
-            new(RowKind.Kv, "MAKE-MODEL", txtMakeModel.Text.Trim()),
-            new(RowKind.Kv, "RC NO", txtRcNo.Text.Trim()),
-            new(RowKind.Kv, "DATE OF REPOSSESSION", txtDateRepo.Text.Trim()),
-            new(RowKind.Kv, "PARKING YARD NAME", txtParkingYard.Text.Trim()),
-            new(RowKind.Kv, "NAME OF AGNCY", txtAgencyName.Text.Trim()),
-            new(RowKind.Kv, "ENCLOSED", txtEnclosed.Text.Trim()),
-            new(RowKind.Kv, "QTY", txtQty.Text.Trim()),
-            new(RowKind.Kv, "REPO CHARGES", txtRepoWords.Text.Trim(), txtRepoAmount.Text.Trim()),
-            new(RowKind.Kv, "ADDITIONAL CHARGES", txtAddlCharges.Text.Trim()),
-            new(RowKind.Kv, "PAN NO", txtPan.Text.Trim()),
-            new(RowKind.Kv, "GST STATE", txtGst.Text.Trim()),
-            new(RowKind.Kv, "BANK ACCOUNT NAME", txtAcHolder.Text.Trim()),
-            new(RowKind.Kv, "ACCOUNT NO", txtAccountNo.Text.Trim()),
-            new(RowKind.Kv, "IFSC CODE", txtIfsc.Text.Trim()),
-            new(RowKind.Kv, "BRANCH", txtBankBranch.Text.Trim()),
-            new(RowKind.Kv, "TOTAL GROSS AMOUNT", txtTotalWords.Text.Trim(), totalAmt),
-            new(RowKind.Span, $"KINDIY RELEASE THE PAYMENT IN THE NAME OF M/S {pay}"),
-            new(RowKind.Span, ""),
-            new(RowKind.SpanRight, "Thank You"),
-            new(RowKind.SpanRight, txtAgencyName.Text.Trim()),
-            new(RowKind.SpanRight, txtFooter.Text.Trim()),
-        };
+        float wl = pageW * 0.317f;
+        float wd = pageW * 0.507f;
+        float wa = pageW - wl - wd;
 
         var t = sec.AddTable();
-        t.ResetCells(rows.Count, 3);
+        t.ResetCells(22, 3);
         t.TableFormat.Borders.BorderType = BorderStyle.Single;
         t.TableFormat.Borders.LineWidth = 0.5f;
         t.TableFormat.Borders.Color = SFColor.Black;
         t.TableFormat.Borders.Horizontal.BorderType = BorderStyle.Single;
         t.TableFormat.Borders.Vertical.BorderType = BorderStyle.Single;
 
-        for (int i = 0; i < rows.Count; i++)
+        void W(int r) { t[r, 0].Width = wl; t[r, 1].Width = wd; t[r, 2].Width = wa; }
+        int ri = 0;
+
+        CellLines(t, ri, 0, new[] { $"To,  {txtBankTo.Text.Trim()},", "SUBJECT–SUBMISSION OF REPOSSESSION BILL." }, align: DocAlign.Center);
+        t.ApplyHorizontalMerge(ri, 0, 2); ri++;
+
+        CellLines(t, ri, 0, new[] { "INVOICE DATE -", "INVOICE NO-", "BRANCH-", "CONFIRMATION BY-" });
+        CellLines(t, ri, 1, new[] { txtInvoiceDate.Text.Trim(), txtInvoiceNo.Text.Trim(), txtBranch.Text.Trim(), txtConfirmationBy.Text.Trim() });
+        W(ri); ri++;
+
+        CellText(t, ri, 0, "DESCRIPTION EXPENSE"); CellText(t, ri, 1, "ALL DETAILS"); CellText(t, ri, 2, "AMOUNT"); W(ri); ri++;
+
+        void KV(string label, string val, string amt = "")
         {
-            var row = rows[i];
-            switch (row.Kind)
-            {
-                case RowKind.Span:
-                    CellText(t, i, 0, row.A, align: DocAlign.Center);
-                    t.ApplyHorizontalMerge(i, 0, 2);
-                    break;
-                case RowKind.SpanRight:
-                    CellText(t, i, 0, row.A, bold: true, align: DocAlign.Right);
-                    t.ApplyHorizontalMerge(i, 0, 2);
-                    break;
-                case RowKind.Hdr:
-                    CellText(t, i, 0, row.A, bold: true);
-                    CellText(t, i, 1, row.B, bold: true);
-                    CellText(t, i, 2, row.C, bold: true);
-                    break;
-                default:
-                    CellText(t, i, 0, row.A, bold: true);
-                    CellText(t, i, 1, row.B);
-                    CellText(t, i, 2, row.C, bold: true);
-                    break;
-            }
+            CellText(t, ri, 0, label); CellText(t, ri, 1, val); CellText(t, ri, 2, amt); W(ri); ri++;
         }
+        KV("AGRI-LOAN NO", txtAgriLoan.Text.Trim());
+        KV("NAME OF CUSTOMER", txtCustomer.Text.Trim());
+        KV("MAKE-MODEL", txtMakeModel.Text.Trim());
+        KV("RC NO", txtRcNo.Text.Trim());
+        KV("DATE OF REPOSSESSION", txtDateRepo.Text.Trim());
+        KV("PARKING YARD NAME", txtParkingYard.Text.Trim());
+        KV("NAME OF AGNCY", txtAgencyName.Text.Trim());
+        KV("ENCLOSED", txtEnclosed.Text.Trim());
+        KV("QTY", txtQty.Text.Trim());
+        KV("REPO CHARGES", txtRepoWords.Text.Trim(), txtRepoAmount.Text.Trim());
+        KV("ADDITIONAL CHARGES", txtAddlCharges.Text.Trim());
+        KV("PAN NO", txtPan.Text.Trim());
+        KV("GST STATE", txtGst.Text.Trim());
+        KV("BANK ACCOUNT NAME", txtAcHolder.Text.Trim());
+        KV("ACCOUNT NO", txtAccountNo.Text.Trim());
+        KV("IFSC CODE", txtIfsc.Text.Trim());
+        KV("BRANCH", txtBankBranch.Text.Trim());
+        KV("TOTAL GROSS AMOUNT", txtTotalWords.Text.Trim(), totalAmt);
+
+        CellText(t, ri, 0, $"KINDIY RELEASE THE PAYMENT IN THE NAME OF M/S {pay}");
+        t.ApplyHorizontalMerge(ri, 0, 2); ri++;
+
+        CellLines(t, ri, 0, new[] { "", "", "", "", "Thank You", txtAgencyName.Text.Trim(), txtFooter.Text.Trim() }, align: DocAlign.Right);
+        t.ApplyHorizontalMerge(ri, 0, 2);
 
         using var fs = new FileStream(filePath, FileMode.Create, FileAccess.Write);
         doc.Save(fs, FormatType.Docx);
     }
 
     private static void CellText(IWTable t, int row, int col, string text, bool bold = true, DocAlign align = DocAlign.Left)
+        => CellLines(t, row, col, new[] { text }, bold, align);
+
+    private static void CellLines(IWTable t, int row, int col, string[] lines, bool bold = true, DocAlign align = DocAlign.Left)
     {
-        var p = t[row, col].AddParagraph();
-        p.ParagraphFormat.HorizontalAlignment = align;
-        var r = p.AppendText(text ?? "");
-        r.CharacterFormat.FontName = FontName;
-        r.CharacterFormat.FontSize = 9f;
-        r.CharacterFormat.Bold = bold;
+        var cell = t[row, col];
+        for (int k = 0; k < lines.Length; k++)
+        {
+            var p = (k == 0 && cell.Paragraphs.Count > 0) ? cell.Paragraphs[0] : cell.AddParagraph();
+            p.ParagraphFormat.HorizontalAlignment = align;
+            p.ParagraphFormat.AfterSpacing = 0f;
+            var r = p.AppendText(lines[k] ?? "");
+            r.CharacterFormat.FontName = FontName;
+            r.CharacterFormat.FontSize = 9f;
+            r.CharacterFormat.Bold = bold;
+        }
     }
 }
