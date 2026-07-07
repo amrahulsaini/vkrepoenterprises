@@ -10,105 +10,158 @@
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800;900&family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
 <style>
   :root{
-    --ink:#0b1220; --ink2:#27324a; --muted:#6b7689; --line:#e4e9f2;
-    --bg:#eef2f8; --card:#ffffff; --brand:#0a3d8f; --brand-d:#072c69;
-    --accent:#1565d8; --ok:#147a4b; --okbg:#e7f6ee; --errbg:#fdecec; --err:#c0322b;
-    --shadow:0 1px 2px rgba(11,18,32,.06),0 6px 24px rgba(11,18,32,.06);
+    --ink:#0b1220; --ink2:#27324a; --muted:#6b7689; --line:#e6ebf3; --line2:#eef2f8;
+    --bg:#f1f5fa; --card:#ffffff; --brand:#0a3d8f; --brand-d:#072c69; --brand-l:#e9f0fb;
+    --accent:#1565d8; --ok:#147a4b; --okbg:#e7f6ee; --errbg:#fdecec; --err:#c0322b; --warn:#b45309;
+    --shadow:0 1px 2px rgba(11,18,32,.05),0 8px 26px rgba(11,18,32,.07);
+    --shadow-lg:0 24px 70px rgba(11,18,32,.28);
     --head:'Archivo',sans-serif; --body:'Hanken Grotesk',system-ui,sans-serif; --mono:'JetBrains Mono',ui-monospace,monospace;
+    --r:14px;
   }
   *{box-sizing:border-box} html,body{margin:0;min-height:100%}
-  body{font-family:var(--body);color:var(--ink);background:radial-gradient(1200px 480px at 50% -120px,#dbe7fb 0,transparent 60%),var(--bg)}
+  body{font-family:var(--body);color:var(--ink);background:var(--bg);font-size:14px;-webkit-font-smoothing:antialiased}
   .hidden{display:none!important}
-  .btn{font:inherit;font-weight:700;border:none;border-radius:10px;padding:12px 16px;cursor:pointer;transition:background .15s,opacity .15s}
-  .btn-primary{background:var(--brand);color:#fff} .btn-primary:hover{background:var(--brand-d)}
-  .btn-primary.block{width:100%}
-  .btn-primary:disabled{opacity:.55;cursor:not-allowed}
-  .btn-ghost{background:transparent;color:var(--ink2);font-weight:600}
-  .btn-outline{background:#fff;color:var(--ink2);border:1px solid var(--line);font-weight:600}
-  .btn-danger{background:#fff;color:var(--err);border:1px solid #f3c9c6;font-weight:600}
+  a{color:var(--accent);text-decoration:none} a:hover{text-decoration:underline}
+
+  .btn{font:inherit;font-weight:700;border:1px solid transparent;border-radius:10px;padding:10px 15px;cursor:pointer;transition:.15s;display:inline-flex;align-items:center;gap:7px;justify-content:center;white-space:nowrap}
+  .btn:disabled{opacity:.55;cursor:not-allowed}
+  .btn-primary{background:var(--brand);color:#fff;box-shadow:0 2px 8px rgba(10,61,143,.25)} .btn-primary:hover:not(:disabled){background:var(--brand-d)}
+  .btn-outline{background:#fff;color:var(--ink2);border-color:var(--line)} .btn-outline:hover:not(:disabled){border-color:var(--accent);color:var(--brand)}
+  .btn-ghost{background:transparent;color:var(--ink2)} .btn-ghost:hover:not(:disabled){background:var(--line2);color:var(--ink)}
+  .btn-danger{background:#fff;color:var(--err);border-color:#f1cbc8} .btn-danger:hover:not(:disabled){background:#fdecec}
+  .btn-block{width:100%}
   .btn-sm{padding:8px 12px;font-size:13px;border-radius:9px}
-  input,select{font:inherit;width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:#fbfcff;color:var(--ink)}
-  input:focus,select:focus{outline:none;border-color:var(--accent);background:#fff;box-shadow:0 0 0 3px rgba(21,101,216,.12)}
+
+  input,select{font:inherit;width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--ink);transition:.15s}
+  input:focus,select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(21,101,216,.14)}
+  select{cursor:pointer}
   .lbl{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin:0 0 6px}
   .field{margin-bottom:14px}
-  .msg{font-size:13px;margin-top:12px;min-height:18px;border-radius:8px}
-  .msg.err{color:var(--err);background:var(--errbg);padding:10px 12px}
-  .msg.ok{color:var(--ok);background:var(--okbg);padding:10px 12px}
+  .msg{font-size:13px;margin-top:10px;min-height:16px;border-radius:9px}
+  .msg.err{color:var(--err);background:var(--errbg);padding:9px 12px}
+  .msg.ok{color:var(--ok);background:var(--okbg);padding:9px 12px}
   .msg.info{color:var(--ink2)}
-  .wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:28px}
-  .brandbar{display:flex;align-items:center;gap:12px;justify-content:center;margin-bottom:18px}
-  .brandbar img{width:46px;height:46px;border-radius:11px;border:1px solid var(--line);padding:5px;background:#fff}
+  .spin{display:inline-block;width:14px;height:14px;border:2px solid #c7d3e6;border-top-color:var(--brand);border-radius:50%;animation:s .7s linear infinite;vertical-align:-2px}
+  @keyframes s{to{transform:rotate(360deg)}}
+
+  .authwrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;
+    background:radial-gradient(1100px 460px at 50% -140px,#dbe7fb 0,transparent 60%),var(--bg)}
+  .brandbar{display:flex;align-items:center;gap:12px;justify-content:center;margin-bottom:20px}
+  .brandbar img{width:46px;height:46px;border-radius:12px;border:1px solid var(--line);padding:6px;background:#fff}
   .brandbar .nm{font-family:var(--head);font-weight:900;font-size:18px;line-height:1.05}
   .brandbar .nm small{display:block;font-family:var(--body);font-weight:600;font-size:11px;color:var(--muted)}
-  .login-card{width:100%;max-width:420px;background:var(--card);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);padding:30px 28px}
-  .login-card h1{font-family:var(--head);font-size:21px;margin:2px 0 3px;text-align:center}
-  .login-card p.sub{color:var(--muted);font-size:13px;margin:0 0 20px;text-align:center}
-  .sep{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:12px;margin:18px 0}
+  .login-card{width:100%;max-width:420px;background:var(--card);border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow);padding:32px 30px}
+  .login-card h1{font-family:var(--head);font-size:22px;margin:2px 0 4px;text-align:center}
+  .login-card p.sub{color:var(--muted);font-size:13px;margin:0 0 22px;text-align:center}
+  .secure-pill{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;color:var(--brand);background:var(--brand-l);border:1px solid #d3e2fb;border-radius:999px;padding:5px 12px}
+  .sep{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:12px;margin:20px 0}
   .sep:before,.sep:after{content:"";height:1px;background:var(--line);flex:1}
 
-  .shell{width:100%;max-width:1240px;margin:0 auto;padding:18px}
-  .topbar{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:14px 18px;margin-bottom:16px}
-  .topbar img{width:40px;height:40px;border-radius:10px;border:1px solid var(--line);padding:4px;background:#fff}
-  .topbar .t{font-family:var(--head);font-weight:800;font-size:16px}
-  .topbar .s{color:var(--muted);font-size:12px}
-  .grid{display:grid;grid-template-columns:310px 1fr;gap:16px;align-items:start}
-  @media(max-width:860px){.grid{grid-template-columns:1fr}}
-  .side{position:sticky;top:16px;align-self:start;max-height:calc(100vh - 32px);overflow:auto}
-  @media(max-width:860px){.side{position:static;max-height:none}}
-  .panel{background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);overflow:hidden}
-  .panel .ph{padding:13px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
-  .panel .ph h3{margin:0;font-family:var(--head);font-size:14px}
-  .panel .pb{padding:16px}
-  .count{background:#eef2f8;color:var(--ink2);border-radius:999px;padding:2px 10px;font-size:12px;font-weight:700}
+  .app{display:grid;grid-template-columns:290px 1fr;min-height:100vh}
+  .sidebar{position:sticky;top:0;height:100vh;overflow:hidden;background:#fff;border-right:1px solid var(--line);display:flex;flex-direction:column}
+  .side-brand{display:flex;align-items:center;gap:11px;padding:16px 18px}
+  .side-brand img{width:38px;height:38px;border-radius:10px;border:1px solid var(--line);padding:4px}
+  .side-brand .bt{font-family:var(--head);font-weight:800;font-size:14.5px;line-height:1.1}
+  .side-brand .bs{font-size:11px;color:var(--muted)}
+  .side-user{margin:0 12px 8px;padding:10px 12px;background:var(--line2);border-radius:11px;font-size:12px;color:var(--ink2);display:flex;align-items:center;gap:8px}
+  .side-user .av{width:26px;height:26px;border-radius:50%;background:var(--brand);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;flex-shrink:0}
+  .side-user b{display:block;font-size:12.5px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .side-user span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
+  .side-sec{padding:14px 18px 6px;display:flex;align-items:center;justify-content:space-between}
+  .side-sec .t{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:800}
+  .side-scroll{flex:1;overflow:auto;padding-bottom:8px}
+  .side-foot{border-top:1px solid var(--line);padding:12px 14px}
+  .count{background:var(--brand-l);color:var(--brand);border-radius:999px;padding:1px 9px;font-size:11.5px;font-weight:800}
 
-  .ag{border:1px solid var(--line);border-radius:12px;margin:12px;overflow:hidden}
-  .ag .agh{display:flex;align-items:center;gap:10px;padding:11px 13px;background:#f7faff}
-  .ag .agh img{width:30px;height:30px;border-radius:8px;border:1px solid var(--line);background:#fff;object-fit:contain}
-  .ag .agh .nm{font-weight:700;font-size:13.5px;flex:1;word-break:break-word}
-  .ag .agh .rm{border:none;background:transparent;color:var(--err);cursor:pointer;font-size:16px;line-height:1;padding:2px 4px}
-  .ho{display:block;width:100%;text-align:left;border:none;background:#fff;border-top:1px solid var(--line);padding:10px 13px;cursor:pointer;font:inherit;font-size:13px;color:var(--ink2)}
-  .ho:hover{background:#eef5ff}
-  .ho.active{background:var(--brand);color:#fff;font-weight:700}
+  .ag{margin:0 12px 10px;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#fff}
+  .agh{display:flex;align-items:center;gap:9px;padding:10px 11px;background:linear-gradient(#fafcff,#f4f8ff)}
+  .agh img{width:28px;height:28px;border-radius:7px;border:1px solid var(--line);background:#fff;object-fit:contain}
+  .agh .nm{font-weight:700;font-size:13px;flex:1;word-break:break-word;line-height:1.2}
+  .agh .rm{border:none;background:transparent;color:#b6455c;cursor:pointer;font-size:15px;line-height:1;padding:3px 5px;border-radius:6px}
+  .agh .rm:hover{background:#fdecec}
+  .ho{display:flex;align-items:center;gap:8px;width:100%;text-align:left;border:none;background:#fff;border-top:1px solid var(--line);padding:9px 12px;cursor:pointer;font:inherit;font-size:13px;color:var(--ink2);transition:.12s}
+  .ho:before{content:"";width:6px;height:6px;border-radius:50%;background:#c7d3e6;flex-shrink:0}
+  .ho:hover{background:#f2f7ff}
+  .ho.active{background:var(--brand);color:#fff;font-weight:700} .ho.active:before{background:#fff}
 
-  .tabs{display:inline-flex;background:#eef2f8;border-radius:10px;padding:3px;gap:2px;flex-wrap:wrap}
-  .tabs button{border:none;background:transparent;font:inherit;font-weight:700;font-size:13px;color:var(--ink2);padding:7px 13px;border-radius:8px;cursor:pointer}
-  .tabs button.active{background:#fff;color:var(--brand);box-shadow:var(--shadow)}
-  .toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
-  .toolbar input,.toolbar select{width:auto;min-width:120px}
-  .toolbar input.grow{flex:1;min-width:180px}
+  .mainwrap{min-width:0;display:flex;flex-direction:column}
+  .topbar{position:sticky;top:0;z-index:20;background:rgba(255,255,255,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);padding:13px 24px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;min-height:60px}
+  .topbar h3{margin:0;font-family:var(--head);font-size:16px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .content{padding:22px 24px 40px;min-width:0}
 
-  .br-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px}
-  .br-tile{border:1.5px solid var(--line);border-radius:12px;padding:13px 14px;background:#fff;cursor:pointer;text-align:left}
-  .br-tile:hover{border-color:var(--brand);background:#f2f7ff}
-  .br-tile .bn{font-weight:700;font-size:14px;word-break:break-word}
-  .br-tile .bm{color:var(--muted);font-size:12px;margin-top:6px}
-  .br-tile .bc{color:var(--brand-700,#072c69);font-weight:700;font-size:12.5px;margin-top:2px}
+  .tabs{display:inline-flex;background:var(--line2);border-radius:11px;padding:4px;gap:3px;flex-wrap:wrap}
+  .tabs button{border:none;background:transparent;font:inherit;font-weight:700;font-size:13px;color:var(--ink2);padding:8px 15px;border-radius:8px;cursor:pointer;transition:.12s}
+  .tabs button:hover{color:var(--ink)}
+  .tabs button.active{background:#fff;color:var(--brand);box-shadow:0 1px 4px rgba(11,18,32,.12)}
 
-  table.tbl{border-collapse:collapse;width:100%;font-size:12.5px}
-  table.tbl th,table.tbl td{border-bottom:1px solid var(--line);padding:8px 10px;text-align:left;white-space:nowrap}
-  table.tbl th{font-size:10.5px;letter-spacing:.03em;text-transform:uppercase;color:var(--muted);font-weight:700;position:sticky;top:0;background:#fff}
-  table.tbl tbody tr{cursor:pointer}
+  .card{background:#fff;border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow)}
+  .card .ch{padding:14px 18px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .card .ch h4{margin:0;font-family:var(--head);font-size:14px}
+  .card .cb{padding:18px}
+  .step-badge{width:24px;height:24px;border-radius:50%;background:var(--brand);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-weight:800;font-size:12.5px;flex-shrink:0}
+
+  .toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+  .toolbar input,.toolbar select{width:auto;min-width:130px}
+  .toolbar input.grow{flex:1;min-width:200px}
+  .scope-note{font-size:12.5px;color:var(--muted);margin-bottom:10px;display:flex;align-items:center;gap:6px}
+
+  .br-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px}
+  .br-tile{border:1px solid var(--line);border-radius:13px;padding:15px;background:#fff;cursor:pointer;text-align:left;transition:.14s;box-shadow:0 1px 2px rgba(11,18,32,.04)}
+  .br-tile:hover{border-color:var(--brand);box-shadow:var(--shadow);transform:translateY(-1px)}
+  .br-tile .bn{font-weight:700;font-size:14.5px;word-break:break-word;display:flex;align-items:center;gap:8px}
+  .br-tile .bn:before{content:"🏢";font-size:15px}
+  .br-tile .bc{color:var(--brand);font-weight:800;font-size:13px;margin-top:9px}
+  .br-tile .bm{color:var(--muted);font-size:12px;margin-top:3px}
+
+  .tbl-scroll{overflow:auto;border:1px solid var(--line);border-radius:12px;max-height:64vh;background:#fff}
+  table.tbl{border-collapse:separate;border-spacing:0;width:100%;font-size:12.5px}
+  table.tbl th,table.tbl td{padding:9px 12px;text-align:left;white-space:nowrap;border-bottom:1px solid var(--line2)}
+  table.tbl th{font-size:10.5px;letter-spacing:.03em;text-transform:uppercase;color:var(--muted);font-weight:800;position:sticky;top:0;background:#f7faff;z-index:1}
+  table.tbl tbody tr{cursor:pointer;transition:background .1s}
   table.tbl tbody tr:hover{background:#f2f7ff}
-  .tbl-scroll{overflow:auto;border:1px solid var(--line);border-radius:12px;max-height:62vh}
-  .empty{padding:34px;text-align:center;color:var(--muted);font-size:13.5px}
-  .drop{border:2px dashed #c4d2ea;border-radius:14px;padding:26px 20px;text-align:center;color:var(--muted);background:linear-gradient(#fbfdff,#f4f8ff);cursor:pointer}
-  .drop:hover,.drop.drag{border-color:var(--accent);background:#eef5ff}
-  .drop .ic{font-size:26px} .drop b{color:var(--ink);display:block;margin-top:6px}
-  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
-  .chip{background:#eef2f8;color:var(--ink2);border:1px solid var(--line);border-radius:7px;padding:3px 9px;font-size:11px;font-family:var(--mono)}
-  .spin{display:inline-block;width:13px;height:13px;border:2px solid #c7d3e6;border-top-color:var(--brand);border-radius:50%;animation:s .7s linear infinite;vertical-align:-2px}
-  @keyframes s{to{transform:rotate(360deg)}}
-  .modal-bd{position:fixed;inset:0;background:rgba(11,18,32,.5);display:none;align-items:center;justify-content:center;padding:20px;z-index:60}
-  .modal-bd.open{display:flex}
-  .modal-cd{width:100%;max-width:520px;background:#fff;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.3);padding:22px;max-height:88vh;overflow:auto}
-  .modal-cd h3{margin:0 0 12px;font-size:18px}
-  .kv{display:grid;grid-template-columns:150px 1fr;gap:6px 14px;font-size:13.5px}
+  table.tbl tbody tr:last-child td{border-bottom:none}
+
+  .empty{padding:44px 24px;text-align:center;color:var(--muted);font-size:13.5px}
+  .empty .ei{font-size:34px;display:block;margin-bottom:10px;opacity:.7}
+
+  .drop{border:2px dashed #c4d2ea;border-radius:14px;padding:30px 20px;text-align:center;color:var(--muted);background:linear-gradient(#fbfdff,#f4f8ff);cursor:pointer;transition:.15s}
+  .drop:hover,.drop.drag{border-color:var(--accent);background:#eaf2ff}
+  .drop .ic{font-size:30px} .drop b{color:var(--ink);display:block;margin-top:8px;font-size:14.5px}
+  .drop .hint{font-size:12px;margin-top:4px}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+  .chip{background:var(--line2);color:var(--ink2);border:1px solid var(--line);border-radius:7px;padding:3px 9px;font-size:11px;font-family:var(--mono)}
+  .chips-title{width:100%;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;font-weight:800;margin-bottom:2px}
+
+  .modal-bd{position:fixed;inset:0;background:rgba(11,18,32,.55);backdrop-filter:blur(3px);display:none;align-items:center;justify-content:center;padding:20px;z-index:80}
+  .modal-bd.open{display:flex;animation:fade .15s ease}
+  @keyframes fade{from{opacity:0}to{opacity:1}}
+  .modal-cd{width:100%;max-width:540px;background:#fff;border-radius:18px;box-shadow:var(--shadow-lg);padding:24px;max-height:88vh;overflow:auto;animation:pop .16s ease}
+  @keyframes pop{from{transform:translateY(8px) scale(.98);opacity:0}to{transform:none;opacity:1}}
+  .modal-cd h3{margin:0 0 4px;font-family:var(--head);font-size:19px}
+  .modal-cd p.mm{margin:0 0 4px;color:var(--ink2);font-size:14px;line-height:1.5}
+  .modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
+  .modal-ic{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;margin-bottom:12px}
+  .modal-ic.warn{background:#fef3e7;color:var(--warn)}
+  .kv{display:grid;grid-template-columns:160px 1fr;gap:8px 16px;font-size:13.5px}
   .kv .k{color:var(--muted);font-weight:700}
+  .kv .v{word-break:break-word}
+
+  .toast-wrap{position:fixed;top:18px;right:18px;z-index:100;display:flex;flex-direction:column;gap:10px;max-width:340px}
+  .toast{background:#fff;border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:11px;box-shadow:var(--shadow-lg);padding:12px 14px;font-size:13.5px;color:var(--ink);display:flex;gap:10px;align-items:flex-start;animation:slidein .18s ease}
+  .toast.ok{border-left-color:var(--ok)} .toast.err{border-left-color:var(--err)} .toast.info{border-left-color:var(--accent)}
+  .toast .ti{font-size:16px;line-height:1.2}
+  @keyframes slidein{from{transform:translateX(20px);opacity:0}to{transform:none;opacity:1}}
+
+  @media(max-width:820px){
+    .app{grid-template-columns:1fr}
+    .sidebar{position:static;height:auto;border-right:none;border-bottom:1px solid var(--line)}
+    .side-scroll{max-height:340px}
+  }
 </style>
 </head>
 <body>
 
-<div id="auth" class="wrap">
+<div id="auth" class="authwrap">
   <div class="login-card">
     <div class="brandbar">
       <img src="/assets/crmrs-logo.webp" alt="CRMRS" onerror="this.onerror=null;this.src='/assets/logo-short.webp'">
@@ -116,55 +169,55 @@
     </div>
     <div id="view-login">
       <h1>Finance sign in</h1>
-      <p class="sub">Access the recovery agencies you are integrated with.</p>
+      <p class="sub">Securely access the recovery agencies you are integrated with.</p>
+      <div style="text-align:center;margin-bottom:18px"><span class="secure-pill">🔒 256-bit TLS · Private workspace</span></div>
       <div class="field"><div class="lbl">Email</div><input id="lg-email" type="email" autocomplete="username" placeholder="you@finance.com"></div>
       <div class="field"><div class="lbl">Password</div><input id="lg-pass" type="password" autocomplete="current-password" placeholder="Password"></div>
-      <button class="btn btn-primary block" id="lg-btn">Sign in</button>
+      <button class="btn btn-primary btn-block" id="lg-btn">Sign in</button>
       <div class="msg" id="lg-msg"></div>
       <div class="sep">new here?</div>
-      <button class="btn btn-outline btn-sm" id="to-apply" style="width:100%">Apply for a new integration</button>
+      <button class="btn btn-outline btn-block" id="to-apply">Apply for a new integration</button>
     </div>
     <div id="view-apply" class="hidden">
       <h1>Apply for integration</h1>
-      <p class="sub">Create your finance account. An administrator grants you access to agencies afterwards.</p>
+      <p class="sub">Create your finance account. An administrator grants you agency access afterwards.</p>
       <div class="field"><div class="lbl">Finance name</div><input id="ap-name" type="text" placeholder="e.g. HDB Financial Services"></div>
       <div class="field"><div class="lbl">Email</div><input id="ap-email" type="email" autocomplete="email" placeholder="you@finance.com"></div>
       <div class="field"><div class="lbl">Create password</div><input id="ap-pass" type="password" autocomplete="new-password" placeholder="At least 6 characters"></div>
-      <button class="btn btn-primary block" id="ap-btn">Submit application</button>
+      <button class="btn btn-primary btn-block" id="ap-btn">Submit application</button>
       <div class="msg" id="ap-msg"></div>
       <div class="sep">already applied?</div>
-      <button class="btn btn-outline btn-sm" id="to-login" style="width:100%">Back to sign in</button>
+      <button class="btn btn-outline btn-block" id="to-login">Back to sign in</button>
     </div>
   </div>
 </div>
 
 <div id="dash" class="hidden">
-  <div class="shell">
-    <div class="topbar">
-      <img src="/assets/crmrs-logo.webp" alt="" onerror="this.onerror=null;this.src='/assets/logo-short.webp'">
-      <div><div class="t">Finance Integrations</div><div class="s">Signed in as <span id="who">—</span></div></div>
-      <div style="flex:1"></div>
-      <button class="btn btn-ghost btn-sm" id="logout">Sign out</button>
-    </div>
-    <div class="grid">
-      <aside class="side">
-        <div class="panel">
-          <div class="ph"><h3>Your agencies</h3><span class="count" id="ag-count">0</span></div>
-          <div id="ag-list"><div class="empty"><span class="spin"></span> Loading…</div></div>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="side-brand">
+        <img src="/assets/crmrs-logo.webp" alt="" onerror="this.onerror=null;this.src='/assets/logo-short.webp'">
+        <div><div class="bt">Finance Integrations</div><div class="bs">CRM Recovery Software</div></div>
+      </div>
+      <div class="side-user"><div class="av" id="who-av">F</div><div style="min-width:0"><b id="who-name">—</b><span id="who" style="color:var(--muted)">—</span></div></div>
+      <div class="side-sec"><span class="t">Your agencies</span><span class="count" id="ag-count">0</span></div>
+      <div class="side-scroll" id="ag-list"><div class="empty"><span class="spin"></span> Loading…</div></div>
+      <div class="side-foot"><button class="btn btn-outline btn-block btn-sm" id="logout">Sign out</button></div>
+    </aside>
+    <div class="mainwrap">
+      <header class="topbar">
+        <h3 id="sel-title">Select a head office</h3>
+        <div style="flex:1"></div>
+        <div class="tabs hidden" id="tabs">
+          <button data-tab="branches" class="active">Branches</button>
+          <button data-tab="records">Records</button>
+          <button data-tab="upload">Upload</button>
+          <button data-tab="logs">Search logs</button>
         </div>
-      </aside>
-      <main class="panel">
-        <div class="ph">
-          <h3 id="sel-title">Select a head office</h3>
-          <div class="tabs hidden" id="tabs">
-            <button data-tab="branches" class="active">Branches</button>
-            <button data-tab="records">Records</button>
-            <button data-tab="upload">Upload</button>
-            <button data-tab="logs">Search logs</button>
-          </div>
-        </div>
-        <div class="pb" id="content"><div class="empty">Pick an agency head office on the left to see its branches, records, uploads and search logs.</div></div>
-      </main>
+      </header>
+      <div class="content" id="content">
+        <div class="empty"><span class="ei">🏦</span>Pick an agency head office on the left to see its branches, records, uploads and search logs.</div>
+      </div>
     </div>
   </div>
 </div>
@@ -172,10 +225,24 @@
 <div class="modal-bd" id="rec-modal">
   <div class="modal-cd">
     <h3 id="rec-title">Record</h3>
-    <div class="kv" id="rec-kv"></div>
-    <div style="text-align:right;margin-top:16px"><button class="btn btn-outline btn-sm" id="rec-close">Close</button></div>
+    <div class="kv" id="rec-kv" style="margin-top:14px"></div>
+    <div class="modal-actions"><button class="btn btn-outline btn-sm" id="rec-close">Close</button></div>
   </div>
 </div>
+
+<div class="modal-bd" id="confirm-modal">
+  <div class="modal-cd" style="max-width:440px">
+    <div class="modal-ic warn" id="cf-ic">⚠️</div>
+    <h3 id="cf-title">Are you sure?</h3>
+    <p class="mm" id="cf-msg"></p>
+    <div class="modal-actions">
+      <button class="btn btn-outline" id="cf-no">Cancel</button>
+      <button class="btn btn-primary" id="cf-yes">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-wrap" id="toast-wrap"></div>
 
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script>
@@ -189,6 +256,29 @@ let token=sessionStorage.getItem('integ_token')||'';
 let agencies=[], sel=null, curTab='branches', selBranch=null, recOffset=0, recTotal=0, recCols=[], recRows=[], recIds=[];
 
 function setMsg(id,t,c){const m=$(id);m.textContent=t||'';m.className='msg '+(c||'');}
+
+function toast(msg,type){
+  const ic=type==='ok'?'✅':type==='err'?'⛔':'ℹ️';
+  const el=document.createElement('div');
+  el.className='toast '+(type||'info');
+  el.innerHTML='<span class="ti">'+ic+'</span><div>'+esc(msg)+'</div>';
+  $('#toast-wrap').appendChild(el);
+  setTimeout(()=>{ el.style.transition='opacity .25s'; el.style.opacity='0'; setTimeout(()=>el.remove(),260); }, 4200);
+}
+function confirmDialog(opts){
+  return new Promise(res=>{
+    $('#cf-title').textContent=opts.title||'Are you sure?';
+    $('#cf-msg').textContent=opts.message||'';
+    $('#cf-yes').textContent=opts.confirmLabel||'Confirm';
+    $('#cf-yes').className='btn '+(opts.danger?'btn-danger':'btn-primary');
+    $('#cf-ic').textContent=opts.danger?'🗑️':'⚠️';
+    const m=$('#confirm-modal'); m.classList.add('open');
+    const done=v=>{ m.classList.remove('open'); $('#cf-yes').onclick=null; $('#cf-no').onclick=null; res(v); };
+    $('#cf-yes').onclick=()=>done(true);
+    $('#cf-no').onclick=()=>done(false);
+    m.onclick=e=>{ if(e.target.id==='confirm-modal') done(false); };
+  });
+}
 
 async function apiCall(path,body,auth){
   const h={'Content-Type':'application/json'};
@@ -243,7 +333,8 @@ function signOut(){
 }
 function enterDash(){
   $('#auth').classList.add('hidden'); $('#dash').classList.remove('hidden');
-  $('#who').textContent=(sessionStorage.getItem('integ_name')||'')+' · '+(sessionStorage.getItem('integ_email')||'');
+  const nm=sessionStorage.getItem('integ_name')||'Finance', em=sessionStorage.getItem('integ_email')||'';
+  $('#who-name').textContent=nm; $('#who').textContent=em; $('#who-av').textContent=(nm[0]||'F').toUpperCase();
   loadAgencies();
 }
 
@@ -254,7 +345,7 @@ async function loadAgencies(){
     const d=await apiGet('/agencies');
     agencies=d.agencies||[];
     $('#ag-count').textContent=agencies.length;
-    if(!agencies.length){ list.innerHTML='<div class="empty">No active agency integrations yet. An agency admin needs to grant you access.</div>'; return; }
+    if(!agencies.length){ list.innerHTML='<div class="empty" style="padding:26px 18px"><span class="ei">📭</span>No active agency integrations yet. An agency admin needs to grant you access.</div>'; return; }
     list.innerHTML=agencies.map((a,ai)=>{
       const logo=a.logoPath?(/^https?:\/\//i.test(a.logoPath)?a.logoPath:'https://api.crmrecoverysoftware.com'+(a.logoPath.startsWith('/')?'':'/')+a.logoPath):'/assets/crmrs-logo.webp';
       const heads=(a.headOffices||[]).map((h,hi)=>'<button class="ho" data-ai="'+ai+'" data-hi="'+hi+'">'+esc(h.financeName)+'</button>').join('');
@@ -268,12 +359,14 @@ async function loadAgencies(){
 
 async function removeAgency(ai){
   const a=agencies[ai];
-  if(!confirm('Remove your integration with '+a.name+'? You will lose access to its head offices until an admin grants it again.')) return;
+  const ok=await confirmDialog({title:'Remove integration?',message:'Remove your integration with '+a.name+'? You will lose access to its head offices until an admin grants it again.',confirmLabel:'Remove',danger:true});
+  if(!ok) return;
   try{
     await apiCall('/remove-agency',{agencySlug:a.slug},true);
-    if(sel && sel.agencySlug===a.slug){ sel=null; $('#tabs').classList.add('hidden'); $('#sel-title').textContent='Select a head office'; $('#content').innerHTML='<div class="empty">Pick an agency head office on the left.</div>'; }
+    if(sel && sel.agencySlug===a.slug){ sel=null; $('#tabs').classList.add('hidden'); $('#sel-title').textContent='Select a head office'; $('#content').innerHTML='<div class="empty"><span class="ei">🏦</span>Pick an agency head office on the left.</div>'; }
+    toast('Integration removed','info');
     loadAgencies();
-  }catch(e){ alert(e.message); }
+  }catch(e){ toast(e.message,'err'); }
 }
 
 function selectHead(ai,hi,btn){
@@ -302,11 +395,11 @@ async function renderBranches(){
   try{
     const d=await apiCall('/branches',{agencySlug:sel.agencySlug,financeId:sel.financeId},true);
     const bs=d.branches||[];
-    if(!bs.length){ $('#content').innerHTML='<div class="empty">No branches yet under this head office. Use the <b>Upload</b> tab to create one and add records.</div>'; return; }
+    if(!bs.length){ $('#content').innerHTML='<div class="empty"><span class="ei">🏢</span>No branches yet under this head office.<br>Use the <b>Upload</b> tab to create one and add records.</div>'; return; }
     $('#content').innerHTML='<div class="br-grid">'+bs.map(b=>
       '<button class="br-tile" data-bid="'+b.id+'" data-bn="'+esc(b.name)+'"><div class="bn">'+esc(b.name)+'</div>'+
       '<div class="bc">'+(b.totalRecords||0)+' records</div>'+
-      (b.uploadedAt?'<div class="bm">Updated '+esc(b.uploadedAt)+'</div>':'')+'</button>').join('')+'</div>';
+      (b.uploadedAt?'<div class="bm">Updated '+esc(b.uploadedAt)+'</div>':'<div class="bm">No uploads yet</div>')+'</button>').join('')+'</div>';
     $('#content').querySelectorAll('.br-tile').forEach(t=>t.addEventListener('click',()=>{
       selBranch={id:+t.dataset.bid,name:t.dataset.bn}; setTab('records');
     }));
@@ -316,16 +409,18 @@ async function renderBranches(){
 function renderRecords(){
   recOffset=0;
   $('#content').innerHTML=
+    '<div class="card"><div class="cb">'+
     '<div class="toolbar">'+
       '<select id="rec-mode"><option value="rc">RC last-4</option><option value="chassis">Chassis last-5</option><option value="text">Any text</option></select>'+
-      '<input id="rec-q" class="grow" type="text" placeholder="Search…">'+
+      '<input id="rec-q" class="grow" type="text" placeholder="Search records…">'+
       '<button class="btn btn-primary btn-sm" id="rec-search">Search</button>'+
       (selBranch?'<button class="btn btn-outline btn-sm" id="rec-allbr">All branches</button>':'')+
-      '<span class="count" id="rec-count">—</span></div>'+
-    '<div style="font-size:12.5px;color:var(--muted);margin-bottom:8px" id="rec-scope"></div>'+
+      '<span class="count" id="rec-count" style="padding:4px 11px">—</span></div>'+
+    '<div class="scope-note" id="rec-scope"></div>'+
     '<div id="rec-body"><div class="empty"><span class="spin"></span> Loading…</div></div>'+
-    '<div style="text-align:center;margin-top:12px"><button class="btn btn-outline btn-sm hidden" id="rec-more">Load more</button></div>';
-  $('#rec-scope').textContent=selBranch?('Branch: '+selBranch.name):'All branches of '+sel.financeName;
+    '<div style="text-align:center;margin-top:14px"><button class="btn btn-outline btn-sm hidden" id="rec-more">Load more</button></div>'+
+    '</div></div>';
+  $('#rec-scope').innerHTML='📍 '+(selBranch?('Branch: <b>'+esc(selBranch.name)+'</b>'):('All branches of <b>'+esc(sel.financeName)+'</b>'));
   $('#rec-search').onclick=()=>{ recOffset=0; loadRecords(true); };
   $('#rec-q').addEventListener('keydown',e=>{if(e.key==='Enter'){recOffset=0;loadRecords(true);}});
   $('#rec-more').onclick=()=>loadRecords(false);
@@ -340,18 +435,17 @@ async function loadRecords(reset){
   try{
     const d=await apiCall('/records',{agencySlug:sel.agencySlug,financeId:sel.financeId,branchId:selBranch?selBranch.id:0,search,mode,limit:100,offset:recOffset},true);
     recTotal=d.total||0; recCols=d.columns||[];
-    $('#rec-count').textContent=recTotal+' record'+(recTotal===1?'':'s');
+    $('#rec-count').textContent=recTotal.toLocaleString()+' record'+(recTotal===1?'':'s');
     const rows=d.rows||[], ids=d.ids||[];
     if(reset){ recRows=[]; recIds=[]; }
     recRows=recRows.concat(rows); recIds=recIds.concat(ids);
-    if(reset && !rows.length){ body.innerHTML='<div class="empty">No records found.</div>'; $('#rec-more').classList.add('hidden'); return; }
+    if(reset && !rows.length){ body.innerHTML='<div class="empty"><span class="ei">🔍</span>No records found.</div>'; $('#rec-more').classList.add('hidden'); return; }
     const head='<thead><tr>'+recCols.map(c=>'<th>'+esc(c)+'</th>').join('')+'</tr></thead>';
     const trFor=(r,gi)=>'<tr data-gi="'+gi+'">'+r.map(c=>'<td>'+esc(c)+'</td>').join('')+'</tr>';
     if(reset){
       body.innerHTML='<div class="tbl-scroll"><table class="tbl">'+head+'<tbody>'+recRows.map((r,i)=>trFor(r,i)).join('')+'</tbody></table></div>';
     }else{
-      const tb=body.querySelector('tbody');
-      tb.insertAdjacentHTML('beforeend', rows.map((r,i)=>trFor(r,recRows.length-rows.length+i)).join(''));
+      body.querySelector('tbody').insertAdjacentHTML('beforeend', rows.map((r,i)=>trFor(r,recRows.length-rows.length+i)).join(''));
     }
     body.querySelectorAll('tbody tr').forEach(tr=>tr.onclick=()=>showRecord(+tr.dataset.gi));
     recOffset=recRows.length;
@@ -360,8 +454,8 @@ async function loadRecords(reset){
 }
 function showRecord(gi){
   const r=recRows[gi]; if(!r) return;
-  $('#rec-title').textContent=(r[0]||'Record')+' · '+(r[3]||'');
-  $('#rec-kv').innerHTML=recCols.map((c,i)=>'<div class="k">'+esc(c)+'</div><div>'+esc(r[i]||'—')+'</div>').join('');
+  $('#rec-title').textContent=(r[0]||'Record')+(r[3]?' · '+r[3]:'');
+  $('#rec-kv').innerHTML=recCols.map((c,i)=>'<div class="k">'+esc(c)+'</div><div class="v">'+esc(r[i]||'—')+'</div>').join('');
   $('#rec-modal').classList.add('open');
 }
 $('#rec-close').onclick=()=>$('#rec-modal').classList.remove('open');
@@ -373,32 +467,43 @@ async function renderUpload(){
   try{ const d=await apiCall('/branches',{agencySlug:sel.agencySlug,financeId:sel.financeId},true); branches=d.branches||[]; }
   catch(e){ $('#content').innerHTML='<div class="empty">'+esc(e.message)+'</div>'; return; }
   $('#content').innerHTML=
-    '<div class="field"><div class="lbl">Branch (in DB it is a branch under this head office)</div>'+
-      '<select id="up-branch"><option value="">— Select a branch —</option>'+
-      branches.map(b=>'<option value="'+b.id+'">'+esc(b.name)+' ('+(b.totalRecords||0)+')</option>').join('')+
-      '<option value="__new">➕ Create a new branch…</option></select></div>'+
-    '<div id="up-new" class="hidden" style="border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:14px">'+
-      '<div class="field"><div class="lbl">New branch name</div><input id="nb-name" type="text" placeholder="Branch name"></div>'+
-      '<div class="field"><div class="lbl">Address (optional)</div><input id="nb-addr" type="text" placeholder="Address"></div>'+
-      '<div class="field"><div class="lbl">Contact (optional)</div><input id="nb-contact" type="text" placeholder="Contact number"></div>'+
-      '<button class="btn btn-primary btn-sm" id="nb-create">Create branch</button><div class="msg" id="nb-msg"></div></div>'+
-    '<div class="drop" id="drop"><div class="ic">📑</div><b>Click or drop an Excel file (.xlsx / .xls)</b>'+
-      '<div style="font-size:12px;margin-top:4px">First row must be the column headers, in the standard format</div></div>'+
-    '<input id="file" type="file" accept=".xlsx,.xls" class="hidden"><div class="msg" id="up-msg"></div>'+
-    '<div class="chips" id="up-chips"></div>';
-  $('#up-chips').innerHTML='<div style="width:100%;font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;font-weight:700;margin-bottom:4px">Accepted columns</div>'+COLS.map(c=>'<span class="chip">'+COLLABELS[c]+'</span>').join('');
+    '<div class="card" style="margin-bottom:16px"><div class="ch"><span class="step-badge">1</span><h4>Choose or create a branch</h4></div><div class="cb">'+
+      '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">'+
+        '<div style="flex:1;min-width:220px"><div class="lbl">Branch under '+esc(sel.financeName)+'</div>'+
+          '<select id="up-branch"><option value="">— Select a branch —</option>'+
+          branches.map(b=>'<option value="'+b.id+'">'+esc(b.name)+' ('+(b.totalRecords||0)+' records)</option>').join('')+'</select></div>'+
+        '<button class="btn btn-outline" id="up-newbtn">➕ New branch</button>'+
+      '</div>'+
+      '<div id="up-new" class="hidden" style="border:1px solid var(--line);border-radius:12px;padding:16px;margin-top:14px;background:#fafcff">'+
+        '<div style="font-weight:700;margin-bottom:12px">Create a new branch</div>'+
+        '<div class="field"><div class="lbl">Branch name</div><input id="nb-name" type="text" placeholder="e.g. Mumbai Andheri"></div>'+
+        '<div style="display:flex;gap:12px;flex-wrap:wrap">'+
+          '<div class="field" style="flex:1;min-width:180px"><div class="lbl">Address (optional)</div><input id="nb-addr" type="text" placeholder="Address"></div>'+
+          '<div class="field" style="flex:1;min-width:150px"><div class="lbl">Contact (optional)</div><input id="nb-contact" type="text" placeholder="Contact number"></div>'+
+        '</div>'+
+        '<div style="display:flex;gap:8px"><button class="btn btn-primary btn-sm" id="nb-create">Create branch</button><button class="btn btn-ghost btn-sm" id="nb-cancel">Cancel</button></div>'+
+        '<div class="msg" id="nb-msg"></div></div>'+
+    '</div></div>'+
+    '<div class="card"><div class="ch"><span class="step-badge">2</span><h4>Upload records</h4></div><div class="cb">'+
+      '<div class="drop" id="drop"><div class="ic">📄</div><b>Click or drop an Excel file</b>'+
+        '<div class="hint">.xlsx or .xls · first row must be the column headers</div></div>'+
+      '<input id="file" type="file" accept=".xlsx,.xls" class="hidden"><div class="msg" id="up-msg"></div>'+
+      '<div class="chips" id="up-chips"></div>'+
+    '</div></div>';
+  $('#up-chips').innerHTML='<div class="chips-title">Accepted columns</div>'+COLS.map(c=>'<span class="chip">'+COLLABELS[c]+'</span>').join('');
   const selB=$('#up-branch');
-  selB.onchange=()=>{ $('#up-new').classList.toggle('hidden', selB.value!=='__new'); };
+  $('#up-newbtn').onclick=()=>{ selB.value=''; $('#up-new').classList.remove('hidden'); $('#nb-name').focus(); };
+  $('#nb-cancel').onclick=()=>{ $('#up-new').classList.add('hidden'); setMsg('#nb-msg',''); };
   $('#nb-create').onclick=async()=>{
     const name=$('#nb-name').value.trim();
     if(!name){ setMsg('#nb-msg','Enter a branch name.','err'); return; }
     $('#nb-create').disabled=true; setMsg('#nb-msg','Creating…','info');
     try{
       const d=await apiCall('/branch/create',{agencySlug:sel.agencySlug,financeId:sel.financeId,name,address:$('#nb-addr').value.trim(),contact:$('#nb-contact').value.trim()},true);
-      const o=document.createElement('option'); o.value=d.id; o.textContent=name+' (0)';
-      selB.insertBefore(o, selB.querySelector('option[value="__new"]'));
-      selB.value=d.id; $('#up-new').classList.add('hidden');
-      setMsg('#nb-msg','',''); setMsg('#up-msg','✓ Branch created. Now choose your Excel file.','ok');
+      const o=document.createElement('option'); o.value=d.id; o.textContent=name+' (0 records)';
+      selB.appendChild(o); selB.value=d.id; $('#up-new').classList.add('hidden');
+      $('#nb-name').value=''; $('#nb-addr').value=''; $('#nb-contact').value='';
+      toast('Branch “'+name+'” created','ok'); setMsg('#up-msg','✓ Branch selected. Now choose your Excel file.','ok');
     }catch(e){ setMsg('#nb-msg',e.message,'err'); }
     $('#nb-create').disabled=false;
   };
@@ -411,7 +516,7 @@ async function renderUpload(){
 }
 async function handleFile(file){
   const bid=$('#up-branch').value;
-  if(!bid||bid==='__new'){ setMsg('#up-msg','Select a branch first (or create one).','err'); return; }
+  if(!bid){ setMsg('#up-msg','Select a branch first (or create one above).','err'); return; }
   setMsg('#up-msg','Reading '+file.name+'…','info');
   try{
     const data=await file.arrayBuffer();
@@ -431,7 +536,10 @@ async function handleFile(file){
     if(!rows.length){ setMsg('#up-msg','No data rows found below the header.','err'); return; }
     setMsg('#up-msg','Uploading '+rows.length+' records…','info');
     const d=await apiCall('/import',{agencySlug:sel.agencySlug,financeId:sel.financeId,branchId:+bid,headers,rows},true);
-    setMsg('#up-msg','✓ Imported '+((d&&d.records)||rows.length)+' records into the branch.','ok');
+    const n=(d&&d.records)||rows.length;
+    setMsg('#up-msg','✓ Imported '+n+' records into the branch.','ok');
+    toast('Imported '+n+' records','ok');
+    const opt=$('#up-branch').selectedOptions[0]; if(opt) opt.textContent=opt.textContent.replace(/\(\d[\d,]* records\)/, '('+n+' records)');
   }catch(e){ setMsg('#up-msg',e.message,'err'); }
 }
 
@@ -439,10 +547,12 @@ function renderLogs(){
   const today=new Date().toISOString().slice(0,10);
   const from=new Date(Date.now()-7*864e5).toISOString().slice(0,10);
   $('#content').innerHTML=
+    '<div class="card"><div class="cb">'+
     '<div class="toolbar"><input id="lg-from" type="date" value="'+from+'"><span style="color:var(--muted)">to</span><input id="lg-to" type="date" value="'+today+'">'+
       '<input id="lg-q" class="grow" type="text" placeholder="Vehicle / chassis"><button class="btn btn-primary btn-sm" id="lg-load">Load</button></div>'+
-    '<div style="font-size:12.5px;color:var(--muted);margin-bottom:8px">Agent searches on vehicles belonging to '+esc(sel.financeName)+'.</div>'+
-    '<div id="lg-body"><div class="empty">Choose a date range and load.</div></div>';
+    '<div class="scope-note">👣 Agent searches on vehicles belonging to <b>'+esc(sel.financeName)+'</b>.</div>'+
+    '<div id="lg-body"><div class="empty">Choose a date range and load.</div></div>'+
+    '</div></div>';
   $('#lg-load').onclick=loadLogs;
   loadLogs();
 }
@@ -451,10 +561,10 @@ async function loadLogs(){
   try{
     const d=await apiCall('/search-logs',{agencySlug:sel.agencySlug,financeId:sel.financeId,fromDate:$('#lg-from').value,toDate:$('#lg-to').value,q:$('#lg-q').value.trim()},true);
     const logs=d.logs||[];
-    if(!logs.length){ body.innerHTML='<div class="empty">No searches found for this head office in the selected range.</div>'; return; }
+    if(!logs.length){ body.innerHTML='<div class="empty"><span class="ei">👣</span>No searches found for this head office in the selected range.</div>'; return; }
     body.innerHTML='<div class="tbl-scroll"><table class="tbl"><thead><tr><th>Agent</th><th>Mobile</th><th>Vehicle</th><th>Chassis</th><th>Model</th><th>When</th><th>Location</th></tr></thead><tbody>'+
       logs.map(l=>'<tr><td>'+esc(l.userName)+'</td><td>'+esc(l.userMobile)+'</td><td>'+esc(l.vehicleNo)+'</td><td>'+esc(l.chassisNo)+'</td><td>'+esc(l.model)+'</td><td>'+esc(l.time)+'</td><td>'+
-        (l.lat!=null&&l.lng!=null?'<a href="https://maps.google.com/?q='+l.lat+','+l.lng+'" target="_blank">map</a>':esc(l.address||'—'))+'</td></tr>').join('')+'</tbody></table></div>';
+        (l.lat!=null&&l.lng!=null?'<a href="https://maps.google.com/?q='+l.lat+','+l.lng+'" target="_blank">📍 map</a>':esc(l.address||'—'))+'</td></tr>').join('')+'</tbody></table></div>';
   }catch(e){ body.innerHTML='<div class="empty">'+esc(e.message)+'</div>'; }
 }
 
