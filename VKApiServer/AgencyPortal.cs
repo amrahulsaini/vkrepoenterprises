@@ -25,9 +25,6 @@ internal static class AgencyPortal
 
     public static string MasterConn { get; private set; } = "";
 
-    // Curated, safe allowlist of vehicle_records columns exposed through the
-    // finance-integration portal (label -> physical column). Order defines the
-    // column order shown to a finance viewing an agency's records.
     private static readonly (string Label, string Col)[] IntegRecordCols =
     {
         ("Vehicle No",       "vehicle_no"),
@@ -1314,10 +1311,6 @@ internal static class AgencyPortal
             catch (Exception ex) { return Results.Problem(ex.Message); }
         });
 
-        // ════════════════════════════════════════════════════════════════════
-        //  Finance integration — manage side (super-admin, X-Manage-Token)
-        // ════════════════════════════════════════════════════════════════════
-
         app.MapGet("/api/agency/manage/agency/{id:int}/finances", async (HttpContext ctx, int id) =>
         {
             if (!await IsManageTokenValid(masterConn, ctx))
@@ -1450,10 +1443,6 @@ internal static class AgencyPortal
             }
             catch (Exception ex) { await tx.RollbackAsync(); return Results.Problem(ex.Message); }
         });
-
-        // ════════════════════════════════════════════════════════════════════
-        //  Finance integration — account portal (agency.crmrecoverysoftware.com/integrations)
-        // ════════════════════════════════════════════════════════════════════
 
         static (int id, string email)? IntegAuth(HttpContext ctx)
         {
