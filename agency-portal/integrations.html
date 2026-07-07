@@ -25,9 +25,10 @@
   .btn-primary:disabled{opacity:.55;cursor:not-allowed}
   .btn-ghost{background:transparent;color:var(--ink2);font-weight:600}
   .btn-outline{background:#fff;color:var(--ink2);border:1px solid var(--line);font-weight:600}
+  .btn-danger{background:#fff;color:var(--err);border:1px solid #f3c9c6;font-weight:600}
   .btn-sm{padding:8px 12px;font-size:13px;border-radius:9px}
-  input[type=text],input[type=email],input[type=password]{font:inherit;width:100%;padding:12px 13px;border:1px solid var(--line);border-radius:10px;background:#fbfcff;color:var(--ink)}
-  input:focus{outline:none;border-color:var(--accent);background:#fff;box-shadow:0 0 0 3px rgba(21,101,216,.12)}
+  input,select{font:inherit;width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:#fbfcff;color:var(--ink)}
+  input:focus,select:focus{outline:none;border-color:var(--accent);background:#fff;box-shadow:0 0 0 3px rgba(21,101,216,.12)}
   .lbl{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin:0 0 6px}
   .field{margin-bottom:14px}
   .msg{font-size:13px;margin-top:12px;min-height:18px;border-radius:8px}
@@ -45,42 +46,64 @@
   .sep{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:12px;margin:18px 0}
   .sep:before,.sep:after{content:"";height:1px;background:var(--line);flex:1}
 
-  .shell{width:100%;max-width:1180px;margin:0 auto;padding:22px}
-  .topbar{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:14px 18px;margin-bottom:18px}
+  .shell{width:100%;max-width:1240px;margin:0 auto;padding:18px}
+  .topbar{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:14px 18px;margin-bottom:16px}
   .topbar img{width:40px;height:40px;border-radius:10px;border:1px solid var(--line);padding:4px;background:#fff}
   .topbar .t{font-family:var(--head);font-weight:800;font-size:16px}
   .topbar .s{color:var(--muted);font-size:12px}
-  .grid{display:grid;grid-template-columns:300px 1fr;gap:18px;align-items:start}
-  @media(max-width:820px){.grid{grid-template-columns:1fr}}
+  .grid{display:grid;grid-template-columns:310px 1fr;gap:16px;align-items:start}
+  @media(max-width:860px){.grid{grid-template-columns:1fr}}
+  .side{position:sticky;top:16px;align-self:start;max-height:calc(100vh - 32px);overflow:auto}
+  @media(max-width:860px){.side{position:static;max-height:none}}
   .panel{background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);overflow:hidden}
-  .panel .ph{padding:14px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between}
+  .panel .ph{padding:13px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
   .panel .ph h3{margin:0;font-family:var(--head);font-size:14px}
   .panel .pb{padding:16px}
-  .ag{border:1px solid var(--line);border-radius:12px;margin-bottom:12px;overflow:hidden}
+  .count{background:#eef2f8;color:var(--ink2);border-radius:999px;padding:2px 10px;font-size:12px;font-weight:700}
+
+  .ag{border:1px solid var(--line);border-radius:12px;margin:12px;overflow:hidden}
   .ag .agh{display:flex;align-items:center;gap:10px;padding:11px 13px;background:#f7faff}
   .ag .agh img{width:30px;height:30px;border-radius:8px;border:1px solid var(--line);background:#fff;object-fit:contain}
-  .ag .agh .nm{font-weight:700;font-size:13.5px}
+  .ag .agh .nm{font-weight:700;font-size:13.5px;flex:1;word-break:break-word}
+  .ag .agh .rm{border:none;background:transparent;color:var(--err);cursor:pointer;font-size:16px;line-height:1;padding:2px 4px}
   .ho{display:block;width:100%;text-align:left;border:none;background:#fff;border-top:1px solid var(--line);padding:10px 13px;cursor:pointer;font:inherit;font-size:13px;color:var(--ink2)}
   .ho:hover{background:#eef5ff}
   .ho.active{background:var(--brand);color:#fff;font-weight:700}
-  .tabs{display:inline-flex;background:#eef2f8;border-radius:10px;padding:3px;gap:2px}
-  .tabs button{border:none;background:transparent;font:inherit;font-weight:700;font-size:13px;color:var(--ink2);padding:7px 14px;border-radius:8px;cursor:pointer}
+
+  .tabs{display:inline-flex;background:#eef2f8;border-radius:10px;padding:3px;gap:2px;flex-wrap:wrap}
+  .tabs button{border:none;background:transparent;font:inherit;font-weight:700;font-size:13px;color:var(--ink2);padding:7px 13px;border-radius:8px;cursor:pointer}
   .tabs button.active{background:#fff;color:var(--brand);box-shadow:var(--shadow)}
   .toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
-  .toolbar input{max-width:280px}
+  .toolbar input,.toolbar select{width:auto;min-width:120px}
+  .toolbar input.grow{flex:1;min-width:180px}
+
+  .br-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px}
+  .br-tile{border:1.5px solid var(--line);border-radius:12px;padding:13px 14px;background:#fff;cursor:pointer;text-align:left}
+  .br-tile:hover{border-color:var(--brand);background:#f2f7ff}
+  .br-tile .bn{font-weight:700;font-size:14px;word-break:break-word}
+  .br-tile .bm{color:var(--muted);font-size:12px;margin-top:6px}
+  .br-tile .bc{color:var(--brand-700,#072c69);font-weight:700;font-size:12.5px;margin-top:2px}
+
   table.tbl{border-collapse:collapse;width:100%;font-size:12.5px}
   table.tbl th,table.tbl td{border-bottom:1px solid var(--line);padding:8px 10px;text-align:left;white-space:nowrap}
   table.tbl th{font-size:10.5px;letter-spacing:.03em;text-transform:uppercase;color:var(--muted);font-weight:700;position:sticky;top:0;background:#fff}
-  .tbl-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:12px;max-height:60vh;overflow-y:auto}
+  table.tbl tbody tr{cursor:pointer}
+  table.tbl tbody tr:hover{background:#f2f7ff}
+  .tbl-scroll{overflow:auto;border:1px solid var(--line);border-radius:12px;max-height:62vh}
   .empty{padding:34px;text-align:center;color:var(--muted);font-size:13.5px}
-  .drop{border:2px dashed #c4d2ea;border-radius:14px;padding:30px 20px;text-align:center;color:var(--muted);background:linear-gradient(#fbfdff,#f4f8ff);cursor:pointer}
+  .drop{border:2px dashed #c4d2ea;border-radius:14px;padding:26px 20px;text-align:center;color:var(--muted);background:linear-gradient(#fbfdff,#f4f8ff);cursor:pointer}
   .drop:hover,.drop.drag{border-color:var(--accent);background:#eef5ff}
-  .drop .ic{font-size:28px} .drop b{color:var(--ink);display:block;margin-top:6px}
+  .drop .ic{font-size:26px} .drop b{color:var(--ink);display:block;margin-top:6px}
   .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
   .chip{background:#eef2f8;color:var(--ink2);border:1px solid var(--line);border-radius:7px;padding:3px 9px;font-size:11px;font-family:var(--mono)}
   .spin{display:inline-block;width:13px;height:13px;border:2px solid #c7d3e6;border-top-color:var(--brand);border-radius:50%;animation:s .7s linear infinite;vertical-align:-2px}
   @keyframes s{to{transform:rotate(360deg)}}
-  .count{background:#eef2f8;color:var(--ink2);border-radius:999px;padding:2px 10px;font-size:12px;font-weight:700}
+  .modal-bd{position:fixed;inset:0;background:rgba(11,18,32,.5);display:none;align-items:center;justify-content:center;padding:20px;z-index:60}
+  .modal-bd.open{display:flex}
+  .modal-cd{width:100%;max-width:520px;background:#fff;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.3);padding:22px;max-height:88vh;overflow:auto}
+  .modal-cd h3{margin:0 0 12px;font-size:18px}
+  .kv{display:grid;grid-template-columns:150px 1fr;gap:6px 14px;font-size:13.5px}
+  .kv .k{color:var(--muted);font-weight:700}
 </style>
 </head>
 <body>
@@ -91,7 +114,6 @@
       <img src="/assets/crmrs-logo.webp" alt="CRMRS" onerror="this.onerror=null;this.src='/assets/logo-short.webp'">
       <div class="nm">Finance Integrations<small>CRM Recovery Software</small></div>
     </div>
-
     <div id="view-login">
       <h1>Finance sign in</h1>
       <p class="sub">Access the recovery agencies you are integrated with.</p>
@@ -102,7 +124,6 @@
       <div class="sep">new here?</div>
       <button class="btn btn-outline btn-sm" id="to-apply" style="width:100%">Apply for a new integration</button>
     </div>
-
     <div id="view-apply" class="hidden">
       <h1>Apply for integration</h1>
       <p class="sub">Create your finance account. An administrator grants you access to agencies afterwards.</p>
@@ -121,31 +142,38 @@
   <div class="shell">
     <div class="topbar">
       <img src="/assets/crmrs-logo.webp" alt="" onerror="this.onerror=null;this.src='/assets/logo-short.webp'">
-      <div>
-        <div class="t">Finance Integrations</div>
-        <div class="s">Signed in as <span id="who">—</span></div>
-      </div>
+      <div><div class="t">Finance Integrations</div><div class="s">Signed in as <span id="who">—</span></div></div>
       <div style="flex:1"></div>
       <button class="btn btn-ghost btn-sm" id="logout">Sign out</button>
     </div>
-
     <div class="grid">
-      <div class="panel">
-        <div class="ph"><h3>Your agencies</h3><span class="count" id="ag-count">0</span></div>
-        <div class="pb" id="ag-list"><div class="empty"><span class="spin"></span> Loading…</div></div>
-      </div>
-
-      <div class="panel">
+      <aside class="side">
+        <div class="panel">
+          <div class="ph"><h3>Your agencies</h3><span class="count" id="ag-count">0</span></div>
+          <div id="ag-list"><div class="empty"><span class="spin"></span> Loading…</div></div>
+        </div>
+      </aside>
+      <main class="panel">
         <div class="ph">
           <h3 id="sel-title">Select a head office</h3>
           <div class="tabs hidden" id="tabs">
-            <button data-tab="records" class="active">Records</button>
+            <button data-tab="branches" class="active">Branches</button>
+            <button data-tab="records">Records</button>
             <button data-tab="upload">Upload</button>
+            <button data-tab="logs">Search logs</button>
           </div>
         </div>
-        <div class="pb" id="content"><div class="empty">Choose an agency head office on the left to view its records or upload a file.</div></div>
-      </div>
+        <div class="pb" id="content"><div class="empty">Pick an agency head office on the left to see its branches, records, uploads and search logs.</div></div>
+      </main>
     </div>
+  </div>
+</div>
+
+<div class="modal-bd" id="rec-modal">
+  <div class="modal-cd">
+    <h3 id="rec-title">Record</h3>
+    <div class="kv" id="rec-kv"></div>
+    <div style="text-align:right;margin-top:16px"><button class="btn btn-outline btn-sm" id="rec-close">Close</button></div>
   </div>
 </div>
 
@@ -154,8 +182,11 @@
 const ROOT='https://api.crmrecoverysoftware.com/api/integration/account';
 const $=s=>document.querySelector(s);
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const COLS=['vehicleno','chassisno','engineno','model','agreementno','bucket','gv','od','seasoning','tbr','sec9','sec17','customername','customeraddress','customercontact','ownername','mobileno','region','area','branch','level1','level1contact','level2','level2contact','level3','level3contact','level4','level4contact','sendermail1','sendermail2','executivename','pos','toss','remark'];
+const COLLABELS={vehicleno:'Vehicle No',chassisno:'Chassis No',engineno:'Engine No',model:'Model',agreementno:'Agreement No',bucket:'Bucket',gv:'GV',od:'OD',seasoning:'Seasoning',tbr:'TBR',sec9:'Sec 9',sec17:'Sec 17',customername:'Customer Name',customeraddress:'Customer Address',customercontact:'Customer Contact',ownername:'Owner Name',mobileno:'Mobile No',region:'Region',area:'Area',branch:'Branch',level1:'Level 1',level1contact:'Level 1 Contact',level2:'Level 2',level2contact:'Level 2 Contact',level3:'Level 3',level3contact:'Level 3 Contact',level4:'Level 4',level4contact:'Level 4 Contact',sendermail1:'Sender Mail 1',sendermail2:'Sender Mail 2',executivename:'Executive Name',pos:'POS',toss:'TOSS',remark:'Remark'};
+const norm=s=>(s||'').toString().replace(/[^A-Za-z0-9]/g,'').toLowerCase();
 let token=sessionStorage.getItem('integ_token')||'';
-let agencies=[], sel=null, curTab='records', recOffset=0, recTotal=0;
+let agencies=[], sel=null, curTab='branches', selBranch=null, recOffset=0, recTotal=0, recCols=[], recRows=[], recIds=[];
 
 function setMsg(id,t,c){const m=$(id);m.textContent=t||'';m.className='msg '+(c||'');}
 
@@ -163,21 +194,21 @@ async function apiCall(path,body,auth){
   const h={'Content-Type':'application/json'};
   if(auth) h['Authorization']='Bearer '+token;
   const r=await fetch(ROOT+path,{method:'POST',headers:h,body:JSON.stringify(body||{})});
+  if(r.status===401 && auth){ signOut(); throw new Error('Session expired'); }
   const d=await r.json().catch(()=>null);
   if(!r.ok) throw new Error((d&&d.message)||('Error '+r.status));
   return d;
 }
 async function apiGet(path){
   const r=await fetch(ROOT+path,{headers:{'Authorization':'Bearer '+token}});
-  const d=await r.json().catch(()=>null);
   if(r.status===401){ signOut(); throw new Error('Session expired'); }
+  const d=await r.json().catch(()=>null);
   if(!r.ok) throw new Error((d&&d.message)||('Error '+r.status));
   return d;
 }
 
 $('#to-apply').onclick=()=>{ $('#view-login').classList.add('hidden'); $('#view-apply').classList.remove('hidden'); };
 $('#to-login').onclick=()=>{ $('#view-apply').classList.add('hidden'); $('#view-login').classList.remove('hidden'); };
-
 $('#lg-btn').onclick=login;
 $('#lg-pass').addEventListener('keydown',e=>{if(e.key==='Enter')login();});
 async function login(){
@@ -192,7 +223,6 @@ async function login(){
   }catch(e){ setMsg('#lg-msg',e.message,'err'); }
   $('#lg-btn').disabled=false;
 }
-
 $('#ap-btn').onclick=apply;
 async function apply(){
   const financeName=$('#ap-name').value.trim(), email=$('#ap-email').value.trim(), password=$('#ap-pass').value;
@@ -205,14 +235,12 @@ async function apply(){
   }catch(e){ setMsg('#ap-msg',e.message,'err'); }
   $('#ap-btn').disabled=false;
 }
-
 $('#logout').onclick=signOut;
 function signOut(){
   token=''; sessionStorage.removeItem('integ_token');
   $('#dash').classList.add('hidden'); $('#auth').classList.remove('hidden');
   $('#lg-pass').value=''; setMsg('#lg-msg','');
 }
-
 function enterDash(){
   $('#auth').classList.add('hidden'); $('#dash').classList.remove('hidden');
   $('#who').textContent=(sessionStorage.getItem('integ_name')||'')+' · '+(sessionStorage.getItem('integ_email')||'');
@@ -229,90 +257,161 @@ async function loadAgencies(){
     if(!agencies.length){ list.innerHTML='<div class="empty">No active agency integrations yet. An agency admin needs to grant you access.</div>'; return; }
     list.innerHTML=agencies.map((a,ai)=>{
       const logo=a.logoPath?(/^https?:\/\//i.test(a.logoPath)?a.logoPath:'https://api.crmrecoverysoftware.com'+(a.logoPath.startsWith('/')?'':'/')+a.logoPath):'/assets/crmrs-logo.webp';
-      const heads=(a.headOffices||[]).map((h,hi)=>
-        '<button class="ho" data-ai="'+ai+'" data-hi="'+hi+'">'+esc(h.financeName)+'</button>').join('');
-      return '<div class="ag"><div class="agh"><img src="'+esc(logo)+'" onerror="this.src=\'/assets/crmrs-logo.webp\'"><div class="nm">'+esc(a.name)+'</div></div>'+heads+'</div>';
+      const heads=(a.headOffices||[]).map((h,hi)=>'<button class="ho" data-ai="'+ai+'" data-hi="'+hi+'">'+esc(h.financeName)+'</button>').join('');
+      return '<div class="ag"><div class="agh"><img src="'+esc(logo)+'" onerror="this.src=\'/assets/crmrs-logo.webp\'"><div class="nm">'+esc(a.name)+'</div>'+
+        '<button class="rm" title="Remove integration with this agency" data-rm="'+ai+'">✕</button></div>'+heads+'</div>';
     }).join('');
     list.querySelectorAll('.ho').forEach(b=>b.addEventListener('click',()=>selectHead(+b.dataset.ai,+b.dataset.hi,b)));
+    list.querySelectorAll('.rm').forEach(b=>b.addEventListener('click',()=>removeAgency(+b.dataset.rm)));
   }catch(e){ list.innerHTML='<div class="empty">'+esc(e.message)+'</div>'; }
+}
+
+async function removeAgency(ai){
+  const a=agencies[ai];
+  if(!confirm('Remove your integration with '+a.name+'? You will lose access to its head offices until an admin grants it again.')) return;
+  try{
+    await apiCall('/remove-agency',{agencySlug:a.slug},true);
+    if(sel && sel.agencySlug===a.slug){ sel=null; $('#tabs').classList.add('hidden'); $('#sel-title').textContent='Select a head office'; $('#content').innerHTML='<div class="empty">Pick an agency head office on the left.</div>'; }
+    loadAgencies();
+  }catch(e){ alert(e.message); }
 }
 
 function selectHead(ai,hi,btn){
   const ag=agencies[ai], ho=ag.headOffices[hi];
   sel={agencySlug:ag.slug,agencyName:ag.name,financeId:ho.financeId,financeName:ho.financeName};
+  selBranch=null;
   document.querySelectorAll('.ho').forEach(x=>x.classList.remove('active'));
   btn.classList.add('active');
   $('#sel-title').textContent=ho.financeName+' · '+ag.name;
   $('#tabs').classList.remove('hidden');
-  curTab='records'; setTab('records');
+  setTab('branches');
 }
 
 $('#tabs').addEventListener('click',e=>{ const b=e.target.closest('button[data-tab]'); if(b) setTab(b.dataset.tab); });
 function setTab(t){
   curTab=t;
   $('#tabs').querySelectorAll('button').forEach(x=>x.classList.toggle('active',x.dataset.tab===t));
-  if(t==='records') renderRecordsPane(); else renderUploadPane();
+  if(t==='branches') renderBranches();
+  else if(t==='records') renderRecords();
+  else if(t==='upload') renderUpload();
+  else renderLogs();
 }
 
-function renderRecordsPane(){
-  recOffset=0; recTotal=0;
+async function renderBranches(){
+  $('#content').innerHTML='<div class="empty"><span class="spin"></span> Loading branches…</div>';
+  try{
+    const d=await apiCall('/branches',{agencySlug:sel.agencySlug,financeId:sel.financeId},true);
+    const bs=d.branches||[];
+    if(!bs.length){ $('#content').innerHTML='<div class="empty">No branches yet under this head office. Use the <b>Upload</b> tab to create one and add records.</div>'; return; }
+    $('#content').innerHTML='<div class="br-grid">'+bs.map(b=>
+      '<button class="br-tile" data-bid="'+b.id+'" data-bn="'+esc(b.name)+'"><div class="bn">'+esc(b.name)+'</div>'+
+      '<div class="bc">'+(b.totalRecords||0)+' records</div>'+
+      (b.uploadedAt?'<div class="bm">Updated '+esc(b.uploadedAt)+'</div>':'')+'</button>').join('')+'</div>';
+    $('#content').querySelectorAll('.br-tile').forEach(t=>t.addEventListener('click',()=>{
+      selBranch={id:+t.dataset.bid,name:t.dataset.bn}; setTab('records');
+    }));
+  }catch(e){ $('#content').innerHTML='<div class="empty">'+esc(e.message)+'</div>'; }
+}
+
+function renderRecords(){
+  recOffset=0;
   $('#content').innerHTML=
-    '<div class="toolbar"><input id="rec-q" type="text" placeholder="Search vehicle / chassis / agreement / name">'+
-    '<button class="btn btn-primary btn-sm" id="rec-search">Search</button>'+
-    '<span class="count" id="rec-count">—</span></div>'+
+    '<div class="toolbar">'+
+      '<select id="rec-mode"><option value="rc">RC last-4</option><option value="chassis">Chassis last-5</option><option value="text">Any text</option></select>'+
+      '<input id="rec-q" class="grow" type="text" placeholder="Search…">'+
+      '<button class="btn btn-primary btn-sm" id="rec-search">Search</button>'+
+      (selBranch?'<button class="btn btn-outline btn-sm" id="rec-allbr">All branches</button>':'')+
+      '<span class="count" id="rec-count">—</span></div>'+
+    '<div style="font-size:12.5px;color:var(--muted);margin-bottom:8px" id="rec-scope"></div>'+
     '<div id="rec-body"><div class="empty"><span class="spin"></span> Loading…</div></div>'+
     '<div style="text-align:center;margin-top:12px"><button class="btn btn-outline btn-sm hidden" id="rec-more">Load more</button></div>';
+  $('#rec-scope').textContent=selBranch?('Branch: '+selBranch.name):'All branches of '+sel.financeName;
   $('#rec-search').onclick=()=>{ recOffset=0; loadRecords(true); };
   $('#rec-q').addEventListener('keydown',e=>{if(e.key==='Enter'){recOffset=0;loadRecords(true);}});
   $('#rec-more').onclick=()=>loadRecords(false);
+  const ab=$('#rec-allbr'); if(ab) ab.onclick=()=>{ selBranch=null; renderRecords(); };
   loadRecords(true);
 }
 async function loadRecords(reset){
   const body=$('#rec-body');
   if(reset) body.innerHTML='<div class="empty"><span class="spin"></span> Loading…</div>';
-  const search=($('#rec-q')?$('#rec-q').value.trim():'');
+  const search=$('#rec-q')?$('#rec-q').value.trim():'';
+  const mode=$('#rec-mode')?$('#rec-mode').value:'rc';
   try{
-    const d=await apiCall('/records',{agencySlug:sel.agencySlug,financeId:sel.financeId,search,limit:100,offset:recOffset},true);
-    recTotal=d.total||0;
+    const d=await apiCall('/records',{agencySlug:sel.agencySlug,financeId:sel.financeId,branchId:selBranch?selBranch.id:0,search,mode,limit:100,offset:recOffset},true);
+    recTotal=d.total||0; recCols=d.columns||[];
     $('#rec-count').textContent=recTotal+' record'+(recTotal===1?'':'s');
-    const cols=d.columns||[], rows=d.rows||[];
-    if(reset && !rows.length){ body.innerHTML='<div class="empty">No records found for this head office.</div>'; $('#rec-more').classList.add('hidden'); return; }
-    const head='<thead><tr>'+cols.map(c=>'<th>'+esc(c)+'</th>').join('')+'</tr></thead>';
-    const trs=rows.map(r=>'<tr>'+r.map(c=>'<td>'+esc(c)+'</td>').join('')+'</tr>').join('');
-    if(reset){ body.innerHTML='<div class="tbl-scroll"><table class="tbl">'+head+'<tbody>'+trs+'</tbody></table></div>'; }
-    else{ body.querySelector('tbody').insertAdjacentHTML('beforeend',trs); }
-    recOffset+=rows.length;
+    const rows=d.rows||[], ids=d.ids||[];
+    if(reset){ recRows=[]; recIds=[]; }
+    recRows=recRows.concat(rows); recIds=recIds.concat(ids);
+    if(reset && !rows.length){ body.innerHTML='<div class="empty">No records found.</div>'; $('#rec-more').classList.add('hidden'); return; }
+    const head='<thead><tr>'+recCols.map(c=>'<th>'+esc(c)+'</th>').join('')+'</tr></thead>';
+    const trFor=(r,gi)=>'<tr data-gi="'+gi+'">'+r.map(c=>'<td>'+esc(c)+'</td>').join('')+'</tr>';
+    if(reset){
+      body.innerHTML='<div class="tbl-scroll"><table class="tbl">'+head+'<tbody>'+recRows.map((r,i)=>trFor(r,i)).join('')+'</tbody></table></div>';
+    }else{
+      const tb=body.querySelector('tbody');
+      tb.insertAdjacentHTML('beforeend', rows.map((r,i)=>trFor(r,recRows.length-rows.length+i)).join(''));
+    }
+    body.querySelectorAll('tbody tr').forEach(tr=>tr.onclick=()=>showRecord(+tr.dataset.gi));
+    recOffset=recRows.length;
     $('#rec-more').classList.toggle('hidden',recOffset>=recTotal);
   }catch(e){ if(reset) body.innerHTML='<div class="empty">'+esc(e.message)+'</div>'; }
 }
+function showRecord(gi){
+  const r=recRows[gi]; if(!r) return;
+  $('#rec-title').textContent=(r[0]||'Record')+' · '+(r[3]||'');
+  $('#rec-kv').innerHTML=recCols.map((c,i)=>'<div class="k">'+esc(c)+'</div><div>'+esc(r[i]||'—')+'</div>').join('');
+  $('#rec-modal').classList.add('open');
+}
+$('#rec-close').onclick=()=>$('#rec-modal').classList.remove('open');
+$('#rec-modal').addEventListener('click',e=>{ if(e.target.id==='rec-modal') $('#rec-modal').classList.remove('open'); });
 
-function renderUploadPane(){
+async function renderUpload(){
+  $('#content').innerHTML='<div class="empty"><span class="spin"></span> Loading branches…</div>';
+  let branches=[];
+  try{ const d=await apiCall('/branches',{agencySlug:sel.agencySlug,financeId:sel.financeId},true); branches=d.branches||[]; }
+  catch(e){ $('#content').innerHTML='<div class="empty">'+esc(e.message)+'</div>'; return; }
   $('#content').innerHTML=
+    '<div class="field"><div class="lbl">Branch (in DB it is a branch under this head office)</div>'+
+      '<select id="up-branch"><option value="">— Select a branch —</option>'+
+      branches.map(b=>'<option value="'+b.id+'">'+esc(b.name)+' ('+(b.totalRecords||0)+')</option>').join('')+
+      '<option value="__new">➕ Create a new branch…</option></select></div>'+
+    '<div id="up-new" class="hidden" style="border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:14px">'+
+      '<div class="field"><div class="lbl">New branch name</div><input id="nb-name" type="text" placeholder="Branch name"></div>'+
+      '<div class="field"><div class="lbl">Address (optional)</div><input id="nb-addr" type="text" placeholder="Address"></div>'+
+      '<div class="field"><div class="lbl">Contact (optional)</div><input id="nb-contact" type="text" placeholder="Contact number"></div>'+
+      '<button class="btn btn-primary btn-sm" id="nb-create">Create branch</button><div class="msg" id="nb-msg"></div></div>'+
     '<div class="drop" id="drop"><div class="ic">📑</div><b>Click or drop an Excel file (.xlsx / .xls)</b>'+
-    '<div style="font-size:12px;margin-top:4px">First row must be the column headers</div></div>'+
-    '<input id="file" type="file" accept=".xlsx,.xls" class="hidden">'+
-    '<div class="msg" id="up-msg"></div>'+
-    '<div style="display:flex;align-items:center;justify-content:space-between;margin:18px 0 8px"><h3 style="margin:0;font-family:var(--head);font-size:14px">Your uploaded files</h3><span class="count" id="up-count">0</span></div>'+
-    '<div id="files-body"><div class="empty"><span class="spin"></span> Loading…</div></div>';
+      '<div style="font-size:12px;margin-top:4px">First row must be the column headers, in the standard format</div></div>'+
+    '<input id="file" type="file" accept=".xlsx,.xls" class="hidden"><div class="msg" id="up-msg"></div>'+
+    '<div class="chips" id="up-chips"></div>';
+  $('#up-chips').innerHTML='<div style="width:100%;font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;font-weight:700;margin-bottom:4px">Accepted columns</div>'+COLS.map(c=>'<span class="chip">'+COLLABELS[c]+'</span>').join('');
+  const selB=$('#up-branch');
+  selB.onchange=()=>{ $('#up-new').classList.toggle('hidden', selB.value!=='__new'); };
+  $('#nb-create').onclick=async()=>{
+    const name=$('#nb-name').value.trim();
+    if(!name){ setMsg('#nb-msg','Enter a branch name.','err'); return; }
+    $('#nb-create').disabled=true; setMsg('#nb-msg','Creating…','info');
+    try{
+      const d=await apiCall('/branch/create',{agencySlug:sel.agencySlug,financeId:sel.financeId,name,address:$('#nb-addr').value.trim(),contact:$('#nb-contact').value.trim()},true);
+      const o=document.createElement('option'); o.value=d.id; o.textContent=name+' (0)';
+      selB.insertBefore(o, selB.querySelector('option[value="__new"]'));
+      selB.value=d.id; $('#up-new').classList.add('hidden');
+      setMsg('#nb-msg','',''); setMsg('#up-msg','✓ Branch created. Now choose your Excel file.','ok');
+    }catch(e){ setMsg('#nb-msg',e.message,'err'); }
+    $('#nb-create').disabled=false;
+  };
   const drop=$('#drop');
   drop.onclick=()=>$('#file').click();
   drop.addEventListener('dragover',e=>{e.preventDefault();drop.classList.add('drag');});
   drop.addEventListener('dragleave',()=>drop.classList.remove('drag'));
   drop.addEventListener('drop',e=>{e.preventDefault();drop.classList.remove('drag');const f=e.dataTransfer.files[0];if(f)handleFile(f);});
   $('#file').onchange=e=>{const f=e.target.files[0];if(f)handleFile(f);e.target.value='';};
-  loadFiles();
-}
-async function loadFiles(){
-  const b=$('#files-body'); b.innerHTML='<div class="empty"><span class="spin"></span> Loading…</div>';
-  try{
-    const d=await apiCall('/files',{agencySlug:sel.agencySlug,financeId:sel.financeId},true);
-    const files=d.files||[]; $('#up-count').textContent=files.length;
-    if(!files.length){ b.innerHTML='<div class="empty">No files uploaded yet.</div>'; return; }
-    b.innerHTML='<div class="tbl-scroll"><table class="tbl"><thead><tr><th>File</th><th>Records</th><th>Uploaded</th></tr></thead><tbody>'+
-      files.map(f=>'<tr><td>'+esc(f.fileName)+'</td><td>'+(f.totalRecords||0)+'</td><td>'+esc(f.uploadedAt||'')+'</td></tr>').join('')+'</tbody></table></div>';
-  }catch(e){ b.innerHTML='<div class="empty">'+esc(e.message)+'</div>'; }
 }
 async function handleFile(file){
+  const bid=$('#up-branch').value;
+  if(!bid||bid==='__new'){ setMsg('#up-msg','Select a branch first (or create one).','err'); return; }
   setMsg('#up-msg','Reading '+file.name+'…','info');
   try{
     const data=await file.arrayBuffer();
@@ -321,6 +420,8 @@ async function handleFile(file){
     const aoa=XLSX.utils.sheet_to_json(ws,{header:1,blankrows:false,defval:''});
     if(!aoa.length){ setMsg('#up-msg','The sheet is empty.','err'); return; }
     const headers=aoa[0].map(h=>(h==null?'':h.toString().trim())).filter(h=>h!=='');
+    const unknown=headers.filter(h=>COLS.indexOf(norm(h))<0);
+    if(unknown.length){ setMsg('#up-msg','Unrecognised columns: '+unknown.join(', '),'err'); return; }
     const rows=[];
     for(let i=1;i<aoa.length;i++){
       const r=aoa[i]||[];
@@ -328,11 +429,33 @@ async function handleFile(file){
       rows.push(headers.map((_,j)=>r[j]==null?'':r[j].toString()));
     }
     if(!rows.length){ setMsg('#up-msg','No data rows found below the header.','err'); return; }
-    setMsg('#up-msg','Uploading '+rows.length+' rows…','info');
-    const d=await apiCall('/upload',{agencySlug:sel.agencySlug,financeId:sel.financeId,fileName:file.name,headers,rows},true);
-    setMsg('#up-msg','✓ Uploaded — '+((d&&d.records)||rows.length)+' records saved.','ok');
-    loadFiles();
+    setMsg('#up-msg','Uploading '+rows.length+' records…','info');
+    const d=await apiCall('/import',{agencySlug:sel.agencySlug,financeId:sel.financeId,branchId:+bid,headers,rows},true);
+    setMsg('#up-msg','✓ Imported '+((d&&d.records)||rows.length)+' records into the branch.','ok');
   }catch(e){ setMsg('#up-msg',e.message,'err'); }
+}
+
+function renderLogs(){
+  const today=new Date().toISOString().slice(0,10);
+  const from=new Date(Date.now()-7*864e5).toISOString().slice(0,10);
+  $('#content').innerHTML=
+    '<div class="toolbar"><input id="lg-from" type="date" value="'+from+'"><span style="color:var(--muted)">to</span><input id="lg-to" type="date" value="'+today+'">'+
+      '<input id="lg-q" class="grow" type="text" placeholder="Vehicle / chassis"><button class="btn btn-primary btn-sm" id="lg-load">Load</button></div>'+
+    '<div style="font-size:12.5px;color:var(--muted);margin-bottom:8px">Agent searches on vehicles belonging to '+esc(sel.financeName)+'.</div>'+
+    '<div id="lg-body"><div class="empty">Choose a date range and load.</div></div>';
+  $('#lg-load').onclick=loadLogs;
+  loadLogs();
+}
+async function loadLogs(){
+  const body=$('#lg-body'); body.innerHTML='<div class="empty"><span class="spin"></span> Loading…</div>';
+  try{
+    const d=await apiCall('/search-logs',{agencySlug:sel.agencySlug,financeId:sel.financeId,fromDate:$('#lg-from').value,toDate:$('#lg-to').value,q:$('#lg-q').value.trim()},true);
+    const logs=d.logs||[];
+    if(!logs.length){ body.innerHTML='<div class="empty">No searches found for this head office in the selected range.</div>'; return; }
+    body.innerHTML='<div class="tbl-scroll"><table class="tbl"><thead><tr><th>Agent</th><th>Mobile</th><th>Vehicle</th><th>Chassis</th><th>Model</th><th>When</th><th>Location</th></tr></thead><tbody>'+
+      logs.map(l=>'<tr><td>'+esc(l.userName)+'</td><td>'+esc(l.userMobile)+'</td><td>'+esc(l.vehicleNo)+'</td><td>'+esc(l.chassisNo)+'</td><td>'+esc(l.model)+'</td><td>'+esc(l.time)+'</td><td>'+
+        (l.lat!=null&&l.lng!=null?'<a href="https://maps.google.com/?q='+l.lat+','+l.lng+'" target="_blank">map</a>':esc(l.address||'—'))+'</td></tr>').join('')+'</tbody></table></div>';
+  }catch(e){ body.innerHTML='<div class="empty">'+esc(e.message)+'</div>'; }
 }
 
 if(token) enterDash();
