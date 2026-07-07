@@ -260,10 +260,11 @@
       t.addEventListener('click', () => openAssign(+t.dataset.fin)));
 
     $('#integ-actions').style.display = 'flex';
+    $('#integ-save-btn').style.display = 'none';
     const n = Object.keys(assignMap).length;
     $('#integ-hint').textContent = n
-      ? n + ' head office' + (n === 1 ? '' : 's') + ' integrated. Click a head office to change.'
-      : 'Click a head office to integrate it with a finance.';
+      ? '✓ ' + n + ' head office' + (n === 1 ? '' : 's') + ' integrated · changes are saved automatically.'
+      : 'Click a head office to integrate it with a finance · changes are saved automatically.';
   }
 
   function openAssign(finId) {
@@ -313,32 +314,12 @@
   $('#assign-cancel').addEventListener('click', closeAssign);
   $('#assign-modal').addEventListener('click', e => { if (e.target.id === 'assign-modal') closeAssign(); });
 
-  $('#assign-remove').addEventListener('click', () => {
-    if (curFin) delete assignMap[curFin.id];
-    closeAssign(); renderGrid();
-  });
-
-  $('#assign-apply').addEventListener('click', () => {
-    if (!curFin) return;
-    if (curSel == null) { toast('Choose a finance to integrate with.', 'info'); return; }
-    const filters = {};
-    $('#assign-modal').querySelectorAll('.aflt').forEach(inp => {
-      const vals = parseCsv(inp.value);
-      if (vals.length) filters[inp.dataset.k] = vals;
-    });
-    assignMap[curFin.id] = { accountId: curSel, accountName: accountName(curSel), filters };
-    closeAssign(); renderGrid();
-  });
-
-  $('#integ-save-btn').addEventListener('click', save);
-
   function parseCsv(v) {
     return (v || '').split(',').map(s => s.trim()).filter(Boolean);
   }
 
-  async function save() {
+  function buildGrants() {
     const grants = [];
-    const lines = [];
     finances.forEach(f => {
       const a = assignMap[f.id];
       if (!a) return;
@@ -349,25 +330,52 @@
         filters: Object.keys(a.filters || {}).length ? JSON.stringify(a.filters) : '',
         active: true,
       });
-      lines.push(f.name + ' → ' + (a.accountName || accountName(a.accountId)));
     });
-
-    const msg = lines.length
-      ? 'Are you sure you want ' + agency.name + ' to allow these integrations?\n\n• ' + lines.join('\n• ') + '\n\nThis replaces the current integration settings for this agency.'
-      : 'This will remove all integrations for ' + agency.name + '. Continue?';
-    if (!confirm(msg)) return;
-
-    const btn = $('#integ-save-btn');
-    btn.disabled = true; btn.textContent = 'Saving…';
-    try {
-      await api('/manage/agency/' + agency.id + '/grants', { method: 'POST', body: { grants } });
-      toast('Integrations saved', 'success');
-    } catch (e) {
-      toast(e.message || 'Save failed', 'error', 6000);
-    } finally {
-      btn.disabled = false; btn.textContent = 'Save integrations';
-    }
+    return grants;
   }
+
+  async function persist() {
+    await api('/manage/agency/' + agency.id + '/grants', { method: 'POST', body: { grants: buildGrants() } });
+  }
+
+  $('#assign-remove').addEventListener('click', async () => {
+    if (!curFin) return;
+    if (!confirm('Remove the integration for head office “' + curFin.name + '”?')) return;
+    const prev = assignMap[curFin.id];
+    delete assignMap[curFin.id];
+    const btn = $('#assign-remove'); btn.disabled = true;
+    try {
+      await persist();
+      toast('Integration removed', 'info');
+      closeAssign(); renderGrid();
+    } catch (e) {
+      assignMap[curFin.id] = prev;
+      toast(e.message || 'Could not remove — nothing changed', 'error', 6000);
+    } finally { btn.disabled = false; }
+  });
+
+  $('#assign-apply').addEventListener('click', async () => {
+    if (!curFin) return;
+    if (curSel == null) { toast('Choose a finance to integrate with.', 'info'); return; }
+    const accName = accountName(curSel);
+    if (!confirm('Are you sure you want ' + agency.name + ' to allow integration between head office “' + curFin.name + '” and finance “' + accName + '”?')) return;
+    const filters = {};
+    $('#assign-modal').querySelectorAll('.aflt').forEach(inp => {
+      const vals = parseCsv(inp.value);
+      if (vals.length) filters[inp.dataset.k] = vals;
+    });
+    const prev = assignMap[curFin.id];
+    assignMap[curFin.id] = { accountId: curSel, accountName: accName, filters };
+    const btn = $('#assign-apply'); btn.disabled = true; btn.textContent = 'Saving…';
+    try {
+      await persist();
+      toast('Integration saved', 'success');
+      closeAssign(); renderGrid();
+    } catch (e) {
+      if (prev) assignMap[curFin.id] = prev; else delete assignMap[curFin.id];
+      toast(e.message || 'Save failed — nothing changed', 'error', 6000);
+    } finally { btn.disabled = false; btn.textContent = 'Apply'; }
+  });
 
   boot();
 })();
