@@ -750,6 +750,22 @@ public class MobileRepository
         COALESCE(f.name,'') AS financer, b.name AS branch_name,
         COALESCE(DATE_FORMAT(vr.created_at,'%d %b %Y, %h:%i %p'),'') AS created_on";
 
+    // When the same RC/chassis exists under more than one branch, keep only the
+    // single most-complete copy. `vr.completeness` is a precomputed, indexed column
+    // (a STORED generated column on vehicle_records that counts the filled-in
+    // business fields — see the migration in dbschema/), so this dedup is a plain
+    // index lookup, not a per-row field scan. Ties broken by highest id (newest),
+    // which is deterministic. The composite indexes
+    // idx_vehicle_best(vehicle_no, completeness, id) /
+    // idx_chassis_best(chassis_no, completeness, id) make the NOT EXISTS
+    // index-only, so it stays instant even for large duplicate groups.
+    private static string BestPerGroupFilter(string groupCol) => $@"
+        AND NOT EXISTS (
+            SELECT 1 FROM vehicle_records dup
+            WHERE dup.{groupCol} = vr.{groupCol}
+              AND (dup.completeness, dup.id) > (vr.completeness, vr.id)
+        )";
+
     public async Task<List<SearchResult>> SearchByRcLiteAsync(string last4, long userId, int financeId = 0)
     {
         var restricted = await GetFinanceRestrictionsAsync(userId);
@@ -761,7 +777,8 @@ public class MobileRepository
             INNER JOIN vehicle_records vr ON vr.id = ri.vehicle_record_id
             INNER JOIN branches b ON b.id = vr.branch_id
             LEFT  JOIN finances f ON f.id = b.finance_id
-            WHERE ri.last4 = @q {filter} {FinanceScope(financeId)}", last4.ToUpper());
+            WHERE ri.last4 = @q {filter} {FinanceScope(financeId)}
+            {BestPerGroupFilter("vehicle_no")}", last4.ToUpper());
     }
 
     public async Task<List<SearchResult>> SearchByChassisLiteAsync(string last5, long userId, int financeId = 0)
@@ -775,7 +792,8 @@ public class MobileRepository
             INNER JOIN vehicle_records vr ON vr.id = ci.vehicle_record_id
             INNER JOIN branches b ON b.id = vr.branch_id
             LEFT  JOIN finances f ON f.id = b.finance_id
-            WHERE ci.last5 = @q {filter} {FinanceScope(financeId)}", last5.ToUpper());
+            WHERE ci.last5 = @q {filter} {FinanceScope(financeId)}
+            {BestPerGroupFilter("chassis_no")}", last5.ToUpper());
     }
 
     public async Task<List<HeadOffice>> GetHeadOfficesAsync(long userId)
