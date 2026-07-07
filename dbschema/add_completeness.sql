@@ -1,19 +1,3 @@
--- Precomputed "completeness" score for vehicle_records: counts how many of the
--- detail fields are filled in. Used by the mobile search to pick, among several
--- branch copies of the same RC/chassis, the one with the most detail (engine no,
--- chassis no, model, customer name, etc.).
---
--- Implemented as a STORED generated column so it is maintained automatically on
--- every insert/update (no application code change), plus two composite indexes so
--- the search-time "is there a more-complete row for this vehicle?" check is a pure
--- index lookup (instant) instead of a per-row field scan.
---
--- Both vehicle_no and chassis_no are counted: within an RC-number group vehicle_no
--- is constant (no effect) while chassis_no differentiates copies, and vice-versa
--- for a chassis-number group — so the same score works correctly for both searches.
---
--- Re-runnable. Apply once per tenant DB (crmr_v_k_enterprises, crmr_rk_enterprises).
-
 ALTER TABLE vehicle_records DROP INDEX IF EXISTS idx_vehicle_best;
 ALTER TABLE vehicle_records DROP INDEX IF EXISTS idx_chassis_best;
 ALTER TABLE vehicle_records DROP COLUMN IF EXISTS completeness;
