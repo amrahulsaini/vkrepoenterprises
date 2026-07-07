@@ -1,0 +1,5 @@
+RewriteEngine On
+
+# Pretty per-agency management page: /manage/<agencyslug> -> manage.html
+# (manage.html reads the slug from the URL path itself)
+RewriteRule ^manage/[^/]+/?$ manage.html [L]

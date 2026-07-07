@@ -25,6 +25,32 @@ internal static class AgencyPortal
 
     public static string MasterConn { get; private set; } = "";
 
+    // Curated, safe allowlist of vehicle_records columns exposed through the
+    // finance-integration portal (label -> physical column). Order defines the
+    // column order shown to a finance viewing an agency's records.
+    private static readonly (string Label, string Col)[] IntegRecordCols =
+    {
+        ("Vehicle No",       "vehicle_no"),
+        ("Chassis No",       "chassis_no"),
+        ("Engine No",        "engine_no"),
+        ("Model",            "model"),
+        ("Agreement No",     "agreement_no"),
+        ("Bucket",           "bucket"),
+        ("Customer Name",    "customer_name"),
+        ("Customer Address", "customer_address"),
+        ("Customer Contact", "customer_contact"),
+        ("Region",           "region"),
+        ("Area",             "area"),
+        ("Branch",           "branch_name_raw"),
+        ("Executive",        "executive_name"),
+        ("POS",              "pos"),
+        ("TOSS",             "toss"),
+        ("Remark",           "remark"),
+    };
+
+    private static string IntegNormKey(string s) =>
+        Regex.Replace(s ?? "", "[^A-Za-z0-9]", "").ToLowerInvariant();
+
     private static readonly TimeZoneInfo IstZone = ResolveIst();
     private static TimeZoneInfo ResolveIst()
     {
@@ -1286,6 +1312,465 @@ internal static class AgencyPortal
                 return Results.Ok(new { fileName, bankName, uploadedAt, totalRecords, columns, rows });
             }
             catch (Exception ex) { return Results.Problem(ex.Message); }
+        });
+
+        // ════════════════════════════════════════════════════════════════════
+        //  Finance integration — manage side (super-admin, X-Manage-Token)
+        // ════════════════════════════════════════════════════════════════════
+
+        app.MapGet("/api/agency/manage/agency/{id:int}/finances", async (HttpContext ctx, int id) =>
+        {
+            if (!await IsManageTokenValid(masterConn, ctx))
+                return Results.Json(new { message = "Unauthorized" }, statusCode: 401);
+            string slug, status;
+            await using (var mc = new MySqlConnection(masterConn))
+            {
+                await mc.OpenAsync();
+                await using var q = new MySqlCommand("SELECT slug, status FROM agencies WHERE id=@id LIMIT 1", mc);
+                q.Parameters.AddWithValue("@id", id);
+                await using var r = await q.ExecuteReaderAsync();
+                if (!await r.ReadAsync()) return Results.NotFound(new { message = "Agency not found" });
+                slug = r.GetString(0); status = r.GetString(1);
+            }
+            if (status != "approved")
+                return Results.Ok(new { finances = new System.Collections.Generic.List<object>(), note = "Agency is not approved yet — it has no head offices." });
+            try
+            {
+                await using var tc = new MySqlConnection(TenantContext.BuildTenantConn(mysqlHost, mysqlPort, slug));
+                await tc.OpenAsync();
+                var finances = new System.Collections.Generic.List<object>();
+                await using var cmd = new MySqlCommand("SELECT id, name, is_active FROM finances ORDER BY name", tc) { CommandTimeout = 15 };
+                await using var rdr = await cmd.ExecuteReaderAsync();
+                while (await rdr.ReadAsync())
+                    finances.Add(new { id = rdr.GetInt32(0), name = rdr.GetString(1), isActive = rdr.GetInt32(2) == 1 });
+                return Results.Ok(new { finances });
+            }
+            catch (Exception ex) { return Results.Problem(ex.Message); }
+        });
+
+        app.MapGet("/api/agency/manage/integration-accounts", async (HttpContext ctx) =>
+        {
+            if (!await IsManageTokenValid(masterConn, ctx))
+                return Results.Json(new { message = "Unauthorized" }, statusCode: 401);
+            await using var conn = new MySqlConnection(masterConn);
+            await conn.OpenAsync();
+            var accounts = new System.Collections.Generic.List<object>();
+            await using var cmd = new MySqlCommand(
+                "SELECT id, finance_name, email, status, DATE_FORMAT(created_at,'%d %b %Y') FROM integration_accounts ORDER BY finance_name", conn);
+            await using var rdr = await cmd.ExecuteReaderAsync();
+            while (await rdr.ReadAsync())
+                accounts.Add(new
+                {
+                    id = rdr.GetInt32(0), financeName = rdr.GetString(1), email = rdr.GetString(2),
+                    status = rdr.GetString(3), createdAt = rdr.GetString(4)
+                });
+            return Results.Ok(new { accounts });
+        });
+
+        app.MapGet("/api/agency/manage/agency/{id:int}/grants", async (HttpContext ctx, int id) =>
+        {
+            if (!await IsManageTokenValid(masterConn, ctx))
+                return Results.Json(new { message = "Unauthorized" }, statusCode: 401);
+            await using var conn = new MySqlConnection(masterConn);
+            await conn.OpenAsync();
+            var grants = new System.Collections.Generic.List<object>();
+            await using var cmd = new MySqlCommand(@"
+                SELECT g.id, g.integration_account_id, g.finance_id, g.finance_name,
+                       COALESCE(g.filters,''), g.active, a.finance_name, a.email
+                  FROM agency_integration_grants g
+                  JOIN integration_accounts a ON a.id = g.integration_account_id
+                 WHERE g.agency_id = @id
+                 ORDER BY a.finance_name, g.finance_name", conn);
+            cmd.Parameters.AddWithValue("@id", id);
+            await using var rdr = await cmd.ExecuteReaderAsync();
+            while (await rdr.ReadAsync())
+                grants.Add(new
+                {
+                    id = rdr.GetInt32(0), integrationAccountId = rdr.GetInt32(1),
+                    financeId = rdr.GetInt32(2), financeName = rdr.GetString(3),
+                    filters = rdr.GetString(4), active = rdr.GetInt32(5) == 1,
+                    accountName = rdr.GetString(6), accountEmail = rdr.GetString(7)
+                });
+            return Results.Ok(new { grants });
+        });
+
+        app.MapPost("/api/agency/manage/agency/{id:int}/grants", async (HttpContext ctx, int id, HttpRequest req) =>
+        {
+            if (!await IsManageTokenValid(masterConn, ctx))
+                return Results.Json(new { message = "Unauthorized" }, statusCode: 401);
+            var items = new System.Collections.Generic.List<(int accId, int finId, string finName, string filters, bool active)>();
+            try
+            {
+                using var doc = await System.Text.Json.JsonDocument.ParseAsync(req.Body);
+                if (doc.RootElement.TryGetProperty("grants", out var arr) && arr.ValueKind == System.Text.Json.JsonValueKind.Array)
+                {
+                    var seen = new System.Collections.Generic.HashSet<string>();
+                    foreach (var el in arr.EnumerateArray())
+                    {
+                        int accId = el.TryGetProperty("integrationAccountId", out var a) && a.TryGetInt32(out var ai) ? ai : 0;
+                        int finId = el.TryGetProperty("financeId", out var f) && f.TryGetInt32(out var fi) ? fi : 0;
+                        string finName = el.TryGetProperty("financeName", out var fn) && fn.ValueKind == System.Text.Json.JsonValueKind.String ? (fn.GetString() ?? "") : "";
+                        string filters = el.TryGetProperty("filters", out var fl)
+                            ? (fl.ValueKind == System.Text.Json.JsonValueKind.String ? (fl.GetString() ?? "") : fl.GetRawText())
+                            : "";
+                        bool active = !el.TryGetProperty("active", out var ac) || ac.ValueKind != System.Text.Json.JsonValueKind.False;
+                        if (accId > 0 && finId > 0 && seen.Add(accId + ":" + finId))
+                            items.Add((accId, finId, finName, filters, active));
+                    }
+                }
+            }
+            catch { return Results.BadRequest(new { message = "Invalid body." }); }
+
+            await using var conn = new MySqlConnection(masterConn);
+            await conn.OpenAsync();
+            var tx = await conn.BeginTransactionAsync();
+            try
+            {
+                await using (var del = new MySqlCommand("DELETE FROM agency_integration_grants WHERE agency_id=@id", conn, tx))
+                {
+                    del.Parameters.AddWithValue("@id", id);
+                    await del.ExecuteNonQueryAsync();
+                }
+                foreach (var it in items)
+                {
+                    await using var ins = new MySqlCommand(@"
+                        INSERT INTO agency_integration_grants
+                            (agency_id, integration_account_id, finance_id, finance_name, filters, active)
+                        VALUES (@ag, @acc, @fin, @fn, @fl, @ac)", conn, tx);
+                    ins.Parameters.AddWithValue("@ag", id);
+                    ins.Parameters.AddWithValue("@acc", it.accId);
+                    ins.Parameters.AddWithValue("@fin", it.finId);
+                    ins.Parameters.AddWithValue("@fn", it.finName);
+                    ins.Parameters.AddWithValue("@fl", string.IsNullOrWhiteSpace(it.filters) ? (object)DBNull.Value : it.filters);
+                    ins.Parameters.AddWithValue("@ac", it.active ? 1 : 0);
+                    await ins.ExecuteNonQueryAsync();
+                }
+                await tx.CommitAsync();
+                return Results.Ok(new { ok = true, count = items.Count });
+            }
+            catch (Exception ex) { await tx.RollbackAsync(); return Results.Problem(ex.Message); }
+        });
+
+        // ════════════════════════════════════════════════════════════════════
+        //  Finance integration — account portal (agency.crmrecoverysoftware.com/integrations)
+        // ════════════════════════════════════════════════════════════════════
+
+        static (int id, string email)? IntegAuth(HttpContext ctx)
+        {
+            var auth = ctx.Request.Headers.Authorization.FirstOrDefault();
+            if (string.IsNullOrEmpty(auth) || !auth.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+                return null;
+            return IntegrationToken.Verify(auth.Substring(7).Trim());
+        }
+
+        async Task<(int agencyId, string financeName, string filters)?> IntegFindGrant(int accId, string slug, int financeId)
+        {
+            await using var conn = new MySqlConnection(masterConn);
+            await conn.OpenAsync();
+            await using var cmd = new MySqlCommand(@"
+                SELECT ag.id, g.finance_name, COALESCE(g.filters,'')
+                  FROM agency_integration_grants g
+                  JOIN agencies ag ON ag.id = g.agency_id
+                 WHERE g.integration_account_id=@acc AND ag.slug=@slug AND g.finance_id=@fin
+                   AND g.active=1 AND ag.status='approved' LIMIT 1", conn);
+            cmd.Parameters.AddWithValue("@acc", accId);
+            cmd.Parameters.AddWithValue("@slug", slug);
+            cmd.Parameters.AddWithValue("@fin", financeId);
+            await using var rdr = await cmd.ExecuteReaderAsync();
+            if (!await rdr.ReadAsync()) return null;
+            return (rdr.GetInt32(0), rdr.GetString(1), rdr.GetString(2));
+        }
+
+        app.MapPost("/api/integration/account/apply", async (HttpRequest req) =>
+        {
+            var dto = await ReadJsonAsync(req);
+            string financeName = (dto.GetValueOrDefault("financeName") ?? "").Trim();
+            string email = (dto.GetValueOrDefault("email") ?? "").Trim().ToLowerInvariant();
+            string password = dto.GetValueOrDefault("password") ?? "";
+            if (financeName.Length < 2) return Results.BadRequest(new { message = "Enter your finance name." });
+            if (!IsValidEmail(email)) return Results.BadRequest(new { message = "Enter a valid email address." });
+            if (password.Length < 6) return Results.BadRequest(new { message = "Password must be at least 6 characters." });
+            await using var conn = new MySqlConnection(masterConn);
+            await conn.OpenAsync();
+            try
+            {
+                await using var cmd = new MySqlCommand(
+                    "INSERT INTO integration_accounts (finance_name, email, password) VALUES (@n,@e,@p)", conn);
+                cmd.Parameters.AddWithValue("@n", financeName);
+                cmd.Parameters.AddWithValue("@e", email);
+                cmd.Parameters.AddWithValue("@p", password);
+                await cmd.ExecuteNonQueryAsync();
+                return Results.Ok(new { ok = true });
+            }
+            catch (MySqlException mex) when (mex.Number == 1062)
+            {
+                return Results.Json(new { message = "An account with this email already exists." }, statusCode: 409);
+            }
+        });
+
+        app.MapPost("/api/integration/account/login", async (HttpRequest req) =>
+        {
+            var dto = await ReadJsonAsync(req);
+            string email = (dto.GetValueOrDefault("email") ?? "").Trim().ToLowerInvariant();
+            string password = dto.GetValueOrDefault("password") ?? "";
+            await using var conn = new MySqlConnection(masterConn);
+            await conn.OpenAsync();
+            int accId; string financeName, storedPw, status;
+            await using (var cmd = new MySqlCommand(
+                "SELECT id, finance_name, password, status FROM integration_accounts WHERE email=@e LIMIT 1", conn))
+            {
+                cmd.Parameters.AddWithValue("@e", email);
+                await using var rdr = await cmd.ExecuteReaderAsync();
+                if (!await rdr.ReadAsync())
+                    return Results.Json(new { message = "Invalid email or password." }, statusCode: 401);
+                accId = rdr.GetInt32(0); financeName = rdr.GetString(1); storedPw = rdr.GetString(2); status = rdr.GetString(3);
+            }
+            if (storedPw != password)
+                return Results.Json(new { message = "Invalid email or password." }, statusCode: 401);
+            if (status != "active")
+                return Results.Json(new { message = "This account has been suspended." }, statusCode: 403);
+            await using (var upd = new MySqlCommand("UPDATE integration_accounts SET last_login_at=UTC_TIMESTAMP() WHERE id=@id", conn))
+            { upd.Parameters.AddWithValue("@id", accId); await upd.ExecuteNonQueryAsync(); }
+            return Results.Ok(new { token = IntegrationToken.Issue(accId, email), financeName, email });
+        });
+
+        app.MapGet("/api/integration/account/agencies", async (HttpContext ctx) =>
+        {
+            var who = IntegAuth(ctx);
+            if (who is not { } me) return Results.Unauthorized();
+            await using var conn = new MySqlConnection(masterConn);
+            await conn.OpenAsync();
+            var byAgency = new System.Collections.Generic.Dictionary<string, System.Collections.Generic.Dictionary<string, object>>();
+            await using var cmd = new MySqlCommand(@"
+                SELECT ag.slug, ag.name, COALESCE(ag.logo_path,''),
+                       g.finance_id, g.finance_name, COALESCE(g.filters,'')
+                  FROM agency_integration_grants g
+                  JOIN agencies ag ON ag.id = g.agency_id
+                 WHERE g.integration_account_id = @acc AND g.active = 1 AND ag.status = 'approved'
+                 ORDER BY ag.name, g.finance_name", conn);
+            cmd.Parameters.AddWithValue("@acc", me.id);
+            await using var rdr = await cmd.ExecuteReaderAsync();
+            while (await rdr.ReadAsync())
+            {
+                string slug = rdr.GetString(0);
+                if (!byAgency.TryGetValue(slug, out var ag))
+                {
+                    ag = new System.Collections.Generic.Dictionary<string, object>
+                    {
+                        ["slug"] = slug, ["name"] = rdr.GetString(1),
+                        ["logoPath"] = rdr.GetString(2),
+                        ["headOffices"] = new System.Collections.Generic.List<object>()
+                    };
+                    byAgency[slug] = ag;
+                }
+                ((System.Collections.Generic.List<object>)ag["headOffices"]).Add(new
+                {
+                    financeId = rdr.GetInt32(3), financeName = rdr.GetString(4), filters = rdr.GetString(5)
+                });
+            }
+            return Results.Ok(new { agencies = byAgency.Values });
+        });
+
+        app.MapPost("/api/integration/account/records", async (HttpContext ctx, HttpRequest req) =>
+        {
+            var who = IntegAuth(ctx);
+            if (who is not { } me) return Results.Unauthorized();
+            string slug; int financeId, limit, offset; string search;
+            try
+            {
+                using var doc = await System.Text.Json.JsonDocument.ParseAsync(req.Body);
+                var r = doc.RootElement;
+                slug = r.TryGetProperty("agencySlug", out var s) ? (s.GetString() ?? "") : "";
+                financeId = r.TryGetProperty("financeId", out var f) && f.TryGetInt32(out var fi) ? fi : 0;
+                search = r.TryGetProperty("search", out var q) && q.ValueKind == System.Text.Json.JsonValueKind.String ? (q.GetString() ?? "").Trim() : "";
+                limit = r.TryGetProperty("limit", out var l) && l.TryGetInt32(out var li) ? li : 100;
+                offset = r.TryGetProperty("offset", out var o) && o.TryGetInt32(out var oi) ? oi : 0;
+            }
+            catch { return Results.BadRequest(new { message = "Invalid body." }); }
+            if (limit <= 0 || limit > 500) limit = 100;
+            if (offset < 0) offset = 0;
+            var grant = await IntegFindGrant(me.id, slug, financeId);
+            if (grant is not { } g) return Results.Json(new { message = "You do not have access to this head office." }, statusCode: 403);
+
+            var regions = new System.Collections.Generic.List<string>();
+            var areas = new System.Collections.Generic.List<string>();
+            var buckets = new System.Collections.Generic.List<string>();
+            try
+            {
+                if (!string.IsNullOrWhiteSpace(g.filters))
+                {
+                    using var fd = System.Text.Json.JsonDocument.Parse(g.filters);
+                    void Pull(string k, System.Collections.Generic.List<string> into)
+                    {
+                        if (fd.RootElement.TryGetProperty(k, out var arr) && arr.ValueKind == System.Text.Json.JsonValueKind.Array)
+                            foreach (var e in arr.EnumerateArray())
+                            { var v = e.GetString(); if (!string.IsNullOrWhiteSpace(v)) into.Add(v.Trim()); }
+                    }
+                    Pull("regions", regions); Pull("areas", areas); Pull("buckets", buckets);
+                }
+            }
+            catch { }
+
+            var colList = string.Join(", ", IntegRecordCols.Select(c => "vr.`" + c.Col + "`"));
+            var where = new System.Collections.Generic.List<string> { "b.finance_id = @fin" };
+            var ps = new System.Collections.Generic.List<(string, object)> { ("@fin", financeId) };
+            void InClause(string col, System.Collections.Generic.List<string> vals, string p)
+            {
+                if (vals.Count == 0) return;
+                var names = new System.Collections.Generic.List<string>();
+                for (int i = 0; i < vals.Count; i++) { var pn = p + i; names.Add(pn); ps.Add((pn, vals[i])); }
+                where.Add($"vr.`{col}` IN (" + string.Join(",", names) + ")");
+            }
+            InClause("region", regions, "@rg"); InClause("area", areas, "@ar"); InClause("bucket", buckets, "@bk");
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                where.Add("(vr.vehicle_no LIKE @q OR vr.chassis_no LIKE @q OR vr.agreement_no LIKE @q OR vr.customer_name LIKE @q)");
+                ps.Add(("@q", "%" + search + "%"));
+            }
+            string whereSql = "WHERE " + string.Join(" AND ", where);
+
+            try
+            {
+                await using var tc = new MySqlConnection(TenantContext.BuildTenantConn(mysqlHost, mysqlPort, slug));
+                await tc.OpenAsync();
+                long total;
+                await using (var cc = new MySqlCommand($"SELECT COUNT(*) FROM vehicle_records vr JOIN branches b ON b.id=vr.branch_id {whereSql}", tc) { CommandTimeout = 20 })
+                { foreach (var (k, v) in ps) cc.Parameters.AddWithValue(k, v); total = Convert.ToInt64(await cc.ExecuteScalarAsync()); }
+
+                var rows = new System.Collections.Generic.List<System.Collections.Generic.List<string>>();
+                await using (var cmd = new MySqlCommand($"SELECT {colList} FROM vehicle_records vr JOIN branches b ON b.id=vr.branch_id {whereSql} ORDER BY vr.id DESC LIMIT {limit} OFFSET {offset}", tc) { CommandTimeout = 30 })
+                {
+                    foreach (var (k, v) in ps) cmd.Parameters.AddWithValue(k, v);
+                    await using var rdr = await cmd.ExecuteReaderAsync();
+                    while (await rdr.ReadAsync())
+                    {
+                        var row = new System.Collections.Generic.List<string>(IntegRecordCols.Length);
+                        for (int i = 0; i < IntegRecordCols.Length; i++) row.Add(rdr.IsDBNull(i) ? "" : rdr.GetValue(i)?.ToString() ?? "");
+                        rows.Add(row);
+                    }
+                }
+                return Results.Ok(new { columns = IntegRecordCols.Select(c => c.Label).ToArray(), rows, total, limit, offset, financeName = g.financeName });
+            }
+            catch (Exception ex) { return Results.Problem(ex.Message); }
+        });
+
+        app.MapPost("/api/integration/account/files", async (HttpContext ctx, HttpRequest req) =>
+        {
+            var who = IntegAuth(ctx);
+            if (who is not { } me) return Results.Unauthorized();
+            string slug; int financeId;
+            try
+            {
+                using var doc = await System.Text.Json.JsonDocument.ParseAsync(req.Body);
+                var r = doc.RootElement;
+                slug = r.TryGetProperty("agencySlug", out var s) ? (s.GetString() ?? "") : "";
+                financeId = r.TryGetProperty("financeId", out var f) && f.TryGetInt32(out var fi) ? fi : 0;
+            }
+            catch { return Results.BadRequest(new { message = "Invalid body." }); }
+            var grant = await IntegFindGrant(me.id, slug, financeId);
+            if (grant is not { } g) return Results.Json(new { message = "You do not have access to this head office." }, statusCode: 403);
+            try
+            {
+                await using var tc = new MySqlConnection(TenantContext.BuildTenantConn(mysqlHost, mysqlPort, slug));
+                await tc.OpenAsync();
+                var files = new System.Collections.Generic.List<object>();
+                await using var cmd = new MySqlCommand(@"
+                    SELECT wf.file_name, wf.total_records, COALESCE(DATE_FORMAT(wf.created_at,'%d %b %Y %h:%i %p'),'')
+                    FROM webhook_files wf JOIN webhook_banks wb ON wb.id=wf.bank_id
+                    WHERE wb.bank_name=@b ORDER BY wf.id DESC", tc) { CommandTimeout = 15 };
+                cmd.Parameters.AddWithValue("@b", g.financeName);
+                await using var rdr = await cmd.ExecuteReaderAsync();
+                while (await rdr.ReadAsync())
+                    files.Add(new { fileName = rdr.GetString(0), totalRecords = rdr.GetInt32(1), uploadedAt = rdr.GetString(2) });
+                return Results.Ok(new { files });
+            }
+            catch (Exception ex) { return Results.Problem(ex.Message); }
+        });
+
+        var integWebhookRoot = Path.Combine(app.Environment.ContentRootPath, "webhook-files");
+        try { Directory.CreateDirectory(integWebhookRoot); } catch { }
+
+        app.MapPost("/api/integration/account/upload", async (HttpContext ctx, HttpRequest req) =>
+        {
+            var who = IntegAuth(ctx);
+            if (who is not { } me) return Results.Unauthorized();
+            string slug = "", fileName = "", vehicleType = "";
+            int financeId = 0;
+            var headers = new System.Collections.Generic.List<string>();
+            var rows = new System.Collections.Generic.List<System.Collections.Generic.List<string>>();
+            try
+            {
+                using var doc = await System.Text.Json.JsonDocument.ParseAsync(req.Body);
+                var r = doc.RootElement;
+                slug = r.TryGetProperty("agencySlug", out var s) ? (s.GetString() ?? "") : "";
+                financeId = r.TryGetProperty("financeId", out var f) && f.TryGetInt32(out var fi) ? fi : 0;
+                fileName = r.TryGetProperty("fileName", out var fnm) ? (fnm.GetString() ?? "") : "";
+                vehicleType = r.TryGetProperty("vehicleType", out var vt) && vt.ValueKind == System.Text.Json.JsonValueKind.String ? (vt.GetString() ?? "") : "";
+                if (r.TryGetProperty("headers", out var hs) && hs.ValueKind == System.Text.Json.JsonValueKind.Array)
+                    foreach (var h in hs.EnumerateArray()) headers.Add(h.GetString() ?? "");
+                if (r.TryGetProperty("rows", out var rs) && rs.ValueKind == System.Text.Json.JsonValueKind.Array)
+                    foreach (var row in rs.EnumerateArray())
+                    {
+                        var cells = new System.Collections.Generic.List<string>();
+                        if (row.ValueKind == System.Text.Json.JsonValueKind.Array)
+                            foreach (var c in row.EnumerateArray())
+                                cells.Add(c.ValueKind == System.Text.Json.JsonValueKind.String ? (c.GetString() ?? "") : c.ToString());
+                        rows.Add(cells);
+                    }
+            }
+            catch { return Results.BadRequest(new { message = "Invalid body." }); }
+            if (headers.Count == 0 || rows.Count == 0) return Results.BadRequest(new { message = "Empty sheet." });
+
+            var grant = await IntegFindGrant(me.id, slug, financeId);
+            if (grant is not { } g) return Results.Json(new { message = "You do not have access to this head office." }, statusCode: 403);
+
+            var safeSlug = Regex.Replace(slug, "[^a-z0-9_-]", "");
+            var slotDir = Path.Combine(integWebhookRoot, safeSlug);
+            Directory.CreateDirectory(slotDir);
+            var baseName = string.IsNullOrWhiteSpace(fileName) ? "integration-upload" : fileName.Replace(" ", "_");
+            var csvName = $"{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}-{baseName}.csv";
+            var csvPath = Path.Combine(slotDir, csvName);
+            var relPath = Path.Combine("webhook-files", safeSlug, csvName);
+            static string Csv(string v) => "\"" + (v ?? "").Replace("\"", "\"\"") + "\"";
+            int totalRows = 0;
+            try
+            {
+                await using var sw = new StreamWriter(csvPath, false, System.Text.Encoding.UTF8);
+                await sw.WriteLineAsync(string.Join(",", headers.Select(Csv)));
+                foreach (var row in rows)
+                {
+                    var cells = new System.Collections.Generic.List<string>(headers.Count);
+                    for (int i = 0; i < headers.Count; i++) cells.Add(Csv(i < row.Count ? row[i] : ""));
+                    await sw.WriteLineAsync(string.Join(",", cells));
+                    totalRows++;
+                }
+            }
+            catch (Exception ex) { return Results.Problem($"CSV write failed: {ex.Message}"); }
+            try
+            {
+                await using var c = new MySqlConnection(TenantContext.BuildTenantConn(mysqlHost, mysqlPort, slug));
+                await c.OpenAsync();
+                int bankId;
+                await using (var bankCmd = new MySqlCommand(@"
+                    INSERT INTO webhook_banks (bank_name) VALUES (@n) ON DUPLICATE KEY UPDATE bank_name=bank_name;
+                    SELECT id FROM webhook_banks WHERE bank_name=@n LIMIT 1;", c))
+                { bankCmd.Parameters.AddWithValue("@n", g.financeName); bankId = Convert.ToInt32(await bankCmd.ExecuteScalarAsync()); }
+                await using (var fileCmd = new MySqlCommand(@"
+                    INSERT INTO webhook_files (bank_id, file_name, file_path, vehicle_type, uploaded_by, uploaded_date, total_records)
+                    VALUES (@bid,@fn,@fp,@vt,@ub,@ud,@tr)", c))
+                {
+                    fileCmd.Parameters.AddWithValue("@bid", bankId);
+                    fileCmd.Parameters.AddWithValue("@fn", fileName.Length > 0 ? fileName : csvName);
+                    fileCmd.Parameters.AddWithValue("@fp", relPath);
+                    fileCmd.Parameters.AddWithValue("@vt", vehicleType ?? "");
+                    fileCmd.Parameters.AddWithValue("@ub", me.email);
+                    fileCmd.Parameters.AddWithValue("@ud", DateTime.UtcNow.ToString("dd MMM yyyy"));
+                    fileCmd.Parameters.AddWithValue("@tr", totalRows);
+                    await fileCmd.ExecuteNonQueryAsync();
+                }
+            }
+            catch (Exception ex) { return Results.Problem($"DB insert failed: {ex.Message}"); }
+            return Results.Ok(new { ok = true, records = totalRows });
         });
     }
 

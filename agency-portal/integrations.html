@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Finance Integrations — CRM Recovery Software</title>
+<meta name="robots" content="noindex,nofollow">
+<link rel="icon" href="/assets/favicon.ico">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800;900&family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#0b1220; --ink2:#27324a; --muted:#6b7689; --line:#e4e9f2;
+    --bg:#eef2f8; --card:#ffffff; --brand:#0a3d8f; --brand-d:#072c69;
+    --accent:#1565d8; --ok:#147a4b; --okbg:#e7f6ee; --errbg:#fdecec; --err:#c0322b;
+    --shadow:0 1px 2px rgba(11,18,32,.06),0 6px 24px rgba(11,18,32,.06);
+    --head:'Archivo',sans-serif; --body:'Hanken Grotesk',system-ui,sans-serif; --mono:'JetBrains Mono',ui-monospace,monospace;
+  }
+  *{box-sizing:border-box} html,body{margin:0;min-height:100%}
+  body{font-family:var(--body);color:var(--ink);background:radial-gradient(1200px 480px at 50% -120px,#dbe7fb 0,transparent 60%),var(--bg)}
+  .hidden{display:none!important}
+  .btn{font:inherit;font-weight:700;border:none;border-radius:10px;padding:12px 16px;cursor:pointer;transition:background .15s,opacity .15s}
+  .btn-primary{background:var(--brand);color:#fff} .btn-primary:hover{background:var(--brand-d)}
+  .btn-primary.block{width:100%}
+  .btn-primary:disabled{opacity:.55;cursor:not-allowed}
+  .btn-ghost{background:transparent;color:var(--ink2);font-weight:600}
+  .btn-outline{background:#fff;color:var(--ink2);border:1px solid var(--line);font-weight:600}
+  .btn-sm{padding:8px 12px;font-size:13px;border-radius:9px}
+  input[type=text],input[type=email],input[type=password]{font:inherit;width:100%;padding:12px 13px;border:1px solid var(--line);border-radius:10px;background:#fbfcff;color:var(--ink)}
+  input:focus{outline:none;border-color:var(--accent);background:#fff;box-shadow:0 0 0 3px rgba(21,101,216,.12)}
+  .lbl{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin:0 0 6px}
+  .field{margin-bottom:14px}
+  .msg{font-size:13px;margin-top:12px;min-height:18px;border-radius:8px}
+  .msg.err{color:var(--err);background:var(--errbg);padding:10px 12px}
+  .msg.ok{color:var(--ok);background:var(--okbg);padding:10px 12px}
+  .msg.info{color:var(--ink2)}
+  .wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:28px}
+  .brandbar{display:flex;align-items:center;gap:12px;justify-content:center;margin-bottom:18px}
+  .brandbar img{width:46px;height:46px;border-radius:11px;border:1px solid var(--line);padding:5px;background:#fff}
+  .brandbar .nm{font-family:var(--head);font-weight:900;font-size:18px;line-height:1.05}
+  .brandbar .nm small{display:block;font-family:var(--body);font-weight:600;font-size:11px;color:var(--muted)}
+  .login-card{width:100%;max-width:420px;background:var(--card);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);padding:30px 28px}
+  .login-card h1{font-family:var(--head);font-size:21px;margin:2px 0 3px;text-align:center}
+  .login-card p.sub{color:var(--muted);font-size:13px;margin:0 0 20px;text-align:center}
+  .sep{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:12px;margin:18px 0}
+  .sep:before,.sep:after{content:"";height:1px;background:var(--line);flex:1}
+
+  .shell{width:100%;max-width:1180px;margin:0 auto;padding:22px}
+  .topbar{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:14px 18px;margin-bottom:18px}
+  .topbar img{width:40px;height:40px;border-radius:10px;border:1px solid var(--line);padding:4px;background:#fff}
+  .topbar .t{font-family:var(--head);font-weight:800;font-size:16px}
+  .topbar .s{color:var(--muted);font-size:12px}
+  .grid{display:grid;grid-template-columns:300px 1fr;gap:18px;align-items:start}
+  @media(max-width:820px){.grid{grid-template-columns:1fr}}
+  .panel{background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);overflow:hidden}
+  .panel .ph{padding:14px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between}
+  .panel .ph h3{margin:0;font-family:var(--head);font-size:14px}
+  .panel .pb{padding:16px}
+  .ag{border:1px solid var(--line);border-radius:12px;margin-bottom:12px;overflow:hidden}
+  .ag .agh{display:flex;align-items:center;gap:10px;padding:11px 13px;background:#f7faff}
+  .ag .agh img{width:30px;height:30px;border-radius:8px;border:1px solid var(--line);background:#fff;object-fit:contain}
+  .ag .agh .nm{font-weight:700;font-size:13.5px}
+  .ho{display:block;width:100%;text-align:left;border:none;background:#fff;border-top:1px solid var(--line);padding:10px 13px;cursor:pointer;font:inherit;font-size:13px;color:var(--ink2)}
+  .ho:hover{background:#eef5ff}
+  .ho.active{background:var(--brand);color:#fff;font-weight:700}
+  .tabs{display:inline-flex;background:#eef2f8;border-radius:10px;padding:3px;gap:2px}
+  .tabs button{border:none;background:transparent;font:inherit;font-weight:700;font-size:13px;color:var(--ink2);padding:7px 14px;border-radius:8px;cursor:pointer}
+  .tabs button.active{background:#fff;color:var(--brand);box-shadow:var(--shadow)}
+  .toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+  .toolbar input{max-width:280px}
+  table.tbl{border-collapse:collapse;width:100%;font-size:12.5px}
+  table.tbl th,table.tbl td{border-bottom:1px solid var(--line);padding:8px 10px;text-align:left;white-space:nowrap}
+  table.tbl th{font-size:10.5px;letter-spacing:.03em;text-transform:uppercase;color:var(--muted);font-weight:700;position:sticky;top:0;background:#fff}
+  .tbl-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:12px;max-height:60vh;overflow-y:auto}
+  .empty{padding:34px;text-align:center;color:var(--muted);font-size:13.5px}
+  .drop{border:2px dashed #c4d2ea;border-radius:14px;padding:30px 20px;text-align:center;color:var(--muted);background:linear-gradient(#fbfdff,#f4f8ff);cursor:pointer}
+  .drop:hover,.drop.drag{border-color:var(--accent);background:#eef5ff}
+  .drop .ic{font-size:28px} .drop b{color:var(--ink);display:block;margin-top:6px}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+  .chip{background:#eef2f8;color:var(--ink2);border:1px solid var(--line);border-radius:7px;padding:3px 9px;font-size:11px;font-family:var(--mono)}
+  .spin{display:inline-block;width:13px;height:13px;border:2px solid #c7d3e6;border-top-color:var(--brand);border-radius:50%;animation:s .7s linear infinite;vertical-align:-2px}
+  @keyframes s{to{transform:rotate(360deg)}}
+  .count{background:#eef2f8;color:var(--ink2);border-radius:999px;padding:2px 10px;font-size:12px;font-weight:700}
+</style>
+</head>
+<body>
+
+<!-- ── Login / Apply ─────────────────────────────────────────────── -->
+<div id="auth" class="wrap">
+  <div class="login-card">
+    <div class="brandbar">
+      <img src="/assets/crmrs-logo.webp" alt="CRMRS" onerror="this.onerror=null;this.src='/assets/logo-short.webp'">
+      <div class="nm">Finance Integrations<small>CRM Recovery Software</small></div>
+    </div>
+
+    <div id="view-login">
+      <h1>Finance sign in</h1>
+      <p class="sub">Access the recovery agencies you are integrated with.</p>
+      <div class="field"><div class="lbl">Email</div><input id="lg-email" type="email" autocomplete="username" placeholder="you@finance.com"></div>
+      <div class="field"><div class="lbl">Password</div><input id="lg-pass" type="password" autocomplete="current-password" placeholder="Password"></div>
+      <button class="btn btn-primary block" id="lg-btn">Sign in</button>
+      <div class="msg" id="lg-msg"></div>
+      <div class="sep">new here?</div>
+      <button class="btn btn-outline btn-sm" id="to-apply" style="width:100%">Apply for a new integration</button>
+    </div>
+
+    <div id="view-apply" class="hidden">
+      <h1>Apply for integration</h1>
+      <p class="sub">Create your finance account. An administrator grants you access to agencies afterwards.</p>
+      <div class="field"><div class="lbl">Finance name</div><input id="ap-name" type="text" placeholder="e.g. HDB Financial Services"></div>
+      <div class="field"><div class="lbl">Email</div><input id="ap-email" type="email" autocomplete="email" placeholder="you@finance.com"></div>
+      <div class="field"><div class="lbl">Create password</div><input id="ap-pass" type="password" autocomplete="new-password" placeholder="At least 6 characters"></div>
+      <button class="btn btn-primary block" id="ap-btn">Submit application</button>
+      <div class="msg" id="ap-msg"></div>
+      <div class="sep">already applied?</div>
+      <button class="btn btn-outline btn-sm" id="to-login" style="width:100%">Back to sign in</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Dashboard ─────────────────────────────────────────────────── -->
+<div id="dash" class="hidden">
+  <div class="shell">
+    <div class="topbar">
+      <img src="/assets/crmrs-logo.webp" alt="" onerror="this.onerror=null;this.src='/assets/logo-short.webp'">
+      <div>
+        <div class="t">Finance Integrations</div>
+        <div class="s">Signed in as <span id="who">—</span></div>
+      </div>
+      <div style="flex:1"></div>
+      <button class="btn btn-ghost btn-sm" id="logout">Sign out</button>
+    </div>
+
+    <div class="grid">
+      <div class="panel">
+        <div class="ph"><h3>Your agencies</h3><span class="count" id="ag-count">0</span></div>
+        <div class="pb" id="ag-list"><div class="empty"><span class="spin"></span> Loading…</div></div>
+      </div>
+
+      <div class="panel">
+        <div class="ph">
+          <h3 id="sel-title">Select a head office</h3>
+          <div class="tabs hidden" id="tabs">
+            <button data-tab="records" class="active">Records</button>
+            <button data-tab="upload">Upload</button>
+          </div>
+        </div>
+        <div class="pb" id="content"><div class="empty">Choose an agency head office on the left to view its records or upload a file.</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<script>
+const ROOT='https://api.crmrecoverysoftware.com/api/integration/account';
+const $=s=>document.querySelector(s);
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let token=sessionStorage.getItem('integ_token')||'';
+let agencies=[], sel=null, curTab='records', recOffset=0, recTotal=0;
+
+function setMsg(id,t,c){const m=$(id);m.textContent=t||'';m.className='msg '+(c||'');}
+
+async function apiCall(path,body,auth){
+  const h={'Content-Type':'application/json'};
+  if(auth) h['Authorization']='Bearer '+token;
+  const r=await fetch(ROOT+path,{method:'POST',headers:h,body:JSON.stringify(body||{})});
+  const d=await r.json().catch(()=>null);
+  if(!r.ok) throw new Error((d&&d.message)||('Error '+r.status));
+  return d;
+}
+async function apiGet(path){
+  const r=await fetch(ROOT+path,{headers:{'Authorization':'Bearer '+token}});
+  const d=await r.json().catch(()=>null);
+  if(r.status===401){ signOut(); throw new Error('Session expired'); }
+  if(!r.ok) throw new Error((d&&d.message)||('Error '+r.status));
+  return d;
+}
+
+// ── Auth view switching ──
+$('#to-apply').onclick=()=>{ $('#view-login').classList.add('hidden'); $('#view-apply').classList.remove('hidden'); };
+$('#to-login').onclick=()=>{ $('#view-apply').classList.add('hidden'); $('#view-login').classList.remove('hidden'); };
+
+$('#lg-btn').onclick=login;
+$('#lg-pass').addEventListener('keydown',e=>{if(e.key==='Enter')login();});
+async function login(){
+  const email=$('#lg-email').value.trim(), pass=$('#lg-pass').value;
+  if(!email||!pass){ setMsg('#lg-msg','Enter your email and password.','err'); return; }
+  $('#lg-btn').disabled=true; setMsg('#lg-msg','Signing in…','info');
+  try{
+    const d=await apiCall('/login',{email,password:pass},false);
+    token=d.token; sessionStorage.setItem('integ_token',token);
+    sessionStorage.setItem('integ_name',d.financeName||''); sessionStorage.setItem('integ_email',d.email||email);
+    enterDash();
+  }catch(e){ setMsg('#lg-msg',e.message,'err'); }
+  $('#lg-btn').disabled=false;
+}
+
+$('#ap-btn').onclick=apply;
+async function apply(){
+  const financeName=$('#ap-name').value.trim(), email=$('#ap-email').value.trim(), password=$('#ap-pass').value;
+  if(!financeName||!email||!password){ setMsg('#ap-msg','Fill in all fields.','err'); return; }
+  $('#ap-btn').disabled=true; setMsg('#ap-msg','Submitting…','info');
+  try{
+    await apiCall('/apply',{financeName,email,password},false);
+    setMsg('#ap-msg','✓ Application received. You can sign in now — an agency admin will grant you access.','ok');
+    setTimeout(()=>{ $('#to-login').click(); $('#lg-email').value=email; },1400);
+  }catch(e){ setMsg('#ap-msg',e.message,'err'); }
+  $('#ap-btn').disabled=false;
+}
+
+$('#logout').onclick=signOut;
+function signOut(){
+  token=''; sessionStorage.removeItem('integ_token');
+  $('#dash').classList.add('hidden'); $('#auth').classList.remove('hidden');
+  $('#lg-pass').value=''; setMsg('#lg-msg','');
+}
+
+function enterDash(){
+  $('#auth').classList.add('hidden'); $('#dash').classList.remove('hidden');
+  $('#who').textContent=(sessionStorage.getItem('integ_name')||'')+' · '+(sessionStorage.getItem('integ_email')||'');
+  loadAgencies();
+}
+
+async function loadAgencies(){
+  const list=$('#ag-list');
+  list.innerHTML='<div class="empty"><span class="spin"></span> Loading…</div>';
+  try{
+    const d=await apiGet('/agencies');
+    agencies=d.agencies||[];
+    $('#ag-count').textContent=agencies.length;
+    if(!agencies.length){ list.innerHTML='<div class="empty">No active agency integrations yet. An agency admin needs to grant you access.</div>'; return; }
+    list.innerHTML=agencies.map((a,ai)=>{
+      const logo=a.logoPath?(/^https?:\/\//i.test(a.logoPath)?a.logoPath:'https://api.crmrecoverysoftware.com'+(a.logoPath.startsWith('/')?'':'/')+a.logoPath):'/assets/crmrs-logo.webp';
+      const heads=(a.headOffices||[]).map((h,hi)=>
+        '<button class="ho" data-ai="'+ai+'" data-hi="'+hi+'">'+esc(h.financeName)+'</button>').join('');
+      return '<div class="ag"><div class="agh"><img src="'+esc(logo)+'" onerror="this.src=\'/assets/crmrs-logo.webp\'"><div class="nm">'+esc(a.name)+'</div></div>'+heads+'</div>';
+    }).join('');
+    list.querySelectorAll('.ho').forEach(b=>b.addEventListener('click',()=>selectHead(+b.dataset.ai,+b.dataset.hi,b)));
+  }catch(e){ list.innerHTML='<div class="empty">'+esc(e.message)+'</div>'; }
+}
+
+function selectHead(ai,hi,btn){
+  const ag=agencies[ai], ho=ag.headOffices[hi];
+  sel={agencySlug:ag.slug,agencyName:ag.name,financeId:ho.financeId,financeName:ho.financeName};
+  document.querySelectorAll('.ho').forEach(x=>x.classList.remove('active'));
+  btn.classList.add('active');
+  $('#sel-title').textContent=ho.financeName+' · '+ag.name;
+  $('#tabs').classList.remove('hidden');
+  curTab='records'; setTab('records');
+}
+
+$('#tabs').addEventListener('click',e=>{ const b=e.target.closest('button[data-tab]'); if(b) setTab(b.dataset.tab); });
+function setTab(t){
+  curTab=t;
+  $('#tabs').querySelectorAll('button').forEach(x=>x.classList.toggle('active',x.dataset.tab===t));
+  if(t==='records') renderRecordsPane(); else renderUploadPane();
+}
+
+// ── Records ──
+function renderRecordsPane(){
+  recOffset=0; recTotal=0;
+  $('#content').innerHTML=
+    '<div class="toolbar"><input id="rec-q" type="text" placeholder="Search vehicle / chassis / agreement / name">'+
+    '<button class="btn btn-primary btn-sm" id="rec-search">Search</button>'+
+    '<span class="count" id="rec-count">—</span></div>'+
+    '<div id="rec-body"><div class="empty"><span class="spin"></span> Loading…</div></div>'+
+    '<div style="text-align:center;margin-top:12px"><button class="btn btn-outline btn-sm hidden" id="rec-more">Load more</button></div>';
+  $('#rec-search').onclick=()=>{ recOffset=0; loadRecords(true); };
+  $('#rec-q').addEventListener('keydown',e=>{if(e.key==='Enter'){recOffset=0;loadRecords(true);}});
+  $('#rec-more').onclick=()=>loadRecords(false);
+  loadRecords(true);
+}
+async function loadRecords(reset){
+  const body=$('#rec-body');
+  if(reset) body.innerHTML='<div class="empty"><span class="spin"></span> Loading…</div>';
+  const search=($('#rec-q')?$('#rec-q').value.trim():'');
+  try{
+    const d=await apiCall('/records',{agencySlug:sel.agencySlug,financeId:sel.financeId,search,limit:100,offset:recOffset},true);
+    recTotal=d.total||0;
+    $('#rec-count').textContent=recTotal+' record'+(recTotal===1?'':'s');
+    const cols=d.columns||[], rows=d.rows||[];
+    if(reset && !rows.length){ body.innerHTML='<div class="empty">No records found for this head office.</div>'; $('#rec-more').classList.add('hidden'); return; }
+    const head='<thead><tr>'+cols.map(c=>'<th>'+esc(c)+'</th>').join('')+'</tr></thead>';
+    const trs=rows.map(r=>'<tr>'+r.map(c=>'<td>'+esc(c)+'</td>').join('')+'</tr>').join('');
+    if(reset){ body.innerHTML='<div class="tbl-scroll"><table class="tbl">'+head+'<tbody>'+trs+'</tbody></table></div>'; }
+    else{ body.querySelector('tbody').insertAdjacentHTML('beforeend',trs); }
+    recOffset+=rows.length;
+    $('#rec-more').classList.toggle('hidden',recOffset>=recTotal);
+  }catch(e){ if(reset) body.innerHTML='<div class="empty">'+esc(e.message)+'</div>'; }
+}
+
+// ── Upload ──
+function renderUploadPane(){
+  $('#content').innerHTML=
+    '<div class="drop" id="drop"><div class="ic">📑</div><b>Click or drop an Excel file (.xlsx / .xls)</b>'+
+    '<div style="font-size:12px;margin-top:4px">First row must be the column headers</div></div>'+
+    '<input id="file" type="file" accept=".xlsx,.xls" class="hidden">'+
+    '<div class="msg" id="up-msg"></div>'+
+    '<div style="display:flex;align-items:center;justify-content:space-between;margin:18px 0 8px"><h3 style="margin:0;font-family:var(--head);font-size:14px">Your uploaded files</h3><span class="count" id="up-count">0</span></div>'+
+    '<div id="files-body"><div class="empty"><span class="spin"></span> Loading…</div></div>';
+  const drop=$('#drop');
+  drop.onclick=()=>$('#file').click();
+  drop.addEventListener('dragover',e=>{e.preventDefault();drop.classList.add('drag');});
+  drop.addEventListener('dragleave',()=>drop.classList.remove('drag'));
+  drop.addEventListener('drop',e=>{e.preventDefault();drop.classList.remove('drag');const f=e.dataTransfer.files[0];if(f)handleFile(f);});
+  $('#file').onchange=e=>{const f=e.target.files[0];if(f)handleFile(f);e.target.value='';};
+  loadFiles();
+}
+async function loadFiles(){
+  const b=$('#files-body'); b.innerHTML='<div class="empty"><span class="spin"></span> Loading…</div>';
+  try{
+    const d=await apiCall('/files',{agencySlug:sel.agencySlug,financeId:sel.financeId},true);
+    const files=d.files||[]; $('#up-count').textContent=files.length;
+    if(!files.length){ b.innerHTML='<div class="empty">No files uploaded yet.</div>'; return; }
+    b.innerHTML='<div class="tbl-scroll"><table class="tbl"><thead><tr><th>File</th><th>Records</th><th>Uploaded</th></tr></thead><tbody>'+
+      files.map(f=>'<tr><td>'+esc(f.fileName)+'</td><td>'+(f.totalRecords||0)+'</td><td>'+esc(f.uploadedAt||'')+'</td></tr>').join('')+'</tbody></table></div>';
+  }catch(e){ b.innerHTML='<div class="empty">'+esc(e.message)+'</div>'; }
+}
+async function handleFile(file){
+  setMsg('#up-msg','Reading '+file.name+'…','info');
+  try{
+    const data=await file.arrayBuffer();
+    const wb=XLSX.read(data,{type:'array'});
+    const ws=wb.Sheets[wb.SheetNames[0]];
+    const aoa=XLSX.utils.sheet_to_json(ws,{header:1,blankrows:false,defval:''});
+    if(!aoa.length){ setMsg('#up-msg','The sheet is empty.','err'); return; }
+    const headers=aoa[0].map(h=>(h==null?'':h.toString().trim())).filter(h=>h!=='');
+    const rows=[];
+    for(let i=1;i<aoa.length;i++){
+      const r=aoa[i]||[];
+      if(r.every(c=>c==null||c.toString().trim()===''))continue;
+      rows.push(headers.map((_,j)=>r[j]==null?'':r[j].toString()));
+    }
+    if(!rows.length){ setMsg('#up-msg','No data rows found below the header.','err'); return; }
+    setMsg('#up-msg','Uploading '+rows.length+' rows…','info');
+    const d=await apiCall('/upload',{agencySlug:sel.agencySlug,financeId:sel.financeId,fileName:file.name,headers,rows},true);
+    setMsg('#up-msg','✓ Uploaded — '+((d&&d.records)||rows.length)+' records saved.','ok');
+    loadFiles();
+  }catch(e){ setMsg('#up-msg',e.message,'err'); }
+}
+
+// ── Boot ──
+if(token) enterDash();
+</script>
+</body>
+</html>

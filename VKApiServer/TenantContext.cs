@@ -96,3 +96,52 @@ internal static class AgencyToken
         return Convert.FromBase64String(s);
     }
 }
+
+internal static class IntegrationToken
+{
+    private static readonly byte[] Key = Encoding.UTF8.GetBytes(
+        Environment.GetEnvironmentVariable("TENANT_DB_SECRET")
+        ?? "crmrs-tenant-secret-rotate-me-2026");
+
+    public static string Issue(int accountId, string email, int validDays = 30)
+    {
+        long exp = DateTimeOffset.UtcNow.AddDays(validDays).ToUnixTimeSeconds();
+        var payload = Encoding.UTF8.GetBytes($"{accountId}|{email}|{exp}");
+        return "int1." + B64Url(payload) + "." + B64Url(Sign(payload));
+    }
+
+    public static (int id, string email)? Verify(string? token)
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(token) || !token.StartsWith("int1.", StringComparison.Ordinal))
+                return null;
+            var parts = token.Split('.');
+            if (parts.Length != 3) return null;
+            var payload = FromB64Url(parts[1]);
+            if (!CryptographicOperations.FixedTimeEquals(FromB64Url(parts[2]), Sign(payload)))
+                return null;
+            var f = Encoding.UTF8.GetString(payload).Split('|');
+            if (f.Length != 3) return null;
+            if (DateTimeOffset.UtcNow.ToUnixTimeSeconds() > long.Parse(f[2])) return null;
+            return (int.Parse(f[0]), f[1]);
+        }
+        catch { return null; }
+    }
+
+    private static byte[] Sign(byte[] data)
+    {
+        using var h = new HMACSHA256(Key);
+        return h.ComputeHash(data);
+    }
+
+    private static string B64Url(byte[] b) =>
+        Convert.ToBase64String(b).TrimEnd('=').Replace('+', '-').Replace('/', '_');
+
+    private static byte[] FromB64Url(string s)
+    {
+        s = s.Replace('-', '+').Replace('_', '/');
+        s += (s.Length % 4) switch { 2 => "==", 3 => "=", _ => "" };
+        return Convert.FromBase64String(s);
+    }
+}
