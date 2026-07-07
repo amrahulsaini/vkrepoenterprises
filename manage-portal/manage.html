@@ -16,19 +16,28 @@
   .ag-meta { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px 26px; margin-top:20px; }
   .ag-meta .k { font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--text-muted); font-weight:700; margin-bottom:3px; }
   .ag-meta .v { font-size:14.5px; color:var(--text); word-break:break-word; }
-  .integ-acc { border:1.5px solid var(--border); border-radius:14px; padding:16px 18px; margin-bottom:14px; background:var(--surface); }
-  .integ-acc.on { border-color:var(--brand); background:var(--brand-tint); }
-  .integ-acc-top { display:flex; align-items:center; gap:12px; }
-  .integ-acc-top .nm { font-weight:700; font-size:15px; }
-  .integ-acc-top .em { color:var(--text-muted); font-size:13px; }
-  .integ-body { margin-top:14px; padding-top:14px; border-top:1px dashed var(--border); }
-  .ho-list { display:flex; flex-wrap:wrap; gap:8px; margin-top:6px; }
-  .ho-chip { display:inline-flex; align-items:center; gap:7px; border:1.5px solid var(--border); border-radius:9px; padding:7px 11px; font-size:13px; cursor:pointer; background:#fff; }
-  .ho-chip input { margin:0; }
-  .ho-chip.on { border-color:var(--brand); background:var(--brand-tint); color:var(--brand-700); }
-  .filter-row { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; margin-top:14px; }
+  .ho-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:12px; }
+  @media(max-width:720px){ .ho-grid { grid-template-columns:repeat(2,1fr); } }
+  @media(max-width:460px){ .ho-grid { grid-template-columns:1fr; } }
+  .ho-tile { border:1.5px solid var(--border); border-radius:12px; padding:13px 14px; background:#fff; cursor:pointer; transition:border-color .12s,background .12s; text-align:left; }
+  .ho-tile:hover { border-color:var(--brand); background:var(--brand-tint); }
+  .ho-tile .hn { font-weight:700; font-size:14px; color:var(--text); word-break:break-word; }
+  .ho-tile .asg { font-size:12.5px; margin-top:6px; }
+  .ho-tile .asg.none { color:var(--text-muted); }
+  .ho-tile .asg.set { color:var(--brand-700); font-weight:600; }
+  .ho-tile.assigned { border-color:var(--brand); background:var(--brand-tint); }
+  .filter-row { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-top:8px; }
   .filter-row label { display:block; font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--text-muted); font-weight:700; margin-bottom:5px; }
-  .switch { display:inline-flex; align-items:center; gap:8px; cursor:pointer; font-weight:600; font-size:14px; }
+  .modal-bd { position:fixed; inset:0; background:rgba(11,18,32,.5); display:none; align-items:center; justify-content:center; padding:20px; z-index:50; }
+  .modal-bd.open { display:flex; }
+  .modal-cd { width:100%; max-width:440px; background:#fff; border-radius:16px; box-shadow:0 20px 60px rgba(0,0,0,.3); padding:22px; max-height:88vh; overflow:auto; }
+  .modal-cd h3 { margin:0 0 4px; font-size:18px; }
+  .fin-opt { display:flex; align-items:center; gap:10px; border:1.5px solid var(--border); border-radius:10px; padding:11px 13px; margin-bottom:8px; cursor:pointer; }
+  .fin-opt:hover { border-color:var(--brand); }
+  .fin-opt.sel { border-color:var(--brand); background:var(--brand-tint); }
+  .fin-opt .fn { font-weight:600; font-size:14px; }
+  .fin-opt .fe { color:var(--text-muted); font-size:12.5px; }
+  .fin-opt.dis { opacity:.5; cursor:not-allowed; }
 </style>
 </head>
 <body>
@@ -91,6 +100,28 @@
     </div>
   </section>
 </main>
+
+<div class="modal-bd" id="assign-modal">
+  <div class="modal-cd">
+    <h3 id="assign-title">Integrate head office</h3>
+    <p class="text-muted" style="margin:0 0 14px; font-size:13.5px;">Choose one finance to integrate with this head office. Each finance can be linked to only one head office.</p>
+    <div id="assign-fins"></div>
+    <div id="assign-filters" style="margin-top:14px; border-top:1px dashed var(--border); padding-top:12px;">
+      <div class="text-muted" style="font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; font-weight:700; margin-bottom:6px;">Filters (optional)</div>
+      <div class="filter-row">
+        <div><label>Regions</label><input class="input aflt" data-k="regions" placeholder="comma separated"></div>
+        <div><label>Areas</label><input class="input aflt" data-k="areas" placeholder="comma separated"></div>
+        <div><label>Buckets</label><input class="input aflt" data-k="buckets" placeholder="comma separated"></div>
+      </div>
+    </div>
+    <div class="flex items-center justify-between mt-3" style="gap:10px;">
+      <button class="btn btn-ghost btn-sm" id="assign-remove" style="display:none;">Remove integration</button>
+      <div style="flex:1"></div>
+      <button class="btn btn-outline btn-sm" id="assign-cancel">Cancel</button>
+      <button class="btn btn-primary btn-sm" id="assign-apply">Apply</button>
+    </div>
+  </div>
+</div>
 
 <div class="toast-container" id="toasts"></div>
 
@@ -171,6 +202,11 @@
 
   $('#make-integration-btn').addEventListener('click', openIntegration);
 
+  let assignMap = {};
+  let curFin = null, curSel = null;
+
+  function activeAccounts() { return accounts.filter(a => a.status === 'active'); }
+
   async function openIntegration() {
     const btn = $('#make-integration-btn');
     btn.disabled = true;
@@ -183,16 +219,16 @@
         api('/manage/agency/' + agency.id + '/grants'),
       ]);
       accounts = accR.accounts || [];
-      finances = finR.finances || [];
+      finances = (finR.finances || []).slice().sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
       financeNote = finR.note || '';
 
-      const existing = {};
+      assignMap = {};
       (grR.grants || []).forEach(g => {
-        if (!existing[g.integrationAccountId]) existing[g.integrationAccountId] = { heads: new Set(), filters: {} };
-        existing[g.integrationAccountId].heads.add(g.financeId);
-        if (g.filters) { try { existing[g.integrationAccountId].filters = JSON.parse(g.filters); } catch (_) {} }
+        let filters = {};
+        if (g.filters) { try { filters = JSON.parse(g.filters); } catch (_) {} }
+        assignMap[g.financeId] = { accountId: g.integrationAccountId, accountName: g.accountName || g.financeName, filters };
       });
-      renderIntegration(existing);
+      renderGrid();
     } catch (e) {
       $('#integ-list').innerHTML = '<div class="empty"><div class="ico">⚠</div><div>' + escapeHtml(e.message || 'Failed to load') + '</div></div>';
     } finally {
@@ -200,73 +236,99 @@
     }
   }
 
-  function renderIntegration(existing) {
-    if (!accounts.length) {
-      $('#integ-list').innerHTML = '<div class="empty"><div class="ico">📭</div><div>No finance company has applied for an integration yet.</div></div>';
+  function accountName(id) {
+    const a = accounts.find(x => x.id === id);
+    return a ? a.financeName : '';
+  }
+
+  function renderGrid() {
+    if (!finances.length) {
+      $('#integ-list').innerHTML = '<div class="empty"><div class="ico">📭</div><div>' +
+        escapeHtml(financeNote || 'This agency has no head offices yet.') + '</div></div>';
       $('#integ-actions').style.display = 'none';
       return;
     }
-    const active = accounts.filter(a => a.status === 'active');
-    if (!active.length) {
-      $('#integ-list').innerHTML = '<div class="empty"><div class="ico">📭</div><div>No active integration accounts to grant.</div></div>';
-      $('#integ-actions').style.display = 'none';
-      return;
-    }
-
-    const financeHtml = fid => finances.map(f => {
-      const on = existing[fid] && existing[fid].heads.has(f.id);
-      return '<label class="ho-chip' + (on ? ' on' : '') + '" data-fin="' + f.id + '" data-name="' + escapeHtml(f.name) + '">' +
-        '<input type="checkbox" ' + (on ? 'checked' : '') + '> ' + escapeHtml(f.name) + '</label>';
-    }).join('');
-
-    const noHeads = financeNote
-      ? '<p class="text-muted" style="font-size:13px; margin:6px 0 0;">' + escapeHtml(financeNote) + '</p>'
-      : '<p class="text-muted" style="font-size:13px; margin:6px 0 0;">This agency has no head offices yet.</p>';
-
-    $('#integ-list').innerHTML = active.map(a => {
-      const ex = existing[a.id];
-      const on = !!ex;
-      const flt = (ex && ex.filters) || {};
-      const csv = k => Array.isArray(flt[k]) ? flt[k].join(', ') : '';
-      return (
-        '<div class="integ-acc' + (on ? ' on' : '') + '" data-acc="' + a.id + '" data-nm="' + escapeHtml(a.financeName) + '">' +
-          '<div class="integ-acc-top">' +
-            '<label class="switch"><input type="checkbox" class="acc-toggle" ' + (on ? 'checked' : '') + '> Allow integration</label>' +
-            '<div style="flex:1"></div>' +
-            '<div style="text-align:right"><div class="nm">' + escapeHtml(a.financeName) + '</div><div class="em">' + escapeHtml(a.email) + '</div></div>' +
-          '</div>' +
-          '<div class="integ-body" style="' + (on ? '' : 'display:none') + '">' +
-            (finances.length
-              ? '<div class="k" style="font-size:11.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--text-muted);font-weight:700;">Head offices this finance may access</div>' +
-                '<div class="ho-list">' + financeHtml(a.id) + '</div>'
-              : noHeads) +
-            '<div class="filter-row">' +
-              '<div><label>Regions (optional)</label><input class="input flt" data-k="regions" placeholder="comma separated" value="' + escapeHtml(csv('regions')) + '"></div>' +
-              '<div><label>Areas (optional)</label><input class="input flt" data-k="areas" placeholder="comma separated" value="' + escapeHtml(csv('areas')) + '"></div>' +
-              '<div><label>Buckets (optional)</label><input class="input flt" data-k="buckets" placeholder="comma separated" value="' + escapeHtml(csv('buckets')) + '"></div>' +
-            '</div>' +
-          '</div>' +
-        '</div>'
-      );
-    }).join('');
+    $('#integ-list').innerHTML = '<div class="ho-grid">' + finances.map(f => {
+      const a = assignMap[f.id];
+      const sub = a
+        ? '<div class="asg set">🔗 ' + escapeHtml(a.accountName || accountName(a.accountId)) + '</div>'
+        : '<div class="asg none">Not integrated — click to set</div>';
+      return '<button type="button" class="ho-tile' + (a ? ' assigned' : '') + '" data-fin="' + f.id + '">' +
+        '<div class="hn">' + escapeHtml(f.name) + '</div>' + sub + '</button>';
+    }).join('') + '</div>';
+    $('#integ-list').querySelectorAll('.ho-tile').forEach(t =>
+      t.addEventListener('click', () => openAssign(+t.dataset.fin)));
 
     $('#integ-actions').style.display = 'flex';
-    $('#integ-hint').textContent = finances.length
-      ? 'Tick head offices under each allowed finance, then save.'
-      : 'This agency has no head offices to grant yet.';
-
-    $('#integ-list').querySelectorAll('.acc-toggle').forEach(t => {
-      t.addEventListener('change', () => {
-        const acc = t.closest('.integ-acc');
-        acc.classList.toggle('on', t.checked);
-        acc.querySelector('.integ-body').style.display = t.checked ? '' : 'none';
-      });
-    });
-    $('#integ-list').querySelectorAll('.ho-chip').forEach(chip => {
-      const cb = chip.querySelector('input');
-      cb.addEventListener('change', () => chip.classList.toggle('on', cb.checked));
-    });
+    const n = Object.keys(assignMap).length;
+    $('#integ-hint').textContent = n
+      ? n + ' head office' + (n === 1 ? '' : 's') + ' integrated. Click a head office to change.'
+      : 'Click a head office to integrate it with a finance.';
   }
+
+  function openAssign(finId) {
+    const fin = finances.find(f => f.id === finId);
+    if (!fin) return;
+    curFin = fin;
+    const cur = assignMap[finId];
+    curSel = cur ? cur.accountId : null;
+
+    $('#assign-title').textContent = 'Integrate “' + fin.name + '”';
+    const active = activeAccounts();
+    if (!active.length) {
+      $('#assign-fins').innerHTML = '<div class="empty" style="padding:16px">No finance has applied for an integration yet.</div>';
+    } else {
+      $('#assign-fins').innerHTML = active.map(a => {
+        const usedElsewhere = Object.entries(assignMap).some(([fid, v]) => v.accountId === a.id && +fid !== finId);
+        const sel = curSel === a.id;
+        return '<div class="fin-opt' + (sel ? ' sel' : '') + (usedElsewhere ? ' dis' : '') + '" data-acc="' + a.id + '"' +
+          (usedElsewhere ? ' title="Already integrated with another head office"' : '') + '>' +
+          '<div style="flex:1"><div class="fn">' + escapeHtml(a.financeName) + '</div><div class="fe">' + escapeHtml(a.email) +
+          (usedElsewhere ? ' · already used' : '') + '</div></div>' +
+          (sel ? '<span style="color:var(--brand);font-weight:800">✓</span>' : '') + '</div>';
+      }).join('');
+      $('#assign-fins').querySelectorAll('.fin-opt').forEach(o => {
+        if (o.classList.contains('dis')) return;
+        o.addEventListener('click', () => {
+          curSel = +o.dataset.acc;
+          $('#assign-fins').querySelectorAll('.fin-opt').forEach(x => {
+            const on = +x.dataset.acc === curSel;
+            x.classList.toggle('sel', on);
+            const chk = x.querySelector('span'); if (chk) chk.remove();
+            if (on) x.insertAdjacentHTML('beforeend', '<span style="color:var(--brand);font-weight:800">✓</span>');
+          });
+        });
+      });
+    }
+
+    const flt = (cur && cur.filters) || {};
+    $('#assign-modal').querySelectorAll('.aflt').forEach(inp => {
+      inp.value = Array.isArray(flt[inp.dataset.k]) ? flt[inp.dataset.k].join(', ') : '';
+    });
+    $('#assign-remove').style.display = cur ? '' : 'none';
+    $('#assign-modal').classList.add('open');
+  }
+
+  function closeAssign() { $('#assign-modal').classList.remove('open'); curFin = null; curSel = null; }
+  $('#assign-cancel').addEventListener('click', closeAssign);
+  $('#assign-modal').addEventListener('click', e => { if (e.target.id === 'assign-modal') closeAssign(); });
+
+  $('#assign-remove').addEventListener('click', () => {
+    if (curFin) delete assignMap[curFin.id];
+    closeAssign(); renderGrid();
+  });
+
+  $('#assign-apply').addEventListener('click', () => {
+    if (!curFin) return;
+    if (curSel == null) { toast('Choose a finance to integrate with.', 'info'); return; }
+    const filters = {};
+    $('#assign-modal').querySelectorAll('.aflt').forEach(inp => {
+      const vals = parseCsv(inp.value);
+      if (vals.length) filters[inp.dataset.k] = vals;
+    });
+    assignMap[curFin.id] = { accountId: curSel, accountName: accountName(curSel), filters };
+    closeAssign(); renderGrid();
+  });
 
   $('#integ-save-btn').addEventListener('click', save);
 
@@ -276,33 +338,22 @@
 
   async function save() {
     const grants = [];
-    const grantedNames = [];
-    $('#integ-list').querySelectorAll('.integ-acc').forEach(acc => {
-      if (!acc.querySelector('.acc-toggle').checked) return;
-      const accId = +acc.dataset.acc;
-      const filters = {};
-      acc.querySelectorAll('.flt').forEach(inp => {
-        const vals = parseCsv(inp.value);
-        if (vals.length) filters[inp.dataset.k] = vals;
+    const lines = [];
+    finances.forEach(f => {
+      const a = assignMap[f.id];
+      if (!a) return;
+      grants.push({
+        integrationAccountId: a.accountId,
+        financeId: f.id,
+        financeName: f.name,
+        filters: Object.keys(a.filters || {}).length ? JSON.stringify(a.filters) : '',
+        active: true,
       });
-      const filtersStr = Object.keys(filters).length ? JSON.stringify(filters) : '';
-      let picked = 0;
-      acc.querySelectorAll('.ho-chip input:checked').forEach(cb => {
-        const chip = cb.closest('.ho-chip');
-        grants.push({
-          integrationAccountId: accId,
-          financeId: +chip.dataset.fin,
-          financeName: chip.dataset.name,
-          filters: filtersStr,
-          active: true,
-        });
-        picked++;
-      });
-      if (picked) grantedNames.push(acc.dataset.nm);
+      lines.push(f.name + ' → ' + (a.accountName || accountName(a.accountId)));
     });
 
-    const msg = grantedNames.length
-      ? 'Are you sure you want ' + agency.name + ' to allow integration with:\n\n• ' + grantedNames.join('\n• ') + '\n\nThis replaces the current integration settings for this agency.'
+    const msg = lines.length
+      ? 'Are you sure you want ' + agency.name + ' to allow these integrations?\n\n• ' + lines.join('\n• ') + '\n\nThis replaces the current integration settings for this agency.'
       : 'This will remove all integrations for ' + agency.name + '. Continue?';
     if (!confirm(msg)) return;
 
