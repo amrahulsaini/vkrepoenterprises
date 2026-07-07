@@ -145,6 +145,21 @@
   .kv{display:grid;grid-template-columns:160px 1fr;gap:8px 16px;font-size:13.5px}
   .kv .k{color:var(--muted);font-weight:700}
   .kv .v{word-break:break-word}
+  .lnk{color:var(--err);font-weight:800;cursor:pointer;text-decoration:none}
+  .lnk:hover{text-decoration:underline}
+  .agent-head{display:flex;gap:16px;align-items:center;margin-bottom:4px}
+  .agent-head .apfp{width:78px;height:78px;border-radius:16px;object-fit:cover;border:1px solid var(--line);background:#eef2f8;flex-shrink:0}
+  .agent-head .anm{font-family:var(--head);font-size:21px;font-weight:800;line-height:1.15}
+  .badge2{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:700;padding:3px 10px;border-radius:999px;margin:4px 6px 0 0}
+  .badge2.g{background:var(--okbg);color:var(--ok)} .badge2.r{background:var(--errbg);color:var(--err)} .badge2.n{background:var(--line2);color:var(--ink2)}
+  .sec-title{font-family:var(--head);font-size:13px;margin:18px 0 8px;color:var(--ink2);border-top:1px solid var(--line);padding-top:14px}
+  .photo-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;margin-top:8px}
+  .photo{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#f7faff}
+  .photo .pl{font-size:10.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;padding:7px 10px;border-bottom:1px solid var(--line)}
+  .photo img{width:100%;height:132px;object-fit:cover;display:block;cursor:zoom-in;background:#fff}
+  .photo .none{height:132px;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:12px}
+  .imgview{position:fixed;inset:0;background:rgba(0,0,0,.86);display:none;align-items:center;justify-content:center;z-index:120;padding:24px;cursor:zoom-out}
+  .imgview.open{display:flex} .imgview img{max-width:96%;max-height:96%;border-radius:8px}
 
   .toast-wrap{position:fixed;top:18px;right:18px;z-index:100;display:flex;flex-direction:column;gap:10px;max-width:340px}
   .toast{background:#fff;border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:11px;box-shadow:var(--shadow-lg);padding:12px 14px;font-size:13.5px;color:var(--ink);display:flex;gap:10px;align-items:flex-start;animation:slidein .18s ease}
@@ -229,6 +244,15 @@
     <div class="modal-actions"><button class="btn btn-outline btn-sm" id="rec-close">Close</button></div>
   </div>
 </div>
+
+<div class="modal-bd" id="agent-modal">
+  <div class="modal-cd" style="max-width:660px">
+    <div id="agent-body"><div class="empty"><span class="spin"></span> Loading…</div></div>
+    <div class="modal-actions"><button class="btn btn-outline btn-sm" id="agent-close">Close</button></div>
+  </div>
+</div>
+
+<div class="imgview" id="imgview"><img id="imgview-img" src="" alt=""></div>
 
 <div class="modal-bd" id="confirm-modal">
   <div class="modal-cd" style="max-width:440px">
@@ -423,6 +447,18 @@ function renderRecords(){
   $('#rec-scope').innerHTML='📍 '+(selBranch?('Branch: <b>'+esc(selBranch.name)+'</b>'):('All branches of <b>'+esc(sel.financeName)+'</b>'));
   $('#rec-search').onclick=()=>{ recOffset=0; loadRecords(true); };
   $('#rec-q').addEventListener('keydown',e=>{if(e.key==='Enter'){recOffset=0;loadRecords(true);}});
+  let recTimer;
+  const autoSearch=()=>{
+    clearTimeout(recTimer);
+    const mode=$('#rec-mode').value, v=$('#rec-q').value.trim(), digits=v.replace(/\D/g,'');
+    let go;
+    if(mode==='rc') go=digits.length>=4;
+    else if(mode==='chassis') go=v.length>=5;
+    else go=v.length>=2||v.length===0;
+    if(go) recTimer=setTimeout(()=>{ recOffset=0; loadRecords(true); },220);
+  };
+  $('#rec-q').addEventListener('input',autoSearch);
+  $('#rec-mode').addEventListener('change',()=>{ $('#rec-q').value=''; $('#rec-q').placeholder = $('#rec-mode').value==='rc'?'Enter last 4 digits of RC…':$('#rec-mode').value==='chassis'?'Enter last 5 of chassis…':'Search records…'; $('#rec-q').focus(); });
   $('#rec-more').onclick=()=>loadRecords(false);
   const ab=$('#rec-allbr'); if(ab) ab.onclick=()=>{ selBranch=null; renderRecords(); };
   loadRecords(true);
@@ -563,9 +599,67 @@ async function loadLogs(){
     const logs=d.logs||[];
     if(!logs.length){ body.innerHTML='<div class="empty"><span class="ei">👣</span>No searches found for this head office in the selected range.</div>'; return; }
     body.innerHTML='<div class="tbl-scroll"><table class="tbl"><thead><tr><th>Agent</th><th>Mobile</th><th>Vehicle</th><th>Chassis</th><th>Model</th><th>When</th><th>Location</th></tr></thead><tbody>'+
-      logs.map(l=>'<tr><td>'+esc(l.userName)+'</td><td>'+esc(l.userMobile)+'</td><td>'+esc(l.vehicleNo)+'</td><td>'+esc(l.chassisNo)+'</td><td>'+esc(l.model)+'</td><td>'+esc(l.time)+'</td><td>'+
+      logs.map(l=>'<tr>'+
+        '<td><span class="lnk" data-uid="'+l.userId+'" data-nm="'+esc(l.userName)+'">'+esc(l.userName)+'</span></td>'+
+        '<td>'+esc(l.userMobile)+'</td>'+
+        '<td>'+(l.vehicleNo?'<span class="lnk" data-vno="'+esc(l.vehicleNo)+'">'+esc(l.vehicleNo)+'</span>':'—')+'</td>'+
+        '<td>'+esc(l.chassisNo)+'</td><td>'+esc(l.model)+'</td><td>'+esc(l.time)+'</td><td>'+
         (l.lat!=null&&l.lng!=null?'<a href="https://maps.google.com/?q='+l.lat+','+l.lng+'" target="_blank">📍 map</a>':esc(l.address||'—'))+'</td></tr>').join('')+'</tbody></table></div>';
+    body.querySelectorAll('.lnk[data-uid]').forEach(a=>a.onclick=()=>openAgent(+a.dataset.uid,a.dataset.nm));
+    body.querySelectorAll('.lnk[data-vno]').forEach(a=>a.onclick=()=>openVehicle(a.dataset.vno));
   }catch(e){ body.innerHTML='<div class="empty">'+esc(e.message)+'</div>'; }
+}
+
+function badge2(ok,label,bad){ return '<span class="badge2 '+(ok?'g':(bad?'r':'n'))+'">'+(ok?'✓ ':'')+esc(label)+'</span>'; }
+async function openAgent(uid,nm){
+  const m=$('#agent-modal'); $('#agent-body').innerHTML='<div class="empty"><span class="spin"></span> Loading agent…</div>'; m.classList.add('open');
+  try{
+    const d=await apiCall('/agent',{agencySlug:sel.agencySlug,financeId:sel.financeId,userId:uid},true);
+    const p=d.profile||{}, ph=d.photos||{}, k=p.kyc||{}, aa=k.aadhaar||{}, pan=k.pan||{}, bank=k.bank||{};
+    const kv=(a,b)=> b?('<div class="k">'+esc(a)+'</div><div class="v">'+esc(b)+'</div>'):'';
+    const photo=(url,label)=> '<div class="photo"><div class="pl">'+esc(label)+'</div>'+(url?'<img src="'+esc(url)+'" data-full="'+esc(url)+'">':'<div class="none">Not provided</div>')+'</div>';
+    const st=(p.kycStatus||k.status||'').toLowerCase();
+    $('#agent-body').innerHTML=
+      '<div class="agent-head"><img class="apfp" src="'+esc(p.pfp||'/assets/crmrs-logo.webp')+'" onerror="this.src=\'/assets/crmrs-logo.webp\'">'+
+        '<div><div class="anm">'+esc(p.name||nm||'Agent')+'</div><div>'+
+          (p.isAdmin?badge2(true,'Admin'):'')+
+          (p.isActive?badge2(true,'Active'):badge2(false,'Inactive',true))+
+          (p.isStopped?badge2(false,'Stopped',true):'')+
+          (p.isBlacklisted?badge2(false,'Blacklisted',true):'')+
+          badge2(k.status==='success'||k.status==='verified', 'KYC '+(k.status||'—'), k.status==='failed'||k.status==='rejected')+
+        '</div></div></div>'+
+      '<div class="sec-title">Contact</div><div class="kv">'+
+        kv('Mobile',p.mobile)+kv('Address',p.address)+kv('Pincode',p.pincode)+kv('Last seen',p.lastSeen)+kv('Joined',p.createdAt)+
+        (p.lastLat!=null&&p.lastLng!=null?'<div class="k">Last location</div><div class="v"><a href="https://maps.google.com/?q='+p.lastLat+','+p.lastLng+'" target="_blank">📍 open map</a></div>':'')+
+      '</div>'+
+      '<div class="sec-title">KYC details</div><div class="kv">'+
+        kv('Aadhaar name',aa.name)+kv('Aadhaar no',aa.number||(aa.last4?('•••• •••• '+aa.last4):''))+kv('DOB',aa.dob)+kv('Gender',aa.gender)+kv('Aadhaar address',aa.address)+
+        kv('PAN',pan.number)+kv('PAN name',pan.name)+
+        kv('Bank holder',bank.holder)+kv('Account no',p.accountNumber)+kv('IFSC',p.ifsc)+
+        kv('Registered at',k.regLocation)+kv('Verified on',k.verifiedAt)+(k.rejectNote?kv('Reject note',k.rejectNote):'')+
+      '</div>'+
+      '<div class="sec-title">Documents & photos</div><div class="photo-grid">'+
+        photo(ph.selfie,'Selfie')+photo(ph.aadhaarPhoto,'Aadhaar photo')+photo(ph.aadhaarFront,'Aadhaar front')+photo(ph.aadhaarBack,'Aadhaar back')+photo(ph.panFront,'PAN card')+
+      '</div>';
+    $('#agent-body').querySelectorAll('.photo img').forEach(img=>img.onclick=()=>{ $('#imgview-img').src=img.dataset.full; $('#imgview').classList.add('open'); });
+  }catch(e){ $('#agent-body').innerHTML='<div class="empty">'+esc(e.message)+'</div>'; }
+}
+$('#agent-close').onclick=()=>$('#agent-modal').classList.remove('open');
+$('#agent-modal').addEventListener('click',e=>{ if(e.target.id==='agent-modal') $('#agent-modal').classList.remove('open'); });
+$('#imgview').onclick=()=>$('#imgview').classList.remove('open');
+
+async function openVehicle(vno){
+  $('#rec-title').textContent='Vehicle · '+vno;
+  $('#rec-kv').innerHTML='<div class="empty" style="grid-column:1/-1"><span class="spin"></span> Loading…</div>';
+  $('#rec-modal').classList.add('open');
+  try{
+    const d=await apiCall('/vehicle',{agencySlug:sel.agencySlug,financeId:sel.financeId,vehicleNo:vno},true);
+    const recs=d.records||[];
+    if(!recs.length){ $('#rec-kv').innerHTML='<div class="empty" style="grid-column:1/-1">No record found for this vehicle under this head office.</div>'; return; }
+    $('#rec-kv').innerHTML=recs.map(rec=>
+      (recs.length>1?'<div class="sec-title" style="grid-column:1/-1;margin-top:0">🏢 Branch: '+esc(rec.branchName)+'</div>':'')+
+      rec.fields.map(f=>'<div class="k">'+esc(f.label)+'</div><div class="v">'+esc(f.value||'—')+'</div>').join('')).join('');
+  }catch(e){ $('#rec-kv').innerHTML='<div class="empty" style="grid-column:1/-1">'+esc(e.message)+'</div>'; }
 }
 
 if(token) enterDash();

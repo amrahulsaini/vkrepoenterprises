@@ -2033,7 +2033,7 @@ internal static class AgencyPortal
                 await using var tc = new MySqlConnection(TenantContext.BuildTenantConn(mysqlHost, mysqlPort, slug));
                 await tc.OpenAsync();
                 var sql = new System.Text.StringBuilder(@"
-                    SELECT sl.id, u.name, u.mobile, sl.vehicle_no, sl.chassis_no, sl.model,
+                    SELECT sl.id, sl.user_id, u.name, u.mobile, sl.vehicle_no, sl.chassis_no, sl.model,
                            sl.lat, sl.lng, COALESCE(sl.address,''),
                            DATE_FORMAT(CONVERT_TZ(sl.device_time,'+00:00','+05:30'),'%d %b %Y %h:%i %p')
                     FROM search_logs sl
@@ -2052,10 +2052,10 @@ internal static class AgencyPortal
                 while (await rdr.ReadAsync())
                     logs.Add(new
                     {
-                        id = rdr.GetInt64(0), userName = rdr.GetString(1), userMobile = rdr.GetString(2),
-                        vehicleNo = rdr.GetString(3), chassisNo = rdr.GetString(4), model = rdr.GetString(5),
-                        lat = rdr.IsDBNull(6) ? (double?)null : rdr.GetDouble(6), lng = rdr.IsDBNull(7) ? (double?)null : rdr.GetDouble(7),
-                        address = rdr.GetString(8), time = rdr.GetString(9)
+                        id = rdr.GetInt64(0), userId = rdr.GetInt64(1), userName = rdr.GetString(2), userMobile = rdr.GetString(3),
+                        vehicleNo = rdr.GetString(4), chassisNo = rdr.GetString(5), model = rdr.GetString(6),
+                        lat = rdr.IsDBNull(7) ? (double?)null : rdr.GetDouble(7), lng = rdr.IsDBNull(8) ? (double?)null : rdr.GetDouble(8),
+                        address = rdr.GetString(9), time = rdr.GetString(10)
                     });
                 return Results.Ok(new { logs });
             }
@@ -2084,6 +2084,132 @@ internal static class AgencyPortal
             cmd.Parameters.AddWithValue("@slug", slug);
             int n = await cmd.ExecuteNonQueryAsync();
             return Results.Ok(new { ok = true, removed = n });
+        });
+
+        app.MapPost("/api/integration/account/agent", async (HttpContext ctx, HttpRequest req) =>
+        {
+            var who = IntegAuth(ctx);
+            if (who is not { } me) return Results.Unauthorized();
+            string slug; int financeId; long userId;
+            try
+            {
+                using var doc = await System.Text.Json.JsonDocument.ParseAsync(req.Body);
+                var r = doc.RootElement;
+                slug = r.TryGetProperty("agencySlug", out var s) ? (s.GetString() ?? "") : "";
+                financeId = r.TryGetProperty("financeId", out var f) && f.TryGetInt32(out var fi) ? fi : 0;
+                userId = r.TryGetProperty("userId", out var u) && u.TryGetInt64(out var ui) ? ui : 0;
+            }
+            catch { return Results.BadRequest(new { message = "Invalid body." }); }
+            if (await IntegFindGrant(me.id, slug, financeId) is null)
+                return Results.Json(new { message = "No access." }, statusCode: 403);
+            const string BASE = "https://api.crmrecoverysoftware.com";
+            string PhotoUrl(string? rel) => string.IsNullOrEmpty(rel) ? "" : BASE + "/uploads/" + rel.TrimStart('/');
+            string Pfp(string? p)
+            {
+                if (string.IsNullOrEmpty(p)) return "";
+                if (p.StartsWith("http") || p.StartsWith("data:")) return p;
+                if (p.Length < 256 && p.Contains('/') && !p.Contains('+') && !p.Contains('=')) return BASE + "/uploads/" + p.TrimStart('/');
+                return "data:image/jpeg;base64," + p;
+            }
+            try
+            {
+                await using var tc = new MySqlConnection(TenantContext.BuildTenantConn(mysqlHost, mysqlPort, slug));
+                await tc.OpenAsync();
+                object? profile = null;
+                await using (var cmd = new MySqlCommand(@"
+                    SELECT name, mobile, COALESCE(address,''), COALESCE(pincode,''), pfp,
+                           is_active, is_admin, COALESCE(is_stopped,0), COALESCE(is_blacklisted,0),
+                           COALESCE(account_number,''), COALESCE(ifsc_code,''),
+                           COALESCE(DATE_FORMAT(last_seen,'%d %b %Y %h:%i %p'),''), last_lat, last_lng,
+                           COALESCE(DATE_FORMAT(created_at,'%d %b %Y'),''),
+                           COALESCE(kyc_aadhaar_name,''), COALESCE(kyc_aadhaar_dob,''), COALESCE(kyc_aadhaar_gender,''),
+                           COALESCE(kyc_aadhaar_address,''), COALESCE(kyc_aadhaar_last4,''), COALESCE(kyc_aadhaar_number,''),
+                           COALESCE(kyc_aadhaar_verified,0), COALESCE(kyc_pan,''), COALESCE(kyc_pan_name,''), COALESCE(kyc_pan_verified,0),
+                           COALESCE(kyc_bank_holder,''), COALESCE(kyc_bank_verified,0), COALESCE(kyc_reg_location,''),
+                           COALESCE(kyc_status,'pending'), COALESCE(kyc_reject_note,''), COALESCE(DATE_FORMAT(kyc_verified_at,'%d %b %Y'),'')
+                    FROM app_users WHERE id=@uid LIMIT 1", tc) { CommandTimeout = 15 })
+                {
+                    cmd.Parameters.AddWithValue("@uid", userId);
+                    await using var rdr = await cmd.ExecuteReaderAsync();
+                    if (!await rdr.ReadAsync()) return Results.NotFound(new { message = "Agent not found." });
+                    string S(int i) => rdr.IsDBNull(i) ? "" : rdr.GetString(i);
+                    bool B(int i) => !rdr.IsDBNull(i) && rdr.GetInt32(i) != 0;
+                    profile = new
+                    {
+                        name = S(0), mobile = S(1), address = S(2), pincode = S(3), pfp = Pfp(rdr.IsDBNull(4) ? null : rdr.GetString(4)),
+                        isActive = B(5), isAdmin = B(6), isStopped = B(7), isBlacklisted = B(8),
+                        accountNumber = S(9), ifsc = S(10), lastSeen = S(11),
+                        lastLat = rdr.IsDBNull(12) ? (double?)null : rdr.GetDouble(12), lastLng = rdr.IsDBNull(13) ? (double?)null : rdr.GetDouble(13),
+                        createdAt = S(14),
+                        kyc = new
+                        {
+                            status = S(28), rejectNote = S(29), verifiedAt = S(30),
+                            aadhaar = new { name = S(15), dob = S(16), gender = S(17), address = S(18), last4 = S(19), number = S(20), verified = B(21) },
+                            pan = new { number = S(22), name = S(23), verified = B(24) },
+                            bank = new { holder = S(25), verified = B(26) },
+                            regLocation = S(27)
+                        }
+                    };
+                }
+                string af = "", ab = "", pf = "", selfie = "", aphoto = "";
+                try
+                {
+                    await using var kc = new MySqlCommand("SELECT aadhaar_front, aadhaar_back, pan_front, selfie, aadhaar_photo FROM user_kyc WHERE user_id=@uid LIMIT 1", tc);
+                    kc.Parameters.AddWithValue("@uid", userId);
+                    await using var kr = await kc.ExecuteReaderAsync();
+                    if (await kr.ReadAsync())
+                    {
+                        af = PhotoUrl(kr.IsDBNull(0) ? null : kr.GetString(0)); ab = PhotoUrl(kr.IsDBNull(1) ? null : kr.GetString(1));
+                        pf = PhotoUrl(kr.IsDBNull(2) ? null : kr.GetString(2)); selfie = PhotoUrl(kr.IsDBNull(3) ? null : kr.GetString(3));
+                        aphoto = PhotoUrl(kr.IsDBNull(4) ? null : kr.GetString(4));
+                    }
+                }
+                catch { }
+                return Results.Ok(new { profile, photos = new { aadhaarFront = af, aadhaarBack = ab, panFront = pf, selfie, aadhaarPhoto = aphoto } });
+            }
+            catch (Exception ex) { return Results.Problem(ex.Message); }
+        });
+
+        app.MapPost("/api/integration/account/vehicle", async (HttpContext ctx, HttpRequest req) =>
+        {
+            var who = IntegAuth(ctx);
+            if (who is not { } me) return Results.Unauthorized();
+            string slug, vehicleNo; int financeId;
+            try
+            {
+                using var doc = await System.Text.Json.JsonDocument.ParseAsync(req.Body);
+                var r = doc.RootElement;
+                slug = r.TryGetProperty("agencySlug", out var s) ? (s.GetString() ?? "") : "";
+                financeId = r.TryGetProperty("financeId", out var f) && f.TryGetInt32(out var fi) ? fi : 0;
+                vehicleNo = (r.TryGetProperty("vehicleNo", out var v) ? (v.GetString() ?? "") : "").Trim();
+            }
+            catch { return Results.BadRequest(new { message = "Invalid body." }); }
+            if (string.IsNullOrWhiteSpace(vehicleNo)) return Results.BadRequest(new { message = "No vehicle number." });
+            if (await IntegFindGrant(me.id, slug, financeId) is null)
+                return Results.Json(new { message = "No access." }, statusCode: 403);
+            try
+            {
+                await using var tc = new MySqlConnection(TenantContext.BuildTenantConn(mysqlHost, mysqlPort, slug));
+                await tc.OpenAsync();
+                var colList = string.Join(", ", IntegRecordCols.Select(c => "vr.`" + c.Col + "`"));
+                var records = new List<object>();
+                await using var cmd = new MySqlCommand($@"
+                    SELECT {colList}, b.name FROM vehicle_records vr
+                    JOIN branches b ON b.id=vr.branch_id
+                    WHERE b.finance_id=@fin AND vr.vehicle_no=@vno ORDER BY vr.id DESC LIMIT 20", tc) { CommandTimeout = 15 };
+                cmd.Parameters.AddWithValue("@fin", financeId);
+                cmd.Parameters.AddWithValue("@vno", vehicleNo);
+                await using var rdr = await cmd.ExecuteReaderAsync();
+                while (await rdr.ReadAsync())
+                {
+                    var fields = new List<object>();
+                    for (int i = 0; i < IntegRecordCols.Length; i++)
+                        fields.Add(new { label = IntegRecordCols[i].Label, value = rdr.IsDBNull(i) ? "" : rdr.GetValue(i)?.ToString() ?? "" });
+                    records.Add(new { branchName = rdr.IsDBNull(IntegRecordCols.Length) ? "" : rdr.GetString(IntegRecordCols.Length), fields });
+                }
+                return Results.Ok(new { records });
+            }
+            catch (Exception ex) { return Results.Problem(ex.Message); }
         });
     }
 
