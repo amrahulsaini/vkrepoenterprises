@@ -109,7 +109,7 @@
   .br-tile{border:1px solid var(--line);border-radius:13px;padding:15px;background:#fff;cursor:pointer;text-align:left;transition:.14s;box-shadow:0 1px 2px rgba(11,18,32,.04)}
   .br-tile:hover{border-color:var(--brand);box-shadow:var(--shadow);transform:translateY(-1px)}
   .br-tile .bn{font-weight:700;font-size:14.5px;word-break:break-word;display:flex;align-items:center;gap:8px}
-  .br-tile .bn:before{content:"🏢";font-size:15px}
+  .br-tile .bn .lucide{width:16px;height:16px;color:var(--brand)}
   .br-tile .bc{color:var(--brand);font-weight:800;font-size:13px;margin-top:9px}
   .br-tile .bm{color:var(--muted);font-size:12px;margin-top:3px}
 
@@ -147,6 +147,14 @@
   .kv .v{word-break:break-word}
   .lnk{color:var(--err);font-weight:800;cursor:pointer;text-decoration:none}
   .lnk:hover{text-decoration:underline}
+  svg.lucide{width:1em;height:1em;vertical-align:-.16em;stroke-width:2;flex-shrink:0}
+  .empty .ei .lucide{width:36px;height:36px}
+  .drop .ic .lucide{width:32px;height:32px;color:var(--accent)}
+  .ti .lucide{width:17px;height:17px}
+  .modal-ic .lucide{width:24px;height:24px}
+  .agh .rm .lucide{width:15px;height:15px}
+  .secure-pill .lucide,.scope-note .lucide,.badge2 .lucide{width:14px;height:14px}
+  .btn .lucide{width:16px;height:16px}
   .agent-head{display:flex;gap:16px;align-items:center;margin-bottom:4px}
   .agent-head .apfp{width:78px;height:78px;border-radius:16px;object-fit:cover;border:1px solid var(--line);background:#eef2f8;flex-shrink:0}
   .agent-head .anm{font-family:var(--head);font-size:21px;font-weight:800;line-height:1.15}
@@ -185,7 +193,7 @@
     <div id="view-login">
       <h1>Finance sign in</h1>
       <p class="sub">Securely access the recovery agencies you are integrated with.</p>
-      <div style="text-align:center;margin-bottom:18px"><span class="secure-pill">🔒 256-bit TLS · Private workspace</span></div>
+      <div style="text-align:center;margin-bottom:18px"><span class="secure-pill"><i data-lucide="lock"></i> 256-bit TLS · Private workspace</span></div>
       <div class="field"><div class="lbl">Email</div><input id="lg-email" type="email" autocomplete="username" placeholder="you@finance.com"></div>
       <div class="field"><div class="lbl">Password</div><input id="lg-pass" type="password" autocomplete="current-password" placeholder="Password"></div>
       <button class="btn btn-primary btn-block" id="lg-btn">Sign in</button>
@@ -231,7 +239,7 @@
         </div>
       </header>
       <div class="content" id="content">
-        <div class="empty"><span class="ei">🏦</span>Pick an agency head office on the left to see its branches, records, uploads and search logs.</div>
+        <div class="empty"><span class="ei"><i data-lucide="landmark"></i></span>Pick an agency head office on the left to see its branches, records, uploads and search logs.</div>
       </div>
     </div>
   </div>
@@ -256,7 +264,7 @@
 
 <div class="modal-bd" id="confirm-modal">
   <div class="modal-cd" style="max-width:440px">
-    <div class="modal-ic warn" id="cf-ic">⚠️</div>
+    <div class="modal-ic warn" id="cf-ic"><i data-lucide="triangle-alert"></i></div>
     <h3 id="cf-title">Are you sure?</h3>
     <p class="mm" id="cf-msg"></p>
     <div class="modal-actions">
@@ -269,9 +277,14 @@
 <div class="toast-wrap" id="toast-wrap"></div>
 
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
 <script>
 const ROOT='https://api.crmrecoverysoftware.com/api/integration/account';
 const $=s=>document.querySelector(s);
+const ic=(n,cls)=>'<i data-lucide="'+n+'"'+(cls?' class="'+cls+'"':'')+'></i>';
+function drawIcons(){ if(window.lucide) try{ lucide.createIcons(); }catch(_){} }
+let _iconTimer;
+new MutationObserver(()=>{ clearTimeout(_iconTimer); _iconTimer=setTimeout(drawIcons,30); }).observe(document.documentElement,{childList:true,subtree:true});
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const COLS=['vehicleno','chassisno','engineno','model','agreementno','bucket','gv','od','seasoning','tbr','sec9','sec17','customername','customeraddress','customercontact','ownername','mobileno','region','area','branch','level1','level1contact','level2','level2contact','level3','level3contact','level4','level4contact','sendermail1','sendermail2','executivename','pos','toss','remark'];
 const COLLABELS={vehicleno:'Vehicle No',chassisno:'Chassis No',engineno:'Engine No',model:'Model',agreementno:'Agreement No',bucket:'Bucket',gv:'GV',od:'OD',seasoning:'Seasoning',tbr:'TBR',sec9:'Sec 9',sec17:'Sec 17',customername:'Customer Name',customeraddress:'Customer Address',customercontact:'Customer Contact',ownername:'Owner Name',mobileno:'Mobile No',region:'Region',area:'Area',branch:'Branch',level1:'Level 1',level1contact:'Level 1 Contact',level2:'Level 2',level2contact:'Level 2 Contact',level3:'Level 3',level3contact:'Level 3 Contact',level4:'Level 4',level4contact:'Level 4 Contact',sendermail1:'Sender Mail 1',sendermail2:'Sender Mail 2',executivename:'Executive Name',pos:'POS',toss:'TOSS',remark:'Remark'};
@@ -282,11 +295,11 @@ let agencies=[], sel=null, curTab='branches', selBranch=null, recOffset=0, recTo
 function setMsg(id,t,c){const m=$(id);m.textContent=t||'';m.className='msg '+(c||'');}
 
 function toast(msg,type){
-  const ic=type==='ok'?'✅':type==='err'?'⛔':'ℹ️';
+  const icon=ic(type==='ok'?'circle-check':type==='err'?'circle-x':'info');
   const el=document.createElement('div');
   el.className='toast '+(type||'info');
-  el.innerHTML='<span class="ti">'+ic+'</span><div>'+esc(msg)+'</div>';
-  $('#toast-wrap').appendChild(el);
+  el.innerHTML='<span class="ti">'+icon+'</span><div>'+esc(msg)+'</div>';
+  $('#toast-wrap').appendChild(el); drawIcons();
   setTimeout(()=>{ el.style.transition='opacity .25s'; el.style.opacity='0'; setTimeout(()=>el.remove(),260); }, 4200);
 }
 function confirmDialog(opts){
@@ -295,7 +308,7 @@ function confirmDialog(opts){
     $('#cf-msg').textContent=opts.message||'';
     $('#cf-yes').textContent=opts.confirmLabel||'Confirm';
     $('#cf-yes').className='btn '+(opts.danger?'btn-danger':'btn-primary');
-    $('#cf-ic').textContent=opts.danger?'🗑️':'⚠️';
+    $('#cf-ic').innerHTML=opts.danger?ic('trash-2'):ic('triangle-alert');
     const m=$('#confirm-modal'); m.classList.add('open');
     const done=v=>{ m.classList.remove('open'); $('#cf-yes').onclick=null; $('#cf-no').onclick=null; res(v); };
     $('#cf-yes').onclick=()=>done(true);
@@ -369,12 +382,12 @@ async function loadAgencies(){
     const d=await apiGet('/agencies');
     agencies=d.agencies||[];
     $('#ag-count').textContent=agencies.length;
-    if(!agencies.length){ list.innerHTML='<div class="empty" style="padding:26px 18px"><span class="ei">📭</span>No active agency integrations yet. An agency admin needs to grant you access.</div>'; return; }
+    if(!agencies.length){ list.innerHTML='<div class="empty" style="padding:26px 18px"><span class="ei"><i data-lucide="inbox"></i></span>No active agency integrations yet. An agency admin needs to grant you access.</div>'; return; }
     list.innerHTML=agencies.map((a,ai)=>{
       const logo=a.logoPath?(/^https?:\/\//i.test(a.logoPath)?a.logoPath:'https://api.crmrecoverysoftware.com'+(a.logoPath.startsWith('/')?'':'/')+a.logoPath):'/assets/crmrs-logo.webp';
       const heads=(a.headOffices||[]).map((h,hi)=>'<button class="ho" data-ai="'+ai+'" data-hi="'+hi+'">'+esc(h.financeName)+'</button>').join('');
       return '<div class="ag"><div class="agh"><img src="'+esc(logo)+'" onerror="this.src=\'/assets/crmrs-logo.webp\'"><div class="nm">'+esc(a.name)+'</div>'+
-        '<button class="rm" title="Remove integration with this agency" data-rm="'+ai+'">✕</button></div>'+heads+'</div>';
+        '<button class="rm" title="Remove integration with this agency" data-rm="'+ai+'"><i data-lucide="x"></i></button></div>'+heads+'</div>';
     }).join('');
     list.querySelectorAll('.ho').forEach(b=>b.addEventListener('click',()=>selectHead(+b.dataset.ai,+b.dataset.hi,b)));
     list.querySelectorAll('.rm').forEach(b=>b.addEventListener('click',()=>removeAgency(+b.dataset.rm)));
@@ -387,7 +400,7 @@ async function removeAgency(ai){
   if(!ok) return;
   try{
     await apiCall('/remove-agency',{agencySlug:a.slug},true);
-    if(sel && sel.agencySlug===a.slug){ sel=null; $('#tabs').classList.add('hidden'); $('#sel-title').textContent='Select a head office'; $('#content').innerHTML='<div class="empty"><span class="ei">🏦</span>Pick an agency head office on the left.</div>'; }
+    if(sel && sel.agencySlug===a.slug){ sel=null; $('#tabs').classList.add('hidden'); $('#sel-title').textContent='Select a head office'; $('#content').innerHTML='<div class="empty"><span class="ei"><i data-lucide="landmark"></i></span>Pick an agency head office on the left.</div>'; }
     toast('Integration removed','info');
     loadAgencies();
   }catch(e){ toast(e.message,'err'); }
@@ -419,9 +432,9 @@ async function renderBranches(){
   try{
     const d=await apiCall('/branches',{agencySlug:sel.agencySlug,financeId:sel.financeId},true);
     const bs=d.branches||[];
-    if(!bs.length){ $('#content').innerHTML='<div class="empty"><span class="ei">🏢</span>No branches yet under this head office.<br>Use the <b>Upload</b> tab to create one and add records.</div>'; return; }
+    if(!bs.length){ $('#content').innerHTML='<div class="empty"><span class="ei"><i data-lucide="building-2"></i></span>No branches yet under this head office.<br>Use the <b>Upload</b> tab to create one and add records.</div>'; return; }
     $('#content').innerHTML='<div class="br-grid">'+bs.map(b=>
-      '<button class="br-tile" data-bid="'+b.id+'" data-bn="'+esc(b.name)+'"><div class="bn">'+esc(b.name)+'</div>'+
+      '<button class="br-tile" data-bid="'+b.id+'" data-bn="'+esc(b.name)+'"><div class="bn">'+ic('building-2')+esc(b.name)+'</div>'+
       '<div class="bc">'+(b.totalRecords||0)+' records</div>'+
       (b.uploadedAt?'<div class="bm">Updated '+esc(b.uploadedAt)+'</div>':'<div class="bm">No uploads yet</div>')+'</button>').join('')+'</div>';
     $('#content').querySelectorAll('.br-tile').forEach(t=>t.addEventListener('click',()=>{
@@ -444,7 +457,7 @@ function renderRecords(){
     '<div id="rec-body"><div class="empty"><span class="spin"></span> Loading…</div></div>'+
     '<div style="text-align:center;margin-top:14px"><button class="btn btn-outline btn-sm hidden" id="rec-more">Load more</button></div>'+
     '</div></div>';
-  $('#rec-scope').innerHTML='📍 '+(selBranch?('Branch: <b>'+esc(selBranch.name)+'</b>'):('All branches of <b>'+esc(sel.financeName)+'</b>'));
+  $('#rec-scope').innerHTML='<i data-lucide="map-pin"></i> '+(selBranch?('Branch: <b>'+esc(selBranch.name)+'</b>'):('All branches of <b>'+esc(sel.financeName)+'</b>'));
   $('#rec-search').onclick=()=>{ recOffset=0; loadRecords(true); };
   $('#rec-q').addEventListener('keydown',e=>{if(e.key==='Enter'){recOffset=0;loadRecords(true);}});
   let recTimer;
@@ -475,7 +488,7 @@ async function loadRecords(reset){
     const rows=d.rows||[], ids=d.ids||[];
     if(reset){ recRows=[]; recIds=[]; }
     recRows=recRows.concat(rows); recIds=recIds.concat(ids);
-    if(reset && !rows.length){ body.innerHTML='<div class="empty"><span class="ei">🔍</span>No records found.</div>'; $('#rec-more').classList.add('hidden'); return; }
+    if(reset && !rows.length){ body.innerHTML='<div class="empty"><span class="ei"><i data-lucide="search"></i></span>No records found.</div>'; $('#rec-more').classList.add('hidden'); return; }
     const head='<thead><tr>'+recCols.map(c=>'<th>'+esc(c)+'</th>').join('')+'</tr></thead>';
     const trFor=(r,gi)=>'<tr data-gi="'+gi+'">'+r.map(c=>'<td>'+esc(c)+'</td>').join('')+'</tr>';
     if(reset){
@@ -508,7 +521,7 @@ async function renderUpload(){
         '<div style="flex:1;min-width:220px"><div class="lbl">Branch under '+esc(sel.financeName)+'</div>'+
           '<select id="up-branch"><option value="">— Select a branch —</option>'+
           branches.map(b=>'<option value="'+b.id+'">'+esc(b.name)+' ('+(b.totalRecords||0)+' records)</option>').join('')+'</select></div>'+
-        '<button class="btn btn-outline" id="up-newbtn">➕ New branch</button>'+
+        '<button class="btn btn-outline" id="up-newbtn"><i data-lucide="plus"></i> New branch</button>'+
       '</div>'+
       '<div id="up-new" class="hidden" style="border:1px solid var(--line);border-radius:12px;padding:16px;margin-top:14px;background:#fafcff">'+
         '<div style="font-weight:700;margin-bottom:12px">Create a new branch</div>'+
@@ -521,7 +534,7 @@ async function renderUpload(){
         '<div class="msg" id="nb-msg"></div></div>'+
     '</div></div>'+
     '<div class="card"><div class="ch"><span class="step-badge">2</span><h4>Upload records</h4></div><div class="cb">'+
-      '<div class="drop" id="drop"><div class="ic">📄</div><b>Click or drop an Excel file</b>'+
+      '<div class="drop" id="drop"><div class="ic"><i data-lucide="file-spreadsheet"></i></div><b>Click or drop an Excel file</b>'+
         '<div class="hint">.xlsx or .xls · first row must be the column headers</div></div>'+
       '<input id="file" type="file" accept=".xlsx,.xls" class="hidden"><div class="msg" id="up-msg"></div>'+
       '<div class="chips" id="up-chips"></div>'+
@@ -586,7 +599,7 @@ function renderLogs(){
     '<div class="card"><div class="cb">'+
     '<div class="toolbar"><input id="lg-from" type="date" value="'+from+'"><span style="color:var(--muted)">to</span><input id="lg-to" type="date" value="'+today+'">'+
       '<input id="lg-q" class="grow" type="text" placeholder="Vehicle / chassis"><button class="btn btn-primary btn-sm" id="lg-load">Load</button></div>'+
-    '<div class="scope-note">👣 Agent searches on vehicles belonging to <b>'+esc(sel.financeName)+'</b>.</div>'+
+    '<div class="scope-note"><i data-lucide="footprints"></i> Agent searches on vehicles belonging to <b>'+esc(sel.financeName)+'</b>.</div>'+
     '<div id="lg-body"><div class="empty">Choose a date range and load.</div></div>'+
     '</div></div>';
   $('#lg-load').onclick=loadLogs;
@@ -597,20 +610,20 @@ async function loadLogs(){
   try{
     const d=await apiCall('/search-logs',{agencySlug:sel.agencySlug,financeId:sel.financeId,fromDate:$('#lg-from').value,toDate:$('#lg-to').value,q:$('#lg-q').value.trim()},true);
     const logs=d.logs||[];
-    if(!logs.length){ body.innerHTML='<div class="empty"><span class="ei">👣</span>No searches found for this head office in the selected range.</div>'; return; }
+    if(!logs.length){ body.innerHTML='<div class="empty"><span class="ei"><i data-lucide="footprints"></i></span>No searches found for this head office in the selected range.</div>'; return; }
     body.innerHTML='<div class="tbl-scroll"><table class="tbl"><thead><tr><th>Agent</th><th>Mobile</th><th>Vehicle</th><th>Chassis</th><th>Model</th><th>When</th><th>Location</th></tr></thead><tbody>'+
       logs.map(l=>'<tr>'+
         '<td><span class="lnk" data-uid="'+l.userId+'" data-nm="'+esc(l.userName)+'">'+esc(l.userName)+'</span></td>'+
         '<td>'+esc(l.userMobile)+'</td>'+
         '<td>'+(l.vehicleNo?'<span class="lnk" data-vno="'+esc(l.vehicleNo)+'">'+esc(l.vehicleNo)+'</span>':'—')+'</td>'+
         '<td>'+esc(l.chassisNo)+'</td><td>'+esc(l.model)+'</td><td>'+esc(l.time)+'</td><td>'+
-        (l.lat!=null&&l.lng!=null?'<a href="https://maps.google.com/?q='+l.lat+','+l.lng+'" target="_blank">📍 map</a>':esc(l.address||'—'))+'</td></tr>').join('')+'</tbody></table></div>';
+        (l.lat!=null&&l.lng!=null?'<a href="https://maps.google.com/?q='+l.lat+','+l.lng+'" target="_blank"><i data-lucide="map-pin"></i> map</a>':esc(l.address||'—'))+'</td></tr>').join('')+'</tbody></table></div>';
     body.querySelectorAll('.lnk[data-uid]').forEach(a=>a.onclick=()=>openAgent(+a.dataset.uid,a.dataset.nm));
     body.querySelectorAll('.lnk[data-vno]').forEach(a=>a.onclick=()=>openVehicle(a.dataset.vno));
   }catch(e){ body.innerHTML='<div class="empty">'+esc(e.message)+'</div>'; }
 }
 
-function badge2(ok,label,bad){ return '<span class="badge2 '+(ok?'g':(bad?'r':'n'))+'">'+(ok?'✓ ':'')+esc(label)+'</span>'; }
+function badge2(ok,label,bad){ return '<span class="badge2 '+(ok?'g':(bad?'r':'n'))+'">'+(ok?ic('check')+' ':'')+esc(label)+'</span>'; }
 async function openAgent(uid,nm){
   const m=$('#agent-modal'); $('#agent-body').innerHTML='<div class="empty"><span class="spin"></span> Loading agent…</div>'; m.classList.add('open');
   try{
@@ -630,7 +643,7 @@ async function openAgent(uid,nm){
         '</div></div></div>'+
       '<div class="sec-title">Contact</div><div class="kv">'+
         kv('Mobile',p.mobile)+kv('Address',p.address)+kv('Pincode',p.pincode)+kv('Last seen',p.lastSeen)+kv('Joined',p.createdAt)+
-        (p.lastLat!=null&&p.lastLng!=null?'<div class="k">Last location</div><div class="v"><a href="https://maps.google.com/?q='+p.lastLat+','+p.lastLng+'" target="_blank">📍 open map</a></div>':'')+
+        (p.lastLat!=null&&p.lastLng!=null?'<div class="k">Last location</div><div class="v"><a href="https://maps.google.com/?q='+p.lastLat+','+p.lastLng+'" target="_blank"><i data-lucide="map-pin"></i> open map</a></div>':'')+
       '</div>'+
       '<div class="sec-title">KYC details</div><div class="kv">'+
         kv('Aadhaar name',aa.name)+kv('Aadhaar no',aa.number||(aa.last4?('•••• •••• '+aa.last4):''))+kv('DOB',aa.dob)+kv('Gender',aa.gender)+kv('Aadhaar address',aa.address)+
@@ -657,11 +670,12 @@ async function openVehicle(vno){
     const recs=d.records||[];
     if(!recs.length){ $('#rec-kv').innerHTML='<div class="empty" style="grid-column:1/-1">No record found for this vehicle under this head office.</div>'; return; }
     $('#rec-kv').innerHTML=recs.map(rec=>
-      (recs.length>1?'<div class="sec-title" style="grid-column:1/-1;margin-top:0">🏢 Branch: '+esc(rec.branchName)+'</div>':'')+
+      (recs.length>1?'<div class="sec-title" style="grid-column:1/-1;margin-top:0"><i data-lucide="building-2"></i> Branch: '+esc(rec.branchName)+'</div>':'')+
       rec.fields.map(f=>'<div class="k">'+esc(f.label)+'</div><div class="v">'+esc(f.value||'—')+'</div>').join('')).join('');
   }catch(e){ $('#rec-kv').innerHTML='<div class="empty" style="grid-column:1/-1">'+esc(e.message)+'</div>'; }
 }
 
+drawIcons();
 if(token) enterDash();
 </script>
 </body>
