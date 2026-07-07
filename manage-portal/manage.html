@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Manage agency — CRMRS</title>
+<meta name="robots" content="noindex,nofollow">
+<link rel="icon" href="/assets/favicon.ico">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/styles.css">
+<style>
+  .ag-head { display:flex; gap:18px; align-items:center; }
+  .ag-head img { width:72px; height:72px; border-radius:14px; border:1px solid var(--border); padding:6px; background:#fff; object-fit:contain; }
+  .ag-meta { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px 26px; margin-top:20px; }
+  .ag-meta .k { font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--text-muted); font-weight:700; margin-bottom:3px; }
+  .ag-meta .v { font-size:14.5px; color:var(--text); word-break:break-word; }
+  .integ-acc { border:1.5px solid var(--border); border-radius:14px; padding:16px 18px; margin-bottom:14px; background:var(--surface); }
+  .integ-acc.on { border-color:var(--brand); background:var(--brand-tint); }
+  .integ-acc-top { display:flex; align-items:center; gap:12px; }
+  .integ-acc-top .nm { font-weight:700; font-size:15px; }
+  .integ-acc-top .em { color:var(--text-muted); font-size:13px; }
+  .integ-body { margin-top:14px; padding-top:14px; border-top:1px dashed var(--border); }
+  .ho-list { display:flex; flex-wrap:wrap; gap:8px; margin-top:6px; }
+  .ho-chip { display:inline-flex; align-items:center; gap:7px; border:1.5px solid var(--border); border-radius:9px; padding:7px 11px; font-size:13px; cursor:pointer; background:#fff; }
+  .ho-chip input { margin:0; }
+  .ho-chip.on { border-color:var(--brand); background:var(--brand-tint); color:var(--brand-700); }
+  .filter-row { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; margin-top:14px; }
+  .filter-row label { display:block; font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--text-muted); font-weight:700; margin-bottom:5px; }
+  .switch { display:inline-flex; align-items:center; gap:8px; cursor:pointer; font-weight:600; font-size:14px; }
+</style>
+</head>
+<body>
+
+<header class="site-header">
+    <div class="container">
+        <a class="brand" href="/">
+            <img class="brand-logo" src="/assets/crmrs-logo.webp" alt="CRMRS"
+                 onerror="this.onerror=null;this.src='/assets/logo-short.webp'">
+            <span class="brand-word"><b>CRM</b>RS</span>
+        </a>
+        <nav class="nav-actions">
+            <a class="btn btn-ghost btn-sm" href="/">← All agencies</a>
+            <button class="btn btn-outline btn-sm" id="logout-btn">Sign out</button>
+        </nav>
+    </div>
+</header>
+
+<main>
+  <section class="section">
+    <div class="container">
+
+      <div id="load-state" class="empty"><div class="ico">⏳</div><div>Loading agency…</div></div>
+
+      <div id="detail" class="hidden">
+        <div class="card">
+          <div class="ag-head">
+            <img id="ag-logo" src="/assets/crmrs-logo.webp" alt=""
+                 onerror="this.src='/assets/crmrs-logo.webp';this.style.opacity='.35'">
+            <div>
+              <h2 id="ag-name" style="margin:0 0 6px; font-size:24px;">—</h2>
+              <span id="ag-status" class="badge badge-pending">—</span>
+              <span id="ag-slug" class="text-muted" style="margin-left:8px; font-size:13px;"></span>
+            </div>
+          </div>
+          <div class="ag-meta" id="ag-meta"></div>
+        </div>
+
+        <div class="card mt-3">
+          <div class="flex items-center justify-between" style="flex-wrap:wrap; gap:12px;">
+            <div>
+              <h2 style="margin:0; font-size:20px;">Integrations</h2>
+              <p class="text-muted" style="margin:4px 0 0; font-size:14px;">
+                Permit finance companies to integrate with this agency's head offices. Only finances that have applied and are active are shown.
+              </p>
+            </div>
+            <button class="btn btn-primary" id="make-integration-btn">🔗 Make integration</button>
+          </div>
+
+          <div id="integ-panel" class="hidden" style="margin-top:20px;">
+            <div id="integ-list"><div class="empty"><div class="ico">⏳</div><div>Loading…</div></div></div>
+            <div class="flex items-center justify-between mt-3" id="integ-actions" style="display:none;">
+              <span class="text-muted" style="font-size:13px;" id="integ-hint"></span>
+              <button class="btn btn-primary" id="integ-save-btn">Save integrations</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+</main>
+
+<div class="toast-container" id="toasts"></div>
+
+<script src="/js/api.js?v=2"></script>
+<script>
+(function () {
+  if (!sessionStorage.getItem('manage_token')) {
+    sessionStorage.setItem('manage_return', location.pathname);
+    location.href = '/';
+    return;
+  }
+  document.getElementById('logout-btn').addEventListener('click', () => {
+    sessionStorage.removeItem('manage_token');
+    location.href = '/';
+  });
+
+  const slug = decodeURIComponent((location.pathname.match(/\/manage\/([^\/]+)/) || [])[1] || '');
+  let agency = null;
+  let accounts = [], finances = [], financeNote = '';
+
+  const $ = s => document.querySelector(s);
+
+  function badgeClass(st) {
+    return st === 'approved' ? 'badge-approved' : st === 'rejected' ? 'badge-rejected' : 'badge-pending';
+  }
+  function logoSrc(p) {
+    if (!p) return '/assets/crmrs-logo.webp';
+    return /^https?:\/\//i.test(p) ? p : 'https://api.crmrecoverysoftware.com' + (p.startsWith('/') ? '' : '/') + p;
+  }
+
+  async function boot() {
+    if (!slug) { fail('No agency specified.'); return; }
+    try {
+      const r = await api('/manage/list?status=all');
+      agency = (r.agencies || []).find(a => a.slug === slug);
+      if (!agency) { fail('Agency “' + escapeHtml(slug) + '” was not found.'); return; }
+      renderDetail();
+    } catch (e) {
+      if (e.status === 401) { sessionStorage.removeItem('manage_token'); location.href = '/'; return; }
+      fail(e.message || 'Failed to load agency.');
+    }
+  }
+
+  function fail(msg) {
+    $('#load-state').innerHTML = '<div class="ico">⚠</div><div>' + escapeHtml(msg) + '</div>';
+  }
+
+  function renderDetail() {
+    $('#load-state').classList.add('hidden');
+    $('#detail').classList.remove('hidden');
+    document.title = agency.name + ' — CRMRS';
+    $('#ag-name').textContent = agency.name;
+    $('#ag-slug').textContent = agency.slug;
+    const st = $('#ag-status');
+    st.textContent = agency.status;
+    st.className = 'badge ' + badgeClass(agency.status);
+    $('#ag-logo').src = logoSrc(agency.logoPath);
+
+    const rows = [
+      ['Primary email', agency.email1],
+      ['Secondary email', agency.email2],
+      ['Primary mobile', agency.mobile1],
+      ['Secondary mobile', agency.mobile2],
+      ['Address', agency.address],
+      ['Database', agency.dbName],
+      ['Registered', formatDate(agency.createdAt)],
+      ['Approved', agency.approvedAt ? formatDate(agency.approvedAt) : '—'],
+    ].filter(r => r[1]);
+    $('#ag-meta').innerHTML = rows.map(r =>
+      '<div><div class="k">' + escapeHtml(r[0]) + '</div><div class="v">' + escapeHtml(r[1]) + '</div></div>'
+    ).join('');
+
+    if (agency.status !== 'approved') {
+      $('#make-integration-btn').disabled = true;
+      $('#make-integration-btn').title = 'Approve the agency first — head offices exist only after approval.';
+    }
+  }
+
+  $('#make-integration-btn').addEventListener('click', openIntegration);
+
+  async function openIntegration() {
+    const btn = $('#make-integration-btn');
+    btn.disabled = true;
+    $('#integ-panel').classList.remove('hidden');
+    $('#integ-list').innerHTML = '<div class="empty"><div class="ico">⏳</div><div>Loading…</div></div>';
+    try {
+      const [accR, finR, grR] = await Promise.all([
+        api('/manage/integration-accounts'),
+        api('/manage/agency/' + agency.id + '/finances'),
+        api('/manage/agency/' + agency.id + '/grants'),
+      ]);
+      accounts = accR.accounts || [];
+      finances = finR.finances || [];
+      financeNote = finR.note || '';
+
+      const existing = {};
+      (grR.grants || []).forEach(g => {
+        if (!existing[g.integrationAccountId]) existing[g.integrationAccountId] = { heads: new Set(), filters: {} };
+        existing[g.integrationAccountId].heads.add(g.financeId);
+        if (g.filters) { try { existing[g.integrationAccountId].filters = JSON.parse(g.filters); } catch (_) {} }
+      });
+      renderIntegration(existing);
+    } catch (e) {
+      $('#integ-list').innerHTML = '<div class="empty"><div class="ico">⚠</div><div>' + escapeHtml(e.message || 'Failed to load') + '</div></div>';
+    } finally {
+      btn.disabled = agency.status !== 'approved';
+    }
+  }
+
+  function renderIntegration(existing) {
+    if (!accounts.length) {
+      $('#integ-list').innerHTML = '<div class="empty"><div class="ico">📭</div><div>No finance company has applied for an integration yet.</div></div>';
+      $('#integ-actions').style.display = 'none';
+      return;
+    }
+    const active = accounts.filter(a => a.status === 'active');
+    if (!active.length) {
+      $('#integ-list').innerHTML = '<div class="empty"><div class="ico">📭</div><div>No active integration accounts to grant.</div></div>';
+      $('#integ-actions').style.display = 'none';
+      return;
+    }
+
+    const financeHtml = fid => finances.map(f => {
+      const on = existing[fid] && existing[fid].heads.has(f.id);
+      return '<label class="ho-chip' + (on ? ' on' : '') + '" data-fin="' + f.id + '" data-name="' + escapeHtml(f.name) + '">' +
+        '<input type="checkbox" ' + (on ? 'checked' : '') + '> ' + escapeHtml(f.name) + '</label>';
+    }).join('');
+
+    const noHeads = financeNote
+      ? '<p class="text-muted" style="font-size:13px; margin:6px 0 0;">' + escapeHtml(financeNote) + '</p>'
+      : '<p class="text-muted" style="font-size:13px; margin:6px 0 0;">This agency has no head offices yet.</p>';
+
+    $('#integ-list').innerHTML = active.map(a => {
+      const ex = existing[a.id];
+      const on = !!ex;
+      const flt = (ex && ex.filters) || {};
+      const csv = k => Array.isArray(flt[k]) ? flt[k].join(', ') : '';
+      return (
+        '<div class="integ-acc' + (on ? ' on' : '') + '" data-acc="' + a.id + '" data-nm="' + escapeHtml(a.financeName) + '">' +
+          '<div class="integ-acc-top">' +
+            '<label class="switch"><input type="checkbox" class="acc-toggle" ' + (on ? 'checked' : '') + '> Allow integration</label>' +
+            '<div style="flex:1"></div>' +
+            '<div style="text-align:right"><div class="nm">' + escapeHtml(a.financeName) + '</div><div class="em">' + escapeHtml(a.email) + '</div></div>' +
+          '</div>' +
+          '<div class="integ-body" style="' + (on ? '' : 'display:none') + '">' +
+            (finances.length
+              ? '<div class="k" style="font-size:11.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--text-muted);font-weight:700;">Head offices this finance may access</div>' +
+                '<div class="ho-list">' + financeHtml(a.id) + '</div>'
+              : noHeads) +
+            '<div class="filter-row">' +
+              '<div><label>Regions (optional)</label><input class="input flt" data-k="regions" placeholder="comma separated" value="' + escapeHtml(csv('regions')) + '"></div>' +
+              '<div><label>Areas (optional)</label><input class="input flt" data-k="areas" placeholder="comma separated" value="' + escapeHtml(csv('areas')) + '"></div>' +
+              '<div><label>Buckets (optional)</label><input class="input flt" data-k="buckets" placeholder="comma separated" value="' + escapeHtml(csv('buckets')) + '"></div>' +
+            '</div>' +
+          '</div>' +
+        '</div>'
+      );
+    }).join('');
+
+    $('#integ-actions').style.display = 'flex';
+    $('#integ-hint').textContent = finances.length
+      ? 'Tick head offices under each allowed finance, then save.'
+      : 'This agency has no head offices to grant yet.';
+
+    $('#integ-list').querySelectorAll('.acc-toggle').forEach(t => {
+      t.addEventListener('change', () => {
+        const acc = t.closest('.integ-acc');
+        acc.classList.toggle('on', t.checked);
+        acc.querySelector('.integ-body').style.display = t.checked ? '' : 'none';
+      });
+    });
+    $('#integ-list').querySelectorAll('.ho-chip').forEach(chip => {
+      const cb = chip.querySelector('input');
+      cb.addEventListener('change', () => chip.classList.toggle('on', cb.checked));
+    });
+  }
+
+  $('#integ-save-btn').addEventListener('click', save);
+
+  function parseCsv(v) {
+    return (v || '').split(',').map(s => s.trim()).filter(Boolean);
+  }
+
+  async function save() {
+    const grants = [];
+    const grantedNames = [];
+    $('#integ-list').querySelectorAll('.integ-acc').forEach(acc => {
+      if (!acc.querySelector('.acc-toggle').checked) return;
+      const accId = +acc.dataset.acc;
+      const filters = {};
+      acc.querySelectorAll('.flt').forEach(inp => {
+        const vals = parseCsv(inp.value);
+        if (vals.length) filters[inp.dataset.k] = vals;
+      });
+      const filtersStr = Object.keys(filters).length ? JSON.stringify(filters) : '';
+      let picked = 0;
+      acc.querySelectorAll('.ho-chip input:checked').forEach(cb => {
+        const chip = cb.closest('.ho-chip');
+        grants.push({
+          integrationAccountId: accId,
+          financeId: +chip.dataset.fin,
+          financeName: chip.dataset.name,
+          filters: filtersStr,
+          active: true,
+        });
+        picked++;
+      });
+      if (picked) grantedNames.push(acc.dataset.nm);
+    });
+
+    const msg = grantedNames.length
+      ? 'Are you sure you want ' + agency.name + ' to allow integration with:\n\n• ' + grantedNames.join('\n• ') + '\n\nThis replaces the current integration settings for this agency.'
+      : 'This will remove all integrations for ' + agency.name + '. Continue?';
+    if (!confirm(msg)) return;
+
+    const btn = $('#integ-save-btn');
+    btn.disabled = true; btn.textContent = 'Saving…';
+    try {
+      await api('/manage/agency/' + agency.id + '/grants', { method: 'POST', body: { grants } });
+      toast('Integrations saved', 'success');
+    } catch (e) {
+      toast(e.message || 'Save failed', 'error', 6000);
+    } finally {
+      btn.disabled = false; btn.textContent = 'Save integrations';
+    }
+  }
+
+  boot();
+})();
+</script>
+</body>
+</html>

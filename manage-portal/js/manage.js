@@ -154,6 +154,8 @@ logoutBtn.addEventListener('click', () => {
 });
 
 function showPanel() {
+    const ret = sessionStorage.getItem('manage_return');
+    if (ret) { sessionStorage.removeItem('manage_return'); location.href = ret; return; }
     gate.classList.add('hidden');
     panel.classList.remove('hidden');
     logoutBtn.classList.remove('hidden');
@@ -234,7 +236,7 @@ function rowHtml(a) {
     const logo = a.logoPath
         ? `<img src="${escapeHtml(logoSrc)}" alt="" onerror="this.src='assets/crmrs-logo.webp'; this.style.opacity='.4';">`
         : `<img src="assets/crmrs-logo.webp" alt="" style="opacity:.4">`;
-    const manageBtn = `<button class="btn btn-outline btn-sm" data-act="manage" data-id="${a.id}">Manage</button>`;
+    const manageBtn = `<a class="btn btn-outline btn-sm" href="/manage/${encodeURIComponent(a.slug)}">Manage</a>`;
     const actions = a.status === 'pending'
         ? `<button class="btn btn-success btn-sm" data-act="approve" data-id="${a.id}">Approve</button>
            <button class="btn btn-outline btn-sm" data-act="reject"  data-id="${a.id}">Reject</button>
