@@ -88,6 +88,9 @@
           </div>
 
           <div id="integ-panel" class="hidden" style="margin-top:20px;">
+            <div id="integ-toolbar" class="hidden" style="margin-bottom:12px;">
+              <input class="input" id="integ-search" type="text" placeholder="Search head offices…" style="max-width:340px;">
+            </div>
             <div id="integ-list"><div class="empty"><div class="ico">⏳</div><div>Loading…</div></div></div>
             <div class="flex items-center justify-between mt-3" id="integ-actions" style="display:none;">
               <span class="text-muted" style="font-size:13px;" id="integ-hint"></span>
@@ -203,9 +206,11 @@
   $('#make-integration-btn').addEventListener('click', openIntegration);
 
   let assignMap = {};
-  let curFin = null, curSel = null;
+  let curFin = null, curSel = null, hoFilter = '';
 
   function activeAccounts() { return accounts.filter(a => a.status === 'active'); }
+
+  $('#integ-search').addEventListener('input', e => { hoFilter = e.target.value.trim().toLowerCase(); renderGrid(); });
 
   async function openIntegration() {
     const btn = $('#make-integration-btn');
@@ -243,12 +248,21 @@
 
   function renderGrid() {
     if (!finances.length) {
+      $('#integ-toolbar').classList.add('hidden');
       $('#integ-list').innerHTML = '<div class="empty"><div class="ico">📭</div><div>' +
         escapeHtml(financeNote || 'This agency has no head offices yet.') + '</div></div>';
       $('#integ-actions').style.display = 'none';
       return;
     }
-    $('#integ-list').innerHTML = '<div class="ho-grid">' + finances.map(f => {
+    $('#integ-toolbar').classList.remove('hidden');
+    const shown = hoFilter ? finances.filter(f => f.name.toLowerCase().includes(hoFilter)) : finances;
+    if (!shown.length) {
+      $('#integ-list').innerHTML = '<div class="empty"><div class="ico">🔍</div><div>No head offices match “' + escapeHtml(hoFilter) + '”.</div></div>';
+      $('#integ-actions').style.display = 'flex';
+      $('#integ-save-btn').style.display = 'none';
+      return;
+    }
+    $('#integ-list').innerHTML = '<div class="ho-grid">' + shown.map(f => {
       const a = assignMap[f.id];
       const sub = a
         ? '<div class="asg set">🔗 ' + escapeHtml(a.accountName || accountName(a.accountId)) + '</div>'
