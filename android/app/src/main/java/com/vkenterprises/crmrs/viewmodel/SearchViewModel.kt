@@ -203,10 +203,7 @@ class SearchViewModel @Inject constructor(
             else
                 local
             val full   = all.map { it.toSearchResult() }
-            val unique = if (mode == SearchMode.RC)
-                full.distinctBy { it.vehicleNo }
-            else
-                full.distinctBy { it.chassisNo }
+            val unique = full.bestPerVehicle(mode)
             _ui.update { it.copy(results = unique, allResults = full, lastQuery = q, errorMsg = null, isSearching = false) }
             return
         }
@@ -224,6 +221,9 @@ class SearchViewModel @Inject constructor(
         _ui.update {
             when (result) {
                 is SearchResult2.Success -> {
+                    // The server already returns just one row per distinct RC/chassis,
+                    // picking whichever branch's copy has the most filled-in details —
+                    // no extra client-side fetches needed, so this stays instant.
                     val full = if (mode == SearchMode.RC)
                         result.data.filter { it.vehicleNo.isValidRc() }.sortedBy { it.vehicleNo }
                     else
@@ -253,6 +253,27 @@ private val RC_REGEX = Regex(
     "^([A-Z]{2}[0-9]{2}[A-Z]{1,3}[0-9]{4}|[A-Z]{2}[0-9]{5,7}|[0-9]{2}BH[0-9]{4}[A-Z]{1,2})$"
 )
 private fun String.isValidRc() = replace(Regex("[^A-Z0-9]"), "").uppercase().matches(RC_REGEX)
+
+// The same RC/chassis can legitimately exist under more than one branch (re-uploaded
+// with different data, or entered under two branches). Instead of arbitrarily keeping
+// whichever branch's row the DB happened to return first, keep the one with the most
+// filled-in detail fields so the user sees the record that actually has the data.
+// Gson populates missing/unexpected JSON fields via unsafe field injection, which can
+// leave a "non-null" Kotlin String actually holding null at runtime — guard against that
+// here instead of relying on the declared type.
+private fun isFilled(s: String?): Boolean = !s.isNullOrBlank()
+
+private fun SearchResult.completenessScore(): Int = listOf(
+    engineNo, model, agreementNo, customerName, customerContact, customerAddress,
+    region, area, bucket, gv, od, seasoning, tbrFlag, sec9, sec17,
+    level1, level1Contact, level2, level2Contact, level3, level3Contact, level4, level4Contact,
+    senderMail1, senderMail2, executiveName, pos, toss, remark
+).count { isFilled(it) }
+
+private fun List<SearchResult>.bestPerVehicle(mode: SearchMode): List<SearchResult> {
+    val keyOf: (SearchResult) -> String = if (mode == SearchMode.RC) { r -> r.vehicleNo } else { r -> r.chassisNo }
+    return groupBy(keyOf).values.map { group -> group.maxByOrNull { it.completenessScore() } ?: group.first() }
+}
 
 private fun VehicleCache.toSearchResult() = SearchResult(
     id = id, vehicleNo = vehicleNo, chassisNo = chassisNo, engineNo = engineNo,
