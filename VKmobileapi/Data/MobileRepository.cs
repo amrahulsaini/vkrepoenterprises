@@ -750,15 +750,6 @@ public class MobileRepository
         COALESCE(f.name,'') AS financer, b.name AS branch_name,
         COALESCE(DATE_FORMAT(vr.created_at,'%d %b %Y, %h:%i %p'),'') AS created_on";
 
-    // When the same RC/chassis exists under more than one branch, keep only the
-    // single most-complete copy. `vr.completeness` is a precomputed, indexed column
-    // (a STORED generated column on vehicle_records that counts the filled-in
-    // business fields — see the migration in dbschema/), so this dedup is a plain
-    // index lookup, not a per-row field scan. Ties broken by highest id (newest),
-    // which is deterministic. The composite indexes
-    // idx_vehicle_best(vehicle_no, completeness, id) /
-    // idx_chassis_best(chassis_no, completeness, id) make the NOT EXISTS
-    // index-only, so it stays instant even for large duplicate groups.
     private static string BestPerGroupFilter(string groupCol) => $@"
         AND NOT EXISTS (
             SELECT 1 FROM vehicle_records dup

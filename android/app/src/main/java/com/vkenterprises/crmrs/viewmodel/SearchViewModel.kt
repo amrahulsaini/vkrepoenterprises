@@ -221,9 +221,6 @@ class SearchViewModel @Inject constructor(
         _ui.update {
             when (result) {
                 is SearchResult2.Success -> {
-                    // The server already returns just one row per distinct RC/chassis,
-                    // picking whichever branch's copy has the most filled-in details —
-                    // no extra client-side fetches needed, so this stays instant.
                     val full = if (mode == SearchMode.RC)
                         result.data.filter { it.vehicleNo.isValidRc() }.sortedBy { it.vehicleNo }
                     else
@@ -254,13 +251,6 @@ private val RC_REGEX = Regex(
 )
 private fun String.isValidRc() = replace(Regex("[^A-Z0-9]"), "").uppercase().matches(RC_REGEX)
 
-// The same RC/chassis can legitimately exist under more than one branch (re-uploaded
-// with different data, or entered under two branches). Instead of arbitrarily keeping
-// whichever branch's row the DB happened to return first, keep the one with the most
-// filled-in detail fields so the user sees the record that actually has the data.
-// Gson populates missing/unexpected JSON fields via unsafe field injection, which can
-// leave a "non-null" Kotlin String actually holding null at runtime — guard against that
-// here instead of relying on the declared type.
 private fun isFilled(s: String?): Boolean = !s.isNullOrBlank()
 
 private fun SearchResult.completenessScore(): Int = listOf(
