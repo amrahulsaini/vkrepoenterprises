@@ -85,7 +85,6 @@
 </head>
 <body>
 
-<!-- ── Login / Apply ─────────────────────────────────────────────── -->
 <div id="auth" class="wrap">
   <div class="login-card">
     <div class="brandbar">
@@ -118,7 +117,6 @@
   </div>
 </div>
 
-<!-- ── Dashboard ─────────────────────────────────────────────────── -->
 <div id="dash" class="hidden">
   <div class="shell">
     <div class="topbar">
@@ -177,7 +175,6 @@ async function apiGet(path){
   return d;
 }
 
-// ── Auth view switching ──
 $('#to-apply').onclick=()=>{ $('#view-login').classList.add('hidden'); $('#view-apply').classList.remove('hidden'); };
 $('#to-login').onclick=()=>{ $('#view-apply').classList.add('hidden'); $('#view-login').classList.remove('hidden'); };
 
@@ -257,7 +254,6 @@ function setTab(t){
   if(t==='records') renderRecordsPane(); else renderUploadPane();
 }
 
-// ── Records ──
 function renderRecordsPane(){
   recOffset=0; recTotal=0;
   $('#content').innerHTML=
@@ -290,7 +286,6 @@ async function loadRecords(reset){
   }catch(e){ if(reset) body.innerHTML='<div class="empty">'+esc(e.message)+'</div>'; }
 }
 
-// ── Upload ──
 function renderUploadPane(){
   $('#content').innerHTML=
     '<div class="drop" id="drop"><div class="ic">📑</div><b>Click or drop an Excel file (.xlsx / .xls)</b>'+
@@ -340,7 +335,6 @@ async function handleFile(file){
   }catch(e){ setMsg('#up-msg',e.message,'err'); }
 }
 
-// ── Boot ──
 if(token) enterDash();
 </script>
 </body>

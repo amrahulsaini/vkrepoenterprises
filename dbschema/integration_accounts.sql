@@ -1,18 +1,3 @@
--- ─────────────────────────────────────────────────────────────────────────
---  CRMS — INTEGRATION ACCOUNTS (finance-company portal)
---  Run on crm_master. Idempotent — safe to re-run.
---
---  integration_accounts       : one global account per finance company. They
---                               apply once at agency.crmrecoverysoftware.com/
---                               integrations and can be granted access to many
---                               agencies. Passwords are stored in plain text by
---                               explicit product decision.
---  agency_integration_grants  : the tick made on an agency's manage page — links
---                               one integration account to one of that agency's
---                               head offices (tenant finances.id) plus optional
---                               view/upload filter options.
--- ─────────────────────────────────────────────────────────────────────────
-
 USE crm_master;
 
 CREATE TABLE IF NOT EXISTS integration_accounts (
