@@ -107,7 +107,7 @@
 <div class="modal-bd" id="assign-modal">
   <div class="modal-cd">
     <h3 id="assign-title">Integrate head office</h3>
-    <p class="text-muted" style="margin:0 0 14px; font-size:13.5px;">Choose one finance to integrate with this head office. Each finance can be linked to only one head office.</p>
+    <p class="text-muted" style="margin:0 0 14px; font-size:13.5px;">Choose one finance to integrate with this head office. A head office can be linked to only one finance; a finance can serve multiple head offices.</p>
     <div id="assign-fins"></div>
     <div id="assign-filters" style="margin-top:14px; border-top:1px dashed var(--border); padding-top:12px;">
       <div class="text-muted" style="font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; font-weight:700; margin-bottom:6px;">Filters (optional)</div>
@@ -294,16 +294,12 @@
       $('#assign-fins').innerHTML = '<div class="empty" style="padding:16px">No finance has applied for an integration yet.</div>';
     } else {
       $('#assign-fins').innerHTML = active.map(a => {
-        const usedElsewhere = Object.entries(assignMap).some(([fid, v]) => v.accountId === a.id && +fid !== finId);
         const sel = curSel === a.id;
-        return '<div class="fin-opt' + (sel ? ' sel' : '') + (usedElsewhere ? ' dis' : '') + '" data-acc="' + a.id + '"' +
-          (usedElsewhere ? ' title="Already integrated with another head office"' : '') + '>' +
-          '<div style="flex:1"><div class="fn">' + escapeHtml(a.financeName) + '</div><div class="fe">' + escapeHtml(a.email) +
-          (usedElsewhere ? ' · already used' : '') + '</div></div>' +
+        return '<div class="fin-opt' + (sel ? ' sel' : '') + '" data-acc="' + a.id + '">' +
+          '<div style="flex:1"><div class="fn">' + escapeHtml(a.financeName) + '</div><div class="fe">' + escapeHtml(a.email) + '</div></div>' +
           (sel ? '<span style="color:var(--brand);font-weight:800">✓</span>' : '') + '</div>';
       }).join('');
       $('#assign-fins').querySelectorAll('.fin-opt').forEach(o => {
-        if (o.classList.contains('dis')) return;
         o.addEventListener('click', () => {
           curSel = +o.dataset.acc;
           $('#assign-fins').querySelectorAll('.fin-opt').forEach(x => {

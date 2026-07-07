@@ -93,7 +93,6 @@ CREATE TABLE IF NOT EXISTS agency_integration_grants (
     updated_at             TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     UNIQUE KEY uq_grant (agency_id, integration_account_id, finance_id),
     UNIQUE KEY uq_agency_finance (agency_id, finance_id),
-    UNIQUE KEY uq_agency_account (agency_id, integration_account_id),
     INDEX idx_account (integration_account_id),
     INDEX idx_agency  (agency_id),
     CONSTRAINT fk_grant_agency  FOREIGN KEY (agency_id)              REFERENCES agencies(id)             ON DELETE CASCADE,
