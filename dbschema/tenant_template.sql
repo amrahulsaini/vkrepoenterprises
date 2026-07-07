@@ -116,6 +116,20 @@ CREATE TABLE `branches` (
   CONSTRAINT `fk_branches_finances` FOREIGN KEY (`finance_id`) REFERENCES `finances` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `integration_uploads`;
+CREATE TABLE `integration_uploads` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `finance_id` int(10) unsigned NOT NULL,
+  `branch_id` int(10) unsigned NOT NULL,
+  `uploaded_by` varchar(200) DEFAULT NULL,
+  `file_name` varchar(500) DEFAULT NULL,
+  `file_path` varchar(1000) DEFAULT NULL,
+  `total_records` int(11) NOT NULL DEFAULT 0,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `idx_iu_finance` (`finance_id`),
+  KEY `idx_iu_branch` (`branch_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 DROP TABLE IF EXISTS `chassis_info`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8mb4 */;
@@ -326,6 +340,7 @@ CREATE TABLE `vehicle_records` (
   `toss` varchar(100) DEFAULT NULL,
   `remark` text DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT current_timestamp(),
+  `upload_id` int(10) unsigned DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `idx_branch` (`branch_id`),
   KEY `idx_vehicle_no` (`vehicle_no`),

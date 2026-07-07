@@ -48,6 +48,29 @@ internal static class AgencyPortal
     private static string IntegNormKey(string s) =>
         Regex.Replace(s ?? "", "[^A-Za-z0-9]", "").ToLowerInvariant();
 
+    private static readonly (string Label, string Col)[] IntegFullCols =
+    {
+        ("Vehicle No","vehicle_no"), ("Chassis No","chassis_no"), ("Engine No","engine_no"),
+        ("Model","model"), ("Agreement No","agreement_no"), ("Bucket","bucket"),
+        ("GV","gv"), ("OD","od"), ("Seasoning","seasoning"), ("TBR","tbr_flag"),
+        ("Sec 9","sec9_available"), ("Sec 17","sec17_available"),
+        ("Customer Name","customer_name"), ("Customer Address","customer_address"), ("Customer Contact","customer_contact"),
+        ("Owner Name","owner_name"), ("Mobile No","mobile_no"),
+        ("Region","region"), ("Area","area"), ("Branch (from Excel)","branch_name_raw"),
+        ("Level 1","level1"), ("Level 1 Contact","level1_contact"),
+        ("Level 2","level2"), ("Level 2 Contact","level2_contact"),
+        ("Level 3","level3"), ("Level 3 Contact","level3_contact"),
+        ("Level 4","level4"), ("Level 4 Contact","level4_contact"),
+        ("Sender Mail 1","sender_mail1"), ("Sender Mail 2","sender_mail2"),
+        ("Executive Name","executive_name"), ("POS","pos"), ("TOSS","toss"), ("Remark","remark"),
+        ("Created","created_at"),
+    };
+
+    private static string IntegColExpr(string col) =>
+        col == "created_at"
+            ? "COALESCE(DATE_FORMAT(vr.`created_at`,'%d %b %Y %h:%i %p'),'')"
+            : "vr.`" + col + "`";
+
     private static readonly System.Collections.Generic.Dictionary<string, string> IntegImportCols = new()
     {
         ["vehicleno"] = "vehicle_no", ["chassisno"] = "chassis_no", ["engineno"] = "engine_no",
@@ -1891,7 +1914,7 @@ internal static class AgencyPortal
             {
                 await using var tc = new MySqlConnection(TenantContext.BuildTenantConn(mysqlHost, mysqlPort, slug));
                 await tc.OpenAsync();
-                var colList = string.Join(", ", IntegRecordCols.Select(c => "vr.`" + c.Col + "`"));
+                var colList = string.Join(", ", IntegFullCols.Select(c => IntegColExpr(c.Col)));
                 await using var cmd = new MySqlCommand($@"
                     SELECT {colList}, b.name FROM vehicle_records vr
                     JOIN branches b ON b.id=vr.branch_id
@@ -1901,9 +1924,9 @@ internal static class AgencyPortal
                 await using var rdr = await cmd.ExecuteReaderAsync();
                 if (!await rdr.ReadAsync()) return Results.NotFound(new { message = "Record not found." });
                 var fields = new List<object>();
-                for (int i = 0; i < IntegRecordCols.Length; i++)
-                    fields.Add(new { label = IntegRecordCols[i].Label, value = rdr.IsDBNull(i) ? "" : rdr.GetValue(i)?.ToString() ?? "" });
-                return Results.Ok(new { fields, branchName = rdr.IsDBNull(IntegRecordCols.Length) ? "" : rdr.GetString(IntegRecordCols.Length) });
+                for (int i = 0; i < IntegFullCols.Length; i++)
+                    fields.Add(new { label = IntegFullCols[i].Label, value = rdr.IsDBNull(i) ? "" : rdr.GetValue(i)?.ToString() ?? "" });
+                return Results.Ok(new { fields, branchName = rdr.IsDBNull(IntegFullCols.Length) ? "" : rdr.GetString(IntegFullCols.Length) });
             }
             catch (Exception ex) { return Results.Problem(ex.Message); }
         });
@@ -1912,7 +1935,7 @@ internal static class AgencyPortal
         {
             var who = IntegAuth(ctx);
             if (who is not { } me) return Results.Unauthorized();
-            string slug; int financeId, branchId;
+            string slug, fileName = ""; int financeId, branchId;
             var headers = new List<string>(); var rows = new List<List<string>>();
             try
             {
@@ -1921,6 +1944,7 @@ internal static class AgencyPortal
                 slug = r.TryGetProperty("agencySlug", out var s) ? (s.GetString() ?? "") : "";
                 financeId = r.TryGetProperty("financeId", out var f) && f.TryGetInt32(out var fi) ? fi : 0;
                 branchId = r.TryGetProperty("branchId", out var b) && b.TryGetInt32(out var bi) ? bi : 0;
+                fileName = r.TryGetProperty("fileName", out var fn) && fn.ValueKind == System.Text.Json.JsonValueKind.String ? (fn.GetString() ?? "") : "";
                 if (r.TryGetProperty("headers", out var hs) && hs.ValueKind == System.Text.Json.JsonValueKind.Array)
                     foreach (var h in hs.EnumerateArray()) headers.Add(h.GetString() ?? "");
                 if (r.TryGetProperty("rows", out var rs) && rs.ValueKind == System.Text.Json.JsonValueKind.Array)
@@ -1961,7 +1985,42 @@ internal static class AgencyPortal
                     if (Convert.ToInt32(await bc.ExecuteScalarAsync()) == 0)
                         return Results.BadRequest(new { message = "Select a valid branch under this head office." });
                 }
-                string colSql = "branch_id, " + string.Join(", ", mapped.Select(m => "`" + m.col + "`"));
+
+                int uploadId;
+                await using (var uc = new MySqlCommand(@"
+                    INSERT INTO integration_uploads (finance_id, branch_id, uploaded_by, file_name, total_records)
+                    VALUES (@fin,@bid,@by,@fn,0);
+                    SELECT LAST_INSERT_ID();", tc))
+                {
+                    uc.Parameters.AddWithValue("@fin", financeId);
+                    uc.Parameters.AddWithValue("@bid", branchId);
+                    uc.Parameters.AddWithValue("@by", me.email);
+                    uc.Parameters.AddWithValue("@fn", IntegCap(string.IsNullOrWhiteSpace(fileName) ? "upload.xlsx" : fileName, 500));
+                    uploadId = Convert.ToInt32(await uc.ExecuteScalarAsync());
+                }
+
+                var uploadsRoot = Path.Combine(app.Environment.ContentRootPath, "integration-uploads");
+                var safeSlug = Regex.Replace(slug, "[^a-z0-9_-]", "");
+                var slotDir = Path.Combine(uploadsRoot, safeSlug);
+                Directory.CreateDirectory(slotDir);
+                var baseName = string.IsNullOrWhiteSpace(fileName) ? "upload" : Regex.Replace(Path.GetFileNameWithoutExtension(fileName), "[^A-Za-z0-9_-]", "_");
+                var csvName = uploadId + "-" + baseName + ".csv";
+                var relPath = "integration-uploads/" + safeSlug + "/" + csvName;
+                static string Csv(string v) => "\"" + (v ?? "").Replace("\"", "\"\"") + "\"";
+                try
+                {
+                    await using var sw = new StreamWriter(Path.Combine(slotDir, csvName), false, System.Text.Encoding.UTF8);
+                    await sw.WriteLineAsync(string.Join(",", headers.Select(Csv)));
+                    foreach (var row in rows)
+                    {
+                        var cells = new List<string>(headers.Count);
+                        for (int i = 0; i < headers.Count; i++) cells.Add(Csv(i < row.Count ? row[i] : ""));
+                        await sw.WriteLineAsync(string.Join(",", cells));
+                    }
+                }
+                catch { }
+
+                string colSql = "branch_id, upload_id, " + string.Join(", ", mapped.Select(m => "`" + m.col + "`"));
                 int inserted = 0;
                 const int batch = 200;
                 for (int start = 0; start < rows.Count; start += batch)
@@ -1973,8 +2032,9 @@ internal static class AgencyPortal
                     for (int rI = start; rI < end; rI++)
                     {
                         if (rI > start) sb.Append(',');
-                        sb.Append("(@b").Append(rI);
+                        sb.Append("(@b").Append(rI).Append(",@u").Append(rI);
                         ps.Add(("@b" + rI, branchId));
+                        ps.Add(("@u" + rI, uploadId));
                         var row = rows[rI];
                         for (int m = 0; m < mapped.Count; m++)
                         {
@@ -1988,6 +2048,13 @@ internal static class AgencyPortal
                     await using var ins = new MySqlCommand(sb.ToString(), tc) { CommandTimeout = 120 };
                     foreach (var (k, v) in ps) ins.Parameters.AddWithValue(k, v);
                     inserted += await ins.ExecuteNonQueryAsync();
+                }
+                await using (var uu = new MySqlCommand("UPDATE integration_uploads SET file_path=@fp, total_records=@tr WHERE id=@id", tc))
+                {
+                    uu.Parameters.AddWithValue("@fp", relPath);
+                    uu.Parameters.AddWithValue("@tr", inserted);
+                    uu.Parameters.AddWithValue("@id", uploadId);
+                    await uu.ExecuteNonQueryAsync();
                 }
                 await using (var rcx = new MySqlCommand(@"
                     DELETE ri FROM rc_info ri INNER JOIN vehicle_records vr ON vr.id=ri.vehicle_record_id WHERE vr.branch_id=@bid;
@@ -2191,7 +2258,7 @@ internal static class AgencyPortal
             {
                 await using var tc = new MySqlConnection(TenantContext.BuildTenantConn(mysqlHost, mysqlPort, slug));
                 await tc.OpenAsync();
-                var colList = string.Join(", ", IntegRecordCols.Select(c => "vr.`" + c.Col + "`"));
+                var colList = string.Join(", ", IntegFullCols.Select(c => IntegColExpr(c.Col)));
                 var records = new List<object>();
                 await using var cmd = new MySqlCommand($@"
                     SELECT {colList}, b.name FROM vehicle_records vr
@@ -2203,11 +2270,140 @@ internal static class AgencyPortal
                 while (await rdr.ReadAsync())
                 {
                     var fields = new List<object>();
-                    for (int i = 0; i < IntegRecordCols.Length; i++)
-                        fields.Add(new { label = IntegRecordCols[i].Label, value = rdr.IsDBNull(i) ? "" : rdr.GetValue(i)?.ToString() ?? "" });
-                    records.Add(new { branchName = rdr.IsDBNull(IntegRecordCols.Length) ? "" : rdr.GetString(IntegRecordCols.Length), fields });
+                    for (int i = 0; i < IntegFullCols.Length; i++)
+                        fields.Add(new { label = IntegFullCols[i].Label, value = rdr.IsDBNull(i) ? "" : rdr.GetValue(i)?.ToString() ?? "" });
+                    records.Add(new { branchName = rdr.IsDBNull(IntegFullCols.Length) ? "" : rdr.GetString(IntegFullCols.Length), fields });
                 }
                 return Results.Ok(new { records });
+            }
+            catch (Exception ex) { return Results.Problem(ex.Message); }
+        });
+
+        app.MapPost("/api/integration/account/uploads", async (HttpContext ctx, HttpRequest req) =>
+        {
+            var who = IntegAuth(ctx);
+            if (who is not { } me) return Results.Unauthorized();
+            string slug; int financeId;
+            try
+            {
+                using var doc = await System.Text.Json.JsonDocument.ParseAsync(req.Body);
+                var r = doc.RootElement;
+                slug = r.TryGetProperty("agencySlug", out var s) ? (s.GetString() ?? "") : "";
+                financeId = r.TryGetProperty("financeId", out var f) && f.TryGetInt32(out var fi) ? fi : 0;
+            }
+            catch { return Results.BadRequest(new { message = "Invalid body." }); }
+            if (await IntegFindGrant(me.id, slug, financeId) is null)
+                return Results.Json(new { message = "No access." }, statusCode: 403);
+            try
+            {
+                await using var tc = new MySqlConnection(TenantContext.BuildTenantConn(mysqlHost, mysqlPort, slug));
+                await tc.OpenAsync();
+                var uploads = new List<object>();
+                await using var cmd = new MySqlCommand(@"
+                    SELECT u.id, u.file_name, u.total_records,
+                           COALESCE(DATE_FORMAT(u.created_at,'%d %b %Y %h:%i %p'),''),
+                           COALESCE(u.uploaded_by,''), b.name, (u.file_path IS NOT NULL AND u.file_path<>'')
+                    FROM integration_uploads u JOIN branches b ON b.id=u.branch_id
+                    WHERE u.finance_id=@fin ORDER BY u.id DESC", tc) { CommandTimeout = 15 };
+                cmd.Parameters.AddWithValue("@fin", financeId);
+                await using var rdr = await cmd.ExecuteReaderAsync();
+                while (await rdr.ReadAsync())
+                    uploads.Add(new
+                    {
+                        id = rdr.GetInt32(0), fileName = rdr.GetString(1), totalRecords = rdr.GetInt32(2),
+                        createdAt = rdr.GetString(3), uploadedBy = rdr.GetString(4), branchName = rdr.GetString(5),
+                        hasFile = rdr.GetInt32(6) == 1
+                    });
+                return Results.Ok(new { uploads });
+            }
+            catch (Exception ex) { return Results.Problem(ex.Message); }
+        });
+
+        app.MapPost("/api/integration/account/upload/delete", async (HttpContext ctx, HttpRequest req) =>
+        {
+            var who = IntegAuth(ctx);
+            if (who is not { } me) return Results.Unauthorized();
+            string slug; int financeId, uploadId;
+            try
+            {
+                using var doc = await System.Text.Json.JsonDocument.ParseAsync(req.Body);
+                var r = doc.RootElement;
+                slug = r.TryGetProperty("agencySlug", out var s) ? (s.GetString() ?? "") : "";
+                financeId = r.TryGetProperty("financeId", out var f) && f.TryGetInt32(out var fi) ? fi : 0;
+                uploadId = r.TryGetProperty("uploadId", out var u) && u.TryGetInt32(out var ui) ? ui : 0;
+            }
+            catch { return Results.BadRequest(new { message = "Invalid body." }); }
+            if (await IntegFindGrant(me.id, slug, financeId) is null)
+                return Results.Json(new { message = "No access." }, statusCode: 403);
+            try
+            {
+                await using var tc = new MySqlConnection(TenantContext.BuildTenantConn(mysqlHost, mysqlPort, slug));
+                await tc.OpenAsync();
+                int branchId; string filePath = "";
+                await using (var sel = new MySqlCommand("SELECT branch_id, COALESCE(file_path,'') FROM integration_uploads WHERE id=@id AND finance_id=@fin LIMIT 1", tc))
+                {
+                    sel.Parameters.AddWithValue("@id", uploadId);
+                    sel.Parameters.AddWithValue("@fin", financeId);
+                    await using var rdr = await sel.ExecuteReaderAsync();
+                    if (!await rdr.ReadAsync()) return Results.NotFound(new { message = "Upload not found." });
+                    branchId = rdr.GetInt32(0); filePath = rdr.GetString(1);
+                }
+                int removed;
+                await using (var del = new MySqlCommand("DELETE FROM vehicle_records WHERE upload_id=@id AND branch_id=@bid", tc) { CommandTimeout = 120 })
+                {
+                    del.Parameters.AddWithValue("@id", uploadId);
+                    del.Parameters.AddWithValue("@bid", branchId);
+                    removed = await del.ExecuteNonQueryAsync();
+                }
+                await using (var du = new MySqlCommand("DELETE FROM integration_uploads WHERE id=@id", tc))
+                { du.Parameters.AddWithValue("@id", uploadId); await du.ExecuteNonQueryAsync(); }
+                await using (var st = new MySqlCommand("UPDATE branches SET total_records=(SELECT COUNT(*) FROM vehicle_records WHERE branch_id=@bid) WHERE id=@bid", tc) { CommandTimeout = 60 })
+                { st.Parameters.AddWithValue("@bid", branchId); await st.ExecuteNonQueryAsync(); }
+                if (!string.IsNullOrEmpty(filePath))
+                {
+                    try { var full = Path.Combine(app.Environment.ContentRootPath, filePath.Replace('/', Path.DirectorySeparatorChar)); if (File.Exists(full)) File.Delete(full); }
+                    catch { }
+                }
+                return Results.Ok(new { ok = true, removed });
+            }
+            catch (Exception ex) { return Results.Problem(ex.Message); }
+        });
+
+        app.MapPost("/api/integration/account/upload/download", async (HttpContext ctx, HttpRequest req) =>
+        {
+            var who = IntegAuth(ctx);
+            if (who is not { } me) return Results.Unauthorized();
+            string slug; int financeId, uploadId;
+            try
+            {
+                using var doc = await System.Text.Json.JsonDocument.ParseAsync(req.Body);
+                var r = doc.RootElement;
+                slug = r.TryGetProperty("agencySlug", out var s) ? (s.GetString() ?? "") : "";
+                financeId = r.TryGetProperty("financeId", out var f) && f.TryGetInt32(out var fi) ? fi : 0;
+                uploadId = r.TryGetProperty("uploadId", out var u) && u.TryGetInt32(out var ui) ? ui : 0;
+            }
+            catch { return Results.BadRequest(new { message = "Invalid body." }); }
+            if (await IntegFindGrant(me.id, slug, financeId) is null)
+                return Results.Json(new { message = "No access." }, statusCode: 403);
+            try
+            {
+                await using var tc = new MySqlConnection(TenantContext.BuildTenantConn(mysqlHost, mysqlPort, slug));
+                await tc.OpenAsync();
+                string fileName = "upload", filePath = "";
+                await using (var sel = new MySqlCommand("SELECT COALESCE(file_name,'upload'), COALESCE(file_path,'') FROM integration_uploads WHERE id=@id AND finance_id=@fin LIMIT 1", tc))
+                {
+                    sel.Parameters.AddWithValue("@id", uploadId);
+                    sel.Parameters.AddWithValue("@fin", financeId);
+                    await using var rdr = await sel.ExecuteReaderAsync();
+                    if (!await rdr.ReadAsync()) return Results.NotFound(new { message = "Upload not found." });
+                    fileName = rdr.GetString(0); filePath = rdr.GetString(1);
+                }
+                if (string.IsNullOrEmpty(filePath)) return Results.NotFound(new { message = "No file stored for this upload." });
+                var full = Path.Combine(app.Environment.ContentRootPath, filePath.Replace('/', Path.DirectorySeparatorChar));
+                if (!File.Exists(full)) return Results.NotFound(new { message = "File is no longer available." });
+                var bytes = await File.ReadAllBytesAsync(full);
+                var dl = Path.GetFileNameWithoutExtension(fileName) + ".csv";
+                return Results.File(bytes, "text/csv", dl);
             }
             catch (Exception ex) { return Results.Problem(ex.Message); }
         });

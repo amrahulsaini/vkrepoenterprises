@@ -235,6 +235,7 @@
           <button data-tab="branches" class="active">Branches</button>
           <button data-tab="records">Records</button>
           <button data-tab="upload">Upload</button>
+          <button data-tab="uploads">Your uploads</button>
           <button data-tab="logs">Search logs</button>
         </div>
       </header>
@@ -424,6 +425,7 @@ function setTab(t){
   if(t==='branches') renderBranches();
   else if(t==='records') renderRecords();
   else if(t==='upload') renderUpload();
+  else if(t==='uploads') renderUploads();
   else renderLogs();
 }
 
@@ -468,7 +470,11 @@ function renderRecords(){
     if(mode==='rc') go=digits.length>=4;
     else if(mode==='chassis') go=v.length>=5;
     else go=v.length>=2||v.length===0;
-    if(go) recTimer=setTimeout(()=>{ recOffset=0; loadRecords(true); },220);
+    if(go) recTimer=setTimeout(()=>{
+      const clearAfter=(mode==='rc'||mode==='chassis');
+      recOffset=0;
+      loadRecords(true).then(()=>{ if(clearAfter){ $('#rec-q').value=''; $('#rec-q').focus(); } });
+    },220);
   };
   $('#rec-q').addEventListener('input',autoSearch);
   $('#rec-mode').addEventListener('change',()=>{ $('#rec-q').value=''; $('#rec-q').placeholder = $('#rec-mode').value==='rc'?'Enter last 4 digits of RC…':$('#rec-mode').value==='chassis'?'Enter last 5 of chassis…':'Search records…'; $('#rec-q').focus(); });
@@ -501,11 +507,18 @@ async function loadRecords(reset){
     $('#rec-more').classList.toggle('hidden',recOffset>=recTotal);
   }catch(e){ if(reset) body.innerHTML='<div class="empty">'+esc(e.message)+'</div>'; }
 }
-function showRecord(gi){
-  const r=recRows[gi]; if(!r) return;
+async function showRecord(gi){
+  const r=recRows[gi], id=recIds[gi]; if(!r) return;
   $('#rec-title').textContent=(r[0]||'Record')+(r[3]?' · '+r[3]:'');
-  $('#rec-kv').innerHTML=recCols.map((c,i)=>'<div class="k">'+esc(c)+'</div><div class="v">'+esc(r[i]||'—')+'</div>').join('');
+  $('#rec-kv').innerHTML='<div class="empty" style="grid-column:1/-1"><span class="spin"></span> Loading…</div>';
   $('#rec-modal').classList.add('open');
+  try{
+    const d=await apiCall('/record',{agencySlug:sel.agencySlug,financeId:sel.financeId,recordId:id},true);
+    const f=d.fields||[];
+    $('#rec-kv').innerHTML=f.map(x=>'<div class="k">'+esc(x.label)+'</div><div class="v">'+esc(x.value||'—')+'</div>').join('');
+  }catch(e){
+    $('#rec-kv').innerHTML=recCols.map((c,i)=>'<div class="k">'+esc(c)+'</div><div class="v">'+esc(r[i]||'—')+'</div>').join('');
+  }
 }
 $('#rec-close').onclick=()=>$('#rec-modal').classList.remove('open');
 $('#rec-modal').addEventListener('click',e=>{ if(e.target.id==='rec-modal') $('#rec-modal').classList.remove('open'); });
@@ -584,12 +597,50 @@ async function handleFile(file){
     }
     if(!rows.length){ setMsg('#up-msg','No data rows found below the header.','err'); return; }
     setMsg('#up-msg','Uploading '+rows.length+' records…','info');
-    const d=await apiCall('/import',{agencySlug:sel.agencySlug,financeId:sel.financeId,branchId:+bid,headers,rows},true);
+    const d=await apiCall('/import',{agencySlug:sel.agencySlug,financeId:sel.financeId,branchId:+bid,fileName:file.name,headers,rows},true);
     const n=(d&&d.records)||rows.length;
     setMsg('#up-msg','✓ Imported '+n+' records into the branch.','ok');
     toast('Imported '+n+' records','ok');
     const opt=$('#up-branch').selectedOptions[0]; if(opt) opt.textContent=opt.textContent.replace(/\(\d[\d,]* records\)/, '('+n+' records)');
   }catch(e){ setMsg('#up-msg',e.message,'err'); }
+}
+
+async function renderUploads(){
+  $('#content').innerHTML='<div class="card"><div class="ch"><h4>Your uploads</h4></div><div class="cb"><div id="ups-body"><div class="empty"><span class="spin"></span> Loading…</div></div></div></div>';
+  loadUploads();
+}
+async function loadUploads(){
+  const body=$('#ups-body'); if(!body) return;
+  body.innerHTML='<div class="empty"><span class="spin"></span> Loading…</div>';
+  try{
+    const d=await apiCall('/uploads',{agencySlug:sel.agencySlug,financeId:sel.financeId},true);
+    const ups=d.uploads||[];
+    if(!ups.length){ body.innerHTML='<div class="empty"><span class="ei">'+ic('inbox')+'</span>No uploads yet. Use the <b>Upload</b> tab to import a file.</div>'; return; }
+    body.innerHTML='<div class="tbl-scroll"><table class="tbl"><thead><tr><th>File</th><th>Branch</th><th>Records</th><th>Uploaded</th><th>By</th><th>Actions</th></tr></thead><tbody>'+
+      ups.map(u=>'<tr><td>'+esc(u.fileName)+'</td><td>'+esc(u.branchName)+'</td><td>'+(u.totalRecords||0).toLocaleString()+'</td><td>'+esc(u.createdAt)+'</td><td>'+esc(u.uploadedBy)+'</td><td style="white-space:nowrap">'+
+        (u.hasFile?'<button class="btn btn-outline btn-sm" data-dl="'+u.id+'" data-fn="'+esc(u.fileName)+'">Download</button> ':'')+
+        '<button class="btn btn-danger btn-sm" data-del="'+u.id+'">Delete</button></td></tr>').join('')+'</tbody></table></div>';
+    body.querySelectorAll('[data-dl]').forEach(b=>b.onclick=()=>downloadUpload(+b.dataset.dl,b.dataset.fn));
+    body.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>deleteUpload(+b.dataset.del));
+  }catch(e){ body.innerHTML='<div class="empty">'+esc(e.message)+'</div>'; }
+}
+async function downloadUpload(id,fn){
+  try{
+    const r=await fetch(ROOT+'/upload/download',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({agencySlug:sel.agencySlug,financeId:sel.financeId,uploadId:id})});
+    if(!r.ok){ const e=await r.json().catch(()=>null); throw new Error((e&&e.message)||('Error '+r.status)); }
+    const blob=await r.blob(), url=URL.createObjectURL(blob);
+    const a=document.createElement('a'); a.href=url; a.download=(fn||'upload').replace(/\.[^.]+$/,'')+'.csv';
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),1000);
+  }catch(e){ toast(e.message,'err'); }
+}
+async function deleteUpload(id){
+  const ok=await confirmDialog({title:'Delete this upload?',message:'This permanently deletes the uploaded file and ALL records it added to this branch. This cannot be undone.',confirmLabel:'Delete',danger:true});
+  if(!ok) return;
+  try{
+    const d=await apiCall('/upload/delete',{agencySlug:sel.agencySlug,financeId:sel.financeId,uploadId:id},true);
+    toast('Deleted upload — '+((d&&d.removed)||0).toLocaleString()+' records removed','info');
+    loadUploads();
+  }catch(e){ toast(e.message,'err'); }
 }
 
 function renderLogs(){
@@ -635,7 +686,6 @@ async function openAgent(uid,nm){
     $('#agent-body').innerHTML=
       '<div class="agent-head"><img class="apfp" src="'+esc(p.pfp||'/assets/crmrs-logo.webp')+'" onerror="this.src=\'/assets/crmrs-logo.webp\'">'+
         '<div><div class="anm">'+esc(p.name||nm||'Agent')+'</div><div>'+
-          (p.isAdmin?badge2(true,'Admin'):'')+
           (p.isActive?badge2(true,'Active'):badge2(false,'Inactive',true))+
           (p.isStopped?badge2(false,'Stopped',true):'')+
           (p.isBlacklisted?badge2(false,'Blacklisted',true):'')+
