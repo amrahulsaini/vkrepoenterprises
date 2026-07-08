@@ -35,14 +35,14 @@ public partial class BillingPage : Page
     {
         InitializeComponent();
         Loaded += BillingPage_Loaded;
-        txtRepoAmount.TextChanged  += (_, __) => Recompute();
-        txtAddlCharges.TextChanged += (_, __) => Recompute();
+        txtRepoAmount.TextChanged += (_, __) => Recompute();
+        txtAddlAmount.TextChanged += (_, __) => Recompute();
     }
 
     private void Recompute()
     {
         long repo  = ParseAmt(txtRepoAmount.Text);
-        long addl  = ParseAmt(txtAddlCharges.Text);
+        long addl  = ParseAmt(txtAddlAmount.Text);
         long total = repo + addl;
         txtRepoWords.Text   = Words(repo);
         txtTotalAmount.Text = Rs(total);
@@ -288,6 +288,7 @@ public partial class BillingPage : Page
             txtRepoAmount.Text = txtRepoWords.Text = "";
             txtTotalAmount.Text = txtTotalWords.Text = "";
             txtAddlCharges.Text = "NA";
+            txtAddlAmount.Text = "";
             txtSearchStatus.Text = "Ready for the next bill.";
         }
         catch (Exception ex)
@@ -390,7 +391,7 @@ public partial class BillingPage : Page
         KV("ENCLOSED", txtEnclosed.Text.Trim());
         KV("QTY", txtQty.Text.Trim());
         KV("REPO CHARGES", txtRepoWords.Text.Trim(), Rs(ParseAmt(txtRepoAmount.Text)));
-        KV("ADDITIONAL CHARGES", txtAddlCharges.Text.Trim());
+        KV("ADDITIONAL CHARGES", txtAddlCharges.Text.Trim(), Rs(ParseAmt(txtAddlAmount.Text)));
         KV("PAN NO", txtPan.Text.Trim());
         KV("GST STATE", txtGst.Text.Trim());
         KV("BANK ACCOUNT NAME", txtAcHolder.Text.Trim());

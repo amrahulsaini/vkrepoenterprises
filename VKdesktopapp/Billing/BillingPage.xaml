@@ -93,8 +93,8 @@
                             <StackPanel Margin="0,0,8,8"><TextBlock Text="Parking Yard Name" Foreground="#666" FontSize="12" /><TextBox Name="txtParkingYard" Height="30" /></StackPanel>
                             <StackPanel Margin="0,0,0,8"><TextBlock Text="Enclosed" Foreground="#666" FontSize="12" /><TextBox Name="txtEnclosed" Height="30" /></StackPanel>
                             <StackPanel Margin="0,0,8,8"><TextBlock Text="Qty" Foreground="#666" FontSize="12" /><TextBox Name="txtQty" Height="30" /></StackPanel>
-                            <StackPanel Margin="0,0,8,8"><TextBlock Text="Additional Charges" Foreground="#666" FontSize="12" /><TextBox Name="txtAddlCharges" Height="30" /></StackPanel>
-                            <StackPanel Margin="0,0,0,8" />
+                            <StackPanel Margin="0,0,8,8"><TextBlock Text="Additional Charges Notes" Foreground="#666" FontSize="12" /><TextBox Name="txtAddlCharges" Height="30" /></StackPanel>
+                            <StackPanel Margin="0,0,0,8"><TextBlock Text="Additional Charges Amount" Foreground="#666" FontSize="12" /><TextBox Name="txtAddlAmount" Height="30" /></StackPanel>
                             <StackPanel Margin="0,0,8,8"><TextBlock Text="Repo Charges (in words)" Foreground="#666" FontSize="12" /><TextBox Name="txtRepoWords" Height="30" /></StackPanel>
                             <StackPanel Margin="0,0,8,8"><TextBlock Text="Repo Charges (amount)" Foreground="#666" FontSize="12" /><TextBox Name="txtRepoAmount" Height="30" /></StackPanel>
                             <StackPanel Margin="0,0,0,8" />
