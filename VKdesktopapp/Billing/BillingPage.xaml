@@ -2,6 +2,11 @@
       xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       Background="#F5F5F5">
+    <Page.Resources>
+        <Style TargetType="TextBox">
+            <Setter Property="CharacterCasing" Value="Upper" />
+        </Style>
+    </Page.Resources>
     <Grid Margin="18">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="360" />
