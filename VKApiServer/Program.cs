@@ -1716,7 +1716,7 @@ app.MapGet("/api/mgr/search/list", async (HttpContext ctx, string? q, string? mo
         var scope = financeId is > 0 ? " AND b.finance_id = @fid" : "";
         const string lite = @"
             vr.id, vr.vehicle_no, vr.chassis_no, vr.model,
-            b.name AS branch_name, COALESCE(f.name,'') AS financer,
+            COALESCE(NULLIF(vr.branch_name_raw,''), b.name) AS branch_name, COALESCE(f.name,'') AS financer,
             COALESCE(DATE_FORMAT(vr.created_at,'%d %b %Y %h:%i %p'),'') AS created_on";
         var sql = isChassis
             ? $@"SELECT {lite} FROM chassis_info ci

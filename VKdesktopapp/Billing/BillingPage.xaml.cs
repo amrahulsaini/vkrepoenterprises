@@ -246,7 +246,7 @@ public partial class BillingPage : Page
         txtCustomer.Text  = rec.CustomerName;
         txtMakeModel.Text = rec.Model;
         txtRcNo.Text      = rec.VehicleNo;
-        txtBranch.Text    = string.IsNullOrWhiteSpace(rec.BranchName) ? rec.BranchFromExcel : rec.BranchName;
+        txtBranch.Text    = string.IsNullOrWhiteSpace(rec.BranchFromExcel) ? rec.BranchName : rec.BranchFromExcel;
     }
 
     private async void btnGenerate_Click(object sender, RoutedEventArgs e)
