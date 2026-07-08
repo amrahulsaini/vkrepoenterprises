@@ -163,6 +163,11 @@
   .utree-b{padding-left:38px;border-top:1px solid var(--line2)}
   .utree-empty{padding:7px 38px;color:var(--muted);font-size:12px}
   .muted2{color:var(--muted);font-size:12px}
+  .fav-star{margin-left:auto;border:none;background:transparent;cursor:pointer;color:#c7ccd6;padding:2px 6px;border-radius:6px;display:inline-flex;align-items:center}
+  .fav-star:hover{background:var(--line2);color:#f5b301}
+  .fav-star.fav-on{color:#f5b301}
+  .fav-star.fav-on svg{fill:#f5b301}
+  .fav-star svg{width:16px;height:16px}
   .agent-head{display:flex;gap:16px;align-items:center;margin-bottom:4px}
   .agent-head .apfp{width:78px;height:78px;border-radius:16px;object-fit:cover;border:1px solid var(--line);background:#eef2f8;flex-shrink:0}
   .agent-head .anm{font-family:var(--head);font-size:21px;font-weight:800;line-height:1.15}
@@ -531,15 +536,15 @@ async function showRecord(gi){
 $('#rec-close').onclick=()=>$('#rec-modal').classList.remove('open');
 $('#rec-modal').addEventListener('click',e=>{ if(e.target.id==='rec-modal') $('#rec-modal').classList.remove('open'); });
 
-let upMode='single';
+let upMode='universal';
 function renderUpload(){
   $('#content').innerHTML=
     '<div class="tabs" style="margin-bottom:16px" id="up-mode">'+
-      '<button data-m="single" class="active">This branch only</button>'+
-      '<button data-m="universal">Universal (multiple agencies)</button>'+
+      '<button data-m="universal" class="active">Universal (multiple agencies)</button>'+
+      '<button data-m="single">This branch only</button>'+
     '</div><div id="up-area"></div>';
   $('#up-mode').addEventListener('click',e=>{ const b=e.target.closest('button[data-m]'); if(!b)return; upMode=b.dataset.m; $('#up-mode').querySelectorAll('button').forEach(x=>x.classList.toggle('active',x.dataset.m===upMode)); upMode==='single'?renderUploadSingle():renderUploadUniversal(); });
-  upMode='single'; renderUploadSingle();
+  upMode='universal'; renderUploadUniversal();
 }
 async function renderUploadSingle(){
   $('#up-area').innerHTML='<div class="empty"><span class="spin"></span> Loading branches…</div>';
@@ -631,11 +636,14 @@ function renderUploadUniversal(){
       '<input id="ufile" type="file" accept=".xlsx,.xls" class="hidden"><div class="msg" id="u-msg"></div>'+
     '</div></div>'+
     '<div class="card"><div class="ch"><span class="step-badge">2</span><h4>Tick agencies &amp; branches to send to</h4></div><div class="cb">'+
+      '<div class="toolbar" style="margin-bottom:12px"><button class="btn btn-outline btn-sm" id="usel-fav">'+ic('star')+' Select favourites</button><button class="btn btn-ghost btn-sm" id="usel-clear">Clear</button><span class="muted2">Tap the '+ic('star')+' on a branch to save it as a favourite.</span></div>'+
       '<div id="utree"><div class="empty"><span class="spin"></span> Loading…</div></div>'+
       '<div style="display:flex;align-items:center;justify-content:space-between;margin-top:14px;gap:10px;flex-wrap:wrap">'+
         '<span class="scope-note" id="usel-count">0 branches selected</span>'+
         '<button class="btn btn-primary" id="usend" disabled>Send to selected branches</button></div>'+
     '</div></div>';
+  $('#usel-fav').onclick=()=>{ $('#utree').querySelectorAll('.uck-br').forEach(c=>c.checked=(c.dataset.fav==='1')); updateCount(); };
+  $('#usel-clear').onclick=()=>{ $('#utree').querySelectorAll('.uck-br,.uck-ho,.uck-ag').forEach(c=>c.checked=false); updateCount(); };
   const udrop=$('#udrop');
   udrop.onclick=()=>$('#ufile').click();
   udrop.addEventListener('dragover',e=>{e.preventDefault();udrop.classList.add('drag');});
@@ -682,7 +690,8 @@ function renderUploadUniversal(){
           a.headOffices.map(h=>
             '<div class="utree-ho"><label class="utree-row utree-h"><input type="checkbox" class="uck-ho"> '+esc(h.financeName)+'</label>'+
               (h.branches.length?h.branches.map(b=>
-                '<label class="utree-row utree-b"><input type="checkbox" class="uck-br" data-slug="'+esc(a.slug)+'" data-fin="'+h.financeId+'" data-br="'+b.id+'"> '+esc(b.name)+' <span class="muted2">('+(b.totalRecords||0)+')</span></label>').join('')
+                '<label class="utree-row utree-b"><input type="checkbox" class="uck-br" data-slug="'+esc(a.slug)+'" data-fin="'+h.financeId+'" data-br="'+b.id+'" data-fav="'+(b.isFavourite?1:0)+'"> '+esc(b.name)+' <span class="muted2">('+(b.totalRecords||0)+')</span>'+
+                '<button class="fav-star'+(b.isFavourite?' fav-on':'')+'" title="Save as favourite" data-slug="'+esc(a.slug)+'" data-fin="'+h.financeId+'" data-br="'+b.id+'">'+ic('star')+'</button></label>').join('')
               :'<div class="utree-empty">No branches yet</div>')+
             '</div>').join('')+
         '</div>').join('');
@@ -695,6 +704,18 @@ function renderUploadUniversal(){
         hock.addEventListener('change',()=>{ ho.querySelectorAll('.uck-br').forEach(c=>c.checked=hock.checked); updateCount(); });
       });
       tree.querySelectorAll('.uck-br').forEach(c=>c.addEventListener('change',updateCount));
+      tree.querySelectorAll('.fav-star').forEach(st=>st.addEventListener('click',async e=>{
+        e.preventDefault(); e.stopPropagation();
+        const on=!st.classList.contains('fav-on');
+        st.disabled=true;
+        try{
+          await apiCall('/favourite',{agencySlug:st.dataset.slug,financeId:+st.dataset.fin,branchId:+st.dataset.br,favourite:on},true);
+          st.classList.toggle('fav-on',on);
+          const cb=st.parentNode.querySelector('.uck-br'); if(cb) cb.dataset.fav=on?'1':'0';
+          toast(on?'Saved to favourites':'Removed from favourites','info');
+        }catch(err){ toast(err.message,'err'); }
+        st.disabled=false;
+      }));
     }catch(e){ tree.innerHTML='<div class="empty">'+esc(e.message)+'</div>'; }
   }
   $('#usend').onclick=async()=>{

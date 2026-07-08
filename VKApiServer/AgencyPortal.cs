@@ -2329,11 +2329,18 @@ internal static class AgencyPortal
             var agencies = new List<Dictionary<string, object>>();
             var bySlug = new Dictionary<string, Dictionary<string, object>>();
             var hoByKey = new Dictionary<string, Dictionary<string, object>>();
+            var favSet = new HashSet<string>();
             await using (var conn = new MySqlConnection(masterConn))
             {
                 await conn.OpenAsync();
+                await using (var fc = new MySqlCommand("SELECT agency_id, branch_id FROM integration_favourite_branches WHERE integration_account_id=@acc", conn))
+                {
+                    fc.Parameters.AddWithValue("@acc", me.id);
+                    await using var fr = await fc.ExecuteReaderAsync();
+                    while (await fr.ReadAsync()) favSet.Add(fr.GetInt32(0) + ":" + fr.GetInt32(1));
+                }
                 await using var cmd = new MySqlCommand(@"
-                    SELECT ag.slug, ag.name, COALESCE(ag.logo_path,''), g.finance_id, g.finance_name
+                    SELECT ag.id, ag.slug, ag.name, COALESCE(ag.logo_path,''), g.finance_id, g.finance_name
                     FROM agency_integration_grants g JOIN agencies ag ON ag.id=g.agency_id
                     WHERE g.integration_account_id=@acc AND g.active=1 AND ag.status='approved'
                     ORDER BY ag.name, g.finance_name", conn);
@@ -2341,14 +2348,15 @@ internal static class AgencyPortal
                 await using var rdr = await cmd.ExecuteReaderAsync();
                 while (await rdr.ReadAsync())
                 {
-                    string slug = rdr.GetString(0);
+                    int agencyId = rdr.GetInt32(0);
+                    string slug = rdr.GetString(1);
                     if (!bySlug.TryGetValue(slug, out var ag))
                     {
-                        ag = new Dictionary<string, object> { ["slug"] = slug, ["name"] = rdr.GetString(1), ["logoPath"] = rdr.GetString(2), ["headOffices"] = new List<object>() };
+                        ag = new Dictionary<string, object> { ["id"] = agencyId, ["slug"] = slug, ["name"] = rdr.GetString(2), ["logoPath"] = rdr.GetString(3), ["headOffices"] = new List<object>() };
                         bySlug[slug] = ag; agencies.Add(ag);
                     }
-                    int finId = rdr.GetInt32(3);
-                    var ho = new Dictionary<string, object> { ["financeId"] = finId, ["financeName"] = rdr.GetString(4), ["branches"] = new List<object>() };
+                    int finId = rdr.GetInt32(4);
+                    var ho = new Dictionary<string, object> { ["financeId"] = finId, ["financeName"] = rdr.GetString(5), ["branches"] = new List<object>() };
                     ((List<object>)ag["headOffices"]).Add(ho);
                     hoByKey[slug + ":" + finId] = ho;
                 }
@@ -2356,6 +2364,7 @@ internal static class AgencyPortal
             foreach (var ag in agencies)
             {
                 string slug = (string)ag["slug"];
+                int agencyId = (int)ag["id"];
                 var hos = (List<object>)ag["headOffices"];
                 var finIds = hos.Select(h => (int)((Dictionary<string, object>)h)["financeId"]).ToList();
                 if (finIds.Count == 0) continue;
@@ -2369,13 +2378,53 @@ internal static class AgencyPortal
                     while (await rdr.ReadAsync())
                     {
                         int finId = rdr.GetInt32(2);
+                        int brId = rdr.GetInt32(0);
                         if (hoByKey.TryGetValue(slug + ":" + finId, out var ho))
-                            ((List<object>)ho["branches"]).Add(new { id = rdr.GetInt32(0), name = rdr.GetString(1), totalRecords = rdr.GetInt64(3) });
+                            ((List<object>)ho["branches"]).Add(new { id = brId, name = rdr.GetString(1), totalRecords = rdr.GetInt64(3), isFavourite = favSet.Contains(agencyId + ":" + brId) });
                     }
                 }
                 catch { }
             }
             return Results.Ok(new { agencies });
+        });
+
+        app.MapPost("/api/integration/account/favourite", async (HttpContext ctx, HttpRequest req) =>
+        {
+            var who = IntegAuth(ctx);
+            if (who is not { } me) return Results.Unauthorized();
+            string slug; int financeId, branchId; bool fav;
+            try
+            {
+                using var doc = await System.Text.Json.JsonDocument.ParseAsync(req.Body);
+                var r = doc.RootElement;
+                slug = r.TryGetProperty("agencySlug", out var s) ? (s.GetString() ?? "") : "";
+                financeId = r.TryGetProperty("financeId", out var f) && f.TryGetInt32(out var fi) ? fi : 0;
+                branchId = r.TryGetProperty("branchId", out var b) && b.TryGetInt32(out var bi) ? bi : 0;
+                fav = r.TryGetProperty("favourite", out var fv) && fv.ValueKind == System.Text.Json.JsonValueKind.True;
+            }
+            catch { return Results.BadRequest(new { message = "Invalid body." }); }
+            var grant = await IntegFindGrant(me.id, slug, financeId);
+            if (grant is not { } g) return Results.Json(new { message = "No access." }, statusCode: 403);
+            await using var conn = new MySqlConnection(masterConn);
+            await conn.OpenAsync();
+            if (fav)
+            {
+                await using var cmd = new MySqlCommand("INSERT IGNORE INTO integration_favourite_branches (integration_account_id, agency_id, finance_id, branch_id) VALUES (@acc,@ag,@fin,@br)", conn);
+                cmd.Parameters.AddWithValue("@acc", me.id);
+                cmd.Parameters.AddWithValue("@ag", g.agencyId);
+                cmd.Parameters.AddWithValue("@fin", financeId);
+                cmd.Parameters.AddWithValue("@br", branchId);
+                await cmd.ExecuteNonQueryAsync();
+            }
+            else
+            {
+                await using var cmd = new MySqlCommand("DELETE FROM integration_favourite_branches WHERE integration_account_id=@acc AND agency_id=@ag AND branch_id=@br", conn);
+                cmd.Parameters.AddWithValue("@acc", me.id);
+                cmd.Parameters.AddWithValue("@ag", g.agencyId);
+                cmd.Parameters.AddWithValue("@br", branchId);
+                await cmd.ExecuteNonQueryAsync();
+            }
+            return Results.Ok(new { ok = true, favourite = fav });
         });
 
         app.MapPost("/api/integration/account/import-universal", async (HttpContext ctx, HttpRequest req) =>
