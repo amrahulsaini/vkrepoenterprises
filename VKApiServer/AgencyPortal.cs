@@ -1985,93 +1985,7 @@ internal static class AgencyPortal
                     if (Convert.ToInt32(await bc.ExecuteScalarAsync()) == 0)
                         return Results.BadRequest(new { message = "Select a valid branch under this head office." });
                 }
-
-                int uploadId;
-                await using (var uc = new MySqlCommand(@"
-                    INSERT INTO integration_uploads (finance_id, branch_id, uploaded_by, file_name, total_records)
-                    VALUES (@fin,@bid,@by,@fn,0);
-                    SELECT LAST_INSERT_ID();", tc))
-                {
-                    uc.Parameters.AddWithValue("@fin", financeId);
-                    uc.Parameters.AddWithValue("@bid", branchId);
-                    uc.Parameters.AddWithValue("@by", me.email);
-                    uc.Parameters.AddWithValue("@fn", IntegCap(string.IsNullOrWhiteSpace(fileName) ? "upload.xlsx" : fileName, 500));
-                    uploadId = Convert.ToInt32(await uc.ExecuteScalarAsync());
-                }
-
-                var uploadsRoot = Path.Combine(app.Environment.ContentRootPath, "integration-uploads");
-                var safeSlug = Regex.Replace(slug, "[^a-z0-9_-]", "");
-                var slotDir = Path.Combine(uploadsRoot, safeSlug);
-                Directory.CreateDirectory(slotDir);
-                var baseName = string.IsNullOrWhiteSpace(fileName) ? "upload" : Regex.Replace(Path.GetFileNameWithoutExtension(fileName), "[^A-Za-z0-9_-]", "_");
-                var csvName = uploadId + "-" + baseName + ".csv";
-                var relPath = "integration-uploads/" + safeSlug + "/" + csvName;
-                static string Csv(string v) => "\"" + (v ?? "").Replace("\"", "\"\"") + "\"";
-                try
-                {
-                    await using var sw = new StreamWriter(Path.Combine(slotDir, csvName), false, System.Text.Encoding.UTF8);
-                    await sw.WriteLineAsync(string.Join(",", headers.Select(Csv)));
-                    foreach (var row in rows)
-                    {
-                        var cells = new List<string>(headers.Count);
-                        for (int i = 0; i < headers.Count; i++) cells.Add(Csv(i < row.Count ? row[i] : ""));
-                        await sw.WriteLineAsync(string.Join(",", cells));
-                    }
-                }
-                catch { }
-
-                string colSql = "branch_id, upload_id, " + string.Join(", ", mapped.Select(m => "`" + m.col + "`"));
-                int inserted = 0;
-                const int batch = 200;
-                for (int start = 0; start < rows.Count; start += batch)
-                {
-                    int end = Math.Min(start + batch, rows.Count);
-                    var sb = new System.Text.StringBuilder();
-                    sb.Append("INSERT INTO vehicle_records (").Append(colSql).Append(") VALUES ");
-                    var ps = new List<(string, object)>();
-                    for (int rI = start; rI < end; rI++)
-                    {
-                        if (rI > start) sb.Append(',');
-                        sb.Append("(@b").Append(rI).Append(",@u").Append(rI);
-                        ps.Add(("@b" + rI, branchId));
-                        ps.Add(("@u" + rI, uploadId));
-                        var row = rows[rI];
-                        for (int m = 0; m < mapped.Count; m++)
-                        {
-                            var pn = "@p" + rI + "_" + m;
-                            sb.Append(',').Append(pn);
-                            var idx = mapped[m].idx;
-                            ps.Add((pn, (object)(idx < row.Count ? IntegCap(row[idx], 250) : "")));
-                        }
-                        sb.Append(')');
-                    }
-                    await using var ins = new MySqlCommand(sb.ToString(), tc) { CommandTimeout = 120 };
-                    foreach (var (k, v) in ps) ins.Parameters.AddWithValue(k, v);
-                    inserted += await ins.ExecuteNonQueryAsync();
-                }
-                await using (var uu = new MySqlCommand("UPDATE integration_uploads SET file_path=@fp, total_records=@tr WHERE id=@id", tc))
-                {
-                    uu.Parameters.AddWithValue("@fp", relPath);
-                    uu.Parameters.AddWithValue("@tr", inserted);
-                    uu.Parameters.AddWithValue("@id", uploadId);
-                    await uu.ExecuteNonQueryAsync();
-                }
-                await using (var rcx = new MySqlCommand(@"
-                    DELETE ri FROM rc_info ri INNER JOIN vehicle_records vr ON vr.id=ri.vehicle_record_id WHERE vr.branch_id=@bid;
-                    INSERT INTO rc_info (vehicle_record_id,rc_number,model,last4)
-                      SELECT id, vehicle_no, COALESCE(model,''),
-                             LEFT(REGEXP_SUBSTR(vehicle_no,'[0-9]{4}[^0-9]*$'),4)
-                      FROM vehicle_records WHERE branch_id=@bid AND vehicle_no IS NOT NULL AND vehicle_no!='';
-                    DELETE ci FROM chassis_info ci INNER JOIN vehicle_records vr ON vr.id=ci.vehicle_record_id WHERE vr.branch_id=@bid;
-                    INSERT INTO chassis_info (vehicle_record_id,chassis_number,model,last5)
-                      SELECT id, chassis_no, COALESCE(model,''), RIGHT(chassis_no,5)
-                      FROM vehicle_records WHERE branch_id=@bid AND chassis_no IS NOT NULL AND chassis_no!='';", tc) { CommandTimeout = 300 })
-                {
-                    rcx.Parameters.AddWithValue("@bid", branchId);
-                    await rcx.ExecuteNonQueryAsync();
-                }
-                await using (var st = new MySqlCommand("UPDATE branches SET total_records=(SELECT COUNT(*) FROM vehicle_records WHERE branch_id=@bid), uploaded_at=NOW() WHERE id=@bid", tc) { CommandTimeout = 60 })
-                { st.Parameters.AddWithValue("@bid", branchId); await st.ExecuteNonQueryAsync(); }
+                int inserted = await IntegImportToBranch(tc, slug, financeId, branchId, headers, mapped, rows, fileName, me.email, app.Environment.ContentRootPath);
                 return Results.Ok(new { ok = true, records = inserted });
             }
             catch (Exception ex) { return Results.Problem($"Import failed: {ex.Message}"); }
@@ -2407,6 +2321,234 @@ internal static class AgencyPortal
             }
             catch (Exception ex) { return Results.Problem(ex.Message); }
         });
+
+        app.MapGet("/api/integration/account/all-targets", async (HttpContext ctx) =>
+        {
+            var who = IntegAuth(ctx);
+            if (who is not { } me) return Results.Unauthorized();
+            var agencies = new List<Dictionary<string, object>>();
+            var bySlug = new Dictionary<string, Dictionary<string, object>>();
+            var hoByKey = new Dictionary<string, Dictionary<string, object>>();
+            await using (var conn = new MySqlConnection(masterConn))
+            {
+                await conn.OpenAsync();
+                await using var cmd = new MySqlCommand(@"
+                    SELECT ag.slug, ag.name, COALESCE(ag.logo_path,''), g.finance_id, g.finance_name
+                    FROM agency_integration_grants g JOIN agencies ag ON ag.id=g.agency_id
+                    WHERE g.integration_account_id=@acc AND g.active=1 AND ag.status='approved'
+                    ORDER BY ag.name, g.finance_name", conn);
+                cmd.Parameters.AddWithValue("@acc", me.id);
+                await using var rdr = await cmd.ExecuteReaderAsync();
+                while (await rdr.ReadAsync())
+                {
+                    string slug = rdr.GetString(0);
+                    if (!bySlug.TryGetValue(slug, out var ag))
+                    {
+                        ag = new Dictionary<string, object> { ["slug"] = slug, ["name"] = rdr.GetString(1), ["logoPath"] = rdr.GetString(2), ["headOffices"] = new List<object>() };
+                        bySlug[slug] = ag; agencies.Add(ag);
+                    }
+                    int finId = rdr.GetInt32(3);
+                    var ho = new Dictionary<string, object> { ["financeId"] = finId, ["financeName"] = rdr.GetString(4), ["branches"] = new List<object>() };
+                    ((List<object>)ag["headOffices"]).Add(ho);
+                    hoByKey[slug + ":" + finId] = ho;
+                }
+            }
+            foreach (var ag in agencies)
+            {
+                string slug = (string)ag["slug"];
+                var hos = (List<object>)ag["headOffices"];
+                var finIds = hos.Select(h => (int)((Dictionary<string, object>)h)["financeId"]).ToList();
+                if (finIds.Count == 0) continue;
+                try
+                {
+                    await using var tc = new MySqlConnection(TenantContext.BuildTenantConn(mysqlHost, mysqlPort, slug));
+                    await tc.OpenAsync();
+                    await using var cmd = new MySqlCommand(
+                        "SELECT id, name, finance_id, COALESCE(total_records,0) FROM branches WHERE finance_id IN (" + string.Join(",", finIds) + ") ORDER BY name", tc) { CommandTimeout = 15 };
+                    await using var rdr = await cmd.ExecuteReaderAsync();
+                    while (await rdr.ReadAsync())
+                    {
+                        int finId = rdr.GetInt32(2);
+                        if (hoByKey.TryGetValue(slug + ":" + finId, out var ho))
+                            ((List<object>)ho["branches"]).Add(new { id = rdr.GetInt32(0), name = rdr.GetString(1), totalRecords = rdr.GetInt64(3) });
+                    }
+                }
+                catch { }
+            }
+            return Results.Ok(new { agencies });
+        });
+
+        app.MapPost("/api/integration/account/import-universal", async (HttpContext ctx, HttpRequest req) =>
+        {
+            var who = IntegAuth(ctx);
+            if (who is not { } me) return Results.Unauthorized();
+            string fileName = "";
+            var headers = new List<string>(); var rows = new List<List<string>>();
+            var targets = new List<(string slug, int financeId, int branchId)>();
+            try
+            {
+                using var doc = await System.Text.Json.JsonDocument.ParseAsync(req.Body);
+                var r = doc.RootElement;
+                fileName = r.TryGetProperty("fileName", out var fn) && fn.ValueKind == System.Text.Json.JsonValueKind.String ? (fn.GetString() ?? "") : "";
+                if (r.TryGetProperty("headers", out var hs) && hs.ValueKind == System.Text.Json.JsonValueKind.Array)
+                    foreach (var h in hs.EnumerateArray()) headers.Add(h.GetString() ?? "");
+                if (r.TryGetProperty("rows", out var rs) && rs.ValueKind == System.Text.Json.JsonValueKind.Array)
+                    foreach (var row in rs.EnumerateArray())
+                    {
+                        var cells = new List<string>();
+                        if (row.ValueKind == System.Text.Json.JsonValueKind.Array)
+                            foreach (var c in row.EnumerateArray()) cells.Add(c.ValueKind == System.Text.Json.JsonValueKind.String ? (c.GetString() ?? "") : c.ToString());
+                        rows.Add(cells);
+                    }
+                if (r.TryGetProperty("targets", out var ts) && ts.ValueKind == System.Text.Json.JsonValueKind.Array)
+                    foreach (var t in ts.EnumerateArray())
+                    {
+                        string tslug = t.TryGetProperty("agencySlug", out var s) ? (s.GetString() ?? "") : "";
+                        int tfin = t.TryGetProperty("financeId", out var f) && f.TryGetInt32(out var fi) ? fi : 0;
+                        int tbr = t.TryGetProperty("branchId", out var b) && b.TryGetInt32(out var bi) ? bi : 0;
+                        if (!string.IsNullOrWhiteSpace(tslug) && tfin > 0 && tbr > 0) targets.Add((tslug, tfin, tbr));
+                    }
+            }
+            catch { return Results.BadRequest(new { message = "Invalid body." }); }
+            if (headers.Count == 0 || rows.Count == 0) return Results.BadRequest(new { message = "Empty sheet." });
+            if (targets.Count == 0) return Results.BadRequest(new { message = "Select at least one branch to send to." });
+
+            var mapped = new List<(int idx, string col)>();
+            var unknown = new List<string>();
+            for (int i = 0; i < headers.Count; i++)
+            {
+                var h = headers[i];
+                if (string.IsNullOrWhiteSpace(h)) continue;
+                if (IntegImportCols.TryGetValue(IntegNormKey(h), out var col)) mapped.Add((i, col));
+                else unknown.Add(h);
+            }
+            if (unknown.Count > 0) return Results.BadRequest(new { message = "These columns are not recognised and must be removed or renamed: " + string.Join(", ", unknown), unknownColumns = unknown });
+            if (mapped.Count == 0) return Results.BadRequest(new { message = "No known columns to import." });
+
+            var results = new List<object>();
+            int totalInserted = 0, okCount = 0, failCount = 0;
+            foreach (var g in targets.GroupBy(t => t.slug))
+            {
+                MySqlConnection? tc = null;
+                try { tc = new MySqlConnection(TenantContext.BuildTenantConn(mysqlHost, mysqlPort, g.Key)); await tc.OpenAsync(); }
+                catch (Exception ex)
+                {
+                    foreach (var t in g) { results.Add(new { agencySlug = t.slug, financeId = t.financeId, branchId = t.branchId, ok = false, error = "Agency unavailable: " + ex.Message }); failCount++; }
+                    if (tc != null) await tc.DisposeAsync();
+                    continue;
+                }
+                foreach (var t in g)
+                {
+                    try
+                    {
+                        if (await IntegFindGrant(me.id, t.slug, t.financeId) is null) throw new Exception("No access to this head office.");
+                        int ins = await IntegImportToBranch(tc, t.slug, t.financeId, t.branchId, headers, mapped, rows, fileName, me.email, app.Environment.ContentRootPath);
+                        results.Add(new { agencySlug = t.slug, financeId = t.financeId, branchId = t.branchId, ok = true, records = ins });
+                        totalInserted += ins; okCount++;
+                    }
+                    catch (Exception ex) { results.Add(new { agencySlug = t.slug, financeId = t.financeId, branchId = t.branchId, ok = false, error = ex.Message }); failCount++; }
+                }
+                await tc.DisposeAsync();
+            }
+            return Results.Ok(new { ok = failCount == 0, totalRecords = totalInserted, branches = okCount, failed = failCount, results });
+        });
+    }
+
+    private static async Task<int> IntegImportToBranch(
+        MySqlConnection tc, string slug, int financeId, int branchId,
+        System.Collections.Generic.List<string> headers, System.Collections.Generic.List<(int idx, string col)> mapped,
+        System.Collections.Generic.List<System.Collections.Generic.List<string>> rows,
+        string fileName, string uploadedBy, string contentRoot)
+    {
+        await using (var bc = new MySqlCommand("SELECT COUNT(*) FROM branches WHERE id=@bid AND finance_id=@fin", tc))
+        {
+            bc.Parameters.AddWithValue("@bid", branchId); bc.Parameters.AddWithValue("@fin", financeId);
+            if (Convert.ToInt32(await bc.ExecuteScalarAsync()) == 0) throw new Exception("Invalid branch for this head office.");
+        }
+        int uploadId;
+        await using (var uc = new MySqlCommand(@"
+            INSERT INTO integration_uploads (finance_id, branch_id, uploaded_by, file_name, total_records)
+            VALUES (@fin,@bid,@by,@fn,0);
+            SELECT LAST_INSERT_ID();", tc))
+        {
+            uc.Parameters.AddWithValue("@fin", financeId);
+            uc.Parameters.AddWithValue("@bid", branchId);
+            uc.Parameters.AddWithValue("@by", uploadedBy);
+            uc.Parameters.AddWithValue("@fn", IntegCap(string.IsNullOrWhiteSpace(fileName) ? "upload.xlsx" : fileName, 500));
+            uploadId = Convert.ToInt32(await uc.ExecuteScalarAsync());
+        }
+        var safeSlug = Regex.Replace(slug, "[^a-z0-9_-]", "");
+        var slotDir = Path.Combine(contentRoot, "integration-uploads", safeSlug);
+        Directory.CreateDirectory(slotDir);
+        var baseName = string.IsNullOrWhiteSpace(fileName) ? "upload" : Regex.Replace(Path.GetFileNameWithoutExtension(fileName), "[^A-Za-z0-9_-]", "_");
+        var csvName = uploadId + "-" + baseName + ".csv";
+        var relPath = "integration-uploads/" + safeSlug + "/" + csvName;
+        static string Csv(string v) => "\"" + (v ?? "").Replace("\"", "\"\"") + "\"";
+        try
+        {
+            await using var sw = new StreamWriter(Path.Combine(slotDir, csvName), false, System.Text.Encoding.UTF8);
+            await sw.WriteLineAsync(string.Join(",", headers.Select(Csv)));
+            foreach (var row in rows)
+            {
+                var cells = new System.Collections.Generic.List<string>(headers.Count);
+                for (int i = 0; i < headers.Count; i++) cells.Add(Csv(i < row.Count ? row[i] : ""));
+                await sw.WriteLineAsync(string.Join(",", cells));
+            }
+        }
+        catch { }
+        string colSql = "branch_id, upload_id, " + string.Join(", ", mapped.Select(m => "`" + m.col + "`"));
+        int inserted = 0;
+        const int batch = 200;
+        for (int start = 0; start < rows.Count; start += batch)
+        {
+            int end = Math.Min(start + batch, rows.Count);
+            var sb = new System.Text.StringBuilder();
+            sb.Append("INSERT INTO vehicle_records (").Append(colSql).Append(") VALUES ");
+            var ps = new System.Collections.Generic.List<(string, object)>();
+            for (int rI = start; rI < end; rI++)
+            {
+                if (rI > start) sb.Append(',');
+                sb.Append("(@b").Append(rI).Append(",@u").Append(rI);
+                ps.Add(("@b" + rI, branchId));
+                ps.Add(("@u" + rI, uploadId));
+                var row = rows[rI];
+                for (int m = 0; m < mapped.Count; m++)
+                {
+                    var pn = "@p" + rI + "_" + m;
+                    sb.Append(',').Append(pn);
+                    var idx = mapped[m].idx;
+                    ps.Add((pn, (object)(idx < row.Count ? IntegCap(row[idx], 250) : "")));
+                }
+                sb.Append(')');
+            }
+            await using var ins = new MySqlCommand(sb.ToString(), tc) { CommandTimeout = 120 };
+            foreach (var (k, v) in ps) ins.Parameters.AddWithValue(k, v);
+            inserted += await ins.ExecuteNonQueryAsync();
+        }
+        await using (var uu = new MySqlCommand("UPDATE integration_uploads SET file_path=@fp, total_records=@tr WHERE id=@id", tc))
+        {
+            uu.Parameters.AddWithValue("@fp", relPath);
+            uu.Parameters.AddWithValue("@tr", inserted);
+            uu.Parameters.AddWithValue("@id", uploadId);
+            await uu.ExecuteNonQueryAsync();
+        }
+        await using (var rcx = new MySqlCommand(@"
+            DELETE ri FROM rc_info ri INNER JOIN vehicle_records vr ON vr.id=ri.vehicle_record_id WHERE vr.branch_id=@bid;
+            INSERT INTO rc_info (vehicle_record_id,rc_number,model,last4)
+              SELECT id, vehicle_no, COALESCE(model,''),
+                     LEFT(REGEXP_SUBSTR(vehicle_no,'[0-9]{4}[^0-9]*$'),4)
+              FROM vehicle_records WHERE branch_id=@bid AND vehicle_no IS NOT NULL AND vehicle_no!='';
+            DELETE ci FROM chassis_info ci INNER JOIN vehicle_records vr ON vr.id=ci.vehicle_record_id WHERE vr.branch_id=@bid;
+            INSERT INTO chassis_info (vehicle_record_id,chassis_number,model,last5)
+              SELECT id, chassis_no, COALESCE(model,''), RIGHT(chassis_no,5)
+              FROM vehicle_records WHERE branch_id=@bid AND chassis_no IS NOT NULL AND chassis_no!='';", tc) { CommandTimeout = 300 })
+        {
+            rcx.Parameters.AddWithValue("@bid", branchId);
+            await rcx.ExecuteNonQueryAsync();
+        }
+        await using (var st = new MySqlCommand("UPDATE branches SET total_records=(SELECT COUNT(*) FROM vehicle_records WHERE branch_id=@bid), uploaded_at=NOW() WHERE id=@bid", tc) { CommandTimeout = 60 })
+        { st.Parameters.AddWithValue("@bid", branchId); await st.ExecuteNonQueryAsync(); }
+        return inserted;
     }
 
     private static System.Collections.Generic.List<System.Collections.Generic.List<string>> ParseCsv(string text, int maxLines)

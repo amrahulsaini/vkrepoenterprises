@@ -155,6 +155,14 @@
   .agh .rm .lucide{width:15px;height:15px}
   .secure-pill .lucide,.scope-note .lucide,.badge2 .lucide{width:14px;height:14px}
   .btn .lucide{width:16px;height:16px}
+  .utree-ag{border:1px solid var(--line);border-radius:12px;margin-bottom:10px;overflow:hidden}
+  .utree-row{display:flex;align-items:center;gap:8px;padding:9px 12px;cursor:pointer;font-size:13.5px;margin:0}
+  .utree-row input{width:auto}
+  .utree-a{background:#f5f9ff;font-weight:700;border-bottom:1px solid var(--line)}
+  .utree-h{font-weight:600;padding-left:18px;border-top:1px solid var(--line2)}
+  .utree-b{padding-left:38px;border-top:1px solid var(--line2)}
+  .utree-empty{padding:7px 38px;color:var(--muted);font-size:12px}
+  .muted2{color:var(--muted);font-size:12px}
   .agent-head{display:flex;gap:16px;align-items:center;margin-bottom:4px}
   .agent-head .apfp{width:78px;height:78px;border-radius:16px;object-fit:cover;border:1px solid var(--line);background:#eef2f8;flex-shrink:0}
   .agent-head .anm{font-family:var(--head);font-size:21px;font-weight:800;line-height:1.15}
@@ -523,12 +531,22 @@ async function showRecord(gi){
 $('#rec-close').onclick=()=>$('#rec-modal').classList.remove('open');
 $('#rec-modal').addEventListener('click',e=>{ if(e.target.id==='rec-modal') $('#rec-modal').classList.remove('open'); });
 
-async function renderUpload(){
-  $('#content').innerHTML='<div class="empty"><span class="spin"></span> Loading branches…</div>';
+let upMode='single';
+function renderUpload(){
+  $('#content').innerHTML=
+    '<div class="tabs" style="margin-bottom:16px" id="up-mode">'+
+      '<button data-m="single" class="active">This branch only</button>'+
+      '<button data-m="universal">Universal (multiple agencies)</button>'+
+    '</div><div id="up-area"></div>';
+  $('#up-mode').addEventListener('click',e=>{ const b=e.target.closest('button[data-m]'); if(!b)return; upMode=b.dataset.m; $('#up-mode').querySelectorAll('button').forEach(x=>x.classList.toggle('active',x.dataset.m===upMode)); upMode==='single'?renderUploadSingle():renderUploadUniversal(); });
+  upMode='single'; renderUploadSingle();
+}
+async function renderUploadSingle(){
+  $('#up-area').innerHTML='<div class="empty"><span class="spin"></span> Loading branches…</div>';
   let branches=[];
   try{ const d=await apiCall('/branches',{agencySlug:sel.agencySlug,financeId:sel.financeId},true); branches=d.branches||[]; }
-  catch(e){ $('#content').innerHTML='<div class="empty">'+esc(e.message)+'</div>'; return; }
-  $('#content').innerHTML=
+  catch(e){ $('#up-area').innerHTML='<div class="empty">'+esc(e.message)+'</div>'; return; }
+  $('#up-area').innerHTML=
     '<div class="card" style="margin-bottom:16px"><div class="ch"><span class="step-badge">1</span><h4>Choose or create a branch</h4></div><div class="cb">'+
       '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">'+
         '<div style="flex:1;min-width:220px"><div class="lbl">Branch under '+esc(sel.financeName)+'</div>'+
@@ -603,6 +621,97 @@ async function handleFile(file){
     toast('Imported '+n+' records','ok');
     const opt=$('#up-branch').selectedOptions[0]; if(opt) opt.textContent=opt.textContent.replace(/\(\d[\d,]* records\)/, '('+n+' records)');
   }catch(e){ setMsg('#up-msg',e.message,'err'); }
+}
+
+function renderUploadUniversal(){
+  let uHeaders=null, uRows=null, uFileName='';
+  $('#up-area').innerHTML=
+    '<div class="card" style="margin-bottom:16px"><div class="ch"><span class="step-badge">1</span><h4>Choose your Excel file</h4></div><div class="cb">'+
+      '<div class="drop" id="udrop"><div class="ic">'+ic('file-spreadsheet')+'</div><b>Click or drop an Excel file</b><div class="hint">.xlsx or .xls · first row must be the column headers</div></div>'+
+      '<input id="ufile" type="file" accept=".xlsx,.xls" class="hidden"><div class="msg" id="u-msg"></div>'+
+    '</div></div>'+
+    '<div class="card"><div class="ch"><span class="step-badge">2</span><h4>Tick agencies &amp; branches to send to</h4></div><div class="cb">'+
+      '<div id="utree"><div class="empty"><span class="spin"></span> Loading…</div></div>'+
+      '<div style="display:flex;align-items:center;justify-content:space-between;margin-top:14px;gap:10px;flex-wrap:wrap">'+
+        '<span class="scope-note" id="usel-count">0 branches selected</span>'+
+        '<button class="btn btn-primary" id="usend" disabled>Send to selected branches</button></div>'+
+    '</div></div>';
+  const udrop=$('#udrop');
+  udrop.onclick=()=>$('#ufile').click();
+  udrop.addEventListener('dragover',e=>{e.preventDefault();udrop.classList.add('drag');});
+  udrop.addEventListener('dragleave',()=>udrop.classList.remove('drag'));
+  udrop.addEventListener('drop',e=>{e.preventDefault();udrop.classList.remove('drag');const f=e.dataTransfer.files[0];if(f)parseFile(f);});
+  $('#ufile').onchange=e=>{const f=e.target.files[0];if(f)parseFile(f);e.target.value='';};
+
+  function selectedTargets(){
+    return Array.from($('#utree').querySelectorAll('.uck-br:checked')).map(c=>({agencySlug:c.dataset.slug,financeId:+c.dataset.fin,branchId:+c.dataset.br}));
+  }
+  function updateCount(){
+    const n=selectedTargets().length;
+    $('#usel-count').textContent=n+' branch'+(n===1?'':'es')+' selected';
+    $('#usend').disabled=!(n>0 && uHeaders);
+  }
+  async function parseFile(file){
+    setMsg('#u-msg','Reading '+file.name+'…','info');
+    try{
+      const data=await file.arrayBuffer();
+      const wb=XLSX.read(data,{type:'array'});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const aoa=XLSX.utils.sheet_to_json(ws,{header:1,blankrows:false,defval:''});
+      if(!aoa.length){ setMsg('#u-msg','The sheet is empty.','err'); return; }
+      const headers=aoa[0].map(h=>(h==null?'':h.toString().trim())).filter(h=>h!=='');
+      const unknown=headers.filter(h=>COLS.indexOf(norm(h))<0);
+      if(unknown.length){ setMsg('#u-msg','Unrecognised columns: '+unknown.join(', '),'err'); return; }
+      const rows=[];
+      for(let i=1;i<aoa.length;i++){ const r=aoa[i]||[]; if(r.every(c=>c==null||c.toString().trim()===''))continue; rows.push(headers.map((_,j)=>r[j]==null?'':r[j].toString())); }
+      if(!rows.length){ setMsg('#u-msg','No data rows found below the header.','err'); return; }
+      uHeaders=headers; uRows=rows; uFileName=file.name;
+      setMsg('#u-msg','✓ '+rows.length+' rows ready — now tick the branches and send.','ok');
+      updateCount();
+    }catch(e){ setMsg('#u-msg',e.message,'err'); }
+  }
+  async function loadTree(){
+    const tree=$('#utree');
+    try{
+      const d=await apiGet('/all-targets');
+      const ags=d.agencies||[];
+      if(!ags.length){ tree.innerHTML='<div class="empty">No agencies to send to.</div>'; return; }
+      tree.innerHTML=ags.map(a=>
+        '<div class="utree-ag">'+
+          '<label class="utree-row utree-a"><input type="checkbox" class="uck-ag"> <b>'+esc(a.name)+'</b></label>'+
+          a.headOffices.map(h=>
+            '<div class="utree-ho"><label class="utree-row utree-h"><input type="checkbox" class="uck-ho"> '+esc(h.financeName)+'</label>'+
+              (h.branches.length?h.branches.map(b=>
+                '<label class="utree-row utree-b"><input type="checkbox" class="uck-br" data-slug="'+esc(a.slug)+'" data-fin="'+h.financeId+'" data-br="'+b.id+'"> '+esc(b.name)+' <span class="muted2">('+(b.totalRecords||0)+')</span></label>').join('')
+              :'<div class="utree-empty">No branches yet</div>')+
+            '</div>').join('')+
+        '</div>').join('');
+      tree.querySelectorAll('.utree-ag').forEach(ag=>{
+        const agck=ag.querySelector('.uck-ag');
+        agck.addEventListener('change',()=>{ ag.querySelectorAll('.uck-br,.uck-ho').forEach(c=>c.checked=agck.checked); updateCount(); });
+      });
+      tree.querySelectorAll('.utree-ho').forEach(ho=>{
+        const hock=ho.querySelector('.uck-ho');
+        hock.addEventListener('change',()=>{ ho.querySelectorAll('.uck-br').forEach(c=>c.checked=hock.checked); updateCount(); });
+      });
+      tree.querySelectorAll('.uck-br').forEach(c=>c.addEventListener('change',updateCount));
+    }catch(e){ tree.innerHTML='<div class="empty">'+esc(e.message)+'</div>'; }
+  }
+  $('#usend').onclick=async()=>{
+    const targets=selectedTargets();
+    if(!targets.length||!uHeaders) return;
+    const ok=await confirmDialog({title:'Send to '+targets.length+' branch'+(targets.length===1?'':'es')+'?',message:'The file will be imported into every selected branch across the chosen agencies.',confirmLabel:'Send'});
+    if(!ok) return;
+    $('#usend').disabled=true; setMsg('#u-msg','Sending to '+targets.length+' branches…','info');
+    try{
+      const d=await apiCall('/import-universal',{fileName:uFileName||'upload.xlsx',headers:uHeaders,rows:uRows,targets},true);
+      const okB=d.branches||0, failB=d.failed||0, tot=d.totalRecords||0;
+      setMsg('#u-msg','✓ Sent '+tot.toLocaleString()+' records to '+okB+' branch'+(okB===1?'':'es')+(failB?' · '+failB+' failed':''), failB?'err':'ok');
+      toast('Universal upload — '+okB+' branches, '+tot.toLocaleString()+' records'+(failB?', '+failB+' failed':''), failB?'err':'ok');
+    }catch(e){ setMsg('#u-msg',e.message,'err'); }
+    $('#usend').disabled=false;
+  };
+  loadTree();
 }
 
 async function renderUploads(){
