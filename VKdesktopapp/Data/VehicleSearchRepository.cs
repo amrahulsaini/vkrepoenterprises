@@ -14,14 +14,21 @@ public class VehicleSearchRepository
     private static readonly JsonSerializerOptions _json = new() { PropertyNameCaseInsensitive = true };
 
     public Task<List<VehicleSearchItem>> SearchByRcLast4Async(string last4, CancellationToken ct = default)
-        => SearchAsync(last4, "rc", ct);
+        => SearchAsync(last4, "rc", 0, ct);
 
     public Task<List<VehicleSearchItem>> SearchByChassisLast5Async(string last5, CancellationToken ct = default)
-        => SearchAsync(last5, "chassis", ct);
+        => SearchAsync(last5, "chassis", 0, ct);
 
-    private static async Task<List<VehicleSearchItem>> SearchAsync(string q, string mode, CancellationToken ct)
+    public Task<List<VehicleSearchItem>> SearchByRcLast4Async(string last4, int financeId, CancellationToken ct = default)
+        => SearchAsync(last4, "rc", financeId, ct);
+
+    public Task<List<VehicleSearchItem>> SearchByChassisLast5Async(string last5, int financeId, CancellationToken ct = default)
+        => SearchAsync(last5, "chassis", financeId, ct);
+
+    private static async Task<List<VehicleSearchItem>> SearchAsync(string q, string mode, int financeId, CancellationToken ct)
     {
-        var url = $"{App.ApiBaseUrl}api/mgr/search/list?q={Uri.EscapeDataString(q)}&mode={mode}";
+        var url = $"{App.ApiBaseUrl}api/mgr/search/list?q={Uri.EscapeDataString(q)}&mode={mode}" +
+                  (financeId > 0 ? $"&financeId={financeId}" : "");
         var req = new HttpRequestMessage(HttpMethod.Get, url);
         req.Headers.Add("X-Api-Key", App.ApiKey);
 

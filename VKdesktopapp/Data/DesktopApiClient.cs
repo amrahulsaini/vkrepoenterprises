@@ -89,9 +89,9 @@ internal static class DesktopApiClient
 
     private record UrlResult(string? Url);
 
-    internal static async Task<BillingSettingsDto?> GetBillingSettingsAsync()
+    internal static async Task<BillingSettingsDto?> GetBillingSettingsAsync(int financeId)
     {
-        var resp = await Send(HttpMethod.Get, "api/mgr/billing/settings");
+        var resp = await Send(HttpMethod.Get, $"api/mgr/billing/settings?financeId={financeId}");
         return await resp.Content.ReadFromJsonAsync<BillingSettingsDto>(_json);
     }
 
@@ -100,9 +100,9 @@ internal static class DesktopApiClient
         (await Send(HttpMethod.Put, "api/mgr/billing/settings", dto)).Dispose();
     }
 
-    internal static async Task<string?> UploadBillingImageAsync(string kind, string base64)
+    internal static async Task<string?> UploadBillingImageAsync(string kind, string base64, int financeId)
     {
-        var resp = await Send(HttpMethod.Post, $"api/mgr/billing/{kind}", new { ImageBase64 = base64 });
+        var resp = await Send(HttpMethod.Post, $"api/mgr/billing/{kind}", new { ImageBase64 = base64, FinanceId = financeId });
         return (await resp.Content.ReadFromJsonAsync<UrlResult>(_json))?.Url;
     }
 

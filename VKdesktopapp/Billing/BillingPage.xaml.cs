@@ -25,6 +25,9 @@ public partial class BillingPage : Page
     private List<VehicleSearchItem> _results = new();
     private string? _letterheadUrl;
     private string? _backgroundUrl;
+    private int _financeId;
+    private bool _searching;
+    private bool _clearingSearch;
 
     private class FinanceOption { public int Id { get; set; } public string Name { get; set; } = ""; }
 
@@ -104,7 +107,25 @@ public partial class BillingPage : Page
 
         try
         {
-            var s = await DesktopApiClient.GetBillingSettingsAsync();
+            var list = await _finances.GetFinancesAsync();
+            cmbFinance.ItemsSource = list.Select(f => new FinanceOption { Id = f.Id, Name = f.Name })
+                                         .OrderBy(f => f.Name).ToList();
+            txtSearchStatus.Text = "Select a finance to begin.";
+        }
+        catch (Exception ex) { txtSearchStatus.Text = "Could not load finances: " + ex.Message; }
+    }
+
+    private async Task LoadFinanceSettingsAsync()
+    {
+        _letterheadUrl = null;
+        _backgroundUrl = null;
+        ShowPreview(imgLetterhead, null);
+        ShowPreview(imgBackground, null);
+        txtPan.Text = txtGst.Text = txtAcHolder.Text = txtAccountNo.Text = "";
+        txtIfsc.Text = txtBankBranch.Text = txtParkingYard.Text = txtFooter.Text = "";
+        try
+        {
+            var s = await DesktopApiClient.GetBillingSettingsAsync(_financeId);
             if (s != null)
             {
                 txtPan.Text        = s.PanNo;
@@ -122,14 +143,6 @@ public partial class BillingPage : Page
             }
         }
         catch (Exception ex) { txtSearchStatus.Text = "Could not load billing settings: " + ex.Message; }
-
-        try
-        {
-            var list = await _finances.GetFinancesAsync();
-            cmbFinance.ItemsSource = list.Select(f => new FinanceOption { Id = f.Id, Name = f.Name })
-                                         .OrderBy(f => f.Name).ToList();
-        }
-        catch (Exception ex) { txtSearchStatus.Text = "Could not load head offices: " + ex.Message; }
     }
 
     private static void ShowPreview(Image target, string? url)
@@ -152,12 +165,13 @@ public partial class BillingPage : Page
 
     private async Task UploadImage(string kind, Image preview)
     {
+        if (_financeId <= 0) { MessageBox.Show("Select a finance first.", "Billing", MessageBoxButton.OK, MessageBoxImage.Information); return; }
         var dlg = new OpenFileDialog { Filter = "Images (*.png;*.jpg;*.jpeg)|*.png;*.jpg;*.jpeg" };
         if (dlg.ShowDialog() != true) return;
         try
         {
             var b64 = Convert.ToBase64String(File.ReadAllBytes(dlg.FileName));
-            var url = await DesktopApiClient.UploadBillingImageAsync(kind, b64);
+            var url = await DesktopApiClient.UploadBillingImageAsync(kind, b64, _financeId);
             if (kind == "letterhead") _letterheadUrl = url; else _backgroundUrl = url;
             ShowPreview(preview, url);
             txtGenStatus.Text = $"{kind} uploaded.";
@@ -165,32 +179,59 @@ public partial class BillingPage : Page
         catch (Exception ex) { MessageBox.Show("Upload failed: " + ex.Message, "Billing", MessageBoxButton.OK, MessageBoxImage.Error); }
     }
 
-    private void cmbFinance_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    private async void cmbFinance_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (cmbFinance.SelectedItem is FinanceOption f && string.IsNullOrWhiteSpace(txtBankTo.Text))
-            txtBankTo.Text = f.Name;
+        if (cmbFinance.SelectedItem is not FinanceOption f) return;
+        _financeId = f.Id;
+        txtBankTo.Text = f.Name;
+        ResetVehicle();
+        await LoadFinanceSettingsAsync();
+        txtSearchStatus.Text = $"Finance: {f.Name}";
+    }
+
+    private void ResetVehicle()
+    {
+        _clearingSearch = true;
+        txtVehSearch.Text = "";
+        _clearingSearch = false;
+        lstResults.ItemsSource = null;
+        _results = new List<VehicleSearchItem>();
+        txtAgriLoan.Text = txtCustomer.Text = txtMakeModel.Text = txtRcNo.Text = txtBranch.Text = "";
     }
 
     private void txtVehSearch_KeyDown(object sender, KeyEventArgs e)
     {
-        if (e.Key == Key.Enter) btnSearch_Click(sender, e);
+        if (e.Key == Key.Enter) _ = DoSearchAsync(txtVehSearch.Text.Trim());
     }
 
-    private async void btnSearch_Click(object sender, RoutedEventArgs e)
+    private void txtVehSearch_TextChanged(object sender, TextChangedEventArgs e)
     {
-        var q = txtVehSearch.Text.Trim();
-        if (q.Length == 0) { txtSearchStatus.Text = "Enter last 4 (RC) or 5 (chassis) digits."; return; }
+        if (_clearingSearch) return;
+        var digits = new string(txtVehSearch.Text.Where(char.IsLetterOrDigit).ToArray());
+        int need = rbChassis.IsChecked == true ? 5 : 4;
+        if (digits.Length >= need) _ = DoSearchAsync(digits.Substring(digits.Length - need));
+    }
+
+    private async Task DoSearchAsync(string q)
+    {
+        if (_searching || q.Length == 0) return;
+        if (_financeId <= 0) { txtSearchStatus.Text = "Select a finance first."; return; }
+        _searching = true;
+        _clearingSearch = true;
+        txtVehSearch.Text = "";
+        _clearingSearch = false;
         txtSearchStatus.Text = "Searching…";
         lstResults.ItemsSource = null;
         try
         {
             _results = rbChassis.IsChecked == true
-                ? await _search.SearchByChassisLast5Async(q)
-                : await _search.SearchByRcLast4Async(q);
+                ? await _search.SearchByChassisLast5Async(q, _financeId)
+                : await _search.SearchByRcLast4Async(q, _financeId);
             lstResults.ItemsSource = _results;
-            txtSearchStatus.Text = $"{_results.Count} vehicle(s) found.";
+            txtSearchStatus.Text = $"{_results.Count} vehicle(s) found in this finance.";
         }
         catch (Exception ex) { txtSearchStatus.Text = "Search failed: " + ex.Message; }
+        finally { _searching = false; }
     }
 
     private async void lstResults_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -210,10 +251,12 @@ public partial class BillingPage : Page
 
     private async void btnGenerate_Click(object sender, RoutedEventArgs e)
     {
+        if (_financeId <= 0) { MessageBox.Show("Select a finance first.", "Billing", MessageBoxButton.OK, MessageBoxImage.Information); return; }
         try
         {
             await DesktopApiClient.SaveBillingSettingsAsync(new
             {
+                FinanceId = _financeId,
                 AgencyName = txtAgencyName.Text.Trim(), PanNo = txtPan.Text.Trim(), GstState = txtGst.Text.Trim(),
                 BankAccountName = txtAcHolder.Text.Trim(), AccountNo = txtAccountNo.Text.Trim(), IfscCode = txtIfsc.Text.Trim(),
                 BankBranch = txtBankBranch.Text.Trim(), ParkingYard = txtParkingYard.Text.Trim(),
@@ -239,6 +282,13 @@ public partial class BillingPage : Page
             BuildDocx(dlg.FileName, lh, bg);
             txtGenStatus.Text = "Bill generated.";
             Process.Start(new ProcessStartInfo(dlg.FileName) { UseShellExecute = true });
+            ResetVehicle();
+            txtInvoiceNo.Text = "";
+            txtConfirmationBy.Text = "";
+            txtRepoAmount.Text = txtRepoWords.Text = "";
+            txtTotalAmount.Text = txtTotalWords.Text = "";
+            txtAddlCharges.Text = "NA";
+            txtSearchStatus.Text = "Ready for the next bill.";
         }
         catch (Exception ex)
         {

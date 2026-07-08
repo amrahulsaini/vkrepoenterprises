@@ -581,7 +581,7 @@ static async Task MgrExec(string sql, MySqlConnection c, int timeout = 30,
     await cmd.ExecuteNonQueryAsync();
 }
 
-static async Task<IResult> SaveBillingImage(HttpContext ctx, string? base64, string kind)
+static async Task<IResult> SaveBillingImage(HttpContext ctx, string? base64, string kind, int financeId)
 {
     if (string.IsNullOrWhiteSpace(base64)) return Results.BadRequest(new { message = "No image provided." });
     try
@@ -590,14 +590,14 @@ static async Task<IResult> SaveBillingImage(HttpContext ctx, string? base64, str
         var slug = TenantContext.Key;
         var dir = Path.Combine("/opt/vkapi/agency-uploads", "billing");
         Directory.CreateDirectory(dir);
-        var file = $"{slug}_{kind}.jpg";
+        var file = $"{slug}_{financeId}_{kind}.jpg";
         await File.WriteAllBytesAsync(Path.Combine(dir, file), bytes);
         var rel = $"billing/{file}";
         var col = kind == "letterhead" ? "letterhead_path" : "background_path";
         await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
-        await MgrExec($"INSERT INTO billing_settings (id, {col}) VALUES (1, @p) ON DUPLICATE KEY UPDATE {col}=VALUES({col})",
-            conn, 10, ("@p", rel));
+        await MgrExec($"INSERT INTO billing_settings (finance_id, {col}) VALUES (@fid, @p) ON DUPLICATE KEY UPDATE {col}=VALUES({col})",
+            conn, 10, ("@fid", financeId), ("@p", rel));
         var baseUrl = $"{ctx.Request.Scheme}://{ctx.Request.Host}";
         return Results.Ok(new { url = $"{baseUrl}/agency-uploads/{rel}" });
     }
@@ -1571,17 +1571,19 @@ app.MapDelete("/api/mgr/subscriptions/{id:long}", async (HttpContext ctx, long i
 });
 
 
-app.MapGet("/api/mgr/billing/settings", async (HttpContext ctx) =>
+app.MapGet("/api/mgr/billing/settings", async (HttpContext ctx, int? financeId) =>
 {
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
     try
     {
+        int fid = financeId ?? 0;
         await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
         const string sql = @"SELECT agency_name, pan_no, gst_state, bank_account_name, account_no, ifsc_code,
                                     bank_branch, parking_yard, payment_name, footer_line, letterhead_path, background_path
-                             FROM billing_settings WHERE id=1 LIMIT 1";
+                             FROM billing_settings WHERE finance_id=@fid LIMIT 1";
         await using var cmd = new MySqlCommand(sql, conn) { CommandTimeout = 10 };
+        cmd.Parameters.AddWithValue("@fid", fid);
         await using var r = await cmd.ExecuteReaderAsync();
         string? S(int i) => r.IsDBNull(i) ? null : r.GetString(i);
         string baseUrl = $"{ctx.Request.Scheme}://{ctx.Request.Host}";
@@ -1608,13 +1610,14 @@ app.MapPut("/api/mgr/billing/settings", async (HttpContext ctx, MgrBillingSettin
         await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
         const string sql = @"INSERT INTO billing_settings
-            (id, agency_name, pan_no, gst_state, bank_account_name, account_no, ifsc_code, bank_branch, parking_yard, payment_name, footer_line)
-            VALUES (1,@an,@pan,@gst,@ban,@acc,@ifsc,@bb,@py,@pn,@fl)
+            (finance_id, agency_name, pan_no, gst_state, bank_account_name, account_no, ifsc_code, bank_branch, parking_yard, payment_name, footer_line)
+            VALUES (@fid,@an,@pan,@gst,@ban,@acc,@ifsc,@bb,@py,@pn,@fl)
             ON DUPLICATE KEY UPDATE agency_name=VALUES(agency_name), pan_no=VALUES(pan_no), gst_state=VALUES(gst_state),
               bank_account_name=VALUES(bank_account_name), account_no=VALUES(account_no), ifsc_code=VALUES(ifsc_code),
               bank_branch=VALUES(bank_branch), parking_yard=VALUES(parking_yard), payment_name=VALUES(payment_name),
               footer_line=VALUES(footer_line)";
         await MgrExec(sql, conn, 10,
+            ("@fid", dto.FinanceId),
             ("@an", (object?)dto.AgencyName ?? DBNull.Value), ("@pan", (object?)dto.PanNo ?? DBNull.Value),
             ("@gst", (object?)dto.GstState ?? DBNull.Value), ("@ban", (object?)dto.BankAccountName ?? DBNull.Value),
             ("@acc", (object?)dto.AccountNo ?? DBNull.Value), ("@ifsc", (object?)dto.IfscCode ?? DBNull.Value),
@@ -1626,10 +1629,10 @@ app.MapPut("/api/mgr/billing/settings", async (HttpContext ctx, MgrBillingSettin
 });
 
 app.MapPost("/api/mgr/billing/letterhead", async (HttpContext ctx, MgrBillingImageDto dto) =>
-    (!MgrAuth(ctx, desktopLoginPassword)) ? Results.Unauthorized() : await SaveBillingImage(ctx, dto.ImageBase64, "letterhead"));
+    (!MgrAuth(ctx, desktopLoginPassword)) ? Results.Unauthorized() : await SaveBillingImage(ctx, dto.ImageBase64, "letterhead", dto.FinanceId));
 
 app.MapPost("/api/mgr/billing/background", async (HttpContext ctx, MgrBillingImageDto dto) =>
-    (!MgrAuth(ctx, desktopLoginPassword)) ? Results.Unauthorized() : await SaveBillingImage(ctx, dto.ImageBase64, "background"));
+    (!MgrAuth(ctx, desktopLoginPassword)) ? Results.Unauthorized() : await SaveBillingImage(ctx, dto.ImageBase64, "background", dto.FinanceId));
 
 
 app.MapGet("/api/mgr/search", async (HttpContext ctx, string? q, string? mode) =>
@@ -1703,13 +1706,14 @@ app.MapGet("/api/mgr/search", async (HttpContext ctx, string? q, string? mode) =
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
 
-app.MapGet("/api/mgr/search/list", async (HttpContext ctx, string? q, string? mode) =>
+app.MapGet("/api/mgr/search/list", async (HttpContext ctx, string? q, string? mode, int? financeId) =>
 {
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
     if (string.IsNullOrWhiteSpace(q)) return Results.Ok(new List<object>());
     try
     {
         var isChassis = string.Equals(mode, "chassis", StringComparison.OrdinalIgnoreCase);
+        var scope = financeId is > 0 ? " AND b.finance_id = @fid" : "";
         const string lite = @"
             vr.id, vr.vehicle_no, vr.chassis_no, vr.model,
             b.name AS branch_name, COALESCE(f.name,'') AS financer,
@@ -1719,17 +1723,18 @@ app.MapGet("/api/mgr/search/list", async (HttpContext ctx, string? q, string? mo
                  INNER JOIN vehicle_records vr ON vr.id = ci.vehicle_record_id
                  INNER JOIN branches b ON b.id = vr.branch_id
                  LEFT  JOIN finances f ON f.id = b.finance_id
-                 WHERE ci.last5 = @q"
+                 WHERE ci.last5 = @q{scope}"
             : $@"SELECT {lite} FROM rc_info ri
                  INNER JOIN vehicle_records vr ON vr.id = ri.vehicle_record_id
                  INNER JOIN branches b ON b.id = vr.branch_id
                  LEFT  JOIN finances f ON f.id = b.finance_id
-                 WHERE ri.last4 = @q";
+                 WHERE ri.last4 = @q{scope}";
 
         await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
         await using var cmd = new MySqlCommand(sql, conn) { CommandTimeout = 15 };
         cmd.Parameters.AddWithValue("@q", q.ToUpper().Trim());
+        if (financeId is > 0) cmd.Parameters.AddWithValue("@fid", financeId.Value);
         await using var rdr = await cmd.ExecuteReaderAsync();
         var results = new List<object>();
         while (await rdr.ReadAsync())
@@ -3332,10 +3337,11 @@ record MgrSetStoppedDto(bool Stopped);
 record MgrSetBlacklistedDto(bool Blacklisted);
 record MgrSetKycStatusDto(string? Status, string? Note);
 record MgrBillingSettingsDto(
+    int FinanceId,
     string? AgencyName, string? PanNo, string? GstState, string? BankAccountName,
     string? AccountNo, string? IfscCode, string? BankBranch, string? ParkingYard,
     string? PaymentName, string? FooterLine);
-record MgrBillingImageDto(string? ImageBase64);
+record MgrBillingImageDto(string? ImageBase64, int FinanceId = 0);
 record MgrSetFinanceRestrictionsDto(List<int> FinanceIds);
 record MgrSetSubsPasswordDto(string Password);
 record MgrSetAdminPassDto(string Password);

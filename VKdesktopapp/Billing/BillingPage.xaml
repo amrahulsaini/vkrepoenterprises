@@ -13,34 +13,41 @@
             <DockPanel>
                 <TextBlock DockPanel.Dock="Top" Text="Repossession Bill" FontSize="18" FontWeight="Bold" Margin="0,0,0,10" />
 
-                <TextBlock DockPanel.Dock="Top" Text="Letterhead Image (top of bill)" FontSize="12" Foreground="#666" Margin="0,0,0,4" />
-                <Border DockPanel.Dock="Top" BorderBrush="#E0E0E0" BorderThickness="1" CornerRadius="6" Height="64" Margin="0,0,0,4">
+                <TextBlock DockPanel.Dock="Top" Text="Finance / Bank Name (To)" FontSize="13" FontWeight="Bold" Foreground="#00897B" Margin="0,0,0,4" />
+                <ComboBox DockPanel.Dock="Top" Name="cmbFinance" Height="32" Margin="0,0,0,12"
+                          DisplayMemberPath="Name" SelectionChanged="cmbFinance_SelectionChanged" />
+
+                <TextBlock DockPanel.Dock="Top" Text="Letterhead Image (for this finance)" FontSize="12" Foreground="#666" Margin="0,0,0,4" />
+                <Border DockPanel.Dock="Top" BorderBrush="#E0E0E0" BorderThickness="1" CornerRadius="6" Height="56" Margin="0,0,0,4">
                     <Image Name="imgLetterhead" Stretch="Uniform" Margin="3" />
                 </Border>
                 <Button DockPanel.Dock="Top" Name="btnLetterhead" Content="Upload Letterhead" Height="28" Margin="0,0,0,10" Click="btnLetterhead_Click" />
 
-                <TextBlock DockPanel.Dock="Top" Text="Background / Template Image (watermark)" FontSize="12" Foreground="#666" Margin="0,0,0,4" />
-                <Border DockPanel.Dock="Top" BorderBrush="#E0E0E0" BorderThickness="1" CornerRadius="6" Height="64" Margin="0,0,0,4">
+                <TextBlock DockPanel.Dock="Top" Text="Background / Template Image (for this finance)" FontSize="12" Foreground="#666" Margin="0,0,0,4" />
+                <Border DockPanel.Dock="Top" BorderBrush="#E0E0E0" BorderThickness="1" CornerRadius="6" Height="56" Margin="0,0,0,4">
                     <Image Name="imgBackground" Stretch="Uniform" Margin="3" />
                 </Border>
                 <Button DockPanel.Dock="Top" Name="btnBackground" Content="Upload Background" Height="28" Margin="0,0,0,12" Click="btnBackground_Click" />
 
-                <TextBlock DockPanel.Dock="Top" Text="Head Office (To)" FontSize="12" Foreground="#666" Margin="0,0,0,4" />
-                <ComboBox DockPanel.Dock="Top" Name="cmbFinance" Height="30" Margin="0,0,0,10"
-                          DisplayMemberPath="Name" SelectionChanged="cmbFinance_SelectionChanged" />
-
-                <TextBlock DockPanel.Dock="Top" Text="Find Vehicle" FontSize="12" Foreground="#666" Margin="0,0,0,4" />
+                <TextBlock DockPanel.Dock="Top" Text="Find Vehicle (in this finance)" FontSize="12" Foreground="#666" Margin="0,0,0,4" />
                 <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,6">
                     <RadioButton Name="rbRc" Content="RC (last 4)" IsChecked="True" GroupName="mode" Margin="0,0,12,0" VerticalAlignment="Center" />
                     <RadioButton Name="rbChassis" Content="Chassis (last 5)" GroupName="mode" VerticalAlignment="Center" />
                 </StackPanel>
-                <DockPanel DockPanel.Dock="Top" Margin="0,0,0,6">
-                    <Button DockPanel.Dock="Right" Name="btnSearch" Content="Search" Width="72" Height="30" Margin="8,0,0,0" Click="btnSearch_Click" />
-                    <TextBox Name="txtVehSearch" Height="30" VerticalContentAlignment="Center" KeyDown="txtVehSearch_KeyDown" />
-                </DockPanel>
+                <TextBox DockPanel.Dock="Top" Name="txtVehSearch" Height="32" Margin="0,0,0,6"
+                         VerticalContentAlignment="Center" FontWeight="Bold"
+                         TextChanged="txtVehSearch_TextChanged" KeyDown="txtVehSearch_KeyDown" />
 
                 <TextBlock DockPanel.Dock="Bottom" Name="txtSearchStatus" FontSize="11" Foreground="#888" Margin="0,6,0,0" />
-                <ListBox Name="lstResults" SelectionChanged="lstResults_SelectionChanged" DisplayMemberPath="VehicleNo" />
+                <ListView Name="lstResults" SelectionChanged="lstResults_SelectionChanged">
+                    <ListView.View>
+                        <GridView>
+                            <GridViewColumn Header="Vehicle No" Width="110" DisplayMemberBinding="{Binding VehicleNo}" />
+                            <GridViewColumn Header="Model" Width="100" DisplayMemberBinding="{Binding Model}" />
+                            <GridViewColumn Header="Branch" Width="110" DisplayMemberBinding="{Binding BranchName}" />
+                        </GridView>
+                    </ListView.View>
+                </ListView>
             </DockPanel>
         </Border>
 

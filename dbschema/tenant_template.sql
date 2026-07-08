@@ -567,7 +567,7 @@ CREATE TABLE `repo_letter_settings` (
 
 DROP TABLE IF EXISTS `billing_settings`;
 CREATE TABLE `billing_settings` (
-  `id`                INT          NOT NULL DEFAULT 1,
+  `finance_id`        INT          NOT NULL DEFAULT 0,
   `agency_name`       VARCHAR(255) NULL,
   `header_address`    VARCHAR(512) NULL,
   `header_contact`    VARCHAR(255) NULL,
@@ -585,7 +585,7 @@ CREATE TABLE `billing_settings` (
   `letterhead_path`   VARCHAR(512) NULL,
   `background_path`   VARCHAR(512) NULL,
   `updated_at`        TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`)
+  PRIMARY KEY (`finance_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
