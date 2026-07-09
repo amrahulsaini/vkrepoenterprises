@@ -32,8 +32,9 @@
   .btn-block{width:100%}
   .btn-sm{padding:8px 12px;font-size:13px;border-radius:9px}
 
-  input,select{font:inherit;width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--ink);transition:.15s}
-  input:focus,select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(21,101,216,.14)}
+  input,select,textarea{font:inherit;width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--ink);transition:.15s}
+  textarea{resize:vertical;line-height:1.5}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(21,101,216,.14)}
   select{cursor:pointer}
   .lbl{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin:0 0 6px}
   .field{margin-bottom:14px}
@@ -163,11 +164,13 @@
   .utree-b{padding-left:38px;border-top:1px solid var(--line2)}
   .utree-empty{padding:7px 38px;color:var(--muted);font-size:12px}
   .muted2{color:var(--muted);font-size:12px}
-  .fav-star{margin-left:auto;border:none;background:transparent;cursor:pointer;color:#c7ccd6;padding:2px 6px;border-radius:6px;display:inline-flex;align-items:center}
-  .fav-star:hover{background:var(--line2);color:#f5b301}
+  .fav-star{margin-left:auto;border:none;background:transparent;cursor:pointer;color:#c7ccd6;padding:4px 9px;border-radius:8px;display:inline-flex;align-items:center;min-width:34px;min-height:28px;justify-content:center;flex-shrink:0}
+  .fav-star:hover{background:#fff5db;color:#f5b301}
   .fav-star.fav-on{color:#f5b301}
   .fav-star.fav-on svg{fill:#f5b301}
-  .fav-star svg{width:16px;height:16px}
+  .fav-star svg{width:17px;height:17px}
+  .utree-toggle{border:none;background:transparent;cursor:pointer;color:var(--muted);padding:2px;display:inline-flex;align-items:center;transition:transform .15s;flex-shrink:0}
+  .utree-ag.open .utree-toggle{transform:rotate(90deg)}
   .agent-head{display:flex;gap:16px;align-items:center;margin-bottom:4px}
   .agent-head .apfp{width:78px;height:78px;border-radius:16px;object-fit:cover;border:1px solid var(--line);background:#eef2f8;flex-shrink:0}
   .agent-head .anm{font-family:var(--head);font-size:21px;font-weight:800;line-height:1.15}
@@ -243,6 +246,7 @@
     <div class="mainwrap">
       <header class="topbar">
         <h3 id="sel-title">Select a head office</h3>
+        <button class="btn btn-outline btn-sm" id="stmt-btn"><i data-lucide="send"></i> Statements</button>
         <div style="flex:1"></div>
         <div class="tabs hidden" id="tabs">
           <button data-tab="branches" class="active">Branches</button>
@@ -257,6 +261,17 @@
         <div class="empty"><span class="ei"><i data-lucide="landmark"></i></span>Pick an agency head office on the left to see its branches, records, uploads and search logs.</div>
       </div>
     </div>
+  </div>
+</div>
+
+<div class="modal-bd" id="stmt-modal">
+  <div class="modal-cd" style="max-width:520px">
+    <h3><i data-lucide="send"></i> Send a statement to an agency</h3>
+    <p class="mm" style="margin-bottom:14px">Your message is delivered to the agency's desktop (WPF) app.</p>
+    <div class="field"><div class="lbl">Agency</div><select id="stmt-agency"></select></div>
+    <div class="field"><div class="lbl">Message</div><textarea id="stmt-msg" rows="5" placeholder="Type your message…"></textarea></div>
+    <div class="msg" id="stmt-status"></div>
+    <div class="modal-actions"><button class="btn btn-outline btn-sm" id="stmt-cancel">Cancel</button><button class="btn btn-primary btn-sm" id="stmt-send">Send statement</button></div>
   </div>
 </div>
 
@@ -293,10 +308,14 @@
 
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <script>
 const ROOT='https://api.crmrecoverysoftware.com/api/integration/account';
 const $=s=>document.querySelector(s);
 const ic=(n,cls)=>'<i data-lucide="'+n+'"'+(cls?' class="'+cls+'"':'')+'></i>';
+const STAR='<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>';
+const CHEV='<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>';
 function drawIcons(){ if(window.lucide) try{ lucide.createIcons(); }catch(_){} }
 let _iconTimer;
 new MutationObserver(()=>{ clearTimeout(_iconTimer); _iconTimer=setTimeout(drawIcons,30); }).observe(document.documentElement,{childList:true,subtree:true});
@@ -678,17 +697,24 @@ function renderUploadUniversal(){
       if(!ags.length){ tree.innerHTML='<div class="empty">No agencies to send to.</div>'; return; }
       tree.innerHTML=ags.map(a=>
         '<div class="utree-ag">'+
-          '<label class="utree-row utree-a"><input type="checkbox" class="uck-ag"> <b>'+esc(a.name)+'</b></label>'+
+          '<div class="utree-row utree-a"><button type="button" class="utree-toggle">'+CHEV+'</button>'+
+            '<label style="display:flex;align-items:center;gap:8px;flex:1;min-width:0;margin:0;cursor:pointer"><input type="checkbox" class="uck-ag"> <b>'+esc(a.name)+'</b></label></div>'+
+          '<div class="utree-body hidden">'+
           a.headOffices.map(h=>
             '<div class="utree-ho"><label class="utree-row utree-h"><input type="checkbox" class="uck-ho"> '+esc(h.financeName)+'</label>'+
               (h.branches.length?h.branches.map(b=>
                 '<div class="utree-row utree-b">'+
                   '<label style="display:flex;align-items:center;gap:8px;flex:1;min-width:0;margin:0;cursor:pointer"><input type="checkbox" class="uck-br" data-slug="'+esc(a.slug)+'" data-fin="'+h.financeId+'" data-br="'+b.id+'" data-fav="'+(b.isFavourite?1:0)+'"> '+esc(b.name)+' <span class="muted2">('+(b.totalRecords||0)+')</span></label>'+
-                  '<button type="button" class="fav-star'+(b.isFavourite?' fav-on':'')+'" title="Save as favourite" data-slug="'+esc(a.slug)+'" data-fin="'+h.financeId+'" data-br="'+b.id+'">'+ic('star')+'</button>'+
+                  '<button type="button" class="fav-star'+(b.isFavourite?' fav-on':'')+'" title="Save as favourite" data-slug="'+esc(a.slug)+'" data-fin="'+h.financeId+'" data-br="'+b.id+'">'+STAR+'</button>'+
                 '</div>').join('')
               :'<div class="utree-empty">No branches yet</div>')+
             '</div>').join('')+
+          '</div>'+
         '</div>').join('');
+      tree.querySelectorAll('.utree-toggle').forEach(t=>t.addEventListener('click',e=>{
+        e.preventDefault(); const ag=t.closest('.utree-ag');
+        ag.classList.toggle('open'); ag.querySelector('.utree-body').classList.toggle('hidden');
+      }));
       tree.querySelectorAll('.utree-ag').forEach(ag=>{
         const agck=ag.querySelector('.uck-ag');
         agck.addEventListener('change',()=>{ ag.querySelectorAll('.uck-br,.uck-ho').forEach(c=>c.checked=agck.checked); updateCount(); });
@@ -768,35 +794,69 @@ async function deleteUpload(id){
   }catch(e){ toast(e.message,'err'); }
 }
 
+let logsData=[];
 function renderLogs(){
   const today=new Date().toISOString().slice(0,10);
   const from=new Date(Date.now()-7*864e5).toISOString().slice(0,10);
   $('#content').innerHTML=
     '<div class="card"><div class="cb">'+
     '<div class="toolbar"><input id="lg-from" type="date" value="'+from+'"><span style="color:var(--muted)">to</span><input id="lg-to" type="date" value="'+today+'">'+
-      '<input id="lg-q" class="grow" type="text" placeholder="Vehicle / chassis"><button class="btn btn-primary btn-sm" id="lg-load">Load</button></div>'+
+      '<input id="lg-q" class="grow" type="text" placeholder="Vehicle / chassis"><button class="btn btn-primary btn-sm" id="lg-load">Load</button>'+
+      '<button class="btn btn-outline btn-sm" id="lg-xls">'+ic('file-spreadsheet')+' Excel</button>'+
+      '<button class="btn btn-outline btn-sm" id="lg-pdf">'+ic('file-text')+' PDF</button></div>'+
     '<div class="scope-note"><i data-lucide="footprints"></i> Agent searches on vehicles belonging to <b>'+esc(sel.financeName)+'</b>.</div>'+
     '<div id="lg-body"><div class="empty">Choose a date range and load.</div></div>'+
     '</div></div>';
   $('#lg-load').onclick=loadLogs;
+  $('#lg-xls').onclick=exportLogsExcel;
+  $('#lg-pdf').onclick=exportLogsPdf;
   loadLogs();
 }
 async function loadLogs(){
   const body=$('#lg-body'); body.innerHTML='<div class="empty"><span class="spin"></span> Loading…</div>';
   try{
     const d=await apiCall('/search-logs',{agencySlug:sel.agencySlug,financeId:sel.financeId,fromDate:$('#lg-from').value,toDate:$('#lg-to').value,q:$('#lg-q').value.trim()},true);
-    const logs=d.logs||[];
-    if(!logs.length){ body.innerHTML='<div class="empty"><span class="ei"><i data-lucide="footprints"></i></span>No searches found for this head office in the selected range.</div>'; return; }
-    body.innerHTML='<div class="tbl-scroll"><table class="tbl"><thead><tr><th>Agent</th><th>Mobile</th><th>Vehicle</th><th>Chassis</th><th>Model</th><th>When</th><th>Location</th></tr></thead><tbody>'+
-      logs.map(l=>'<tr>'+
+    logsData=d.logs||[];
+    if(!logsData.length){ body.innerHTML='<div class="empty"><span class="ei"><i data-lucide="footprints"></i></span>No searches found for this head office in the selected range.</div>'; return; }
+    body.innerHTML='<div class="tbl-scroll"><table class="tbl"><thead><tr><th>Agent</th><th>Mobile</th><th>Vehicle</th><th>Chassis</th><th>Model</th><th>When</th><th>Location</th><th></th></tr></thead><tbody>'+
+      logsData.map(l=>'<tr data-lg="'+l.id+'">'+
         '<td><span class="lnk" data-uid="'+l.userId+'" data-nm="'+esc(l.userName)+'">'+esc(l.userName)+'</span></td>'+
         '<td>'+esc(l.userMobile)+'</td>'+
         '<td>'+(l.vehicleNo?'<span class="lnk" data-vno="'+esc(l.vehicleNo)+'">'+esc(l.vehicleNo)+'</span>':'—')+'</td>'+
         '<td>'+esc(l.chassisNo)+'</td><td>'+esc(l.model)+'</td><td>'+esc(l.time)+'</td><td>'+
-        (l.lat!=null&&l.lng!=null?'<a href="https://maps.google.com/?q='+l.lat+','+l.lng+'" target="_blank"><i data-lucide="map-pin"></i> map</a>':esc(l.address||'—'))+'</td></tr>').join('')+'</tbody></table></div>';
+        (l.lat!=null&&l.lng!=null?'<a href="https://maps.google.com/?q='+l.lat+','+l.lng+'" target="_blank"><i data-lucide="map-pin"></i> map</a>':esc(l.address||'—'))+'</td>'+
+        '<td><button class="btn btn-danger btn-sm" data-del-log="'+l.id+'">'+ic('trash-2')+'</button></td></tr>').join('')+'</tbody></table></div>';
     body.querySelectorAll('.lnk[data-uid]').forEach(a=>a.onclick=()=>openAgent(+a.dataset.uid,a.dataset.nm));
     body.querySelectorAll('.lnk[data-vno]').forEach(a=>a.onclick=()=>openVehicle(a.dataset.vno));
+    body.querySelectorAll('[data-del-log]').forEach(b=>b.onclick=()=>deleteLog(+b.dataset.delLog));
   }catch(e){ body.innerHTML='<div class="empty">'+esc(e.message)+'</div>'; }
+}
+async function deleteLog(id){
+  const ok=await confirmDialog({title:'Delete this search log?',message:'This permanently removes this search-log entry.',confirmLabel:'Delete',danger:true});
+  if(!ok) return;
+  try{
+    await apiCall('/search-log/delete',{agencySlug:sel.agencySlug,financeId:sel.financeId,logId:id},true);
+    logsData=logsData.filter(x=>x.id!==id);
+    const tr=$('#lg-body').querySelector('tr[data-lg="'+id+'"]'); if(tr) tr.remove();
+    toast('Search log deleted','info');
+  }catch(e){ toast(e.message,'err'); }
+}
+function logsRows(){ return logsData.map(l=>[l.userName,l.userMobile,l.vehicleNo,l.chassisNo,l.model,l.time,(l.lat!=null&&l.lng!=null?l.lat+','+l.lng:(l.address||''))]); }
+function exportLogsExcel(){
+  if(!logsData.length){ toast('Nothing to export','info'); return; }
+  const head=['Agent','Mobile','Vehicle','Chassis','Model','When','Location'];
+  const ws=XLSX.utils.aoa_to_sheet([head].concat(logsRows()));
+  const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'Search logs');
+  XLSX.writeFile(wb,'search-logs-'+sel.financeName.replace(/[^A-Za-z0-9]+/g,'_')+'.xlsx');
+}
+function exportLogsPdf(){
+  if(!logsData.length){ toast('Nothing to export','info'); return; }
+  const jsPDF=(window.jspdf||{}).jsPDF; if(!jsPDF){ toast('PDF library not loaded','err'); return; }
+  const doc=new jsPDF({orientation:'landscape'});
+  doc.setFontSize(13); doc.text('Search logs — '+sel.financeName+' ('+sel.agencyName+')',14,14);
+  doc.setFontSize(9); doc.text('Generated '+new Date().toLocaleString(),14,20);
+  doc.autoTable({head:[['Agent','Mobile','Vehicle','Chassis','Model','When','Location']],body:logsRows(),startY:24,styles:{fontSize:8},headStyles:{fillColor:[10,61,143]}});
+  doc.save('search-logs-'+sel.financeName.replace(/[^A-Za-z0-9]+/g,'_')+'.pdf');
 }
 
 function badge2(ok,label,bad){ return '<span class="badge2 '+(ok?'g':(bad?'r':'n'))+'">'+(ok?ic('check')+' ':'')+esc(label)+'</span>'; }
@@ -850,6 +910,27 @@ async function openVehicle(vno){
   }catch(e){ $('#rec-kv').innerHTML='<div class="empty" style="grid-column:1/-1">'+esc(e.message)+'</div>'; }
 }
 
+$('#stmt-btn').onclick=openStatements;
+$('#stmt-cancel').onclick=()=>$('#stmt-modal').classList.remove('open');
+$('#stmt-modal').addEventListener('click',e=>{ if(e.target.id==='stmt-modal') $('#stmt-modal').classList.remove('open'); });
+function openStatements(){
+  if(!agencies.length){ toast('No agencies to message yet','info'); return; }
+  $('#stmt-agency').innerHTML=agencies.map(a=>'<option value="'+esc(a.slug)+'">'+esc(a.name)+'</option>').join('');
+  $('#stmt-msg').value=''; setMsg('#stmt-status','');
+  $('#stmt-modal').classList.add('open');
+}
+$('#stmt-send').onclick=async()=>{
+  const slug=$('#stmt-agency').value, msg=$('#stmt-msg').value.trim();
+  if(!msg){ setMsg('#stmt-status','Enter a message.','err'); return; }
+  $('#stmt-send').disabled=true; setMsg('#stmt-status','Sending…','info');
+  try{
+    await apiCall('/message/send',{agencySlug:slug,message:msg},true);
+    setMsg('#stmt-status','✓ Sent to the agency.','ok');
+    toast('Statement sent','ok');
+    setTimeout(()=>$('#stmt-modal').classList.remove('open'),900);
+  }catch(e){ setMsg('#stmt-status',e.message,'err'); }
+  $('#stmt-send').disabled=false;
+};
 drawIcons();
 if(token) enterDash();
 </script>
