@@ -2027,6 +2027,59 @@ app.MapGet("/api/mgr/search-logs", async (HttpContext ctx,
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
 
+app.MapGet("/api/mgr/integration-messages", async (HttpContext ctx) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        await using var conn = new MySqlConnection(TenantContext.Conn);
+        await conn.OpenAsync();
+        var list = new List<object>();
+        await using (var ensure = new MySqlCommand(@"
+            CREATE TABLE IF NOT EXISTS integration_agency_messages (
+              id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+              integration_account_id INT NOT NULL,
+              from_finance_name VARCHAR(200) DEFAULT NULL,
+              from_email VARCHAR(200) DEFAULT NULL,
+              message TEXT NOT NULL,
+              is_read TINYINT(1) NOT NULL DEFAULT 0,
+              created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+              PRIMARY KEY (id), KEY idx_iam_created (created_at), KEY idx_iam_read (is_read)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4", conn))
+            await ensure.ExecuteNonQueryAsync();
+        await using var cmd = new MySqlCommand(@"
+            SELECT id, COALESCE(from_finance_name,''), COALESCE(from_email,''), message, is_read,
+                   DATE_FORMAT(created_at,'%d %b %Y %h:%i %p')
+            FROM integration_agency_messages ORDER BY id DESC LIMIT 500", conn) { CommandTimeout = 15 };
+        await using var rdr = await cmd.ExecuteReaderAsync();
+        while (await rdr.ReadAsync())
+            list.Add(new
+            {
+                id = rdr.GetInt32(0), fromFinance = rdr.GetString(1), fromEmail = rdr.GetString(2),
+                message = rdr.GetString(3), isRead = rdr.GetInt32(4) != 0, createdAt = rdr.GetString(5)
+            });
+        int unread;
+        await using (var uc = new MySqlCommand("SELECT COUNT(*) FROM integration_agency_messages WHERE is_read=0", conn))
+            unread = Convert.ToInt32(await uc.ExecuteScalarAsync());
+        return Results.Ok(new { messages = list, unread });
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+app.MapPost("/api/mgr/integration-messages/read", async (HttpContext ctx) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        await using var conn = new MySqlConnection(TenantContext.Conn);
+        await conn.OpenAsync();
+        await using var cmd = new MySqlCommand("UPDATE integration_agency_messages SET is_read=1 WHERE is_read=0", conn);
+        await cmd.ExecuteNonQueryAsync();
+        return Results.Ok(new { ok = true });
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
 app.MapGet("/api/mgr/column-mappings", async (HttpContext ctx) =>
 {
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();

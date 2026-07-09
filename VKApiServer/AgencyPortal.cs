@@ -2427,6 +2427,87 @@ internal static class AgencyPortal
             return Results.Ok(new { ok = true, favourite = fav });
         });
 
+        app.MapPost("/api/integration/account/search-log/delete", async (HttpContext ctx, HttpRequest req) =>
+        {
+            var who = IntegAuth(ctx);
+            if (who is not { } me) return Results.Unauthorized();
+            string slug; int financeId; long logId;
+            try
+            {
+                using var doc = await System.Text.Json.JsonDocument.ParseAsync(req.Body);
+                var r = doc.RootElement;
+                slug = r.TryGetProperty("agencySlug", out var s) ? (s.GetString() ?? "") : "";
+                financeId = r.TryGetProperty("financeId", out var f) && f.TryGetInt32(out var fi) ? fi : 0;
+                logId = r.TryGetProperty("logId", out var l) && l.TryGetInt64(out var li) ? li : 0;
+            }
+            catch { return Results.BadRequest(new { message = "Invalid body." }); }
+            if (await IntegFindGrant(me.id, slug, financeId) is null)
+                return Results.Json(new { message = "No access." }, statusCode: 403);
+            try
+            {
+                await using var tc = new MySqlConnection(TenantContext.BuildTenantConn(mysqlHost, mysqlPort, slug));
+                await tc.OpenAsync();
+                await using var cmd = new MySqlCommand(@"
+                    DELETE sl FROM search_logs sl
+                    WHERE sl.id=@id AND EXISTS (SELECT 1 FROM vehicle_records vr JOIN branches b ON b.id=vr.branch_id
+                                                WHERE b.finance_id=@fin AND vr.vehicle_no = sl.vehicle_no)", tc) { CommandTimeout = 30 };
+                cmd.Parameters.AddWithValue("@id", logId);
+                cmd.Parameters.AddWithValue("@fin", financeId);
+                int n = await cmd.ExecuteNonQueryAsync();
+                return Results.Ok(new { ok = true, removed = n });
+            }
+            catch (Exception ex) { return Results.Problem(ex.Message); }
+        });
+
+        app.MapPost("/api/integration/account/message/send", async (HttpContext ctx, HttpRequest req) =>
+        {
+            var who = IntegAuth(ctx);
+            if (who is not { } me) return Results.Unauthorized();
+            string slug, message;
+            try
+            {
+                using var doc = await System.Text.Json.JsonDocument.ParseAsync(req.Body);
+                var r = doc.RootElement;
+                slug = r.TryGetProperty("agencySlug", out var s) ? (s.GetString() ?? "") : "";
+                message = (r.TryGetProperty("message", out var m) && m.ValueKind == System.Text.Json.JsonValueKind.String ? (m.GetString() ?? "") : "").Trim();
+            }
+            catch { return Results.BadRequest(new { message = "Invalid body." }); }
+            if (message.Length == 0) return Results.BadRequest(new { message = "Enter a message." });
+            if (message.Length > 4000) message = message.Substring(0, 4000);
+
+            string financeName;
+            await using (var mc = new MySqlConnection(masterConn))
+            {
+                await mc.OpenAsync();
+                await using var cmd = new MySqlCommand(@"
+                    SELECT a.finance_name FROM integration_accounts a
+                    WHERE a.id=@acc AND EXISTS (
+                        SELECT 1 FROM agency_integration_grants g JOIN agencies ag ON ag.id=g.agency_id
+                        WHERE g.integration_account_id=@acc AND ag.slug=@slug AND g.active=1 AND ag.status='approved')
+                    LIMIT 1", mc);
+                cmd.Parameters.AddWithValue("@acc", me.id);
+                cmd.Parameters.AddWithValue("@slug", slug);
+                var fn = await cmd.ExecuteScalarAsync();
+                if (fn == null || fn == DBNull.Value)
+                    return Results.Json(new { message = "You are not integrated with this agency." }, statusCode: 403);
+                financeName = (string)fn;
+            }
+            try
+            {
+                await using var tc = new MySqlConnection(TenantContext.BuildTenantConn(mysqlHost, mysqlPort, slug));
+                await tc.OpenAsync();
+                await using var cmd = new MySqlCommand(
+                    "INSERT INTO integration_agency_messages (integration_account_id, from_finance_name, from_email, message) VALUES (@acc,@fn,@em,@msg)", tc);
+                cmd.Parameters.AddWithValue("@acc", me.id);
+                cmd.Parameters.AddWithValue("@fn", financeName);
+                cmd.Parameters.AddWithValue("@em", me.email);
+                cmd.Parameters.AddWithValue("@msg", message);
+                await cmd.ExecuteNonQueryAsync();
+                return Results.Ok(new { ok = true });
+            }
+            catch (Exception ex) { return Results.Problem(ex.Message); }
+        });
+
         app.MapPost("/api/integration/account/import-universal", async (HttpContext ctx, HttpRequest req) =>
         {
             var who = IntegAuth(ctx);
