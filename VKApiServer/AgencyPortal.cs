@@ -2409,6 +2409,8 @@ internal static class AgencyPortal
             await conn.OpenAsync();
             if (fav)
             {
+                await using (var clr = new MySqlCommand("DELETE FROM integration_favourite_branches WHERE integration_account_id=@acc", conn))
+                { clr.Parameters.AddWithValue("@acc", me.id); await clr.ExecuteNonQueryAsync(); }
                 await using var cmd = new MySqlCommand("INSERT IGNORE INTO integration_favourite_branches (integration_account_id, agency_id, finance_id, branch_id) VALUES (@acc,@ag,@fin,@br)", conn);
                 cmd.Parameters.AddWithValue("@acc", me.id);
                 cmd.Parameters.AddWithValue("@ag", g.agencyId);

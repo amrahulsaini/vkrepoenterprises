@@ -2047,17 +2047,17 @@ app.MapGet("/api/mgr/integration-messages", async (HttpContext ctx) =>
               PRIMARY KEY (id), KEY idx_iam_created (created_at), KEY idx_iam_read (is_read)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4", conn))
             await ensure.ExecuteNonQueryAsync();
-        await using var cmd = new MySqlCommand(@"
+        await using (var cmd = new MySqlCommand(@"
             SELECT id, COALESCE(from_finance_name,''), COALESCE(from_email,''), message, is_read,
                    DATE_FORMAT(created_at,'%d %b %Y %h:%i %p')
-            FROM integration_agency_messages ORDER BY id DESC LIMIT 500", conn) { CommandTimeout = 15 };
-        await using var rdr = await cmd.ExecuteReaderAsync();
-        while (await rdr.ReadAsync())
-            list.Add(new
-            {
-                id = rdr.GetInt32(0), fromFinance = rdr.GetString(1), fromEmail = rdr.GetString(2),
-                message = rdr.GetString(3), isRead = rdr.GetInt32(4) != 0, createdAt = rdr.GetString(5)
-            });
+            FROM integration_agency_messages ORDER BY id DESC LIMIT 500", conn) { CommandTimeout = 15 })
+        await using (var rdr = await cmd.ExecuteReaderAsync())
+            while (await rdr.ReadAsync())
+                list.Add(new
+                {
+                    id = rdr.GetInt32(0), fromFinance = rdr.GetString(1), fromEmail = rdr.GetString(2),
+                    message = rdr.GetString(3), isRead = rdr.GetInt32(4) != 0, createdAt = rdr.GetString(5)
+                });
         int unread;
         await using (var uc = new MySqlCommand("SELECT COUNT(*) FROM integration_agency_messages WHERE is_read=0", conn))
             unread = Convert.ToInt32(await uc.ExecuteScalarAsync());
