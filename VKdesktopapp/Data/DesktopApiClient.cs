@@ -205,6 +205,35 @@ internal static class DesktopApiClient
         return (await resp.Content.ReadFromJsonAsync<MgrUsersResponseDto>(_json))!;
     }
 
+    internal static async Task<IntegrationMessagesDto> GetIntegrationMessagesAsync()
+    {
+        var resp = await Send(HttpMethod.Get, "api/mgr/integration-messages");
+        resp.EnsureSuccessStatusCode();
+        return (await resp.Content.ReadFromJsonAsync<IntegrationMessagesDto>(_json))!;
+    }
+
+    internal static async Task MarkIntegrationMessagesReadAsync()
+    {
+        var resp = await Send(HttpMethod.Post, "api/mgr/integration-messages/read");
+        resp.EnsureSuccessStatusCode();
+    }
+
+    internal sealed class IntegrationMessagesDto
+    {
+        public List<IntegrationMessageItem> Messages { get; set; } = new();
+        public int Unread { get; set; }
+    }
+
+    internal sealed class IntegrationMessageItem
+    {
+        public int Id { get; set; }
+        public string FromFinance { get; set; } = "";
+        public string FromEmail { get; set; } = "";
+        public string Message { get; set; } = "";
+        public bool IsRead { get; set; }
+        public string CreatedAt { get; set; } = "";
+    }
+
     internal static async Task<List<PickerUserDto>> GetPickerUsersAsync()
     {
         var resp = await Send(HttpMethod.Get, "api/mgr/users/picker");
