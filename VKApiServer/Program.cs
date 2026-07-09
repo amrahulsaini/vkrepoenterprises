@@ -604,6 +604,31 @@ static async Task<IResult> SaveBillingImage(HttpContext ctx, string? base64, str
     catch (Exception ex) { return Results.Problem(ex.Message); }
 }
 
+static async Task<IResult> SaveBillingCert(HttpContext ctx, MgrBillingCertDto dto)
+{
+    if (string.IsNullOrWhiteSpace(dto.CertBase64)) return Results.BadRequest(new { message = "No certificate provided." });
+    try
+    {
+        var bytes = Convert.FromBase64String(dto.CertBase64);
+        var slug = TenantContext.Key;
+        var dir = "/opt/vkapi/signing-certs";
+        Directory.CreateDirectory(dir);
+        var file = $"{slug}_{dto.FinanceId}.pfx";
+        await File.WriteAllBytesAsync(Path.Combine(dir, file), bytes);
+        await using var conn = new MySqlConnection(TenantContext.Conn);
+        await conn.OpenAsync();
+        await MgrExec(@"INSERT INTO billing_settings (finance_id, sign_cert_path, sign_cert_password, signer_name, signer_reason, signer_location)
+                        VALUES (@fid,@p,@pw,@sn,@sr,@sl)
+                        ON DUPLICATE KEY UPDATE sign_cert_path=VALUES(sign_cert_path), sign_cert_password=VALUES(sign_cert_password),
+                          signer_name=VALUES(signer_name), signer_reason=VALUES(signer_reason), signer_location=VALUES(signer_location)",
+            conn, 10, ("@fid", dto.FinanceId), ("@p", file), ("@pw", (object?)dto.Password ?? DBNull.Value),
+            ("@sn", (object?)dto.SignerName ?? DBNull.Value), ("@sr", (object?)dto.SignerReason ?? DBNull.Value),
+            ("@sl", (object?)dto.SignerLocation ?? DBNull.Value));
+        return Results.Ok(new { success = true });
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+}
+
 
 app.MapGet("/api/mgr/finances", async (HttpContext ctx) =>
 {
@@ -1580,7 +1605,8 @@ app.MapGet("/api/mgr/billing/settings", async (HttpContext ctx, int? financeId) 
         await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
         const string sql = @"SELECT agency_name, pan_no, gst_state, bank_account_name, account_no, ifsc_code,
-                                    bank_branch, parking_yard, payment_name, footer_line, letterhead_path, background_path
+                                    bank_branch, parking_yard, payment_name, footer_line, letterhead_path, background_path,
+                                    sign_cert_path, signer_name
                              FROM billing_settings WHERE finance_id=@fid LIMIT 1";
         await using var cmd = new MySqlCommand(sql, conn) { CommandTimeout = 10 };
         cmd.Parameters.AddWithValue("@fid", fid);
@@ -1591,12 +1617,13 @@ app.MapGet("/api/mgr/billing/settings", async (HttpContext ctx, int? financeId) 
         if (!await r.ReadAsync())
             return Results.Ok(new { agencyName = "", panNo = "", gstState = "", bankAccountName = "", accountNo = "",
                 ifscCode = "", bankBranch = "", parkingYard = "", paymentName = "", footerLine = "",
-                letterheadUrl = (string?)null, backgroundUrl = (string?)null });
+                letterheadUrl = (string?)null, backgroundUrl = (string?)null, hasSignCert = false, signerName = "" });
         return Results.Ok(new
         {
             agencyName = S(0) ?? "", panNo = S(1) ?? "", gstState = S(2) ?? "", bankAccountName = S(3) ?? "",
             accountNo = S(4) ?? "", ifscCode = S(5) ?? "", bankBranch = S(6) ?? "", parkingYard = S(7) ?? "",
-            paymentName = S(8) ?? "", footerLine = S(9) ?? "", letterheadUrl = Url(S(10)), backgroundUrl = Url(S(11))
+            paymentName = S(8) ?? "", footerLine = S(9) ?? "", letterheadUrl = Url(S(10)), backgroundUrl = Url(S(11)),
+            hasSignCert = !string.IsNullOrEmpty(S(12)), signerName = S(13) ?? ""
         });
     }
     catch (Exception ex) { return Results.Problem(ex.Message); }
@@ -1633,6 +1660,37 @@ app.MapPost("/api/mgr/billing/letterhead", async (HttpContext ctx, MgrBillingIma
 
 app.MapPost("/api/mgr/billing/background", async (HttpContext ctx, MgrBillingImageDto dto) =>
     (!MgrAuth(ctx, desktopLoginPassword)) ? Results.Unauthorized() : await SaveBillingImage(ctx, dto.ImageBase64, "background", dto.FinanceId));
+
+app.MapPost("/api/mgr/billing/signcert", async (HttpContext ctx, MgrBillingCertDto dto) =>
+    (!MgrAuth(ctx, desktopLoginPassword)) ? Results.Unauthorized() : await SaveBillingCert(ctx, dto));
+
+app.MapGet("/api/mgr/billing/signcert", async (HttpContext ctx, int? financeId) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        int fid = financeId ?? 0;
+        await using var conn = new MySqlConnection(TenantContext.Conn);
+        await conn.OpenAsync();
+        const string sql = @"SELECT sign_cert_path, sign_cert_password, signer_name, signer_reason, signer_location
+                             FROM billing_settings WHERE finance_id=@fid LIMIT 1";
+        await using var cmd = new MySqlCommand(sql, conn) { CommandTimeout = 10 };
+        cmd.Parameters.AddWithValue("@fid", fid);
+        await using var r = await cmd.ExecuteReaderAsync();
+        string? S(int i) => r.IsDBNull(i) ? null : r.GetString(i);
+        if (!await r.ReadAsync() || string.IsNullOrEmpty(S(0)))
+            return Results.Ok(new { hasCert = false, certBase64 = (string?)null, password = (string?)null,
+                signerName = "", signerReason = "", signerLocation = "" });
+        var path = Path.Combine("/opt/vkapi/signing-certs", S(0)!);
+        if (!File.Exists(path))
+            return Results.Ok(new { hasCert = false, certBase64 = (string?)null, password = (string?)null,
+                signerName = S(2) ?? "", signerReason = S(3) ?? "", signerLocation = S(4) ?? "" });
+        var b64 = Convert.ToBase64String(await File.ReadAllBytesAsync(path));
+        return Results.Ok(new { hasCert = true, certBase64 = b64, password = S(1) ?? "",
+            signerName = S(2) ?? "", signerReason = S(3) ?? "", signerLocation = S(4) ?? "" });
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
 
 
 app.MapGet("/api/mgr/search", async (HttpContext ctx, string? q, string? mode) =>
@@ -3395,6 +3453,8 @@ record MgrBillingSettingsDto(
     string? AccountNo, string? IfscCode, string? BankBranch, string? ParkingYard,
     string? PaymentName, string? FooterLine);
 record MgrBillingImageDto(string? ImageBase64, int FinanceId = 0);
+record MgrBillingCertDto(string? CertBase64, string? Password, string? SignerName,
+    string? SignerReason, string? SignerLocation, int FinanceId = 0);
 record MgrSetFinanceRestrictionsDto(List<int> FinanceIds);
 record MgrSetSubsPasswordDto(string Password);
 record MgrSetAdminPassDto(string Password);

@@ -9,11 +9,17 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media.Imaging;
 using Microsoft.Win32;
+using System.Security.Cryptography.X509Certificates;
 using Syncfusion.DocIO;
 using Syncfusion.DocIO.DLS;
+using Syncfusion.DocIORenderer;
+using Syncfusion.Pdf;
+using Syncfusion.Pdf.Graphics;
+using Syncfusion.Pdf.Security;
 using CRMRSDesktopApp.Data;
 using CRMRSDesktopApp.Models;
 using SFColor = Syncfusion.Drawing.Color;
+using SFRectF = Syncfusion.Drawing.RectangleF;
 using DocAlign = Syncfusion.DocIO.DLS.HorizontalAlignment;
 
 namespace CRMRSDesktopApp.Billing;
@@ -123,11 +129,18 @@ public partial class BillingPage : Page
         ShowPreview(imgBackground, null);
         txtPan.Text = txtGst.Text = txtAcHolder.Text = txtAccountNo.Text = "";
         txtIfsc.Text = txtBankBranch.Text = txtParkingYard.Text = txtFooter.Text = "";
+        txtCertStatus.Text = "No certificate uploaded.";
+        txtSignerName.Text = "";
+        pwdCert.Password = "";
         try
         {
             var s = await DesktopApiClient.GetBillingSettingsAsync(_financeId);
             if (s != null)
             {
+                txtCertStatus.Text = s.HasSignCert
+                    ? "Certificate uploaded ✓" + (string.IsNullOrWhiteSpace(s.SignerName) ? "" : " (" + s.SignerName + ")")
+                    : "No certificate uploaded.";
+                txtSignerName.Text = string.IsNullOrWhiteSpace(s.SignerName) ? txtAgencyName.Text.Trim() : s.SignerName;
                 txtPan.Text        = s.PanNo;
                 txtGst.Text        = s.GstState;
                 txtAcHolder.Text   = s.BankAccountName;
@@ -177,6 +190,29 @@ public partial class BillingPage : Page
             txtGenStatus.Text = $"{kind} uploaded.";
         }
         catch (Exception ex) { MessageBox.Show("Upload failed: " + ex.Message, "Billing", MessageBoxButton.OK, MessageBoxImage.Error); }
+    }
+
+    private async void btnCert_Click(object sender, RoutedEventArgs e)
+    {
+        if (_financeId <= 0) { MessageBox.Show("Select a finance first.", "Billing", MessageBoxButton.OK, MessageBoxImage.Information); return; }
+        var dlg = new OpenFileDialog { Filter = "Signing certificate (*.pfx;*.p12)|*.pfx;*.p12" };
+        if (dlg.ShowDialog() != true) return;
+        var pw = pwdCert.Password;
+        var signer = string.IsNullOrWhiteSpace(txtSignerName.Text) ? txtAgencyName.Text.Trim() : txtSignerName.Text.Trim();
+        try
+        {
+            var bytes = File.ReadAllBytes(dlg.FileName);
+            using (new X509Certificate2(bytes, pw, X509KeyStorageFlags.Exportable)) { }
+            var b64 = Convert.ToBase64String(bytes);
+            await DesktopApiClient.UploadSigningCertAsync(b64, pw, signer, "Repossession bill", "", _financeId);
+            txtCertStatus.Text = "Certificate uploaded ✓ (" + signer + ")";
+            txtGenStatus.Text = "Signing certificate saved.";
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show("Could not read this certificate — check the .pfx file and password.\n\n" + ex.Message,
+                "Billing", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
     }
 
     private async void cmbFinance_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -279,9 +315,19 @@ public partial class BillingPage : Page
         {
             var lh = await DownloadBytes(_letterheadUrl);
             var bg = await DownloadBytes(_backgroundUrl);
-            BuildDocx(dlg.FileName, lh, bg);
-            txtGenStatus.Text = "Bill generated.";
-            Process.Start(new ProcessStartInfo(dlg.FileName) { UseShellExecute = true });
+            var cert = await DesktopApiClient.GetSigningCertAsync(_financeId);
+
+            var pdfPath = Path.ChangeExtension(dlg.FileName, ".pdf");
+            bool signed;
+            using (var doc = BuildDoc(lh, bg))
+            {
+                using (var fs = new FileStream(dlg.FileName, FileMode.Create, FileAccess.Write))
+                    doc.Save(fs, FormatType.Docx);
+                signed = BuildPdf(doc, pdfPath, cert, txtAgencyName.Text.Trim());
+            }
+
+            txtGenStatus.Text = signed ? "Bill generated + digitally signed." : "Bill generated (PDF not signed — upload a valid certificate).";
+            Process.Start(new ProcessStartInfo(pdfPath) { UseShellExecute = true });
             ResetVehicle();
             txtInvoiceNo.Text = "";
             txtConfirmationBy.Text = "";
@@ -305,9 +351,9 @@ public partial class BillingPage : Page
 
     private const string FontName = "Times New Roman";
 
-    private void BuildDocx(string filePath, byte[]? letterhead, byte[]? background)
+    private WordDocument BuildDoc(byte[]? letterhead, byte[]? background)
     {
-        using var doc = new WordDocument();
+        var doc = new WordDocument();
         var sec = doc.AddSection();
         sec.PageSetup.Margins.All = 36;
         float pageW = sec.PageSetup.PageSize.Width - 72;
@@ -409,8 +455,50 @@ public partial class BillingPage : Page
         CellLines(t, ri, 0, tyLines.ToArray(), align: DocAlign.Right);
         t.ApplyHorizontalMerge(ri, 0, 2);
 
-        using var fs = new FileStream(filePath, FileMode.Create, FileAccess.Write);
-        doc.Save(fs, FormatType.Docx);
+        return doc;
+    }
+
+    private static bool BuildPdf(WordDocument doc, string pdfPath, DesktopApiClient.SigningCertDto? cert, string agencyFallback)
+    {
+        using var render = new DocIORenderer();
+        using var pdf = render.ConvertToPDF(doc);
+        bool signed = false;
+
+        if (cert != null && cert.HasCert && !string.IsNullOrEmpty(cert.CertBase64))
+        {
+            try
+            {
+                var pfx = Convert.FromBase64String(cert.CertBase64);
+                using var pfxStream = new MemoryStream(pfx);
+                var pdfCert = new PdfCertificate(pfxStream, cert.Password ?? "");
+                var page = pdf.Pages[pdf.Pages.Count - 1];
+                var size = page.GetClientSize();
+                float w = 235f, h = 58f;
+                var bounds = new SFRectF(size.Width - w - 20f, size.Height - h - 20f, w, h);
+
+                var signature = new PdfSignature(pdf, page, pdfCert, "BillSignature") { Bounds = bounds };
+                signature.Settings.CryptographicStandard = CryptographicStandard.CADES;
+                signature.Settings.DigestAlgorithm = DigestAlgorithm.SHA256;
+                signature.Reason = string.IsNullOrWhiteSpace(cert.SignerReason) ? "Repossession bill" : cert.SignerReason;
+                if (!string.IsNullOrWhiteSpace(cert.SignerLocation)) signature.LocationInfo = cert.SignerLocation;
+
+                var name = string.IsNullOrWhiteSpace(cert.SignerName) ? agencyFallback : cert.SignerName;
+                if (string.IsNullOrWhiteSpace(name)) name = "Authorised Signatory";
+                var g = signature.Appearance.Normal.Graphics;
+                var big = new PdfStandardFont(PdfFontFamily.TimesRoman, 11f, PdfFontStyle.Bold);
+                var small = new PdfStandardFont(PdfFontFamily.TimesRoman, 6.5f);
+                g.DrawString(name, big, PdfBrushes.Black, new SFRectF(0, 0, w * 0.42f, h));
+                var now = DateTimeOffset.Now;
+                var info = $"Digitally signed by {name}\nDate: {now:yyyy.MM.dd HH:mm:ss} {now:zzz}";
+                g.DrawString(info, small, PdfBrushes.Black, new SFRectF(w * 0.42f + 4f, 4f, w * 0.58f - 4f, h - 8f));
+                signed = true;
+            }
+            catch { signed = false; }
+        }
+
+        using var fs = new FileStream(pdfPath, FileMode.Create, FileAccess.Write);
+        pdf.Save(fs);
+        return signed;
     }
 
     private static void CellText(IWTable t, int row, int col, string text, bool bold = true, DocAlign align = DocAlign.Left)

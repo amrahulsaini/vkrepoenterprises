@@ -34,6 +34,12 @@
                 </Border>
                 <Button DockPanel.Dock="Top" Name="btnBackground" Content="Upload Background" Height="28" Margin="0,0,0,12" Click="btnBackground_Click" />
 
+                <TextBlock DockPanel.Dock="Top" Text="Digital Signature Certificate (.pfx, for this finance)" FontSize="12" Foreground="#666" Margin="0,0,0,4" />
+                <TextBlock DockPanel.Dock="Top" Name="txtCertStatus" FontSize="11" Foreground="#888" Margin="0,0,0,4" Text="No certificate uploaded." />
+                <TextBox DockPanel.Dock="Top" Name="txtSignerName" Height="28" Margin="0,0,0,4" ToolTip="Signer name shown on the bill" />
+                <PasswordBox DockPanel.Dock="Top" Name="pwdCert" Height="28" Margin="0,0,0,4" />
+                <Button DockPanel.Dock="Top" Name="btnCert" Content="Upload Signing Certificate" Height="28" Margin="0,0,0,12" Click="btnCert_Click" />
+
                 <TextBlock DockPanel.Dock="Top" Text="Find Vehicle (in this finance)" FontSize="12" Foreground="#666" Margin="0,0,0,4" />
                 <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,6">
                     <RadioButton Name="rbRc" Content="RC (last 4)" IsChecked="True" GroupName="mode" Margin="0,0,12,0" VerticalAlignment="Center" />
@@ -61,8 +67,8 @@
                 <Border DockPanel.Dock="Bottom" Background="#FAFAFA" BorderBrush="#E0E0E0" BorderThickness="0,1,0,0" Padding="14,10">
                     <DockPanel>
                         <TextBlock Name="txtGenStatus" VerticalAlignment="Center" Foreground="#2E7D32" FontSize="12" />
-                        <Button DockPanel.Dock="Right" Name="btnGenerate" Content="Generate Bill (DOCX)"
-                                Height="38" Width="190" FontWeight="Bold" Background="#00897B" Foreground="White"
+                        <Button DockPanel.Dock="Right" Name="btnGenerate" Content="Generate Bill (DOCX + Signed PDF)"
+                                Height="38" Width="230" FontWeight="Bold" Background="#00897B" Foreground="White"
                                 BorderThickness="0" Cursor="Hand" Click="btnGenerate_Click" />
                     </DockPanel>
                 </Border>

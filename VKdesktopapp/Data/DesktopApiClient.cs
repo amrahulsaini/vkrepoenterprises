@@ -85,7 +85,8 @@ internal static class DesktopApiClient
     internal record BillingSettingsDto(
         string AgencyName, string PanNo, string GstState, string BankAccountName,
         string AccountNo, string IfscCode, string BankBranch, string ParkingYard,
-        string PaymentName, string FooterLine, string? LetterheadUrl, string? BackgroundUrl);
+        string PaymentName, string FooterLine, string? LetterheadUrl, string? BackgroundUrl,
+        bool HasSignCert = false, string SignerName = "");
 
     private record UrlResult(string? Url);
 
@@ -104,6 +105,25 @@ internal static class DesktopApiClient
     {
         var resp = await Send(HttpMethod.Post, $"api/mgr/billing/{kind}", new { ImageBase64 = base64, FinanceId = financeId });
         return (await resp.Content.ReadFromJsonAsync<UrlResult>(_json))?.Url;
+    }
+
+    internal record SigningCertDto(bool HasCert, string? CertBase64, string? Password,
+        string SignerName, string SignerReason, string SignerLocation);
+
+    internal static async Task UploadSigningCertAsync(string base64, string? password, string signerName,
+        string? reason, string? location, int financeId)
+    {
+        (await Send(HttpMethod.Post, "api/mgr/billing/signcert", new
+        {
+            CertBase64 = base64, Password = password, SignerName = signerName,
+            SignerReason = reason, SignerLocation = location, FinanceId = financeId
+        })).Dispose();
+    }
+
+    internal static async Task<SigningCertDto?> GetSigningCertAsync(int financeId)
+    {
+        var resp = await Send(HttpMethod.Get, $"api/mgr/billing/signcert?financeId={financeId}");
+        return await resp.Content.ReadFromJsonAsync<SigningCertDto>(_json);
     }
 
     internal static async Task<int> CreateFinanceAsync(string name, string? description)

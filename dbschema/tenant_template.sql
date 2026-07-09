@@ -597,6 +597,11 @@ CREATE TABLE `billing_settings` (
   `logo_path`         VARCHAR(512) NULL,
   `letterhead_path`   VARCHAR(512) NULL,
   `background_path`   VARCHAR(512) NULL,
+  `sign_cert_path`    VARCHAR(512) NULL,
+  `sign_cert_password` VARCHAR(255) NULL,
+  `signer_name`       VARCHAR(255) NULL,
+  `signer_reason`     VARCHAR(255) NULL,
+  `signer_location`   VARCHAR(255) NULL,
   `updated_at`        TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`finance_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
