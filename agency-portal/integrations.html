@@ -315,6 +315,7 @@ const ROOT='https://api.crmrecoverysoftware.com/api/integration/account';
 const $=s=>document.querySelector(s);
 const ic=(n,cls)=>'<i data-lucide="'+n+'"'+(cls?' class="'+cls+'"':'')+'></i>';
 const STAR='<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>';
+const TRASH='<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>';
 const CHEV='<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>';
 function drawIcons(){ if(window.lucide) try{ lucide.createIcons(); }catch(_){} }
 let _iconTimer;
@@ -647,7 +648,7 @@ function renderUploadUniversal(){
       '<input id="ufile" type="file" accept=".xlsx,.xls" class="hidden"><div class="msg" id="u-msg"></div>'+
     '</div></div>'+
     '<div class="card"><div class="ch"><span class="step-badge">2</span><h4>Tick agencies &amp; branches to send to</h4></div><div class="cb">'+
-      '<div class="toolbar" style="margin-bottom:12px"><button class="btn btn-outline btn-sm" id="usel-fav">'+ic('star')+' Select favourites</button><button class="btn btn-ghost btn-sm" id="usel-clear">Clear</button><span class="muted2">Tap the '+ic('star')+' on a branch to save it as a favourite.</span></div>'+
+      '<div class="toolbar" style="margin-bottom:12px"><button class="btn btn-outline btn-sm" id="usel-fav">'+ic('star')+' Select favourite</button><button class="btn btn-ghost btn-sm" id="usel-clear">Clear</button><span class="muted2">Tap the '+ic('star')+' on a branch to set your one favourite branch.</span></div>'+
       '<div id="utree"><div class="empty"><span class="spin"></span> Loading…</div></div>'+
       '<div style="display:flex;align-items:center;justify-content:space-between;margin-top:14px;gap:10px;flex-wrap:wrap">'+
         '<span class="scope-note" id="usel-count">0 branches selected</span>'+
@@ -733,9 +734,13 @@ function renderUploadUniversal(){
     st.disabled=true;
     try{
       await apiCall('/favourite',{agencySlug:st.dataset.slug,financeId:+st.dataset.fin,branchId:+st.dataset.br,favourite:on},true);
+      if(on){
+        $('#utree').querySelectorAll('.fav-star.fav-on').forEach(x=>x.classList.remove('fav-on'));
+        $('#utree').querySelectorAll('.uck-br[data-fav="1"]').forEach(x=>x.dataset.fav='0');
+      }
       st.classList.toggle('fav-on',on);
       const cb=st.closest('.utree-b').querySelector('.uck-br'); if(cb) cb.dataset.fav=on?'1':'0';
-      toast(on?'Saved to favourites':'Removed from favourites','info');
+      toast(on?'Set as your favourite branch':'Removed from favourites','info');
     }catch(err){ toast(err.message,'err'); }
     st.disabled=false;
   });
@@ -823,13 +828,19 @@ async function loadLogs(){
         '<td><span class="lnk" data-uid="'+l.userId+'" data-nm="'+esc(l.userName)+'">'+esc(l.userName)+'</span></td>'+
         '<td>'+esc(l.userMobile)+'</td>'+
         '<td>'+(l.vehicleNo?'<span class="lnk" data-vno="'+esc(l.vehicleNo)+'">'+esc(l.vehicleNo)+'</span>':'—')+'</td>'+
-        '<td>'+esc(l.chassisNo)+'</td><td>'+esc(l.model)+'</td><td>'+esc(l.time)+'</td><td>'+
-        (l.lat!=null&&l.lng!=null?'<a href="https://maps.google.com/?q='+l.lat+','+l.lng+'" target="_blank"><i data-lucide="map-pin"></i> map</a>':esc(l.address||'—'))+'</td>'+
-        '<td><button class="btn btn-danger btn-sm" data-del-log="'+l.id+'">'+ic('trash-2')+'</button></td></tr>').join('')+'</tbody></table></div>';
+        '<td>'+esc(l.chassisNo)+'</td><td>'+esc(l.model)+'</td><td>'+esc(l.time)+'</td>'+
+        '<td style="white-space:normal;max-width:320px">'+logLocationCell(l)+'</td>'+
+        '<td><button type="button" class="btn btn-danger btn-sm del-log" data-del-log="'+l.id+'" title="Delete">'+TRASH+'</button></td></tr>').join('')+'</tbody></table></div>';
     body.querySelectorAll('.lnk[data-uid]').forEach(a=>a.onclick=()=>openAgent(+a.dataset.uid,a.dataset.nm));
     body.querySelectorAll('.lnk[data-vno]').forEach(a=>a.onclick=()=>openVehicle(a.dataset.vno));
-    body.querySelectorAll('[data-del-log]').forEach(b=>b.onclick=()=>deleteLog(+b.dataset.delLog));
+    body.onclick=e=>{ const b=e.target.closest('.del-log'); if(b) deleteLog(+b.dataset.delLog); };
   }catch(e){ body.innerHTML='<div class="empty">'+esc(e.message)+'</div>'; }
+}
+function logLocationCell(l){
+  const parts=[];
+  if(l.address) parts.push('<span>'+esc(l.address)+'</span>');
+  if(l.lat!=null&&l.lng!=null) parts.push('<a href="https://maps.google.com/?q='+l.lat+','+l.lng+'" target="_blank">'+ic('map-pin')+' open map</a>');
+  return parts.length?parts.join('<br>'):'—';
 }
 async function deleteLog(id){
   const ok=await confirmDialog({title:'Delete this search log?',message:'This permanently removes this search-log entry.',confirmLabel:'Delete',danger:true});
@@ -841,11 +852,11 @@ async function deleteLog(id){
     toast('Search log deleted','info');
   }catch(e){ toast(e.message,'err'); }
 }
-function logsRows(){ return logsData.map(l=>[l.userName,l.userMobile,l.vehicleNo,l.chassisNo,l.model,l.time,(l.lat!=null&&l.lng!=null?l.lat+','+l.lng:(l.address||''))]); }
+const LOG_HEAD=['Agent','Mobile','Vehicle','Chassis','Model','When','Address','Coordinates'];
+function logsRows(){ return logsData.map(l=>[l.userName,l.userMobile,l.vehicleNo,l.chassisNo,l.model,l.time,(l.address||''),(l.lat!=null&&l.lng!=null?l.lat+', '+l.lng:'')]); }
 function exportLogsExcel(){
   if(!logsData.length){ toast('Nothing to export','info'); return; }
-  const head=['Agent','Mobile','Vehicle','Chassis','Model','When','Location'];
-  const ws=XLSX.utils.aoa_to_sheet([head].concat(logsRows()));
+  const ws=XLSX.utils.aoa_to_sheet([LOG_HEAD].concat(logsRows()));
   const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'Search logs');
   XLSX.writeFile(wb,'search-logs-'+sel.financeName.replace(/[^A-Za-z0-9]+/g,'_')+'.xlsx');
 }
@@ -855,7 +866,7 @@ function exportLogsPdf(){
   const doc=new jsPDF({orientation:'landscape'});
   doc.setFontSize(13); doc.text('Search logs — '+sel.financeName+' ('+sel.agencyName+')',14,14);
   doc.setFontSize(9); doc.text('Generated '+new Date().toLocaleString(),14,20);
-  doc.autoTable({head:[['Agent','Mobile','Vehicle','Chassis','Model','When','Location']],body:logsRows(),startY:24,styles:{fontSize:8},headStyles:{fillColor:[10,61,143]}});
+  doc.autoTable({head:[LOG_HEAD],body:logsRows(),startY:24,styles:{fontSize:8},headStyles:{fillColor:[10,61,143]}});
   doc.save('search-logs-'+sel.financeName.replace(/[^A-Za-z0-9]+/g,'_')+'.pdf');
 }
 
