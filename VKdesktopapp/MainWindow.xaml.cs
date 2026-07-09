@@ -67,8 +67,9 @@ public partial class MainWindow : Window
         LoadAgencyLogo();
 
         _ = UpdateSupportBadgeAsync();
+        _ = UpdateMessagesBadgeAsync();
         var t = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(60) };
-        t.Tick += async (_, _) => await UpdateSupportBadgeAsync();
+        t.Tick += async (_, _) => { await UpdateSupportBadgeAsync(); await UpdateMessagesBadgeAsync(); };
         t.Start();
     }
 
@@ -118,6 +119,28 @@ public partial class MainWindow : Window
         var w = new SupportWindow { Owner = this };
         w.ShowDialog();
         await MarkSupportSeenAsync();
+    }
+
+    private async void btnMessages_Click(object sender, RoutedEventArgs e)
+    {
+        var w = new MessagesWindow { Owner = this };
+        w.ShowDialog();
+        await UpdateMessagesBadgeAsync();
+    }
+
+    private async Task UpdateMessagesBadgeAsync()
+    {
+        try
+        {
+            var d = await DesktopApiClient.GetIntegrationMessagesAsync();
+            if (d.Unread > 0)
+            {
+                messagesBadgeText.Text  = d.Unread > 99 ? "99+" : d.Unread.ToString();
+                messagesBadge.Visibility = Visibility.Visible;
+            }
+            else messagesBadge.Visibility = Visibility.Collapsed;
+        }
+        catch { }
     }
 
     private static string SupportSeenFile => System.IO.Path.Combine(

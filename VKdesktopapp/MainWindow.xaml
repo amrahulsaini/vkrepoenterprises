@@ -180,6 +180,23 @@
                            FontSize="11" FontWeight="Bold" Foreground="White"
                            HorizontalAlignment="Center" VerticalAlignment="Center" />
             </Border>
+            <Button Name="btnMessages" Click="btnMessages_Click"
+                    Grid.Row="8" Width="64" Height="56"
+                    Background="Transparent" BorderThickness="0"
+                    VerticalAlignment="Bottom" Margin="0,0,0,56"
+                    Content="&#x1F4EC;" FontFamily="{StaticResource FontBody}" FontSize="20"
+                    Foreground="{StaticResource Gray400}" Cursor="Hand"
+                    ToolTip="Statements from finance companies" />
+            <Border Name="messagesBadge" Grid.Row="8"
+                    Width="20" Height="20" CornerRadius="10"
+                    Background="#FFE53935"
+                    HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                    Margin="0,0,8,86" Panel.ZIndex="60"
+                    Visibility="Collapsed" IsHitTestVisible="False">
+                <TextBlock Name="messagesBadgeText" Text="0"
+                           FontSize="11" FontWeight="Bold" Foreground="White"
+                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+            </Border>
             <Button Name="btnSettings" Click="btnSettings_Click"
                     Grid.Row="9" Width="64" Height="56"
                     Background="Transparent" BorderThickness="0"
