@@ -63,8 +63,8 @@
                             <ListBox Name="lstFinances" BorderThickness="0">
                                 <ListBox.ItemTemplate>
                                     <DataTemplate>
-                                        <CheckBox Content="{Binding Name}" IsChecked="{Binding IsChecked, Mode=TwoWay}"
-                                                  Checked="FinanceCheck_Checked" />
+                                        <CheckBox Content="{Binding Display}" IsChecked="{Binding IsChecked, Mode=TwoWay}"
+                                                  IsEnabled="{Binding IsEnabled}" Checked="FinanceCheck_Checked" />
                                     </DataTemplate>
                                 </ListBox.ItemTemplate>
                             </ListBox>

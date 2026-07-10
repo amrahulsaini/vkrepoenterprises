@@ -32,6 +32,9 @@ public partial class AllocationsPage : Page
         public int Id { get; set; }
         public string Name { get; set; } = "";
         public bool IsChecked { get; set; }
+        public bool IsEnabled { get; set; } = true;
+        public string? OwnerName { get; set; }
+        public string Display => IsEnabled ? Name : $"{Name}   (allocated to {OwnerName})";
     }
 
     private List<MemberRow> _members = new();
@@ -58,6 +61,20 @@ public partial class AllocationsPage : Page
 
     private void txtFinanceSearch_TextChanged(object sender, TextChangedEventArgs e)
         => _financesView?.Refresh();
+
+    private void RecomputeAvailability()
+    {
+        var owners = new Dictionary<int, string>();
+        foreach (var m in _members.Where(m => m.Id != _editingId))
+            foreach (var fid in m.FinanceIds)
+                owners[fid] = m.Name;
+        foreach (var f in _finances)
+        {
+            if (owners.TryGetValue(f.Id, out var owner)) { f.IsEnabled = false; f.OwnerName = owner; }
+            else { f.IsEnabled = true; f.OwnerName = null; }
+        }
+        lstFinances.Items.Refresh();
+    }
 
     private void FinanceCheck_Checked(object sender, RoutedEventArgs e)
     {
@@ -112,8 +129,8 @@ public partial class AllocationsPage : Page
         chkActive.IsChecked = true;
         _suppressCheck = true;
         foreach (var f in _finances) f.IsChecked = false;
-        lstFinances.Items.Refresh();
         _suppressCheck = false;
+        RecomputeAvailability();
         btnDelete.Visibility = Visibility.Collapsed;
         txtFormStatus.Text = "";
         lstMembers.SelectedItem = null;
@@ -131,8 +148,8 @@ public partial class AllocationsPage : Page
         chkActive.IsChecked = m.IsActive;
         _suppressCheck = true;
         foreach (var f in _finances) f.IsChecked = m.FinanceIds.Contains(f.Id);
-        lstFinances.Items.Refresh();
         _suppressCheck = false;
+        RecomputeAvailability();
         btnDelete.Visibility = Visibility.Visible;
         txtFormStatus.Text = "";
     }
