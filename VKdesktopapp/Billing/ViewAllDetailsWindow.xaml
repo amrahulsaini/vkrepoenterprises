@@ -1,0 +1,66 @@
+<Window x:Class="CRMRSDesktopApp.Billing.ViewAllDetailsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Repo Submissions — All Details" Height="640" Width="1180"
+        WindowStartupLocation="CenterOwner" Background="#F5F5F5">
+    <Grid Margin="14">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" Text="Vehicles submitted OK-for-Repo from the app (your allocated finances only)"
+                   FontSize="15" FontWeight="Bold" Foreground="#00897B" Margin="0,0,0,10" />
+
+        <WrapPanel Grid.Row="1" Margin="0,0,0,10">
+            <TextBlock Text="From" VerticalAlignment="Center" Foreground="#666" Margin="0,0,6,0" />
+            <DatePicker Name="dpFrom" Width="130" Margin="0,0,14,0" />
+            <TextBlock Text="To" VerticalAlignment="Center" Foreground="#666" Margin="0,0,6,0" />
+            <DatePicker Name="dpTo" Width="130" Margin="0,0,14,0" />
+            <TextBlock Text="Billing" VerticalAlignment="Center" Foreground="#666" Margin="0,0,6,0" />
+            <ComboBox Name="cmbAction" Width="140" Margin="0,0,14,0" SelectedIndex="0">
+                <ComboBoxItem Content="All" />
+                <ComboBoxItem Content="Bill immediately" />
+                <ComboBoxItem Content="Hold for billing" />
+                <ComboBoxItem Content="Cancel" />
+            </ComboBox>
+            <TextBlock Text="Status" VerticalAlignment="Center" Foreground="#666" Margin="0,0,6,0" />
+            <ComboBox Name="cmbStatus" Width="120" Margin="0,0,14,0" SelectedIndex="0">
+                <ComboBoxItem Content="All" />
+                <ComboBoxItem Content="Pending" />
+                <ComboBoxItem Content="Billed" />
+            </ComboBox>
+            <Button Name="btnLoad" Content="Load" Width="90" Height="30" FontWeight="Bold"
+                    Background="#1565C0" Foreground="White" BorderThickness="0" Cursor="Hand" Click="btnLoad_Click" />
+            <TextBlock Name="txtStatus" VerticalAlignment="Center" Foreground="#888" FontSize="12" Margin="14,0,0,0" />
+        </WrapPanel>
+
+        <DataGrid Grid.Row="2" Name="grid" AutoGenerateColumns="False" IsReadOnly="True"
+                  CanUserAddRows="False" HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                  RowHeaderWidth="0" SelectionMode="Single" Background="White" BorderBrush="#E0E0E0">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Date" Binding="{Binding CreatedAt}" Width="120" />
+                <DataGridTextColumn Header="Vehicle No" Binding="{Binding VehicleNo}" Width="100" />
+                <DataGridTextColumn Header="Customer" Binding="{Binding CustomerName}" Width="140" />
+                <DataGridTextColumn Header="Finance" Binding="{Binding FinanceName}" Width="120" />
+                <DataGridTextColumn Header="Branch" Binding="{Binding BranchName}" Width="100" />
+                <DataGridTextColumn Header="Loan No" Binding="{Binding LoanNo}" Width="100" />
+                <DataGridTextColumn Header="Agent" Binding="{Binding AgentName}" Width="100" />
+                <DataGridTextColumn Header="Parking Yard" Binding="{Binding ParkingYardName}" Width="110" />
+                <DataGridTextColumn Header="Addl Amt" Binding="{Binding AddlChargesAmount}" Width="75" />
+                <DataGridTextColumn Header="Billing" Binding="{Binding ActionText}" Width="120" />
+                <DataGridTextColumn Header="Status" Binding="{Binding StatusText}" Width="80" />
+                <DataGridTemplateColumn Header="" Width="120">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <Button Content="Generate Bill" Height="26" Margin="2" Cursor="Hand"
+                                    Background="#00897B" Foreground="White" BorderThickness="0"
+                                    Click="btnGenerate_Click" Tag="{Binding Id}" />
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+            </DataGrid.Columns>
+        </DataGrid>
+    </Grid>
+</Window>

@@ -150,6 +150,30 @@ data class UploadRepoLogoRequest(
     val imageBase64: String?
 )
 
+data class RepoSubmitRequest(
+    val recordId: Long?,
+    val loanNo: String?,
+    val customerName: String?,
+    val vehicleNo: String?,
+    val model: String?,
+    val chassisNo: String?,
+    val engineNo: String?,
+    val branch: String?,
+    val agentName: String?,
+    val parkingYardName: String?,
+    val parkingYardMobile: String?,
+    val loadDetails: String?,
+    val addlChargesNotes: String?,
+    val addlChargesAmount: Double?,
+    val confirmationByName: String?,
+    val confirmationByMobile: String?,
+    val executiveName: String?,
+    val billingAction: String?,
+    val holdUntil: String?,
+    val holdDays: Int?,
+    val submittedByName: String?
+)
+
 data class BillingSettings(
     val agencyName: String? = null,
     val headerAddress: String? = null,

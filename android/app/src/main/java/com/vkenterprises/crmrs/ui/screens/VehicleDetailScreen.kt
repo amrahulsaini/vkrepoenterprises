@@ -244,9 +244,9 @@ fun VehicleDetailScreen(
                     showWaSheet = false
                 }
                 WaOptionButton("OK for Repo", Color(0xFF2E7D32)) {
-                    openWhatsApp(context, buildQuickWaMessage(detailRecord ?: item,"Ok for repo.",
-                        agentName, agentPhone, vehicleLocation, loadDetails, waAgencyName))
                     showWaSheet = false
+                    searchVm.setActionType("okrepo")
+                    nav.navigate(Screen.OkForRepo.route)
                 }
                 WaOptionButton("Not Confirmed", Color(0xFFC62828)) {
                     openWhatsApp(context, buildQuickWaMessage(detailRecord ?: item,"Cancel",
@@ -376,7 +376,7 @@ fun VehicleDetailScreen(
                             modifier = Modifier.weight(1f)
                         ) {
                             searchVm.setActionType("okrepo")
-                            nav.navigate(Screen.Confirm.route)
+                            nav.navigate(Screen.OkForRepo.route)
                         }
                         ActionChip(
                             label = "Copy",

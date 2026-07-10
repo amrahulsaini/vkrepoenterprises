@@ -1276,4 +1276,81 @@ public class MobileRepository
         await r.ReadAsync();
         return (r.GetInt64(0), r.GetInt64(1), r.GetInt64(2));
     }
+
+    public async Task<long> SubmitRepoAsync(VKmobileapi.Models.RepoSubmitRequest req)
+    {
+        await using var conn = DbFactory.Create();
+        await conn.OpenAsync();
+
+        int?    financeId   = null;
+        string? financeName = null;
+        string? branchName  = req.Branch;
+        if (req.RecordId is > 0)
+        {
+            await using var lookup = new MySqlCommand(@"
+                SELECT b.finance_id, f.name, b.name
+                  FROM vehicle_records vr
+                  JOIN branches b  ON b.id = vr.branch_id
+             LEFT JOIN finances f  ON f.id = b.finance_id
+                 WHERE vr.id = @id LIMIT 1", conn) { CommandTimeout = 10 };
+            lookup.Parameters.AddWithValue("@id", req.RecordId!.Value);
+            await using var lr = await lookup.ExecuteReaderAsync();
+            if (await lr.ReadAsync())
+            {
+                if (!lr.IsDBNull(0)) financeId = lr.GetInt32(0);
+                if (!lr.IsDBNull(1)) financeName = lr.GetString(1);
+                if (!lr.IsDBNull(2) && string.IsNullOrWhiteSpace(branchName)) branchName = lr.GetString(2);
+            }
+        }
+
+        string action = (req.BillingAction ?? "immediate").Trim().ToLowerInvariant();
+        if (action != "immediate" && action != "hold" && action != "cancel") action = "immediate";
+
+        DateTime? holdUntil = null;
+        if (!string.IsNullOrWhiteSpace(req.HoldUntil) &&
+            DateTime.TryParse(req.HoldUntil, out var hu)) holdUntil = hu.Date;
+
+        await using var cmd = new MySqlCommand(@"
+            INSERT INTO repo_submissions
+                (record_id, finance_id, finance_name, branch_name,
+                 loan_no, customer_name, vehicle_no, model, chassis_no, engine_no,
+                 agent_name, parking_yard_name, parking_yard_mobile, load_details,
+                 addl_charges_notes, addl_charges_amount,
+                 confirmation_by_name, confirmation_by_mobile, executive_name,
+                 billing_action, hold_until, hold_days, submitted_by_name)
+            VALUES
+                (@rid, @fid, @fname, @branch,
+                 @loan, @cust, @veh, @model, @chassis, @engine,
+                 @agent, @pyn, @pym, @load,
+                 @acn, @aca,
+                 @cbn, @cbm, @exec,
+                 @action, @holdu, @holdd, @subby)", conn) { CommandTimeout = 15 };
+
+        void P(string n, object? v) => cmd.Parameters.AddWithValue(n, v ?? DBNull.Value);
+        P("@rid",   req.RecordId is > 0 ? req.RecordId : (object?)null);
+        P("@fid",   financeId);
+        P("@fname", financeName);
+        P("@branch", string.IsNullOrWhiteSpace(branchName) ? null : branchName);
+        P("@loan",  req.LoanNo);
+        P("@cust",  req.CustomerName);
+        P("@veh",   req.VehicleNo);
+        P("@model", req.Model);
+        P("@chassis", req.ChassisNo);
+        P("@engine", req.EngineNo);
+        P("@agent", req.AgentName);
+        P("@pyn",   req.ParkingYardName);
+        P("@pym",   req.ParkingYardMobile);
+        P("@load",  req.LoadDetails);
+        P("@acn",   req.AddlChargesNotes);
+        P("@aca",   req.AddlChargesAmount);
+        P("@cbn",   req.ConfirmationByName);
+        P("@cbm",   req.ConfirmationByMobile);
+        P("@exec",  req.ExecutiveName);
+        P("@action", action);
+        P("@holdu", holdUntil);
+        P("@holdd", req.HoldDays);
+        P("@subby", req.SubmittedByName);
+        await cmd.ExecuteNonQueryAsync();
+        return cmd.LastInsertedId;
+    }
 }

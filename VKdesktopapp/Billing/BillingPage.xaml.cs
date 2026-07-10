@@ -28,12 +28,17 @@ public partial class BillingPage : Page
     private int _financeId;
     private bool _searching;
     private bool _clearingSearch;
+    private readonly BillingSession? _session;
+    private long _currentSubmissionId;
 
     private class FinanceOption { public int Id { get; set; } public string Name { get; set; } = ""; }
 
-    public BillingPage()
+    public BillingPage() : this(null) { }
+
+    public BillingPage(BillingSession? session)
     {
         InitializeComponent();
+        _session = session;
         Loaded += BillingPage_Loaded;
         txtRepoAmount.TextChanged += (_, __) => Recompute();
         txtAddlAmount.TextChanged += (_, __) => Recompute();
@@ -108,9 +113,13 @@ public partial class BillingPage : Page
         try
         {
             var list = await _finances.GetFinancesAsync();
-            cmbFinance.ItemsSource = list.Select(f => new FinanceOption { Id = f.Id, Name = f.Name })
-                                         .OrderBy(f => f.Name).ToList();
-            txtSearchStatus.Text = "Select a finance to begin.";
+            var opts = list.Select(f => new FinanceOption { Id = f.Id, Name = f.Name });
+            if (_session != null)
+                opts = opts.Where(o => _session.FinanceIds.Contains(o.Id));
+            cmbFinance.ItemsSource = opts.OrderBy(f => f.Name).ToList();
+            txtSearchStatus.Text = _session != null
+                ? $"Signed in as {_session.MemberName}. Select a finance to begin."
+                : "Select a finance to begin.";
         }
         catch (Exception ex) { txtSearchStatus.Text = "Could not load finances: " + ex.Message; }
     }
@@ -197,6 +206,59 @@ public partial class BillingPage : Page
         lstResults.ItemsSource = null;
         _results = new List<VehicleSearchItem>();
         txtAgriLoan.Text = txtCustomer.Text = txtMakeModel.Text = txtRcNo.Text = txtBranch.Text = "";
+        txtAgentName.Text = txtParkingYardMobile.Text = txtLoadDetails.Text = "";
+        txtConfirmationByMobile.Text = txtExecutiveName.Text = "";
+    }
+
+    private void btnBack_Click(object sender, RoutedEventArgs e)
+    {
+        if (NavigationService?.CanGoBack == true) NavigationService.GoBack();
+    }
+
+    private void btnViewAll_Click(object sender, RoutedEventArgs e)
+    {
+        var allowed = _session?.FinanceIds
+            ?? (cmbFinance.ItemsSource as IEnumerable<FinanceOption>)?.Select(f => f.Id).ToList()
+            ?? new List<int>();
+        var w = new ViewAllDetailsWindow(this, _session, allowed) { Owner = Window.GetWindow(this) };
+        w.ShowDialog();
+    }
+
+    internal async Task LoadSubmission(DesktopApiClient.RepoSubmissionDto s)
+    {
+        _currentSubmissionId = s.Id;
+
+        if (s.FinanceId is int fid && cmbFinance.ItemsSource is IEnumerable<FinanceOption> opts)
+        {
+            var match = opts.FirstOrDefault(o => o.Id == fid);
+            if (match != null)
+            {
+                cmbFinance.SelectionChanged -= cmbFinance_SelectionChanged;
+                cmbFinance.SelectedItem = match;
+                _financeId = fid;
+                txtBankTo.Text = match.Name;
+                ResetVehicle();
+                await LoadFinanceSettingsAsync();
+                cmbFinance.SelectionChanged += cmbFinance_SelectionChanged;
+            }
+        }
+
+        txtAgriLoan.Text  = s.LoanNo;
+        txtCustomer.Text  = s.CustomerName;
+        txtMakeModel.Text = s.Model;
+        txtRcNo.Text      = s.VehicleNo;
+        txtBranch.Text    = s.BranchName;
+        txtConfirmationBy.Text = s.ConfirmationByName;
+        txtConfirmationByMobile.Text = s.ConfirmationByMobile;
+        txtAgentName.Text = s.AgentName;
+        txtParkingYardMobile.Text = s.ParkingYardMobile;
+        txtLoadDetails.Text = s.LoadDetails;
+        txtExecutiveName.Text = s.ExecutiveName;
+        if (!string.IsNullOrWhiteSpace(s.ParkingYardName)) txtParkingYard.Text = s.ParkingYardName;
+        if (!string.IsNullOrWhiteSpace(s.AddlChargesNotes)) txtAddlCharges.Text = s.AddlChargesNotes;
+        if (s.AddlChargesAmount is decimal amt && amt > 0) txtAddlAmount.Text = amt.ToString("0.##");
+        txtGenStatus.Foreground = System.Windows.Media.Brushes.Green;
+        txtGenStatus.Text = $"Loaded submission for {s.VehicleNo}. Review and generate.";
     }
 
     private void txtVehSearch_KeyDown(object sender, KeyEventArgs e)
@@ -282,6 +344,11 @@ public partial class BillingPage : Page
             BuildDocx(dlg.FileName, lh, bg);
             txtGenStatus.Text = "Bill generated.";
             Process.Start(new ProcessStartInfo(dlg.FileName) { UseShellExecute = true });
+            if (_currentSubmissionId > 0 && _session != null)
+            {
+                try { await DesktopApiClient.MarkSubmissionBilledAsync(_currentSubmissionId, _session.MemberId); } catch { }
+                _currentSubmissionId = 0;
+            }
             ResetVehicle();
             txtInvoiceNo.Text = "";
             txtConfirmationBy.Text = "";

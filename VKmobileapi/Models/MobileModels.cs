@@ -218,6 +218,29 @@ public record SaveRepoSettingsRequest(
 
 public record UploadRepoLogoRequest(string? ImageBase64);
 
+public record RepoSubmitRequest(
+    long?    RecordId,
+    string?  LoanNo,
+    string?  CustomerName,
+    string?  VehicleNo,
+    string?  Model,
+    string?  ChassisNo,
+    string?  EngineNo,
+    string?  Branch,
+    string?  AgentName,
+    string?  ParkingYardName,
+    string?  ParkingYardMobile,
+    string?  LoadDetails,
+    string?  AddlChargesNotes,
+    decimal? AddlChargesAmount,
+    string?  ConfirmationByName,
+    string?  ConfirmationByMobile,
+    string?  ExecutiveName,
+    string?  BillingAction,
+    string?  HoldUntil,
+    int?     HoldDays,
+    string?  SubmittedByName);
+
 public record BillingSettings(
     string? AgencyName,
     string? HeaderAddress,
