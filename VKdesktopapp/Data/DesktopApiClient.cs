@@ -467,6 +467,20 @@ internal static class DesktopApiClient
         resp.EnsureSuccessStatusCode();
     }
 
+    internal static async Task<string> GetAllocationPasswordAsync()
+    {
+        var resp = await Send(HttpMethod.Get, "api/mgr/settings/allocation-password");
+        resp.EnsureSuccessStatusCode();
+        var r = await resp.Content.ReadFromJsonAsync<SubsPasswordDto>(_json);
+        return r?.Password ?? "";
+    }
+
+    internal static async Task SetAllocationPasswordAsync(string password)
+    {
+        var resp = await Send(HttpMethod.Put, "api/mgr/settings/allocation-password", new { Password = password });
+        resp.EnsureSuccessStatusCode();
+    }
+
     internal record AgencyProfileDto(
         int Id, string Name, string Address, string Mobile1, string Mobile2,
         List<string> Extras, string LogoPath);

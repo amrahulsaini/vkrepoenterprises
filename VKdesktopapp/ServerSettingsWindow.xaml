@@ -115,6 +115,14 @@
                              Height="40" FontSize="14" Padding="10,0"
                              BorderBrush="{StaticResource Gray300}" BorderThickness="1"
                              Background="White" />
+
+                <TextBlock Text="Allocation Password (Billing → Allocations)" Style="{StaticResource FormHeading}" />
+                <TextBlock Text="Required to open the Allocations screen in the desktop Billing module. Leave blank to allow open access."
+                           Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,0,0,4" />
+                <PasswordBox Name="pwdAllocationPass" Margin="0,4,0,12"
+                             Height="40" FontSize="14" Padding="10,0"
+                             BorderBrush="{StaticResource Gray300}" BorderThickness="1"
+                             Background="White" />
             </StackPanel>
         </ScrollViewer>
 
