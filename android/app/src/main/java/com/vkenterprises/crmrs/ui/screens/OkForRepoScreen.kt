@@ -56,7 +56,7 @@ fun OkForRepoScreen(
     }
 
     var vehicleLocation   by remember { mutableStateOf("") }
-    var agentName         by remember(item?.id) { mutableStateOf(agentNameAuth) }
+    var agentName         by remember(item?.id) { mutableStateOf(agentNameAuth.uppercase()) }
     var parkingYardName   by remember { mutableStateOf("") }
     var parkingYardMobile by remember { mutableStateOf("") }
     var loadDetails       by remember { mutableStateOf("") }
@@ -64,7 +64,9 @@ fun OkForRepoScreen(
     var addlAmount        by remember { mutableStateOf("") }
     var confirmByName     by remember { mutableStateOf("") }
     var confirmByMobile   by remember { mutableStateOf("") }
-    var executiveName     by remember(item?.id) { mutableStateOf(item?.executiveName.orEmpty()) }
+    var executiveName     by remember(item?.id) { mutableStateOf(item?.executiveName.orEmpty().uppercase()) }
+    var collectionUpdate  by remember { mutableStateOf("") }
+    var remark            by remember { mutableStateOf("") }
 
     var billingAction by remember { mutableStateOf("immediate") }
     var holdDays      by remember { mutableStateOf("") }
@@ -74,20 +76,21 @@ fun OkForRepoScreen(
     var errorMsg   by remember { mutableStateOf<String?>(null) }
 
     fun buildMessage(): String = buildString {
+        fun up(s: String?) = s?.trim().orEmpty().uppercase()
         appendLine("*Respected sir,*")
-        appendLine("Loan No: *${item?.agreementNo?.trim().orEmpty().ifBlank { "-" }}*")
-        appendLine("Customer Name: *${item?.customerName?.trim().orEmpty().ifBlank { "-" }}*")
-        appendLine("Branch: *${item?.branchFromExcel?.trim().orEmpty().ifBlank { item?.branchName?.trim().orEmpty().ifBlank { "-" } }}*")
-        appendLine("Vehicle No: *${item?.vehicleNo?.trim().orEmpty()}*")
-        appendLine("Model/Maker: *${item?.model?.trim().orEmpty().ifBlank { "-" }}*")
-        appendLine("Chassis No: *${item?.chassisNo?.trim().orEmpty()}*")
-        appendLine("Engine No: *${item?.engineNo?.trim().orEmpty().ifBlank { "-" }}*")
-        if (vehicleLocation.isNotBlank()) appendLine("Vehicle location: *$vehicleLocation*")
+        appendLine("Loan No: *${up(item?.agreementNo).ifBlank { "-" }}*")
+        appendLine("Customer Name: *${up(item?.customerName).ifBlank { "-" }}*")
+        appendLine("Branch: *${up(item?.branchFromExcel).ifBlank { up(item?.branchName).ifBlank { "-" } }}*")
+        appendLine("Vehicle No: *${up(item?.vehicleNo)}*")
+        appendLine("Model/Maker: *${up(item?.model).ifBlank { "-" }}*")
+        appendLine("Chassis No: *${up(item?.chassisNo)}*")
+        appendLine("Engine No: *${up(item?.engineNo).ifBlank { "-" }}*")
+        if (vehicleLocation.isNotBlank()) appendLine("Vehicle location: *${vehicleLocation.uppercase()}*")
         appendLine("Status: *Ok for repo.*")
         appendLine()
         val person = listOf(agentName.trim(), agentPhoneAuth.trim()).filter { it.isNotBlank() }.joinToString(" - ")
         if (person.isNotBlank()) appendLine(person)
-        appendLine("Agency Name: *$agencyName*")
+        appendLine("Agency Name: *${agencyName.uppercase()}*")
 
         fun f(label: String, v: String) { if (v.isNotBlank()) appendLine("$label: *${v.trim()}*") }
         val extras = listOf(
@@ -99,7 +102,9 @@ fun OkForRepoScreen(
             "Additional Charges Amount" to addlAmount,
             "Confirmation By (Name)" to confirmByName,
             "Confirmation By (Mobile)" to confirmByMobile,
-            "Executive Name" to executiveName
+            "Executive Name" to executiveName,
+            "Collection Update" to collectionUpdate,
+            "Remark" to remark
         ).filter { it.second.isNotBlank() }
         if (extras.isNotEmpty()) { appendLine(); extras.forEach { f(it.first, it.second) } }
     }
@@ -133,6 +138,8 @@ fun OkForRepoScreen(
                         confirmationByName   = confirmByName.trim().ifBlank { null },
                         confirmationByMobile = confirmByMobile.trim().ifBlank { null },
                         executiveName     = executiveName.trim().ifBlank { null },
+                        collectionUpdate  = collectionUpdate.trim().ifBlank { null },
+                        remark            = remark.trim().ifBlank { null },
                         billingAction     = billingAction,
                         holdUntil         = holdDate.trim().ifBlank { null },
                         holdDays          = holdDays.trim().toIntOrNull(),
@@ -199,6 +206,8 @@ fun OkForRepoScreen(
             Field("Confirmation By (Name)", confirmByName, Icons.Default.HowToReg) { confirmByName = it }
             Field("Confirmation By (Mobile)", confirmByMobile, Icons.Default.Call, KeyboardType.Phone) { confirmByMobile = it }
             Field("Executive Name", executiveName, Icons.Default.Badge) { executiveName = it }
+            Field("Collection Update", collectionUpdate, Icons.Default.Update) { collectionUpdate = it }
+            Field("Remark", remark, Icons.Default.Comment) { remark = it }
             Field("Vehicle Location (for message)", vehicleLocation, Icons.Default.Place) { vehicleLocation = it }
 
             HorizontalDivider(Modifier.padding(vertical = 4.dp))
@@ -260,7 +269,7 @@ private fun Field(
 ) {
     OutlinedTextField(
         value = value,
-        onValueChange = onChange,
+        onValueChange = { onChange(it.uppercase()) },
         label = { Text(label) },
         leadingIcon = { Icon(icon, null) },
         keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = keyboard),

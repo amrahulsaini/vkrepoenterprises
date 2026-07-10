@@ -208,6 +208,7 @@ public partial class BillingPage : Page
         txtAgriLoan.Text = txtCustomer.Text = txtMakeModel.Text = txtRcNo.Text = txtBranch.Text = "";
         txtAgentName.Text = txtParkingYardMobile.Text = txtLoadDetails.Text = "";
         txtConfirmationByMobile.Text = txtExecutiveName.Text = "";
+        txtCollectionUpdate.Text = txtRemark.Text = "";
     }
 
     private void btnBack_Click(object sender, RoutedEventArgs e)
@@ -254,6 +255,8 @@ public partial class BillingPage : Page
         txtParkingYardMobile.Text = s.ParkingYardMobile;
         txtLoadDetails.Text = s.LoadDetails;
         txtExecutiveName.Text = s.ExecutiveName;
+        txtCollectionUpdate.Text = s.CollectionUpdate;
+        txtRemark.Text = s.Remark;
         if (!string.IsNullOrWhiteSpace(s.ParkingYardName)) txtParkingYard.Text = s.ParkingYardName;
         if (!string.IsNullOrWhiteSpace(s.AddlChargesNotes)) txtAddlCharges.Text = s.AddlChargesNotes;
         if (s.AddlChargesAmount is decimal amt && amt > 0) txtAddlAmount.Text = amt.ToString("0.##");
@@ -425,7 +428,7 @@ public partial class BillingPage : Page
         float wa = pageW - wl - wd;
 
         var t = sec.AddTable();
-        t.ResetCells(23, 3);
+        t.ResetCells(25, 3);
         t.TableFormat.Borders.BorderType = BorderStyle.Single;
         t.TableFormat.Borders.LineWidth = 0.5f;
         t.TableFormat.Borders.Color = SFColor.Black;
@@ -459,6 +462,8 @@ public partial class BillingPage : Page
         KV("QTY", txtQty.Text.Trim());
         KV("REPO CHARGES", txtRepoWords.Text.Trim(), Rs(ParseAmt(txtRepoAmount.Text)));
         KV("ADDITIONAL CHARGES", txtAddlCharges.Text.Trim(), Rs(ParseAmt(txtAddlAmount.Text)));
+        KV("COLLECTION UPDATE", txtCollectionUpdate.Text.Trim());
+        KV("REMARK", txtRemark.Text.Trim());
         KV("PAN NO", txtPan.Text.Trim());
         KV("GST STATE", txtGst.Text.Trim());
         KV("BANK ACCOUNT NAME", txtAcHolder.Text.Trim());

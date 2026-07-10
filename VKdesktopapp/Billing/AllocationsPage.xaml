@@ -11,7 +11,7 @@
         <DockPanel Grid.Row="0" Margin="0,0,0,12">
             <Button Content="&#8592; Back" Width="80" Height="30" Click="btnBack_Click" HorizontalAlignment="Left" />
             <TextBlock Text="Allocations — Billing Members" FontSize="18" FontWeight="Bold"
-                       Foreground="#00897B" Margin="14,0,0,0" VerticalAlignment="Center" />
+                       Foreground="{StaticResource Accent}" Margin="14,0,0,0" VerticalAlignment="Center" />
         </DockPanel>
 
         <Grid Grid.Row="1">
@@ -44,7 +44,7 @@
             <Border Grid.Column="1" Background="White" CornerRadius="8" BorderBrush="#E0E0E0" BorderThickness="1">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="18,14">
                     <StackPanel>
-                        <TextBlock Name="txtFormTitle" Text="New Member" FontWeight="Bold" FontSize="15" Foreground="#00897B" Margin="0,0,0,10" />
+                        <TextBlock Name="txtFormTitle" Text="New Member" FontWeight="Bold" FontSize="15" Foreground="{StaticResource Accent}" Margin="0,0,0,10" />
                         <UniformGrid Columns="2">
                             <StackPanel Margin="0,0,8,8"><TextBlock Text="Member Name" Foreground="#666" FontSize="12" /><TextBox Name="txtName" Height="30" /></StackPanel>
                             <StackPanel Margin="0,0,0,8"><TextBlock Text="Mobile Number" Foreground="#666" FontSize="12" /><TextBox Name="txtMobile" Height="30" /></StackPanel>
@@ -54,13 +54,17 @@
                             <StackPanel Margin="0,0,0,8"><TextBlock Text="Password" Foreground="#666" FontSize="12" /><TextBox Name="txtPassword" Height="30" /></StackPanel>
                         </UniformGrid>
 
-                        <TextBlock Text="Allocated Finances / Head Offices" FontWeight="Bold" Foreground="#00897B" Margin="0,12,0,6" />
-                        <TextBlock Text="Members can only see and bill for the finances checked here." FontSize="11" Foreground="#888" Margin="0,0,0,6" />
+                        <TextBlock Text="Allocated Finances / Head Offices" FontWeight="Bold" Foreground="{StaticResource Accent}" Margin="0,12,0,6" />
+                        <TextBlock Text="Members can only see and bill for the finances checked here. A finance can belong to one member only." FontSize="11" Foreground="#888" Margin="0,0,0,6" TextWrapping="Wrap" />
+                        <TextBox Name="txtFinanceSearch" Height="30" Margin="0,0,0,6"
+                                 VerticalContentAlignment="Center" TextChanged="txtFinanceSearch_TextChanged"
+                                 ToolTip="Search finances" />
                         <Border BorderBrush="#E0E0E0" BorderThickness="1" CornerRadius="6" Height="240">
                             <ListBox Name="lstFinances" BorderThickness="0">
                                 <ListBox.ItemTemplate>
                                     <DataTemplate>
-                                        <CheckBox Content="{Binding Name}" IsChecked="{Binding IsChecked, Mode=TwoWay}" />
+                                        <CheckBox Content="{Binding Name}" IsChecked="{Binding IsChecked, Mode=TwoWay}"
+                                                  Checked="FinanceCheck_Checked" />
                                     </DataTemplate>
                                 </ListBox.ItemTemplate>
                             </ListBox>
@@ -68,7 +72,7 @@
 
                         <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
                             <Button Name="btnSave" Content="Save Member" Height="36" Width="150" FontWeight="Bold"
-                                    Background="#00897B" Foreground="White" BorderThickness="0" Cursor="Hand" Click="btnSave_Click" />
+                                    Background="{StaticResource Accent}" Foreground="White" BorderThickness="0" Cursor="Hand" Click="btnSave_Click" />
                             <Button Name="btnDelete" Content="Delete" Height="36" Width="100" Margin="10,0,0,0"
                                     Background="#C62828" Foreground="White" BorderThickness="0" Cursor="Hand" Click="btnDelete_Click" />
                             <TextBlock Name="txtFormStatus" VerticalAlignment="Center" Margin="14,0,0,0" Foreground="#2E7D32" FontSize="12" />

@@ -10,6 +10,13 @@
                 <ResourceDictionary Source="Material/Colors.xaml" />
                 <ResourceDictionary Source="Material/Styles.xaml" />
             </ResourceDictionary.MergedDictionaries>
+
+            <SolidColorBrush x:Key="Accent"      Color="#EF6C00" />
+            <SolidColorBrush x:Key="AccentDark"  Color="#E65100" />
+            <SolidColorBrush x:Key="AccentLight" Color="#FFF3E0" />
+            <SolidColorBrush x:Key="AccentMid"   Color="#FB8C00" />
+            <SolidColorBrush x:Key="InkMuted"    Color="#6B6B6B" />
+            <SolidColorBrush x:Key="PanelBorder" Color="#E6E1DB" />
         </ResourceDictionary>
     </Application.Resources>
 </Application>

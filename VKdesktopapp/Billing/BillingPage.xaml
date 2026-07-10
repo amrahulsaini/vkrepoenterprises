@@ -18,7 +18,7 @@
             <DockPanel>
                 <TextBlock DockPanel.Dock="Top" Text="Repossession Bill" FontSize="18" FontWeight="Bold" Margin="0,0,0,10" />
 
-                <TextBlock DockPanel.Dock="Top" Text="Finance / Bank Name (To)" FontSize="13" FontWeight="Bold" Foreground="#00897B" Margin="0,0,0,4" />
+                <TextBlock DockPanel.Dock="Top" Text="Finance / Bank Name (To)" FontSize="13" FontWeight="Bold" Foreground="{StaticResource Accent}" Margin="0,0,0,4" />
                 <ComboBox DockPanel.Dock="Top" Name="cmbFinance" Height="32" Margin="0,0,0,12"
                           DisplayMemberPath="Name" SelectionChanged="cmbFinance_SelectionChanged" />
 
@@ -64,7 +64,7 @@
                                 Margin="0,0,10,0" Click="btnBack_Click" />
                         <TextBlock Name="txtGenStatus" VerticalAlignment="Center" Foreground="#2E7D32" FontSize="12" />
                         <Button DockPanel.Dock="Right" Name="btnGenerate" Content="Generate Bill (DOCX)"
-                                Height="38" Width="190" FontWeight="Bold" Background="#00897B" Foreground="White"
+                                Height="38" Width="190" FontWeight="Bold" Background="{StaticResource Accent}" Foreground="White"
                                 BorderThickness="0" Cursor="Hand" Click="btnGenerate_Click" />
                         <Button DockPanel.Dock="Right" Name="btnViewAll" Content="View All Details"
                                 Height="38" Width="150" Margin="0,0,10,0" FontWeight="Bold"
@@ -74,7 +74,7 @@
 
                 <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="18,14">
                     <StackPanel>
-                        <TextBlock Text="INVOICE" FontWeight="Bold" Foreground="#00897B" Margin="0,0,0,6" />
+                        <TextBlock Text="INVOICE" FontWeight="Bold" Foreground="{StaticResource Accent}" Margin="0,0,0,6" />
                         <UniformGrid Columns="2">
                             <StackPanel Margin="0,0,8,8"><TextBlock Text="To (Bank / Head Office)" Foreground="#666" FontSize="12" /><TextBox Name="txtBankTo" Height="30" /></StackPanel>
                             <StackPanel Margin="0,0,0,8"><TextBlock Text="Invoice Date" Foreground="#666" FontSize="12" /><TextBox Name="txtInvoiceDate" Height="30" /></StackPanel>
@@ -84,7 +84,7 @@
                             <StackPanel Margin="0,0,0,8" />
                         </UniformGrid>
 
-                        <TextBlock Text="VEHICLE (auto-filled)" FontWeight="Bold" Foreground="#00897B" Margin="0,10,0,6" />
+                        <TextBlock Text="VEHICLE (auto-filled)" FontWeight="Bold" Foreground="{StaticResource Accent}" Margin="0,10,0,6" />
                         <UniformGrid Columns="2">
                             <StackPanel Margin="0,0,8,8"><TextBlock Text="Agri-Loan No" Foreground="#666" FontSize="12" /><TextBox Name="txtAgriLoan" Height="30" /></StackPanel>
                             <StackPanel Margin="0,0,0,8"><TextBlock Text="Name of Customer" Foreground="#666" FontSize="12" /><TextBox Name="txtCustomer" Height="30" /></StackPanel>
@@ -92,7 +92,7 @@
                             <StackPanel Margin="0,0,0,8"><TextBlock Text="RC No" Foreground="#666" FontSize="12" /><TextBox Name="txtRcNo" Height="30" /></StackPanel>
                         </UniformGrid>
 
-                        <TextBlock Text="REPOSSESSION" FontWeight="Bold" Foreground="#00897B" Margin="0,10,0,6" />
+                        <TextBlock Text="REPOSSESSION" FontWeight="Bold" Foreground="{StaticResource Accent}" Margin="0,10,0,6" />
                         <UniformGrid Columns="3">
                             <StackPanel Margin="0,0,8,8"><TextBlock Text="Date of Repossession" Foreground="#666" FontSize="12" /><TextBox Name="txtDateRepo" Height="30" /></StackPanel>
                             <StackPanel Margin="0,0,8,8"><TextBlock Text="Parking Yard Name" Foreground="#666" FontSize="12" /><TextBox Name="txtParkingYard" Height="30" /></StackPanel>
@@ -108,17 +108,20 @@
                             <StackPanel Margin="0,0,0,8" />
                         </UniformGrid>
 
-                        <TextBlock Text="REPO SUBMISSION DETAILS (from app)" FontWeight="Bold" Foreground="#00897B" Margin="0,10,0,6" />
+                        <TextBlock Text="REPO SUBMISSION DETAILS" FontWeight="Bold" Foreground="{StaticResource Accent}" Margin="0,10,0,6" />
                         <UniformGrid Columns="3">
                             <StackPanel Margin="0,0,8,8"><TextBlock Text="Agent Name" Foreground="#666" FontSize="12" /><TextBox Name="txtAgentName" Height="30" /></StackPanel>
                             <StackPanel Margin="0,0,8,8"><TextBlock Text="Parking Yard Mobile" Foreground="#666" FontSize="12" /><TextBox Name="txtParkingYardMobile" Height="30" /></StackPanel>
                             <StackPanel Margin="0,0,0,8"><TextBlock Text="Load Details" Foreground="#666" FontSize="12" /><TextBox Name="txtLoadDetails" Height="30" /></StackPanel>
                             <StackPanel Margin="0,0,8,8"><TextBlock Text="Confirmation By (Mobile)" Foreground="#666" FontSize="12" /><TextBox Name="txtConfirmationByMobile" Height="30" /></StackPanel>
-                            <StackPanel Margin="0,0,0,8"><TextBlock Text="Executive Name" Foreground="#666" FontSize="12" /><TextBox Name="txtExecutiveName" Height="30" /></StackPanel>
+                            <StackPanel Margin="0,0,8,8"><TextBlock Text="Executive Name" Foreground="#666" FontSize="12" /><TextBox Name="txtExecutiveName" Height="30" /></StackPanel>
+                            <StackPanel Margin="0,0,0,8"><TextBlock Text="Collection Update" Foreground="#666" FontSize="12" /><TextBox Name="txtCollectionUpdate" Height="30" /></StackPanel>
+                            <StackPanel Margin="0,0,8,8"><TextBlock Text="Remark" Foreground="#666" FontSize="12" /><TextBox Name="txtRemark" Height="30" /></StackPanel>
+                            <StackPanel Margin="0,0,8,8" />
                             <StackPanel Margin="0,0,0,8" />
                         </UniformGrid>
 
-                        <TextBlock Text="AGENCY &amp; BANK (saved in cloud, per agency)" FontWeight="Bold" Foreground="#00897B" Margin="0,10,0,6" />
+                        <TextBlock Text="AGENCY &amp; BANK" FontWeight="Bold" Foreground="{StaticResource Accent}" Margin="0,10,0,6" />
                         <UniformGrid Columns="3">
                             <StackPanel Margin="0,0,8,8"><TextBlock Text="Name of Agency" Foreground="#666" FontSize="12" /><TextBox Name="txtAgencyName" Height="30" /></StackPanel>
                             <StackPanel Margin="0,0,8,8"><TextBlock Text="PAN No" Foreground="#666" FontSize="12" /><TextBox Name="txtPan" Height="30" /></StackPanel>

@@ -11,7 +11,7 @@
         </Grid.RowDefinitions>
 
         <TextBlock Grid.Row="0" Text="Vehicles submitted OK-for-Repo from the app (your allocated finances only)"
-                   FontSize="15" FontWeight="Bold" Foreground="#00897B" Margin="0,0,0,10" />
+                   FontSize="15" FontWeight="Bold" Foreground="{StaticResource Accent}" Margin="0,0,0,10" />
 
         <WrapPanel Grid.Row="1" Margin="0,0,0,10">
             <TextBlock Text="From" VerticalAlignment="Center" Foreground="#666" Margin="0,0,6,0" />
@@ -49,13 +49,15 @@
                 <DataGridTextColumn Header="Agent" Binding="{Binding AgentName}" Width="100" />
                 <DataGridTextColumn Header="Parking Yard" Binding="{Binding ParkingYardName}" Width="110" />
                 <DataGridTextColumn Header="Addl Amt" Binding="{Binding AddlChargesAmount}" Width="75" />
+                <DataGridTextColumn Header="Collection Update" Binding="{Binding CollectionUpdate}" Width="130" />
+                <DataGridTextColumn Header="Remark" Binding="{Binding Remark}" Width="130" />
                 <DataGridTextColumn Header="Billing" Binding="{Binding ActionText}" Width="120" />
                 <DataGridTextColumn Header="Status" Binding="{Binding StatusText}" Width="80" />
                 <DataGridTemplateColumn Header="" Width="120">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <Button Content="Generate Bill" Height="26" Margin="2" Cursor="Hand"
-                                    Background="#00897B" Foreground="White" BorderThickness="0"
+                                    Background="{StaticResource Accent}" Foreground="White" BorderThickness="0"
                                     Click="btnGenerate_Click" Tag="{Binding Id}" />
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>

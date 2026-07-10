@@ -19,6 +19,8 @@ CREATE TABLE IF NOT EXISTS `repo_submissions` (
   `confirmation_by_name`   VARCHAR(255)    NULL,
   `confirmation_by_mobile` VARCHAR(64)     NULL,
   `executive_name`         VARCHAR(255)    NULL,
+  `collection_update`      VARCHAR(512)    NULL,
+  `remark`                 VARCHAR(512)    NULL,
   `billing_action`         ENUM('immediate','hold','cancel') NOT NULL DEFAULT 'immediate',
   `hold_until`             DATE            NULL,
   `hold_days`              INT             NULL,
@@ -53,6 +55,6 @@ CREATE TABLE IF NOT EXISTS `billing_member_finances` (
   `member_id`  BIGINT UNSIGNED NOT NULL,
   `finance_id` INT UNSIGNED    NOT NULL,
   PRIMARY KEY (`member_id`, `finance_id`),
-  KEY `idx_bmf_finance` (`finance_id`),
+  UNIQUE KEY `uq_bmf_finance` (`finance_id`),
   CONSTRAINT `fk_bmf_member` FOREIGN KEY (`member_id`) REFERENCES `billing_members` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
