@@ -18,6 +18,7 @@ sealed class Screen(val route: String) {
     object KycResubmit         : Screen("kyc_resubmit")
     object Profile             : Screen("profile")
     object Confirm             : Screen("confirm")
+    object OkForRepo           : Screen("ok_for_repo")
     object Settings            : Screen("settings")
     object LiveUsers           : Screen("live_users")
     object ManageSubscriptions : Screen("manage_subscriptions")

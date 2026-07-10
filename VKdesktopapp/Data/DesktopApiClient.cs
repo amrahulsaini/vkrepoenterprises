@@ -106,6 +106,67 @@ internal static class DesktopApiClient
         return (await resp.Content.ReadFromJsonAsync<UrlResult>(_json))?.Url;
     }
 
+    internal record BillingMemberDto(
+        long Id, string Name, string Mobile, string Email,
+        string Username, string Password, bool IsActive, List<int> FinanceIds);
+
+    internal record MemberLoginResult(long Id, string Name, List<int> FinanceIds);
+
+    internal record RepoSubmissionDto(
+        long Id, long? RecordId, int? FinanceId, string FinanceName, string BranchName,
+        string LoanNo, string CustomerName, string VehicleNo, string Model, string ChassisNo, string EngineNo,
+        string AgentName, string ParkingYardName, string ParkingYardMobile, string LoadDetails,
+        string AddlChargesNotes, decimal? AddlChargesAmount,
+        string ConfirmationByName, string ConfirmationByMobile, string ExecutiveName,
+        string BillingAction, string? HoldUntil, int? HoldDays, string BillStatus, string? BilledAt,
+        string SubmittedByName, string CreatedAt);
+
+    internal static async Task<List<BillingMemberDto>> GetBillingMembersAsync()
+    {
+        var resp = await Send(HttpMethod.Get, "api/mgr/billing/members");
+        resp.EnsureSuccessStatusCode();
+        return (await resp.Content.ReadFromJsonAsync<List<BillingMemberDto>>(_json))!;
+    }
+
+    internal static async Task<long> CreateBillingMemberAsync(object dto)
+    {
+        var resp = await Send(HttpMethod.Post, "api/mgr/billing/members", dto);
+        resp.EnsureSuccessStatusCode();
+        var r = await resp.Content.ReadFromJsonAsync<JsonElement>();
+        return r.GetProperty("id").GetInt64();
+    }
+
+    internal static async Task UpdateBillingMemberAsync(long id, object dto)
+        => (await Send(HttpMethod.Put, $"api/mgr/billing/members/{id}", dto)).Dispose();
+
+    internal static async Task DeleteBillingMemberAsync(long id)
+        => (await Send(HttpMethod.Delete, $"api/mgr/billing/members/{id}")).Dispose();
+
+    internal static async Task SetMemberFinancesAsync(long id, List<int> financeIds)
+        => (await Send(HttpMethod.Put, $"api/mgr/billing/members/{id}/finances", new { FinanceIds = financeIds })).Dispose();
+
+    internal static async Task<MemberLoginResult?> BillingMemberLoginAsync(string username, string password)
+    {
+        var resp = await Send(HttpMethod.Post, "api/mgr/billing/member-login", new { Username = username, Password = password });
+        return await resp.Content.ReadFromJsonAsync<MemberLoginResult>(_json);
+    }
+
+    internal static async Task<List<RepoSubmissionDto>> GetRepoSubmissionsAsync(
+        string? from, string? to, IEnumerable<int> financeIds, string? status)
+    {
+        var ids = string.Join(",", financeIds);
+        var url = $"api/mgr/billing/submissions?financeIds={Uri.EscapeDataString(ids)}";
+        if (!string.IsNullOrWhiteSpace(from)) url += $"&from={Uri.EscapeDataString(from)}";
+        if (!string.IsNullOrWhiteSpace(to))   url += $"&to={Uri.EscapeDataString(to)}";
+        if (!string.IsNullOrWhiteSpace(status)) url += $"&status={Uri.EscapeDataString(status)}";
+        var resp = await Send(HttpMethod.Get, url);
+        resp.EnsureSuccessStatusCode();
+        return (await resp.Content.ReadFromJsonAsync<List<RepoSubmissionDto>>(_json))!;
+    }
+
+    internal static async Task MarkSubmissionBilledAsync(long id, long memberId)
+        => (await Send(HttpMethod.Post, $"api/mgr/billing/submissions/{id}/billed", new { MemberId = memberId })).Dispose();
+
     internal static async Task<int> CreateFinanceAsync(string name, string? description)
     {
         var resp = await Send(HttpMethod.Post, "api/mgr/finances",

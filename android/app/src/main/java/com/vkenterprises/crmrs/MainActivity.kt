@@ -76,6 +76,10 @@ fun VKNavHost() {
             ConfirmScreen(searchVm, authVm, navController)
         }
 
+        composable(Screen.OkForRepo.route) {
+            OkForRepoScreen(searchVm, authVm, navController)
+        }
+
         composable(Screen.SubscriptionExpired.route) {
             SubscriptionExpiredScreen(authVm, navController)
         }

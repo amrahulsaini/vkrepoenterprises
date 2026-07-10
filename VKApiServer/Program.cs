@@ -581,6 +581,14 @@ static async Task MgrExec(string sql, MySqlConnection c, int timeout = 30,
     await cmd.ExecuteNonQueryAsync();
 }
 
+static async Task SetMemberFinances(MySqlConnection c, long memberId, List<int> financeIds)
+{
+    await MgrExec("DELETE FROM billing_member_finances WHERE member_id=@id", c, 20, ("@id", memberId));
+    foreach (var fid in financeIds.Distinct())
+        await MgrExec("INSERT IGNORE INTO billing_member_finances (member_id, finance_id) VALUES (@m,@f)",
+            c, 20, ("@m", memberId), ("@f", fid));
+}
+
 static async Task<IResult> SaveBillingImage(HttpContext ctx, string? base64, string kind, int financeId)
 {
     if (string.IsNullOrWhiteSpace(base64)) return Results.BadRequest(new { message = "No image provided." });
@@ -1633,6 +1641,251 @@ app.MapPost("/api/mgr/billing/letterhead", async (HttpContext ctx, MgrBillingIma
 
 app.MapPost("/api/mgr/billing/background", async (HttpContext ctx, MgrBillingImageDto dto) =>
     (!MgrAuth(ctx, desktopLoginPassword)) ? Results.Unauthorized() : await SaveBillingImage(ctx, dto.ImageBase64, "background", dto.FinanceId));
+
+app.MapGet("/api/mgr/billing/members", async (HttpContext ctx) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        await using var conn = new MySqlConnection(TenantContext.Conn);
+        await conn.OpenAsync();
+        var members = new List<Dictionary<string, object?>>();
+        var byId = new Dictionary<long, Dictionary<string, object?>>();
+        await using (var cmd = new MySqlCommand(
+            "SELECT id, name, mobile, email, username, password, is_active FROM billing_members ORDER BY name", conn) { CommandTimeout = 20 })
+        await using (var rdr = await cmd.ExecuteReaderAsync())
+        {
+            while (await rdr.ReadAsync())
+            {
+                var m = new Dictionary<string, object?>
+                {
+                    ["id"]       = rdr.GetInt64(0),
+                    ["name"]     = rdr.GetString(1),
+                    ["mobile"]   = rdr.IsDBNull(2) ? "" : rdr.GetString(2),
+                    ["email"]    = rdr.IsDBNull(3) ? "" : rdr.GetString(3),
+                    ["username"] = rdr.GetString(4),
+                    ["password"] = rdr.IsDBNull(5) ? "" : rdr.GetString(5),
+                    ["isActive"] = rdr.GetBoolean(6),
+                    ["financeIds"] = new List<int>()
+                };
+                members.Add(m);
+                byId[(long)m["id"]!] = m;
+            }
+        }
+        if (byId.Count > 0)
+        {
+            await using var cmd = new MySqlCommand(
+                "SELECT member_id, finance_id FROM billing_member_finances", conn) { CommandTimeout = 20 };
+            await using var rdr = await cmd.ExecuteReaderAsync();
+            while (await rdr.ReadAsync())
+            {
+                long mid = rdr.GetInt64(0);
+                if (byId.TryGetValue(mid, out var m))
+                    ((List<int>)m["financeIds"]!).Add(rdr.GetInt32(1));
+            }
+        }
+        return Results.Ok(members);
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+app.MapPost("/api/mgr/billing/members", async (HttpContext ctx, MgrBillingMemberDto dto) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    if (string.IsNullOrWhiteSpace(dto.Name) || string.IsNullOrWhiteSpace(dto.Username) || string.IsNullOrWhiteSpace(dto.Password))
+        return Results.BadRequest(new { message = "Name, username and password are required." });
+    try
+    {
+        await using var conn = new MySqlConnection(TenantContext.Conn);
+        await conn.OpenAsync();
+        long id;
+        await using (var cmd = new MySqlCommand(@"
+            INSERT INTO billing_members (name, mobile, email, username, password, is_active)
+            VALUES (@n,@m,@e,@u,@p,@a); SELECT LAST_INSERT_ID();", conn))
+        {
+            cmd.Parameters.AddWithValue("@n", dto.Name.Trim());
+            cmd.Parameters.AddWithValue("@m", (object?)dto.Mobile ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@e", (object?)dto.Email ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@u", dto.Username.Trim());
+            cmd.Parameters.AddWithValue("@p", dto.Password);
+            cmd.Parameters.AddWithValue("@a", dto.IsActive);
+            id = Convert.ToInt64(await cmd.ExecuteScalarAsync());
+        }
+        await SetMemberFinances(conn, id, dto.FinanceIds ?? new List<int>());
+        return Results.Ok(new { id });
+    }
+    catch (MySqlException ex) when (ex.Number == 1062)
+    { return Results.Conflict(new { message = "That username is already taken." }); }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+app.MapPut("/api/mgr/billing/members/{id:long}", async (HttpContext ctx, long id, MgrBillingMemberDto dto) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        await using var conn = new MySqlConnection(TenantContext.Conn);
+        await conn.OpenAsync();
+        if (string.IsNullOrWhiteSpace(dto.Password))
+            await MgrExec(@"UPDATE billing_members SET name=@n, mobile=@m, email=@e, username=@u, is_active=@a WHERE id=@id", conn, 20,
+                ("@n", dto.Name.Trim()), ("@m", (object?)dto.Mobile ?? DBNull.Value), ("@e", (object?)dto.Email ?? DBNull.Value),
+                ("@u", dto.Username.Trim()), ("@a", dto.IsActive), ("@id", id));
+        else
+            await MgrExec(@"UPDATE billing_members SET name=@n, mobile=@m, email=@e, username=@u, password=@p, is_active=@a WHERE id=@id", conn, 20,
+                ("@n", dto.Name.Trim()), ("@m", (object?)dto.Mobile ?? DBNull.Value), ("@e", (object?)dto.Email ?? DBNull.Value),
+                ("@u", dto.Username.Trim()), ("@p", dto.Password), ("@a", dto.IsActive), ("@id", id));
+        if (dto.FinanceIds != null) await SetMemberFinances(conn, id, dto.FinanceIds);
+        return Results.Ok(new { success = true });
+    }
+    catch (MySqlException ex) when (ex.Number == 1062)
+    { return Results.Conflict(new { message = "That username is already taken." }); }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+app.MapDelete("/api/mgr/billing/members/{id:long}", async (HttpContext ctx, long id) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        await using var conn = new MySqlConnection(TenantContext.Conn);
+        await conn.OpenAsync();
+        await MgrExec("DELETE FROM billing_members WHERE id=@id", conn, 20, ("@id", id));
+        return Results.Ok(new { success = true });
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+app.MapPut("/api/mgr/billing/members/{id:long}/finances", async (HttpContext ctx, long id, MgrSetMemberFinancesDto dto) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        await using var conn = new MySqlConnection(TenantContext.Conn);
+        await conn.OpenAsync();
+        await SetMemberFinances(conn, id, dto.FinanceIds ?? new List<int>());
+        return Results.Ok(new { success = true });
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+app.MapPost("/api/mgr/billing/member-login", async (HttpContext ctx, MgrMemberLoginDto dto) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    if (string.IsNullOrWhiteSpace(dto.Username) || string.IsNullOrWhiteSpace(dto.Password))
+        return Results.BadRequest(new { message = "Enter your username and password." });
+    try
+    {
+        await using var conn = new MySqlConnection(TenantContext.Conn);
+        await conn.OpenAsync();
+        long   mid = 0; string name = ""; bool active = false; string pass = "";
+        await using (var cmd = new MySqlCommand(
+            "SELECT id, name, password, is_active FROM billing_members WHERE username=@u LIMIT 1", conn))
+        {
+            cmd.Parameters.AddWithValue("@u", dto.Username.Trim());
+            await using var rdr = await cmd.ExecuteReaderAsync();
+            if (!await rdr.ReadAsync())
+                return Results.BadRequest(new { message = "Invalid username or password." });
+            mid = rdr.GetInt64(0); name = rdr.GetString(1);
+            pass = rdr.IsDBNull(2) ? "" : rdr.GetString(2);
+            active = rdr.GetBoolean(3);
+        }
+        if (!string.Equals(pass, dto.Password, StringComparison.Ordinal))
+            return Results.BadRequest(new { message = "Invalid username or password." });
+        if (!active)
+            return Results.Json(new { message = "This billing login has been disabled." }, statusCode: 403);
+
+        var financeIds = new List<int>();
+        await using (var cmd = new MySqlCommand(
+            "SELECT finance_id FROM billing_member_finances WHERE member_id=@id", conn))
+        {
+            cmd.Parameters.AddWithValue("@id", mid);
+            await using var rdr = await cmd.ExecuteReaderAsync();
+            while (await rdr.ReadAsync()) financeIds.Add(rdr.GetInt32(0));
+        }
+        return Results.Ok(new { id = mid, name, financeIds });
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+app.MapGet("/api/mgr/billing/submissions", async (HttpContext ctx, string? from, string? to, string? financeIds, string? status) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        var ids = (financeIds ?? "")
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(s => int.TryParse(s, out var v) ? v : -1)
+            .Where(v => v >= 0).ToList();
+
+        var where = new List<string>();
+        if (ids.Count > 0) where.Add($"finance_id IN ({string.Join(",", ids)})");
+        else if (!string.IsNullOrWhiteSpace(financeIds)) where.Add("1=0");
+        if (DateTime.TryParse(from, out var f)) where.Add("created_at >= @from");
+        if (DateTime.TryParse(to, out var t))   where.Add("created_at < @to");
+        if (status == "pending" || status == "billed") where.Add("bill_status = @st");
+        string whereSql = where.Count > 0 ? "WHERE " + string.Join(" AND ", where) : "";
+
+        await using var conn = new MySqlConnection(TenantContext.Conn);
+        await conn.OpenAsync();
+        await using var cmd = new MySqlCommand($@"
+            SELECT id, record_id, finance_id, finance_name, branch_name,
+                   loan_no, customer_name, vehicle_no, model, chassis_no, engine_no,
+                   agent_name, parking_yard_name, parking_yard_mobile, load_details,
+                   addl_charges_notes, addl_charges_amount,
+                   confirmation_by_name, confirmation_by_mobile, executive_name,
+                   billing_action, hold_until, hold_days, bill_status, billed_at,
+                   submitted_by_name, created_at
+              FROM repo_submissions {whereSql}
+             ORDER BY created_at DESC LIMIT 2000", conn) { CommandTimeout = 30 };
+        if (DateTime.TryParse(from, out var f2)) cmd.Parameters.AddWithValue("@from", f2.Date);
+        if (DateTime.TryParse(to, out var t2))   cmd.Parameters.AddWithValue("@to", t2.Date.AddDays(1));
+        if (status == "pending" || status == "billed") cmd.Parameters.AddWithValue("@st", status);
+
+        var list = new List<object>();
+        await using var rdr = await cmd.ExecuteReaderAsync();
+        string? S(int i) => rdr.IsDBNull(i) ? null : rdr.GetString(i);
+        while (await rdr.ReadAsync())
+        {
+            list.Add(new
+            {
+                id = rdr.GetInt64(0),
+                recordId = rdr.IsDBNull(1) ? (long?)null : rdr.GetInt64(1),
+                financeId = rdr.IsDBNull(2) ? (int?)null : rdr.GetInt32(2),
+                financeName = S(3) ?? "", branchName = S(4) ?? "",
+                loanNo = S(5) ?? "", customerName = S(6) ?? "", vehicleNo = S(7) ?? "",
+                model = S(8) ?? "", chassisNo = S(9) ?? "", engineNo = S(10) ?? "",
+                agentName = S(11) ?? "", parkingYardName = S(12) ?? "", parkingYardMobile = S(13) ?? "",
+                loadDetails = S(14) ?? "", addlChargesNotes = S(15) ?? "",
+                addlChargesAmount = rdr.IsDBNull(16) ? (decimal?)null : rdr.GetDecimal(16),
+                confirmationByName = S(17) ?? "", confirmationByMobile = S(18) ?? "", executiveName = S(19) ?? "",
+                billingAction = S(20) ?? "immediate",
+                holdUntil = rdr.IsDBNull(21) ? (string?)null : rdr.GetDateTime(21).ToString("yyyy-MM-dd"),
+                holdDays = rdr.IsDBNull(22) ? (int?)null : rdr.GetInt32(22),
+                billStatus = S(23) ?? "pending",
+                billedAt = rdr.IsDBNull(24) ? (string?)null : rdr.GetDateTime(24).ToString("yyyy-MM-dd HH:mm"),
+                submittedByName = S(25) ?? "",
+                createdAt = rdr.GetDateTime(26).ToString("yyyy-MM-dd HH:mm")
+            });
+        }
+        return Results.Ok(list);
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+app.MapPost("/api/mgr/billing/submissions/{id:long}/billed", async (HttpContext ctx, long id, MgrMarkBilledDto dto) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        await using var conn = new MySqlConnection(TenantContext.Conn);
+        await conn.OpenAsync();
+        await MgrExec(
+            "UPDATE repo_submissions SET bill_status='billed', billed_at=NOW(), billed_by_member_id=@mid WHERE id=@id",
+            conn, 20, ("@mid", dto.MemberId), ("@id", id));
+        return Results.Ok(new { success = true });
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
 
 
 app.MapGet("/api/mgr/search", async (HttpContext ctx, string? q, string? mode) =>
@@ -3395,6 +3648,12 @@ record MgrBillingSettingsDto(
     string? AccountNo, string? IfscCode, string? BankBranch, string? ParkingYard,
     string? PaymentName, string? FooterLine);
 record MgrBillingImageDto(string? ImageBase64, int FinanceId = 0);
+record MgrBillingMemberDto(
+    long Id, string Name, string? Mobile, string? Email,
+    string Username, string? Password, bool IsActive, List<int>? FinanceIds);
+record MgrMemberLoginDto(string Username, string Password);
+record MgrSetMemberFinancesDto(List<int> FinanceIds);
+record MgrMarkBilledDto(long MemberId);
 record MgrSetFinanceRestrictionsDto(List<int> FinanceIds);
 record MgrSetSubsPasswordDto(string Password);
 record MgrSetAdminPassDto(string Password);

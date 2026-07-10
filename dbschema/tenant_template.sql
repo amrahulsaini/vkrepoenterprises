@@ -601,6 +601,65 @@ CREATE TABLE `billing_settings` (
   PRIMARY KEY (`finance_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+CREATE TABLE IF NOT EXISTS `repo_submissions` (
+  `id`                     BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `record_id`              BIGINT UNSIGNED NULL,
+  `finance_id`             INT UNSIGNED    NULL,
+  `finance_name`           VARCHAR(255)    NULL,
+  `branch_name`            VARCHAR(255)    NULL,
+  `loan_no`                VARCHAR(128)    NULL,
+  `customer_name`          VARCHAR(255)    NULL,
+  `vehicle_no`             VARCHAR(64)     NULL,
+  `model`                  VARCHAR(255)    NULL,
+  `chassis_no`             VARCHAR(128)    NULL,
+  `engine_no`              VARCHAR(128)    NULL,
+  `agent_name`             VARCHAR(255)    NULL,
+  `parking_yard_name`      VARCHAR(255)    NULL,
+  `parking_yard_mobile`    VARCHAR(64)     NULL,
+  `load_details`           VARCHAR(512)    NULL,
+  `addl_charges_notes`     VARCHAR(512)    NULL,
+  `addl_charges_amount`    DECIMAL(12,2)   NULL,
+  `confirmation_by_name`   VARCHAR(255)    NULL,
+  `confirmation_by_mobile` VARCHAR(64)     NULL,
+  `executive_name`         VARCHAR(255)    NULL,
+  `billing_action`         ENUM('immediate','hold','cancel') NOT NULL DEFAULT 'immediate',
+  `hold_until`             DATE            NULL,
+  `hold_days`              INT             NULL,
+  `bill_status`            ENUM('pending','billed') NOT NULL DEFAULT 'pending',
+  `billed_at`              TIMESTAMP       NULL,
+  `billed_by_member_id`    BIGINT UNSIGNED NULL,
+  `submitted_by_user_id`   BIGINT          NULL,
+  `submitted_by_name`      VARCHAR(255)    NULL,
+  `created_at`             TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_repo_finance` (`finance_id`),
+  KEY `idx_repo_created` (`created_at`),
+  KEY `idx_repo_action`  (`billing_action`),
+  KEY `idx_repo_status`  (`bill_status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+CREATE TABLE IF NOT EXISTS `billing_members` (
+  `id`         BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `name`       VARCHAR(255) NOT NULL,
+  `mobile`     VARCHAR(64)  NULL,
+  `email`      VARCHAR(255) NULL,
+  `username`   VARCHAR(128) NOT NULL,
+  `password`   VARCHAR(255) NOT NULL,
+  `is_active`  TINYINT(1)   NOT NULL DEFAULT 1,
+  `created_at` TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_billing_member_username` (`username`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+CREATE TABLE IF NOT EXISTS `billing_member_finances` (
+  `member_id`  BIGINT UNSIGNED NOT NULL,
+  `finance_id` INT UNSIGNED    NOT NULL,
+  PRIMARY KEY (`member_id`, `finance_id`),
+  KEY `idx_bmf_finance` (`finance_id`),
+  CONSTRAINT `fk_bmf_member` FOREIGN KEY (`member_id`) REFERENCES `billing_members` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;

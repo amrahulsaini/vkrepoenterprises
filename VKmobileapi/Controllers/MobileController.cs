@@ -336,6 +336,27 @@ public class MobileController : ControllerBase
         }
     }
 
+    [HttpPost("repo/submit")]
+    public async Task<IActionResult> SubmitRepo(
+        [FromHeader(Name = "X-User-Id")] long userId,
+        [FromBody] RepoSubmitRequest req)
+    {
+        try
+        {
+            var status = await _repo.GetUserStatusAsync(userId);
+            if (status.IsBlacklisted) return StatusCode(403, new ApiError(false, "blacklisted"));
+            if (!status.IsActive)     return StatusCode(403, new ApiError(false, "inactive"));
+            if (status.IsStopped)     return StatusCode(403, new ApiError(false, "app_stopped"));
+
+            var id = await _repo.SubmitRepoAsync(req);
+            return Ok(new { success = true, id });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new ApiError(false, $"Failed to submit: {ex.Message}"));
+        }
+    }
+
     [HttpGet("billing/settings")]
     public async Task<IActionResult> GetBillingSettings(
         [FromHeader(Name = "X-User-Id")] long userId)

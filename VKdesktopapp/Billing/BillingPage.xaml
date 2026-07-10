@@ -60,10 +60,15 @@
             <DockPanel>
                 <Border DockPanel.Dock="Bottom" Background="#FAFAFA" BorderBrush="#E0E0E0" BorderThickness="0,1,0,0" Padding="14,10">
                     <DockPanel>
+                        <Button DockPanel.Dock="Left" Name="btnBack" Content="&#8592; Back" Height="38" Width="80"
+                                Margin="0,0,10,0" Click="btnBack_Click" />
                         <TextBlock Name="txtGenStatus" VerticalAlignment="Center" Foreground="#2E7D32" FontSize="12" />
                         <Button DockPanel.Dock="Right" Name="btnGenerate" Content="Generate Bill (DOCX)"
                                 Height="38" Width="190" FontWeight="Bold" Background="#00897B" Foreground="White"
                                 BorderThickness="0" Cursor="Hand" Click="btnGenerate_Click" />
+                        <Button DockPanel.Dock="Right" Name="btnViewAll" Content="View All Details"
+                                Height="38" Width="150" Margin="0,0,10,0" FontWeight="Bold"
+                                Background="#1565C0" Foreground="White" BorderThickness="0" Cursor="Hand" Click="btnViewAll_Click" />
                     </DockPanel>
                 </Border>
 
@@ -100,6 +105,16 @@
                             <StackPanel Margin="0,0,0,8" />
                             <StackPanel Margin="0,0,8,8"><TextBlock Text="Total Gross (in words)" Foreground="#666" FontSize="12" /><TextBox Name="txtTotalWords" Height="30" /></StackPanel>
                             <StackPanel Margin="0,0,8,8"><TextBlock Text="Total Gross (amount)" Foreground="#666" FontSize="12" /><TextBox Name="txtTotalAmount" Height="30" /></StackPanel>
+                            <StackPanel Margin="0,0,0,8" />
+                        </UniformGrid>
+
+                        <TextBlock Text="REPO SUBMISSION DETAILS (from app)" FontWeight="Bold" Foreground="#00897B" Margin="0,10,0,6" />
+                        <UniformGrid Columns="3">
+                            <StackPanel Margin="0,0,8,8"><TextBlock Text="Agent Name" Foreground="#666" FontSize="12" /><TextBox Name="txtAgentName" Height="30" /></StackPanel>
+                            <StackPanel Margin="0,0,8,8"><TextBlock Text="Parking Yard Mobile" Foreground="#666" FontSize="12" /><TextBox Name="txtParkingYardMobile" Height="30" /></StackPanel>
+                            <StackPanel Margin="0,0,0,8"><TextBlock Text="Load Details" Foreground="#666" FontSize="12" /><TextBox Name="txtLoadDetails" Height="30" /></StackPanel>
+                            <StackPanel Margin="0,0,8,8"><TextBlock Text="Confirmation By (Mobile)" Foreground="#666" FontSize="12" /><TextBox Name="txtConfirmationByMobile" Height="30" /></StackPanel>
+                            <StackPanel Margin="0,0,0,8"><TextBlock Text="Executive Name" Foreground="#666" FontSize="12" /><TextBox Name="txtExecutiveName" Height="30" /></StackPanel>
                             <StackPanel Margin="0,0,0,8" />
                         </UniformGrid>
 

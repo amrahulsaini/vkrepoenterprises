@@ -88,6 +88,12 @@ interface ApiService {
         @Body body: UploadRepoLogoRequest
     ): Response<Map<String, Any>>
 
+    @POST("api/mobile/repo/submit")
+    suspend fun submitRepo(
+        @Header("X-User-Id") userId: Long,
+        @Body body: RepoSubmitRequest
+    ): Response<Map<String, Any>>
+
     @GET("api/mobile/billing/settings")
     suspend fun getBillingSettings(
         @Header("X-User-Id") userId: Long
