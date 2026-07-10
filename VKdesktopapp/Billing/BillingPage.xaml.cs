@@ -221,7 +221,7 @@ public partial class BillingPage : Page
         var allowed = _session?.FinanceIds
             ?? (cmbFinance.ItemsSource as IEnumerable<FinanceOption>)?.Select(f => f.Id).ToList()
             ?? new List<int>();
-        var w = new ViewAllDetailsWindow(this, _session, allowed) { Owner = Window.GetWindow(this) };
+        var w = new ViewAllDetailsWindow(this, _session, allowed);
         w.ShowDialog();
     }
 
