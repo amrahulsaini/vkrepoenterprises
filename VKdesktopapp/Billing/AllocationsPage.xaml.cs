@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
 using CRMRSDesktopApp.Data;
 
 namespace CRMRSDesktopApp.Billing;
@@ -34,13 +36,42 @@ public partial class AllocationsPage : Page
 
     private List<MemberRow> _members = new();
     private readonly ObservableCollection<FinanceCheck> _finances = new();
+    private ICollectionView? _financesView;
     private long _editingId;
+    private bool _suppressCheck;
 
     public AllocationsPage()
     {
         InitializeComponent();
-        lstFinances.ItemsSource = _finances;
+        _financesView = CollectionViewSource.GetDefaultView(_finances);
+        _financesView.Filter = FinanceFilter;
+        lstFinances.ItemsSource = _financesView;
         Loaded += async (_, __) => { await LoadFinancesAsync(); await LoadMembersAsync(); ResetForm(); };
+    }
+
+    private bool FinanceFilter(object o)
+    {
+        var q = txtFinanceSearch?.Text?.Trim();
+        if (string.IsNullOrEmpty(q)) return true;
+        return o is FinanceCheck f && f.Name.Contains(q, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void txtFinanceSearch_TextChanged(object sender, TextChangedEventArgs e)
+        => _financesView?.Refresh();
+
+    private void FinanceCheck_Checked(object sender, RoutedEventArgs e)
+    {
+        if (_suppressCheck) return;
+        if (sender is not CheckBox cb || cb.DataContext is not FinanceCheck fc) return;
+        var owner = _members.FirstOrDefault(m => m.Id != _editingId && m.FinanceIds.Contains(fc.Id));
+        if (owner != null)
+        {
+            MessageBox.Show(
+                $"\"{fc.Name}\" is already allocated to \"{owner.Name}\".\nEach finance can belong to only one member.",
+                "Already allocated", MessageBoxButton.OK, MessageBoxImage.Warning);
+            fc.IsChecked = false;
+            cb.IsChecked = false;
+        }
     }
 
     private async Task LoadFinancesAsync()
@@ -79,8 +110,10 @@ public partial class AllocationsPage : Page
         txtFormTitle.Text = "New Member";
         txtName.Text = txtMobile.Text = txtEmail.Text = txtUsername.Text = txtPassword.Text = "";
         chkActive.IsChecked = true;
+        _suppressCheck = true;
         foreach (var f in _finances) f.IsChecked = false;
         lstFinances.Items.Refresh();
+        _suppressCheck = false;
         btnDelete.Visibility = Visibility.Collapsed;
         txtFormStatus.Text = "";
         lstMembers.SelectedItem = null;
@@ -96,8 +129,10 @@ public partial class AllocationsPage : Page
         txtName.Text = m.Name; txtMobile.Text = m.Mobile; txtEmail.Text = m.Email;
         txtUsername.Text = m.Username; txtPassword.Text = m.Password;
         chkActive.IsChecked = m.IsActive;
+        _suppressCheck = true;
         foreach (var f in _finances) f.IsChecked = m.FinanceIds.Contains(f.Id);
         lstFinances.Items.Refresh();
+        _suppressCheck = false;
         btnDelete.Visibility = Visibility.Visible;
         txtFormStatus.Text = "";
     }

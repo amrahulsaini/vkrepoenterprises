@@ -168,6 +168,8 @@ data class RepoSubmitRequest(
     val confirmationByName: String?,
     val confirmationByMobile: String?,
     val executiveName: String?,
+    val collectionUpdate: String?,
+    val remark: String?,
     val billingAction: String?,
     val holdUntil: String?,
     val holdDays: Int?,

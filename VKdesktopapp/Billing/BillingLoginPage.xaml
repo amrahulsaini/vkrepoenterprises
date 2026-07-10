@@ -8,7 +8,7 @@
         <Border Background="White" CornerRadius="10" BorderBrush="#E0E0E0" BorderThickness="1"
                 Width="380" Padding="30" VerticalAlignment="Center" HorizontalAlignment="Center">
             <StackPanel>
-                <TextBlock Text="Billing Login" FontSize="22" FontWeight="Bold" Foreground="#00897B"
+                <TextBlock Text="Billing Login" FontSize="22" FontWeight="Bold" Foreground="{StaticResource Accent}"
                            HorizontalAlignment="Center" Margin="0,0,0,4" />
                 <TextBlock Text="Sign in with the credentials your admin gave you." FontSize="12"
                            Foreground="#888" HorizontalAlignment="Center" TextAlignment="Center" Margin="0,0,0,20" />
@@ -17,7 +17,7 @@
                 <TextBlock Text="Password" Foreground="#666" FontSize="12" Margin="0,0,0,3" />
                 <PasswordBox Name="txtPassword" Height="34" Margin="0,0,0,16" VerticalContentAlignment="Center" />
                 <Button Name="btnLogin" Content="Log In" Height="40" FontWeight="Bold"
-                        Background="#00897B" Foreground="White" BorderThickness="0" Cursor="Hand" Click="btnLogin_Click" />
+                        Background="{StaticResource Accent}" Foreground="White" BorderThickness="0" Cursor="Hand" Click="btnLogin_Click" />
                 <TextBlock Name="txtStatus" Foreground="#C62828" FontSize="12" TextWrapping="Wrap"
                            HorizontalAlignment="Center" Margin="0,12,0,0" />
             </StackPanel>

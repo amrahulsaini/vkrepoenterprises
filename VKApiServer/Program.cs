@@ -589,6 +589,22 @@ static async Task SetMemberFinances(MySqlConnection c, long memberId, List<int> 
             c, 20, ("@m", memberId), ("@f", fid));
 }
 
+static async Task<string?> FindFinanceConflict(MySqlConnection c, List<int> financeIds, long excludeMemberId)
+{
+    var ids = financeIds.Distinct().Where(v => v > 0).ToList();
+    if (ids.Count == 0) return null;
+    var sql = $@"SELECT f.name
+                   FROM billing_member_finances bmf
+                   JOIN finances f ON f.id = bmf.finance_id
+                  WHERE bmf.finance_id IN ({string.Join(",", ids)})
+                    AND bmf.member_id <> @ex
+                  LIMIT 1";
+    await using var cmd = new MySqlCommand(sql, c) { CommandTimeout = 20 };
+    cmd.Parameters.AddWithValue("@ex", excludeMemberId);
+    var r = await cmd.ExecuteScalarAsync();
+    return r as string;
+}
+
 static async Task<IResult> SaveBillingImage(HttpContext ctx, string? base64, string kind, int financeId)
 {
     if (string.IsNullOrWhiteSpace(base64)) return Results.BadRequest(new { message = "No image provided." });
@@ -1698,6 +1714,9 @@ app.MapPost("/api/mgr/billing/members", async (HttpContext ctx, MgrBillingMember
     {
         await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
+        var conflict = await FindFinanceConflict(conn, dto.FinanceIds ?? new List<int>(), 0);
+        if (conflict != null)
+            return Results.Conflict(new { message = $"\"{conflict}\" is already allocated to another member. Each finance can belong to only one member." });
         long id;
         await using (var cmd = new MySqlCommand(@"
             INSERT INTO billing_members (name, mobile, email, username, password, is_active)
@@ -1726,6 +1745,12 @@ app.MapPut("/api/mgr/billing/members/{id:long}", async (HttpContext ctx, long id
     {
         await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
+        if (dto.FinanceIds != null)
+        {
+            var conflict = await FindFinanceConflict(conn, dto.FinanceIds, id);
+            if (conflict != null)
+                return Results.Conflict(new { message = $"\"{conflict}\" is already allocated to another member. Each finance can belong to only one member." });
+        }
         if (string.IsNullOrWhiteSpace(dto.Password))
             await MgrExec(@"UPDATE billing_members SET name=@n, mobile=@m, email=@e, username=@u, is_active=@a WHERE id=@id", conn, 20,
                 ("@n", dto.Name.Trim()), ("@m", (object?)dto.Mobile ?? DBNull.Value), ("@e", (object?)dto.Email ?? DBNull.Value),
@@ -1833,6 +1858,7 @@ app.MapGet("/api/mgr/billing/submissions", async (HttpContext ctx, string? from,
                    agent_name, parking_yard_name, parking_yard_mobile, load_details,
                    addl_charges_notes, addl_charges_amount,
                    confirmation_by_name, confirmation_by_mobile, executive_name,
+                   collection_update, remark,
                    billing_action, hold_until, hold_days, bill_status, billed_at,
                    submitted_by_name, created_at
               FROM repo_submissions {whereSql}
@@ -1858,13 +1884,14 @@ app.MapGet("/api/mgr/billing/submissions", async (HttpContext ctx, string? from,
                 loadDetails = S(14) ?? "", addlChargesNotes = S(15) ?? "",
                 addlChargesAmount = rdr.IsDBNull(16) ? (decimal?)null : rdr.GetDecimal(16),
                 confirmationByName = S(17) ?? "", confirmationByMobile = S(18) ?? "", executiveName = S(19) ?? "",
-                billingAction = S(20) ?? "immediate",
-                holdUntil = rdr.IsDBNull(21) ? (string?)null : rdr.GetDateTime(21).ToString("yyyy-MM-dd"),
-                holdDays = rdr.IsDBNull(22) ? (int?)null : rdr.GetInt32(22),
-                billStatus = S(23) ?? "pending",
-                billedAt = rdr.IsDBNull(24) ? (string?)null : rdr.GetDateTime(24).ToString("yyyy-MM-dd HH:mm"),
-                submittedByName = S(25) ?? "",
-                createdAt = rdr.GetDateTime(26).ToString("yyyy-MM-dd HH:mm")
+                collectionUpdate = S(20) ?? "", remark = S(21) ?? "",
+                billingAction = S(22) ?? "immediate",
+                holdUntil = rdr.IsDBNull(23) ? (string?)null : rdr.GetDateTime(23).ToString("yyyy-MM-dd"),
+                holdDays = rdr.IsDBNull(24) ? (int?)null : rdr.GetInt32(24),
+                billStatus = S(25) ?? "pending",
+                billedAt = rdr.IsDBNull(26) ? (string?)null : rdr.GetDateTime(26).ToString("yyyy-MM-dd HH:mm"),
+                submittedByName = S(27) ?? "",
+                createdAt = rdr.GetDateTime(28).ToString("yyyy-MM-dd HH:mm")
             });
         }
         return Results.Ok(list);

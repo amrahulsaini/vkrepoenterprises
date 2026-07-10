@@ -118,6 +118,7 @@ internal static class DesktopApiClient
         string AgentName, string ParkingYardName, string ParkingYardMobile, string LoadDetails,
         string AddlChargesNotes, decimal? AddlChargesAmount,
         string ConfirmationByName, string ConfirmationByMobile, string ExecutiveName,
+        string CollectionUpdate, string Remark,
         string BillingAction, string? HoldUntil, int? HoldDays, string BillStatus, string? BilledAt,
         string SubmittedByName, string CreatedAt);
 

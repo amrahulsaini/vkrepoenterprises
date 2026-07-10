@@ -27,6 +27,8 @@ public partial class ViewAllDetailsWindow : Window
         public string AgentName => Src.AgentName;
         public string ParkingYardName => Src.ParkingYardName;
         public string AddlChargesAmount => Src.AddlChargesAmount?.ToString("0.##") ?? "";
+        public string CollectionUpdate => Src.CollectionUpdate;
+        public string Remark => Src.Remark;
         public string ActionText => Src.BillingAction switch
         {
             "immediate" => "Bill immediately",

@@ -1317,6 +1317,7 @@ public class MobileRepository
                  agent_name, parking_yard_name, parking_yard_mobile, load_details,
                  addl_charges_notes, addl_charges_amount,
                  confirmation_by_name, confirmation_by_mobile, executive_name,
+                 collection_update, remark,
                  billing_action, hold_until, hold_days, submitted_by_name)
             VALUES
                 (@rid, @fid, @fname, @branch,
@@ -1324,6 +1325,7 @@ public class MobileRepository
                  @agent, @pyn, @pym, @load,
                  @acn, @aca,
                  @cbn, @cbm, @exec,
+                 @colup, @rmk,
                  @action, @holdu, @holdd, @subby)", conn) { CommandTimeout = 15 };
 
         void P(string n, object? v) => cmd.Parameters.AddWithValue(n, v ?? DBNull.Value);
@@ -1346,6 +1348,8 @@ public class MobileRepository
         P("@cbn",   req.ConfirmationByName);
         P("@cbm",   req.ConfirmationByMobile);
         P("@exec",  req.ExecutiveName);
+        P("@colup", req.CollectionUpdate);
+        P("@rmk",   req.Remark);
         P("@action", action);
         P("@holdu", holdUntil);
         P("@holdd", req.HoldDays);

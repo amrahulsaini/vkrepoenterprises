@@ -4,7 +4,7 @@
       Background="#F5F5F5">
     <Grid>
         <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Width="640">
-            <TextBlock Text="Billing" FontSize="26" FontWeight="Bold" Foreground="#00897B"
+            <TextBlock Text="Billing" FontSize="26" FontWeight="Bold" Foreground="{StaticResource Accent}"
                        HorizontalAlignment="Center" Margin="0,0,0,6" />
             <TextBlock Text="Choose what you want to do." FontSize="14" Foreground="#666"
                        HorizontalAlignment="Center" Margin="0,0,0,28" />

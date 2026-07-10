@@ -236,6 +236,8 @@ public record RepoSubmitRequest(
     string?  ConfirmationByName,
     string?  ConfirmationByMobile,
     string?  ExecutiveName,
+    string?  CollectionUpdate,
+    string?  Remark,
     string?  BillingAction,
     string?  HoldUntil,
     int?     HoldDays,
