@@ -67,6 +67,9 @@ public partial class ServerSettingsWindow : Window
 
             try { pwdSubsPass.Password = await DesktopApiClient.GetSubsPasswordAsync(); }
             catch { }
+
+            try { pwdAllocationPass.Password = await DesktopApiClient.GetAllocationPasswordAsync(); }
+            catch { }
         };
     }
 
@@ -163,6 +166,9 @@ public partial class ServerSettingsWindow : Window
                 try { await DesktopApiClient.SetSubsPasswordAsync(subsPass); }
                 catch { }
             }
+
+            try { await DesktopApiClient.SetAllocationPasswordAsync(pwdAllocationPass.Password.Trim()); }
+            catch { }
 
             MessageBox.Show(
                 "Saved. These details now show on the mobile app's Agency panel too.",
