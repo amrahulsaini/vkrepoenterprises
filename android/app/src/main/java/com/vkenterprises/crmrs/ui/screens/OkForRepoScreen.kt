@@ -88,20 +88,20 @@ fun OkForRepoScreen(
         if (vehicleLocation.isNotBlank()) appendLine("Vehicle location: *${vehicleLocation.uppercase()}*")
         appendLine("Status: *Ok for repo.*")
         appendLine()
-        val person = listOf(agentName.trim(), agentPhoneAuth.trim()).filter { it.isNotBlank() }.joinToString(" - ")
+        val person = listOf(agentNameAuth.trim().uppercase(), agentPhoneAuth.trim())
+            .filter { it.isNotBlank() }.joinToString(" - ")
         if (person.isNotBlank()) appendLine(person)
         appendLine("Agency Name: *${agencyName.uppercase()}*")
 
         fun f(label: String, v: String) { if (v.isNotBlank()) appendLine("$label: *${v.trim()}*") }
+        fun comma(vararg vs: String) = vs.map { it.trim() }.filter { it.isNotBlank() }.joinToString(",")
         val extras = listOf(
             "Agent Name" to agentName,
             "Parking Yard Name" to parkingYardName,
             "Parking Yard Mobile" to parkingYardMobile,
             "Load Details" to loadDetails,
-            "Additional Charges Notes" to addlNotes,
-            "Additional Charges Amount" to addlAmount,
-            "Confirmation By (Name)" to confirmByName,
-            "Confirmation By (Mobile)" to confirmByMobile,
+            "Additional Charges Notes,Amount" to comma(addlNotes, addlAmount),
+            "Confirmation By (Name,Mobile)" to comma(confirmByName, confirmByMobile),
             "Executive Name" to executiveName,
             "Collection Update" to collectionUpdate,
             "Remark" to remark
