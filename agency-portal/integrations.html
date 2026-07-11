@@ -398,12 +398,28 @@ async function apply(){
   $('#ap-btn').disabled=false;
 }
 $('#logout').onclick=signOut;
+function resetWorkspace(){
+  sel=null; selBranch=null; agencies=[]; logsData=[];
+  recRows=[]; recIds=[]; recCols=[]; recOffset=0; recTotal=0; curTab='branches';
+  $('#tabs').classList.add('hidden');
+  $('#tabs').querySelectorAll('button').forEach((b,i)=>b.classList.toggle('active',i===0));
+  $('#sel-title').textContent='Select a head office';
+  $('#content').innerHTML='<div class="empty"><span class="ei">'+ic('landmark')+'</span>Pick an agency head office on the left to see its branches, records, uploads and search logs.</div>';
+  $('#ag-list').innerHTML=''; $('#ag-count').textContent='0';
+  $('#rec-modal').classList.remove('open'); $('#agent-modal').classList.remove('open');
+  $('#stmt-modal').classList.remove('open'); $('#confirm-modal').classList.remove('open');
+}
 function signOut(){
-  token=''; sessionStorage.removeItem('integ_token');
+  token='';
+  sessionStorage.removeItem('integ_token');
+  sessionStorage.removeItem('integ_name');
+  sessionStorage.removeItem('integ_email');
+  resetWorkspace();
   $('#dash').classList.add('hidden'); $('#auth').classList.remove('hidden');
   $('#lg-pass').value=''; setMsg('#lg-msg','');
 }
 function enterDash(){
+  resetWorkspace();
   $('#auth').classList.add('hidden'); $('#dash').classList.remove('hidden');
   const nm=sessionStorage.getItem('integ_name')||'Finance', em=sessionStorage.getItem('integ_email')||'';
   $('#who-name').textContent=nm; $('#who').textContent=em; $('#who-av').textContent=(nm[0]||'F').toUpperCase();
