@@ -43,8 +43,11 @@ public class AppUserRepository
     public async Task SetAdminAsync(long userId, bool admin)
         => await DesktopApiClient.SetUserAdminAsync(userId, admin);
 
-    public async Task SetBillingTargetsAsync(long userId, int? demand, int? target)
-        => await DesktopApiClient.SetUserBillingTargetsAsync(userId, demand, target);
+    public async Task SetBillingTargetsAsync(long userId, int? demand, int? target, int year, int month)
+        => await DesktopApiClient.SetUserBillingTargetsAsync(userId, demand, target, year, month);
+
+    internal async Task<DesktopApiClient.BillingTargetsDto> GetBillingTargetsAsync(long userId, int year, int month)
+        => await DesktopApiClient.GetUserBillingTargetsAsync(userId, year, month);
 
     public async Task<List<SubscriptionItem>> GetSubscriptionsAsync(long userId)
     {

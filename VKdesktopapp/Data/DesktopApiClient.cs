@@ -323,11 +323,20 @@ internal static class DesktopApiClient
         resp.EnsureSuccessStatusCode();
     }
 
-    internal static async Task SetUserBillingTargetsAsync(long userId, int? demand, int? target)
+    internal record BillingTargetsDto(int? Demand, int? Target, int Billed, int Year, int Month);
+
+    internal static async Task SetUserBillingTargetsAsync(long userId, int? demand, int? target, int year, int month)
     {
         var resp = await Send(HttpMethod.Patch, $"api/mgr/users/{userId}/billing-targets",
-            new { Demand = demand, Target = target });
+            new { Demand = demand, Target = target, Year = year, Month = month });
         resp.EnsureSuccessStatusCode();
+    }
+
+    internal static async Task<BillingTargetsDto> GetUserBillingTargetsAsync(long userId, int year, int month)
+    {
+        var resp = await Send(HttpMethod.Get, $"api/mgr/users/{userId}/billing-targets?year={year}&month={month}");
+        resp.EnsureSuccessStatusCode();
+        return (await resp.Content.ReadFromJsonAsync<BillingTargetsDto>(_json))!;
     }
 
     internal static async Task ResetUserDeviceAsync(long userId)

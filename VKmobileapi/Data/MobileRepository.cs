@@ -1380,10 +1380,14 @@ public class MobileRepository
         await conn.OpenAsync();
 
         int demand = 0, target = 0;
-        await using (var uc = new MySqlCommand(
-            "SELECT COALESCE(billing_demand,0), COALESCE(billing_target,0) FROM app_users WHERE id=@id LIMIT 1", conn))
+        await using (var uc = new MySqlCommand(@"
+            SELECT COALESCE(demand,0), COALESCE(target,0)
+              FROM user_billing_targets
+             WHERE user_id=@id AND year=@y AND month=@m LIMIT 1", conn))
         {
             uc.Parameters.AddWithValue("@id", userId);
+            uc.Parameters.AddWithValue("@y", year);
+            uc.Parameters.AddWithValue("@m", month);
             await using var ur = await uc.ExecuteReaderAsync();
             if (await ur.ReadAsync()) { demand = ur.GetInt32(0); target = ur.GetInt32(1); }
         }
