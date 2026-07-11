@@ -375,12 +375,60 @@ public class MobileController : ControllerBase
             if (!status.IsActive)     return StatusCode(403, new ApiError(false, "inactive"));
             if (status.IsStopped)     return StatusCode(403, new ApiError(false, "app_stopped"));
 
-            var id = await _repo.SubmitRepoAsync(req);
+            var id = await _repo.SubmitRepoAsync(req, userId);
             return Ok(new { success = true, id });
         }
         catch (Exception ex)
         {
             return StatusCode(500, new ApiError(false, $"Failed to submit: {ex.Message}"));
+        }
+    }
+
+    [HttpGet("tasks")]
+    public async Task<IActionResult> GetTasks(
+        [FromHeader(Name = "X-User-Id")] long userId,
+        [FromQuery] int? year,
+        [FromQuery] int? month)
+    {
+        try
+        {
+            var status = await _repo.GetUserStatusAsync(userId);
+            if (status.IsBlacklisted) return StatusCode(403, new ApiError(false, "blacklisted"));
+            if (!status.IsActive)     return StatusCode(403, new ApiError(false, "inactive"));
+            if (status.IsStopped)     return StatusCode(403, new ApiError(false, "app_stopped"));
+
+            var now = DateTime.Now;
+            int y = year ?? now.Year;
+            int m = month ?? now.Month;
+            var (demand, target, billed, items) = await _repo.GetRepoTasksAsync(userId, y, m);
+            return Ok(new RepoTasksResponse(true, demand, target, billed, y, m, items));
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new ApiError(false, $"Failed to load tasks: {ex.Message}"));
+        }
+    }
+
+    [HttpPut("tasks/{id:long}")]
+    public async Task<IActionResult> UpdateTask(
+        long id,
+        [FromHeader(Name = "X-User-Id")] long userId,
+        [FromBody] RepoTaskEditRequest req)
+    {
+        try
+        {
+            var status = await _repo.GetUserStatusAsync(userId);
+            if (status.IsBlacklisted) return StatusCode(403, new ApiError(false, "blacklisted"));
+            if (!status.IsActive)     return StatusCode(403, new ApiError(false, "inactive"));
+            if (status.IsStopped)     return StatusCode(403, new ApiError(false, "app_stopped"));
+
+            var ok = await _repo.UpdateRepoTaskAsync(id, userId, req);
+            if (!ok) return NotFound(new ApiError(false, "Entry not found or not yours."));
+            return Ok(new { success = true });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new ApiError(false, $"Failed to update: {ex.Message}"));
         }
     }
 

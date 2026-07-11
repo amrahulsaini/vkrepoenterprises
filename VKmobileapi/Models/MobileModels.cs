@@ -243,6 +243,65 @@ public record RepoSubmitRequest(
     int?     HoldDays,
     string?  SubmittedByName);
 
+public record RepoTaskItem(
+    long     Id,
+    string   LoanNo,
+    string   CustomerName,
+    string   VehicleNo,
+    string   Model,
+    string   ChassisNo,
+    string   EngineNo,
+    string   BranchName,
+    string   FinanceName,
+    string   AgentName,
+    string   ParkingYardName,
+    string   ParkingYardMobile,
+    string   LoadDetails,
+    string   AddlChargesNotes,
+    decimal  AddlChargesAmount,
+    string   ConfirmationByName,
+    string   ConfirmationByMobile,
+    string   ExecutiveName,
+    string   CollectionUpdate,
+    string   Remark,
+    string   BillingAction,
+    string   BillStatus,
+    string   HoldUntil,
+    int      HoldDays,
+    string   CreatedOn);
+
+public record RepoTasksResponse(
+    bool success,
+    int  demand,
+    int  target,
+    int  billedThisMonth,
+    int  year,
+    int  month,
+    List<RepoTaskItem> items);
+
+public record RepoTaskEditRequest(
+    string?  LoanNo,
+    string?  CustomerName,
+    string?  VehicleNo,
+    string?  Model,
+    string?  ChassisNo,
+    string?  EngineNo,
+    string?  BranchName,
+    string?  AgentName,
+    string?  ParkingYardName,
+    string?  ParkingYardMobile,
+    string?  LoadDetails,
+    string?  AddlChargesNotes,
+    decimal? AddlChargesAmount,
+    string?  ConfirmationByName,
+    string?  ConfirmationByMobile,
+    string?  ExecutiveName,
+    string?  CollectionUpdate,
+    string?  Remark,
+    string?  BillingAction,
+    string?  HoldUntil,
+    int?     HoldDays);
+
 public record BillingSettings(
     string? AgencyName,
     string? HeaderAddress,

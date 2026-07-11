@@ -675,6 +675,17 @@ private fun AgencyLandingPanel(
                     modifier = Modifier.weight(1f)
                 ) { nav.navigate(Screen.ControlPanel.route) }
             }
+            Spacer(Modifier.height(10.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                GridTile(
+                    label    = "TASK MANAGER",
+                    icon     = Icons.Default.Assignment,
+                    subtitle = "Repo logs, demand & target",
+                    accent   = Color(0xFF2E7D32),
+                    modifier = Modifier.weight(1f)
+                ) { nav.navigate(Screen.TaskManager.route) }
+                Spacer(Modifier.weight(1f))
+            }
         }
         Spacer(Modifier.height(24.dp))
         Text("SOFTWARE DESIGNED BY",

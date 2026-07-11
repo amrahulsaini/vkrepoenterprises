@@ -100,6 +100,20 @@ interface ApiService {
         @Body body: RepoSubmitRequest
     ): Response<Map<String, Any>>
 
+    @GET("api/mobile/tasks")
+    suspend fun getTasks(
+        @Header("X-User-Id") userId: Long,
+        @Query("year")  year: Int? = null,
+        @Query("month") month: Int? = null
+    ): Response<RepoTasksResponse>
+
+    @PUT("api/mobile/tasks/{id}")
+    suspend fun updateTask(
+        @Path("id")          id: Long,
+        @Header("X-User-Id") userId: Long,
+        @Body body: RepoTaskEditRequest
+    ): Response<Map<String, Any>>
+
     @GET("api/mobile/billing/settings")
     suspend fun getBillingSettings(
         @Header("X-User-Id") userId: Long

@@ -1291,7 +1291,7 @@ public class MobileRepository
         return (r.GetInt64(0), r.GetInt64(1), r.GetInt64(2));
     }
 
-    public async Task<long> SubmitRepoAsync(VKmobileapi.Models.RepoSubmitRequest req)
+    public async Task<long> SubmitRepoAsync(VKmobileapi.Models.RepoSubmitRequest req, long submittedByUserId)
     {
         await using var conn = DbFactory.Create();
         await conn.OpenAsync();
@@ -1332,7 +1332,7 @@ public class MobileRepository
                  addl_charges_notes, addl_charges_amount,
                  confirmation_by_name, confirmation_by_mobile, executive_name,
                  collection_update, remark,
-                 billing_action, hold_until, hold_days, submitted_by_name)
+                 billing_action, hold_until, hold_days, submitted_by_name, submitted_by_user_id)
             VALUES
                 (@rid, @fid, @fname, @branch,
                  @loan, @cust, @veh, @model, @chassis, @engine,
@@ -1340,7 +1340,7 @@ public class MobileRepository
                  @acn, @aca,
                  @cbn, @cbm, @exec,
                  @colup, @rmk,
-                 @action, @holdu, @holdd, @subby)", conn) { CommandTimeout = 15 };
+                 @action, @holdu, @holdd, @subby, @subuid)", conn) { CommandTimeout = 15 };
 
         void P(string n, object? v) => cmd.Parameters.AddWithValue(n, v ?? DBNull.Value);
         P("@rid",   req.RecordId is > 0 ? req.RecordId : (object?)null);
@@ -1368,7 +1368,99 @@ public class MobileRepository
         P("@holdu", holdUntil);
         P("@holdd", req.HoldDays);
         P("@subby", req.SubmittedByName);
+        P("@subuid", submittedByUserId > 0 ? submittedByUserId : (object?)null);
         await cmd.ExecuteNonQueryAsync();
         return cmd.LastInsertedId;
+    }
+
+    public async Task<(int demand, int target, int billedThisMonth, List<VKmobileapi.Models.RepoTaskItem> items)>
+        GetRepoTasksAsync(long userId, int year, int month)
+    {
+        await using var conn = DbFactory.Create();
+        await conn.OpenAsync();
+
+        int demand = 0, target = 0;
+        await using (var uc = new MySqlCommand(
+            "SELECT COALESCE(billing_demand,0), COALESCE(billing_target,0) FROM app_users WHERE id=@id LIMIT 1", conn))
+        {
+            uc.Parameters.AddWithValue("@id", userId);
+            await using var ur = await uc.ExecuteReaderAsync();
+            if (await ur.ReadAsync()) { demand = ur.GetInt32(0); target = ur.GetInt32(1); }
+        }
+
+        int billed = 0;
+        await using (var bc = new MySqlCommand(@"
+            SELECT COUNT(*) FROM repo_submissions
+             WHERE submitted_by_user_id=@id AND bill_status='billed'
+               AND billed_at IS NOT NULL AND YEAR(billed_at)=@y AND MONTH(billed_at)=@m", conn))
+        {
+            bc.Parameters.AddWithValue("@id", userId);
+            bc.Parameters.AddWithValue("@y", year);
+            bc.Parameters.AddWithValue("@m", month);
+            billed = Convert.ToInt32(await bc.ExecuteScalarAsync());
+        }
+
+        var items = new List<VKmobileapi.Models.RepoTaskItem>();
+        await using (var lc = new MySqlCommand(@"
+            SELECT id, COALESCE(loan_no,''), COALESCE(customer_name,''), COALESCE(vehicle_no,''),
+                   COALESCE(model,''), COALESCE(chassis_no,''), COALESCE(engine_no,''),
+                   COALESCE(branch_name,''), COALESCE(finance_name,''),
+                   COALESCE(agent_name,''), COALESCE(parking_yard_name,''), COALESCE(parking_yard_mobile,''),
+                   COALESCE(load_details,''), COALESCE(addl_charges_notes,''), COALESCE(addl_charges_amount,0),
+                   COALESCE(confirmation_by_name,''), COALESCE(confirmation_by_mobile,''),
+                   COALESCE(executive_name,''), COALESCE(collection_update,''), COALESCE(remark,''),
+                   billing_action, bill_status,
+                   COALESCE(DATE_FORMAT(hold_until,'%Y-%m-%d'),''), COALESCE(hold_days,0),
+                   COALESCE(DATE_FORMAT(created_at,'%d %b %Y, %h:%i %p'),'')
+              FROM repo_submissions
+             WHERE submitted_by_user_id=@id AND YEAR(created_at)=@y AND MONTH(created_at)=@m
+             ORDER BY created_at DESC", conn))
+        {
+            lc.Parameters.AddWithValue("@id", userId);
+            lc.Parameters.AddWithValue("@y", year);
+            lc.Parameters.AddWithValue("@m", month);
+            await using var r = await lc.ExecuteReaderAsync();
+            string S(int i) => r.IsDBNull(i) ? "" : r.GetString(i);
+            while (await r.ReadAsync())
+                items.Add(new VKmobileapi.Models.RepoTaskItem(
+                    r.GetInt64(0), S(1), S(2), S(3), S(4), S(5), S(6), S(7), S(8),
+                    S(9), S(10), S(11), S(12), S(13), r.GetDecimal(14),
+                    S(15), S(16), S(17), S(18), S(19), S(20), S(21), S(22),
+                    r.IsDBNull(23) ? 0 : r.GetInt32(23), S(24)));
+        }
+
+        return (demand, target, billed, items);
+    }
+
+    public async Task<bool> UpdateRepoTaskAsync(long id, long userId, VKmobileapi.Models.RepoTaskEditRequest req)
+    {
+        await using var conn = DbFactory.Create();
+        await conn.OpenAsync();
+
+        string action = (req.BillingAction ?? "immediate").Trim().ToLowerInvariant();
+        if (action != "immediate" && action != "hold" && action != "cancel") action = "immediate";
+        DateTime? holdUntil = null;
+        if (!string.IsNullOrWhiteSpace(req.HoldUntil) && DateTime.TryParse(req.HoldUntil, out var hu)) holdUntil = hu.Date;
+
+        await using var cmd = new MySqlCommand(@"
+            UPDATE repo_submissions SET
+                loan_no=@loan, customer_name=@cust, vehicle_no=@veh, model=@model,
+                chassis_no=@chassis, engine_no=@engine, branch_name=@branch,
+                agent_name=@agent, parking_yard_name=@pyn, parking_yard_mobile=@pym,
+                load_details=@load, addl_charges_notes=@acn, addl_charges_amount=@aca,
+                confirmation_by_name=@cbn, confirmation_by_mobile=@cbm, executive_name=@exec,
+                collection_update=@colup, remark=@rmk,
+                billing_action=@action, hold_until=@holdu, hold_days=@holdd
+            WHERE id=@id AND submitted_by_user_id=@uid", conn) { CommandTimeout = 15 };
+        void P(string n, object? v) => cmd.Parameters.AddWithValue(n, v ?? DBNull.Value);
+        P("@loan", req.LoanNo); P("@cust", req.CustomerName); P("@veh", req.VehicleNo); P("@model", req.Model);
+        P("@chassis", req.ChassisNo); P("@engine", req.EngineNo); P("@branch", req.BranchName);
+        P("@agent", req.AgentName); P("@pyn", req.ParkingYardName); P("@pym", req.ParkingYardMobile);
+        P("@load", req.LoadDetails); P("@acn", req.AddlChargesNotes); P("@aca", req.AddlChargesAmount);
+        P("@cbn", req.ConfirmationByName); P("@cbm", req.ConfirmationByMobile); P("@exec", req.ExecutiveName);
+        P("@colup", req.CollectionUpdate); P("@rmk", req.Remark);
+        P("@action", action); P("@holdu", holdUntil); P("@holdd", req.HoldDays);
+        P("@id", id); P("@uid", userId);
+        return await cmd.ExecuteNonQueryAsync() > 0;
     }
 }

@@ -23,6 +23,7 @@ sealed class Screen(val route: String) {
     object LiveUsers           : Screen("live_users")
     object ManageSubscriptions : Screen("manage_subscriptions")
     object ControlPanel        : Screen("control_panel")
+    object TaskManager         : Screen("task_manager")
     object RepoHeadOffices     : Screen("repo_head_offices")
     object RepoSearch          : Screen("repo_search")
     object RepoPreview         : Screen("repo_preview")

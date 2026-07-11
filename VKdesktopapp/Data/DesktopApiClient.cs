@@ -34,7 +34,8 @@ internal static class DesktopApiClient
         long Id, string Name, string Mobile,
         string? Address, string? Pincode, string? PfpBase64, string? DeviceId,
         bool IsActive, bool IsAdmin, decimal Balance, DateTime CreatedAt, string? SubEndDate,
-        bool IsStopped = false, bool IsBlacklisted = false);
+        bool IsStopped = false, bool IsBlacklisted = false,
+        int? BillingDemand = null, int? BillingTarget = null, int BilledThisMonth = 0);
     internal record MgrUsersResponseDto(MgrStatsDto Stats, List<MgrUserDto> Users);
     internal record MgrSubDto(long Id, string StartDate, string EndDate, decimal Amount, string? Notes, DateTime CreatedAt);
 
@@ -319,6 +320,13 @@ internal static class DesktopApiClient
     internal static async Task SetUserAdminAsync(long userId, bool admin)
     {
         var resp = await Send(HttpMethod.Patch, $"api/mgr/users/{userId}/admin", new { Admin = admin });
+        resp.EnsureSuccessStatusCode();
+    }
+
+    internal static async Task SetUserBillingTargetsAsync(long userId, int? demand, int? target)
+    {
+        var resp = await Send(HttpMethod.Patch, $"api/mgr/users/{userId}/billing-targets",
+            new { Demand = demand, Target = target });
         resp.EnsureSuccessStatusCode();
     }
 

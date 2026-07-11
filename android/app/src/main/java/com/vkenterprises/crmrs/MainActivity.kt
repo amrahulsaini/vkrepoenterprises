@@ -136,6 +136,12 @@ fun VKNavHost() {
             com.vkenterprises.crmrs.ui.screens.ControlPanelScreen(cpVm, userId, navController)
         }
 
+        composable(Screen.TaskManager.route) {
+            val tmVm: com.vkenterprises.crmrs.viewmodel.TaskManagerViewModel = hiltViewModel()
+            val userId by authVm.userId.collectAsState(initial = -1L)
+            com.vkenterprises.crmrs.ui.screens.TaskManagerScreen(tmVm, userId, navController)
+        }
+
         composable(Screen.Profile.route) {
             val profileVm: ProfileViewModel = hiltViewModel()
             val userId by authVm.userId.collectAsState(initial = -1L)
