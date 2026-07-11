@@ -23,6 +23,7 @@ import com.vkenterprises.crmrs.utils.googleMapsLink
 import com.vkenterprises.crmrs.utils.reverseGeocodeAddress
 import com.vkenterprises.crmrs.viewmodel.AuthViewModel
 import com.vkenterprises.crmrs.viewmodel.SearchViewModel
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -88,9 +89,14 @@ fun ConfirmScreen(
         }
     }
 
-    LaunchedEffect(item?.id, isAdmin) { if (item != null && !isAdmin) fetchLocation() }
+    LaunchedEffect(item?.id) {
+        if (item == null) return@LaunchedEffect
+        if (authVm.isAdmin.first()) return@LaunchedEffect
+        fetchLocation()
+    }
 
-    val mapLink: String? = vehicleLat?.let { la -> vehicleLng?.let { ln -> googleMapsLink(la, ln) } }
+    val mapLink: String? = if (isAdmin) null
+        else vehicleLat?.let { la -> vehicleLng?.let { ln -> googleMapsLink(la, ln) } }
 
     val screenTitle = when (actionType) {
         "okrepo" -> "OK for Repo"
