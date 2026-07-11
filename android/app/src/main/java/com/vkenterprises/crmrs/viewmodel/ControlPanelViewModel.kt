@@ -132,7 +132,7 @@ class ControlPanelViewModel @Inject constructor(
     }
 
     fun clearUser() = _ui.update {
-        it.copy(selectedUser = null, subs = emptyList(), selectedProfile = null)
+        it.copy(selectedUser = null, subs = emptyList(), selectedProfile = null, filterText = "")
     }
 
     private fun mutateSelected(transform: (AdminUserItem) -> AdminUserItem) {
