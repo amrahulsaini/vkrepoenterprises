@@ -923,7 +923,12 @@ app.MapGet("/api/mgr/users", async (HttpContext ctx) =>
                               WHERE s.user_id = u.id), 0) AS balance,
                    u.created_at,
                    (SELECT MAX(s.end_date) FROM subscriptions s WHERE s.user_id = u.id) AS sub_end,
-                   COALESCE(u.is_stopped,0), COALESCE(u.is_blacklisted,0)
+                   COALESCE(u.is_stopped,0), COALESCE(u.is_blacklisted,0),
+                   u.billing_demand, u.billing_target,
+                   (SELECT COUNT(*) FROM repo_submissions rs
+                     WHERE rs.submitted_by_user_id = u.id AND rs.bill_status='billed'
+                       AND rs.billed_at IS NOT NULL
+                       AND YEAR(rs.billed_at)=YEAR(CURDATE()) AND MONTH(rs.billed_at)=MONTH(CURDATE())) AS billed_month
             FROM app_users u ORDER BY u.created_at DESC";
         var users = new List<object>();
         string baseUrl = $"{ctx.Request.Scheme}://{ctx.Request.Host}";
@@ -958,6 +963,9 @@ app.MapGet("/api/mgr/users", async (HttpContext ctx) =>
                     subEndDate    = rdr.IsDBNull(11) ? null : rdr.GetDateTime(11).ToString("yyyy-MM-dd"),
                     isStopped     = rdr.GetBoolean(12),
                     isBlacklisted = rdr.GetBoolean(13),
+                    billingDemand = rdr.IsDBNull(14) ? (int?)null : Convert.ToInt32(rdr.GetValue(14)),
+                    billingTarget = rdr.IsDBNull(15) ? (int?)null : Convert.ToInt32(rdr.GetValue(15)),
+                    billedThisMonth = rdr.IsDBNull(16) ? 0 : Convert.ToInt32(rdr.GetValue(16)),
                 });
             }
         }
@@ -1077,6 +1085,22 @@ app.MapMethods("/api/mgr/users/{id:long}/admin", new[] { "PATCH" }, async (HttpC
         await conn.OpenAsync();
         await MgrExec("UPDATE app_users SET is_admin=@v WHERE id=@id", conn, 10,
             ("@v", dto.Admin ? 1 : 0), ("@id", id));
+        return Results.Ok();
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+app.MapMethods("/api/mgr/users/{id:long}/billing-targets", new[] { "PATCH" }, async (HttpContext ctx, long id, MgrSetBillingTargetsDto dto) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        await using var conn = new MySqlConnection(TenantContext.Conn);
+        await conn.OpenAsync();
+        await MgrExec("UPDATE app_users SET billing_demand=@d, billing_target=@t WHERE id=@id", conn, 10,
+            ("@d", (object?)dto.Demand ?? DBNull.Value),
+            ("@t", (object?)dto.Target ?? DBNull.Value),
+            ("@id", id));
         return Results.Ok();
     }
     catch (Exception ex) { return Results.Problem(ex.Message); }
@@ -3693,6 +3717,7 @@ record MgrUpdateBranchDto(string Name,
     string? Address, string? BranchCode);
 record MgrSetActiveDto(bool Active);
 record MgrSetAdminDto(bool Admin);
+record MgrSetBillingTargetsDto(int? Demand, int? Target);
 record MgrAddSubscriptionDto(string StartDate, string EndDate, decimal Amount, string? Notes);
 record MgrCreateMappingDto(int ColumnTypeId, string RawName);
 record MgrCreateColumnTypeDto(string Name);

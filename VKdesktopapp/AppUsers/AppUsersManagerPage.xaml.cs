@@ -103,6 +103,9 @@ public partial class AppUsersManagerPage : Page
         txtProfileBalance.Text = $"₹{user.Balance:N2}";
         txtProfileJoined.Text  = user.CreatedDisplay;
         txtDeviceId.Text       = user.DeviceId ?? "(no device registered)";
+        txtDemand.Text         = user.DemandDisplay;
+        txtTarget.Text         = user.TargetDisplay;
+        txtBillingProgress.Text = user.BillingProgressDisplay;
 
         await SetAvatarAsync(user.PfpBase64);
 
@@ -184,6 +187,25 @@ public partial class AppUsersManagerPage : Page
         var admin = !_selectedUser.IsAdmin;
         try { await _repo.SetAdminAsync(_selectedUser.Id, admin); _selectedUser.IsAdmin = admin; RefreshActionLabels(_selectedUser); }
         catch (Exception ex) { MessageBox.Show(ex.Message, "Admin", MessageBoxButton.OK, MessageBoxImage.Error); }
+    }
+
+    private void NumberOnly_PreviewTextInput(object sender, System.Windows.Input.TextCompositionEventArgs e)
+        => e.Handled = !e.Text.All(char.IsDigit);
+
+    private async void btnSaveTargets_Click(object sender, RoutedEventArgs e)
+    {
+        if (_selectedUser == null) return;
+        int? demand = int.TryParse(txtDemand.Text.Trim(), out var d) ? d : (int?)null;
+        int? target = int.TryParse(txtTarget.Text.Trim(), out var t) ? t : (int?)null;
+        try
+        {
+            await _repo.SetBillingTargetsAsync(_selectedUser.Id, demand, target);
+            _selectedUser.BillingDemand = demand;
+            _selectedUser.BillingTarget = target;
+            txtBillingProgress.Text = _selectedUser.BillingProgressDisplay;
+            MessageBox.Show("Billing targets saved.", "Task Manager", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception ex) { MessageBox.Show(ex.Message, "Targets", MessageBoxButton.OK, MessageBoxImage.Error); }
     }
 
     private async void btnRefreshUser_Click(object sender, RoutedEventArgs e)

@@ -16,6 +16,16 @@ public class AppUserListItem
     public decimal  Balance    { get; set; }
     public DateTime CreatedAt  { get; set; }
     public string?  SubEndDate { get; set; }
+    public int?     BillingDemand   { get; set; }
+    public int?     BillingTarget   { get; set; }
+    public int      BilledThisMonth { get; set; }
+
+    public string DemandDisplay => BillingDemand?.ToString() ?? "";
+    public string TargetDisplay => BillingTarget?.ToString() ?? "";
+    public string BillingProgressDisplay =>
+        $"{BilledThisMonth} billed this month"
+        + (BillingDemand is > 0 ? $" · demand {BillingDemand}" : "")
+        + (BillingTarget is > 0 ? $" · target {BillingTarget}" : "");
 
     public string CreatedDisplay  => CreatedAt.ToString("dd MMM yyyy");
     public string BalanceDisplay  => Balance.ToString("N2");

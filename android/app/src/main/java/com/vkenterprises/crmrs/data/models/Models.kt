@@ -130,6 +130,68 @@ data class HeadOffice(
     val totalRecords: Long = 0
 )
 
+data class RepoTaskItem(
+    val id: Long,
+    val loanNo: String = "",
+    val customerName: String = "",
+    val vehicleNo: String = "",
+    val model: String = "",
+    val chassisNo: String = "",
+    val engineNo: String = "",
+    val branchName: String = "",
+    val financeName: String = "",
+    val agentName: String = "",
+    val parkingYardName: String = "",
+    val parkingYardMobile: String = "",
+    val loadDetails: String = "",
+    val addlChargesNotes: String = "",
+    val addlChargesAmount: Double = 0.0,
+    val confirmationByName: String = "",
+    val confirmationByMobile: String = "",
+    val executiveName: String = "",
+    val collectionUpdate: String = "",
+    val remark: String = "",
+    val billingAction: String = "immediate",
+    val billStatus: String = "pending",
+    val holdUntil: String = "",
+    val holdDays: Int = 0,
+    val createdOn: String = ""
+)
+
+data class RepoTasksResponse(
+    val success: Boolean = false,
+    val demand: Int = 0,
+    val target: Int = 0,
+    val billedThisMonth: Int = 0,
+    val year: Int = 0,
+    val month: Int = 0,
+    val items: List<RepoTaskItem> = emptyList()
+)
+
+data class RepoTaskEditRequest(
+    val loanNo: String?,
+    val customerName: String?,
+    val vehicleNo: String?,
+    val model: String?,
+    val chassisNo: String?,
+    val engineNo: String?,
+    val branchName: String?,
+    val agentName: String?,
+    val parkingYardName: String?,
+    val parkingYardMobile: String?,
+    val loadDetails: String?,
+    val addlChargesNotes: String?,
+    val addlChargesAmount: Double?,
+    val confirmationByName: String?,
+    val confirmationByMobile: String?,
+    val executiveName: String?,
+    val collectionUpdate: String?,
+    val remark: String?,
+    val billingAction: String?,
+    val holdUntil: String?,
+    val holdDays: Int?
+)
+
 data class RepoLetterSettings(
     val financeId: Long = 0,
     val agencyName: String? = null,

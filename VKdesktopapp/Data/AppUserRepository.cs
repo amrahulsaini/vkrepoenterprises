@@ -24,6 +24,9 @@ public class AppUserRepository
             SubEndDate    = u.SubEndDate,
             IsStopped     = u.IsStopped,
             IsBlacklisted = u.IsBlacklisted,
+            BillingDemand   = u.BillingDemand,
+            BillingTarget   = u.BillingTarget,
+            BilledThisMonth = u.BilledThisMonth,
         }).ToList();
         return (users, r.Stats.Total, r.Stats.Active, r.Stats.Admins, r.Stats.WithSub);
     }
@@ -39,6 +42,9 @@ public class AppUserRepository
 
     public async Task SetAdminAsync(long userId, bool admin)
         => await DesktopApiClient.SetUserAdminAsync(userId, admin);
+
+    public async Task SetBillingTargetsAsync(long userId, int? demand, int? target)
+        => await DesktopApiClient.SetUserBillingTargetsAsync(userId, demand, target);
 
     public async Task<List<SubscriptionItem>> GetSubscriptionsAsync(long userId)
     {
