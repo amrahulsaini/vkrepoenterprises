@@ -949,7 +949,8 @@ private fun openWhatsApp(context: Context, message: String) {
 }
 
 
-private val PHONE_REGEX = Regex("\\d{6,}")
+private val PHONE_REGEX = Regex("\\+?\\d[\\d()\\s-]{5,15}\\d")
+private fun MatchResult.digitCount() = value.count { it.isDigit() }
 
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
@@ -971,7 +972,9 @@ private fun SRow(
                     else MaterialTheme.colorScheme.onSurface
     val phoneColor = MaterialTheme.colorScheme.primary
 
-    val phoneMatches = if (dialable) PHONE_REGEX.findAll(display).toList() else emptyList()
+    val phoneMatches = if (dialable)
+        PHONE_REGEX.findAll(display).filter { it.digitCount() in 7..13 }.toList()
+    else emptyList()
     val firstNumber  = phoneMatches.firstOrNull()?.value
     val annotated = remember(display, phoneColor, baseColor, dialable) {
         buildAnnotatedString {
@@ -1013,8 +1016,10 @@ private fun SRow(
         )
         var textLayout by remember(display) { mutableStateOf<TextLayoutResult?>(null) }
         fun dial(number: String) {
+            val clean = number.filter { it.isDigit() || it == '+' }
+            if (clean.isBlank()) return
             runCatching {
-                context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:$number")))
+                context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:$clean")))
             }
         }
         Text(

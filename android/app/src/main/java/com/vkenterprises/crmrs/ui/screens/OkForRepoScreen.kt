@@ -2,6 +2,7 @@ package com.vkenterprises.crmrs.ui.screens
 
 import android.content.Context
 import android.content.Intent
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -71,6 +72,7 @@ fun OkForRepoScreen(
     var billingAction by remember { mutableStateOf("immediate") }
     var holdDays      by remember { mutableStateOf("") }
     var holdDate      by remember { mutableStateOf("") }
+    var showHoldDatePicker by remember { mutableStateOf(false) }
 
     var submitting by remember { mutableStateOf(false) }
     var errorMsg   by remember { mutableStateOf<String?>(null) }
@@ -227,12 +229,60 @@ fun OkForRepoScreen(
                         keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Number),
                         singleLine = true, modifier = Modifier.weight(1f), shape = RoundedCornerShape(10.dp)
                     )
-                    OutlinedTextField(
-                        value = holdDate, onValueChange = { holdDate = it },
-                        label = { Text("or date (YYYY-MM-DD)") },
-                        singleLine = true, modifier = Modifier.weight(1f), shape = RoundedCornerShape(10.dp)
-                    )
+                    Box(Modifier.weight(1f)) {
+                        OutlinedTextField(
+                            value = holdDate, onValueChange = {},
+                            readOnly = true, enabled = false,
+                            label = { Text("or pick a date") },
+                            trailingIcon = { Icon(Icons.Default.CalendarMonth, null) },
+                            singleLine = true, shape = RoundedCornerShape(10.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                disabledTextColor      = MaterialTheme.colorScheme.onSurface,
+                                disabledLabelColor     = MaterialTheme.colorScheme.onSurfaceVariant,
+                                disabledBorderColor    = MaterialTheme.colorScheme.outline,
+                                disabledTrailingIconColor = MaterialTheme.colorScheme.onSurfaceVariant
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Box(Modifier.matchParentSize().clickable { showHoldDatePicker = true })
+                    }
                 }
+            }
+
+            if (showHoldDatePicker) {
+                val fmt = remember { java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd") }
+                val seed = remember(holdDate) {
+                    runCatching {
+                        if (holdDate.isNotBlank())
+                            java.time.LocalDate.parse(holdDate, fmt)
+                                .atStartOfDay(java.time.ZoneOffset.UTC).toInstant().toEpochMilli()
+                        else null
+                    }.getOrNull()
+                }
+                val dateState = rememberDatePickerState(
+                    initialSelectedDateMillis = seed,
+                    selectableDates = object : SelectableDates {
+                        override fun isSelectableDate(utcTimeMillis: Long) =
+                            utcTimeMillis >= java.time.LocalDate.now()
+                                .atStartOfDay(java.time.ZoneOffset.UTC).toInstant().toEpochMilli()
+                    }
+                )
+                DatePickerDialog(
+                    onDismissRequest = { showHoldDatePicker = false },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            dateState.selectedDateMillis?.let { ms ->
+                                holdDate = java.time.Instant.ofEpochMilli(ms)
+                                    .atZone(java.time.ZoneOffset.UTC).toLocalDate().format(fmt)
+                                holdDays = ""
+                            }
+                            showHoldDatePicker = false
+                        }) { Text("OK") }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showHoldDatePicker = false }) { Text("Cancel") }
+                    }
+                ) { DatePicker(state = dateState) }
             }
 
             errorMsg?.let {
