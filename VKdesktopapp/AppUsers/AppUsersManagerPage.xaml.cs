@@ -106,6 +106,7 @@ public partial class AppUsersManagerPage : Page
         txtDemand.Text         = user.DemandDisplay;
         txtTarget.Text         = user.TargetDisplay;
         txtBillingProgress.Text = user.BillingProgressDisplay;
+        RefreshBillingTargetsVisibility(user);
 
         await SetAvatarAsync(user.PfpBase64);
 
@@ -185,16 +186,25 @@ public partial class AppUsersManagerPage : Page
     {
         if (_selectedUser == null) return;
         var admin = !_selectedUser.IsAdmin;
-        try { await _repo.SetAdminAsync(_selectedUser.Id, admin); _selectedUser.IsAdmin = admin; RefreshActionLabels(_selectedUser); }
+        try
+        {
+            await _repo.SetAdminAsync(_selectedUser.Id, admin);
+            _selectedUser.IsAdmin = admin;
+            RefreshActionLabels(_selectedUser);
+            RefreshBillingTargetsVisibility(_selectedUser);
+        }
         catch (Exception ex) { MessageBox.Show(ex.Message, "Admin", MessageBoxButton.OK, MessageBoxImage.Error); }
     }
+
+    private void RefreshBillingTargetsVisibility(AppUserListItem user)
+        => pnlBillingTargets.Visibility = user.IsAdmin ? Visibility.Visible : Visibility.Collapsed;
 
     private void NumberOnly_PreviewTextInput(object sender, System.Windows.Input.TextCompositionEventArgs e)
         => e.Handled = !e.Text.All(char.IsDigit);
 
     private async void btnSaveTargets_Click(object sender, RoutedEventArgs e)
     {
-        if (_selectedUser == null) return;
+        if (_selectedUser == null || !_selectedUser.IsAdmin) return;
         int? demand = int.TryParse(txtDemand.Text.Trim(), out var d) ? d : (int?)null;
         int? target = int.TryParse(txtTarget.Text.Trim(), out var t) ? t : (int?)null;
         try
