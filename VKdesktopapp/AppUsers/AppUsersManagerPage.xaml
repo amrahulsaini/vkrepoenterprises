@@ -580,8 +580,20 @@
                                     BorderBrush="{StaticResource Gray200}" BorderThickness="1"
                                     Padding="12" Margin="0,0,0,16">
                                 <StackPanel>
-                                    <TextBlock Text="Billing targets (monthly) — admin only" FontSize="13" FontWeight="SemiBold"
+                                    <TextBlock Text="Billing targets — admin only (set per month)" FontSize="13" FontWeight="SemiBold"
                                                Foreground="{StaticResource Gray700}" Margin="0,0,0,8" />
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                        <StackPanel Margin="0,0,12,0">
+                                            <TextBlock Text="Month" Style="{StaticResource Caption}" />
+                                            <ComboBox Name="cboTargetMonth" Width="120" Height="30"
+                                                      SelectionChanged="TargetPeriod_Changed" />
+                                        </StackPanel>
+                                        <StackPanel Margin="0,0,12,0">
+                                            <TextBlock Text="Year" Style="{StaticResource Caption}" />
+                                            <ComboBox Name="cboTargetYear" Width="80" Height="30"
+                                                      SelectionChanged="TargetPeriod_Changed" />
+                                        </StackPanel>
+                                    </StackPanel>
                                     <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
                                         <StackPanel Margin="0,0,12,0">
                                             <TextBlock Text="Demand (min)" Style="{StaticResource Caption}" />

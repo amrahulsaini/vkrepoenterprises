@@ -924,7 +924,10 @@ app.MapGet("/api/mgr/users", async (HttpContext ctx) =>
                    u.created_at,
                    (SELECT MAX(s.end_date) FROM subscriptions s WHERE s.user_id = u.id) AS sub_end,
                    COALESCE(u.is_stopped,0), COALESCE(u.is_blacklisted,0),
-                   u.billing_demand, u.billing_target,
+                   (SELECT bt.demand FROM user_billing_targets bt
+                     WHERE bt.user_id=u.id AND bt.year=YEAR(CURDATE()) AND bt.month=MONTH(CURDATE())) AS billing_demand,
+                   (SELECT bt.target FROM user_billing_targets bt
+                     WHERE bt.user_id=u.id AND bt.year=YEAR(CURDATE()) AND bt.month=MONTH(CURDATE())) AS billing_target,
                    (SELECT COUNT(*) FROM repo_submissions rs
                      WHERE rs.submitted_by_user_id = u.id AND rs.bill_status='billed'
                        AND rs.billed_at IS NOT NULL
@@ -1093,15 +1096,61 @@ app.MapMethods("/api/mgr/users/{id:long}/admin", new[] { "PATCH" }, async (HttpC
 app.MapMethods("/api/mgr/users/{id:long}/billing-targets", new[] { "PATCH" }, async (HttpContext ctx, long id, MgrSetBillingTargetsDto dto) =>
 {
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    if (dto.Year <= 0 || dto.Month < 1 || dto.Month > 12) return Results.BadRequest("Invalid month.");
     try
     {
         await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
-        await MgrExec("UPDATE app_users SET billing_demand=@d, billing_target=@t WHERE id=@id", conn, 10,
+        await MgrExec(@"INSERT INTO user_billing_targets (user_id, year, month, demand, target)
+                        VALUES (@id, @y, @m, @d, @t)
+                        ON DUPLICATE KEY UPDATE demand=VALUES(demand), target=VALUES(target)", conn, 10,
+            ("@id", id), ("@y", dto.Year), ("@m", dto.Month),
             ("@d", (object?)dto.Demand ?? DBNull.Value),
-            ("@t", (object?)dto.Target ?? DBNull.Value),
-            ("@id", id));
+            ("@t", (object?)dto.Target ?? DBNull.Value));
         return Results.Ok();
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+app.MapGet("/api/mgr/users/{id:long}/billing-targets", async (HttpContext ctx, long id, int year, int month) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    if (year <= 0 || month < 1 || month > 12) return Results.BadRequest("Invalid month.");
+    try
+    {
+        await using var conn = new MySqlConnection(TenantContext.Conn);
+        await conn.OpenAsync();
+
+        int? demand = null, target = null;
+        await using (var cmd = new MySqlCommand(
+            "SELECT demand, target FROM user_billing_targets WHERE user_id=@id AND year=@y AND month=@m LIMIT 1",
+            conn) { CommandTimeout = 10 })
+        {
+            cmd.Parameters.AddWithValue("@id", id);
+            cmd.Parameters.AddWithValue("@y", year);
+            cmd.Parameters.AddWithValue("@m", month);
+            await using var rdr = await cmd.ExecuteReaderAsync();
+            if (await rdr.ReadAsync())
+            {
+                demand = rdr.IsDBNull(0) ? (int?)null : rdr.GetInt32(0);
+                target = rdr.IsDBNull(1) ? (int?)null : rdr.GetInt32(1);
+            }
+        }
+
+        int billed;
+        await using (var cmd = new MySqlCommand(@"
+            SELECT COUNT(*) FROM repo_submissions
+             WHERE submitted_by_user_id=@id AND bill_status='billed'
+               AND billed_at IS NOT NULL AND YEAR(billed_at)=@y AND MONTH(billed_at)=@m",
+            conn) { CommandTimeout = 10 })
+        {
+            cmd.Parameters.AddWithValue("@id", id);
+            cmd.Parameters.AddWithValue("@y", year);
+            cmd.Parameters.AddWithValue("@m", month);
+            billed = Convert.ToInt32(await cmd.ExecuteScalarAsync());
+        }
+
+        return Results.Ok(new { demand, target, billed, year, month });
     }
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
@@ -3717,7 +3766,7 @@ record MgrUpdateBranchDto(string Name,
     string? Address, string? BranchCode);
 record MgrSetActiveDto(bool Active);
 record MgrSetAdminDto(bool Admin);
-record MgrSetBillingTargetsDto(int? Demand, int? Target);
+record MgrSetBillingTargetsDto(int? Demand, int? Target, int Year, int Month);
 record MgrAddSubscriptionDto(string StartDate, string EndDate, decimal Amount, string? Notes);
 record MgrCreateMappingDto(int ColumnTypeId, string RawName);
 record MgrCreateColumnTypeDto(string Name);

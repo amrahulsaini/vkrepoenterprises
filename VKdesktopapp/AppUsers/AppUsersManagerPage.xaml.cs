@@ -103,10 +103,12 @@ public partial class AppUsersManagerPage : Page
         txtProfileBalance.Text = $"₹{user.Balance:N2}";
         txtProfileJoined.Text  = user.CreatedDisplay;
         txtDeviceId.Text       = user.DeviceId ?? "(no device registered)";
-        txtDemand.Text         = user.DemandDisplay;
-        txtTarget.Text         = user.TargetDisplay;
-        txtBillingProgress.Text = user.BillingProgressDisplay;
         RefreshBillingTargetsVisibility(user);
+        if (user.IsAdmin)
+        {
+            EnsureTargetPeriodLists();
+            await LoadBillingTargetsAsync();
+        }
 
         await SetAvatarAsync(user.PfpBase64);
 
@@ -199,6 +201,55 @@ public partial class AppUsersManagerPage : Page
     private void RefreshBillingTargetsVisibility(AppUserListItem user)
         => pnlBillingTargets.Visibility = user.IsAdmin ? Visibility.Visible : Visibility.Collapsed;
 
+    private bool _suppressTargetPeriod;
+
+    private void EnsureTargetPeriodLists()
+    {
+        if (cboTargetMonth.Items.Count > 0) return;
+        _suppressTargetPeriod = true;
+        for (int m = 1; m <= 12; m++)
+            cboTargetMonth.Items.Add(new System.Globalization.DateTimeFormatInfo().GetMonthName(m));
+        int thisYear = DateTime.Now.Year;
+        for (int y = thisYear - 2; y <= thisYear + 1; y++) cboTargetYear.Items.Add(y);
+        cboTargetMonth.SelectedIndex = DateTime.Now.Month - 1;
+        cboTargetYear.SelectedItem   = thisYear;
+        _suppressTargetPeriod = false;
+    }
+
+    private (int year, int month) SelectedTargetPeriod()
+    {
+        int month = cboTargetMonth.SelectedIndex >= 0 ? cboTargetMonth.SelectedIndex + 1 : DateTime.Now.Month;
+        int year  = cboTargetYear.SelectedItem is int y ? y : DateTime.Now.Year;
+        return (year, month);
+    }
+
+    private async Task LoadBillingTargetsAsync()
+    {
+        if (_selectedUser == null || !_selectedUser.IsAdmin) return;
+        var (year, month) = SelectedTargetPeriod();
+        try
+        {
+            var t = await _repo.GetBillingTargetsAsync(_selectedUser.Id, year, month);
+            txtDemand.Text = t.Demand?.ToString() ?? "";
+            txtTarget.Text = t.Target?.ToString() ?? "";
+            var monthName = new System.Globalization.DateTimeFormatInfo().GetMonthName(month);
+            txtBillingProgress.Text =
+                $"{t.Billed} billed in {monthName} {year}"
+                + (t.Demand is > 0 ? $" · demand {t.Demand}" : "")
+                + (t.Target is > 0 ? $" · target {t.Target}" : "");
+        }
+        catch (Exception ex)
+        {
+            txtBillingProgress.Text = $"Could not load targets: {ex.Message}";
+        }
+    }
+
+    private async void TargetPeriod_Changed(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        if (_suppressTargetPeriod) return;
+        await LoadBillingTargetsAsync();
+    }
+
     private void NumberOnly_PreviewTextInput(object sender, System.Windows.Input.TextCompositionEventArgs e)
         => e.Handled = !e.Text.All(char.IsDigit);
 
@@ -207,13 +258,14 @@ public partial class AppUsersManagerPage : Page
         if (_selectedUser == null || !_selectedUser.IsAdmin) return;
         int? demand = int.TryParse(txtDemand.Text.Trim(), out var d) ? d : (int?)null;
         int? target = int.TryParse(txtTarget.Text.Trim(), out var t) ? t : (int?)null;
+        var (year, month) = SelectedTargetPeriod();
         try
         {
-            await _repo.SetBillingTargetsAsync(_selectedUser.Id, demand, target);
-            _selectedUser.BillingDemand = demand;
-            _selectedUser.BillingTarget = target;
-            txtBillingProgress.Text = _selectedUser.BillingProgressDisplay;
-            MessageBox.Show("Billing targets saved.", "Task Manager", MessageBoxButton.OK, MessageBoxImage.Information);
+            await _repo.SetBillingTargetsAsync(_selectedUser.Id, demand, target, year, month);
+            var monthName = new System.Globalization.DateTimeFormatInfo().GetMonthName(month);
+            await LoadBillingTargetsAsync();
+            MessageBox.Show($"Billing targets saved for {monthName} {year}.",
+                "Task Manager", MessageBoxButton.OK, MessageBoxImage.Information);
         }
         catch (Exception ex) { MessageBox.Show(ex.Message, "Targets", MessageBoxButton.OK, MessageBoxImage.Error); }
     }
