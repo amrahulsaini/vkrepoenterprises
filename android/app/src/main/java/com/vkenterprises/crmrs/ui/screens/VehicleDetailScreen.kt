@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.text.ClickableText
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -26,7 +27,9 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -888,7 +891,7 @@ private fun buildBankerWaMessage(
     appendLine("A Vehicle has been traced out by our ground team. The details of the vehicle and customer are as below.")
     appendLine()
     line("Loan No",       item.agreementNo)
-    line("Branch",        item.branchFromExcel.orEmpty().ifBlank { item.branchName.orEmpty() })
+    line("Branch",        item.branchFromExcel)
     line("Customer Name", item.customerName)
     line("Vehicle No",    item.vehicleNo)
     line("Model/Maker",   item.model)
@@ -1008,6 +1011,12 @@ private fun SRow(
             color      = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier   = Modifier.padding(end = 8.dp)
         )
+        var textLayout by remember(display) { mutableStateOf<TextLayoutResult?>(null) }
+        fun dial(number: String) {
+            runCatching {
+                context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:$number")))
+            }
+        }
         Text(
             text = annotated,
             style = MaterialTheme.typography.bodyMedium.copy(
@@ -1015,24 +1024,28 @@ private fun SRow(
                 fontWeight = if (display.isBlank()) FontWeight.Normal else FontWeight.Black,
                 fontFamily = FontFamily.Default
             ),
+            onTextLayout = { textLayout = it },
             modifier = Modifier
                 .weight(1f)
-                .combinedClickable(
-                    onClick = {
-                        if (dialable) firstNumber?.let { num ->
-                            runCatching {
-                                context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:$num")))
+                .pointerInput(display, dialable, phoneMatches.size) {
+                    detectTapGestures(
+                        onTap = { pos ->
+                            if (!dialable || phoneMatches.isEmpty()) return@detectTapGestures
+                            val offset  = textLayout?.getOffsetForPosition(pos)
+                            val tapped  = offset?.let { o ->
+                                phoneMatches.firstOrNull { o >= it.range.first && o <= it.range.last + 1 }
+                            }?.value
+                            (tapped ?: firstNumber)?.let { dial(it) }
+                        },
+                        onLongPress = {
+                            if (display.isNotBlank()) {
+                                val cb = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                cb.setPrimaryClip(ClipData.newPlainText(label, display))
+                                android.widget.Toast.makeText(context, "Copied", android.widget.Toast.LENGTH_SHORT).show()
                             }
                         }
-                    },
-                    onLongClick = {
-                        if (display.isNotBlank()) {
-                            val cb = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                            cb.setPrimaryClip(ClipData.newPlainText(label, display))
-                            android.widget.Toast.makeText(context, "Copied", android.widget.Toast.LENGTH_SHORT).show()
-                        }
-                    }
-                )
+                    )
+                }
         )
         if (invalid) {
             Surface(shape = RoundedCornerShape(4.dp), color = MaterialTheme.colorScheme.errorContainer) {
