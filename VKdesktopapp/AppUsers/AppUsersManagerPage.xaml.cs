@@ -210,7 +210,7 @@ public partial class AppUsersManagerPage : Page
         for (int m = 1; m <= 12; m++)
             cboTargetMonth.Items.Add(new System.Globalization.DateTimeFormatInfo().GetMonthName(m));
         int thisYear = DateTime.Now.Year;
-        for (int y = thisYear - 2; y <= thisYear + 1; y++) cboTargetYear.Items.Add(y);
+        for (int y = thisYear - 5; y <= thisYear + 2; y++) cboTargetYear.Items.Add(y);
         cboTargetMonth.SelectedIndex = DateTime.Now.Month - 1;
         cboTargetYear.SelectedItem   = thisYear;
         _suppressTargetPeriod = false;
