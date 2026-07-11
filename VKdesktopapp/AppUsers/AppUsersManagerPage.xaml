@@ -575,11 +575,12 @@
                                 </Grid>
                             </Border>
 
-                            <Border Background="{StaticResource Gray50}" CornerRadius="8"
+                            <Border Name="pnlBillingTargets" Visibility="Collapsed"
+                                    Background="{StaticResource Gray50}" CornerRadius="8"
                                     BorderBrush="{StaticResource Gray200}" BorderThickness="1"
                                     Padding="12" Margin="0,0,0,16">
                                 <StackPanel>
-                                    <TextBlock Text="Billing targets (monthly)" FontSize="13" FontWeight="SemiBold"
+                                    <TextBlock Text="Billing targets (monthly) — admin only" FontSize="13" FontWeight="SemiBold"
                                                Foreground="{StaticResource Gray700}" Margin="0,0,0,8" />
                                     <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
                                         <StackPanel Margin="0,0,12,0">
