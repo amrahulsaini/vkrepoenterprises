@@ -41,10 +41,26 @@ fun ControlPanelScreen(
     nav: NavController
 ) {
     val ui by vm.ui.collectAsState()
+    var showExitConfirm by remember { mutableStateOf(false) }
 
     LaunchedEffect(userId) { if (userId > 0) vm.init(userId) }
 
     BackHandler(enabled = ui.selectedUser != null) { vm.clearUser() }
+    BackHandler(enabled = ui.selectedUser == null && !ui.passwordGate) { showExitConfirm = true }
+
+    if (showExitConfirm) {
+        AlertDialog(
+            onDismissRequest = { showExitConfirm = false },
+            title = { Text("Exit Control Panel?") },
+            text  = { Text("Do you really want to exit the Control Panel?") },
+            confirmButton = {
+                TextButton(onClick = { showExitConfirm = false; nav.popBackStack() }) { Text("Exit") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showExitConfirm = false }) { Text("Cancel") }
+            }
+        )
+    }
 
     LaunchedEffect(ui.errorMsg) {
     }
@@ -55,7 +71,7 @@ fun ControlPanelScreen(
                 title = { Text("Control Panel", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = {
-                        if (ui.selectedUser != null) vm.clearUser() else nav.popBackStack()
+                        if (ui.selectedUser != null) vm.clearUser() else showExitConfirm = true
                     }) { Icon(Icons.Default.ArrowBack, null) }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
