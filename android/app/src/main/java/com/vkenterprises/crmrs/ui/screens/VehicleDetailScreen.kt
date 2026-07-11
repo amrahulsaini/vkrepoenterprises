@@ -249,14 +249,14 @@ fun VehicleDetailScreen(
                 )
                 Spacer(Modifier.height(2.dp))
                 WaOptionButton("Banker for Confirmation", Color(0xFF1565C0)) {
-                    openWhatsApp(context, buildQuickWaMessage(detailRecord ?: item,"Please confirm this vehicle.",
-                        agentName, agentPhone, vehicleLocation, loadDetails, waAgencyName))
+                    openWhatsApp(context, buildBankerWaMessage(detailRecord ?: item,
+                        agentName, agentPhone, vehicleLocation, loadDetails))
                     showWaSheet = false
                 }
                 WaOptionButton("OK for Repo", Color(0xFF2E7D32)) {
+                    openWhatsApp(context, buildOkRepoWaMessage(detailRecord ?: item,
+                        agentName, agentPhone, waAgencyName))
                     showWaSheet = false
-                    searchVm.setActionType("okrepo")
-                    nav.navigate(Screen.OkForRepo.route)
                 }
             }
         }
@@ -870,27 +870,62 @@ private fun buildLevelStr(name: String?, contact: String?): String {
     }
 }
 
-private fun buildQuickWaMessage(
-    item: SearchResult, status: String,
+private fun buildBankerWaMessage(
+    item: SearchResult,
     agentName: String, agentPhone: String,
     vehicleLocation: String = "",
-    loadDetails: String = "",
+    loadDetails: String = ""
+): String = buildString {
+    fun line(label: String, value: String?) =
+        appendLine("$label: *${value?.trim().orEmpty().ifBlank { "null" }}*")
+    fun levelLine(label: String, name: String?, contact: String?) {
+        val content = listOf(name?.trim().orEmpty(), contact?.trim().orEmpty())
+            .filter { it.isNotBlank() }.joinToString(" - ")
+        appendLine("$label: *${content.ifBlank { "null" }}*")
+    }
+
+    appendLine("*Respected sir,*")
+    appendLine("A Vehicle has been traced out by our ground team. The details of the vehicle and customer are as below.")
+    appendLine()
+    line("Loan No",       item.agreementNo)
+    line("Branch",        item.branchFromExcel.orEmpty().ifBlank { item.branchName.orEmpty() })
+    line("Customer Name", item.customerName)
+    line("Vehicle No",    item.vehicleNo)
+    line("Model/Maker",   item.model)
+    line("Chassis No",    item.chassisNo)
+    line("Engine No",     item.engineNo)
+    line("BKT",           item.bucket)
+    line("OD",            item.od)
+    appendLine("Vehicle location: ${vehicleLocation.trim()}")
+    appendLine("Load details: ${loadDetails.trim().ifBlank { "-" }}")
+    levelLine("Level1", item.level1, item.level1Contact)
+    levelLine("Level2", item.level2, item.level2Contact)
+    levelLine("Level3", item.level3, item.level3Contact)
+    appendLine()
+    append("We urgently need you to confirm the status of this vehicle, whether it is to be Repo released.")
+    val person = listOf(agentName.trim().uppercase(), agentPhone.trim())
+        .filter { it.isNotBlank() }.joinToString(" - ")
+    if (person.isNotBlank()) append(" Repo Agency $person")
+}
+
+private fun buildOkRepoWaMessage(
+    item: SearchResult,
+    agentName: String, agentPhone: String,
     agencyName: String = BuildConfig.AGENCY_NAME
 ): String = buildString {
+    fun up(s: String?) = s?.trim().orEmpty().uppercase()
     appendLine("*Respected sir,*")
-    appendLine("Customer Name: *${item.customerName.orEmpty().ifBlank { "-" }}*")
-    if (status.contains("repo", ignoreCase = true))
-        appendLine("Loan No: *${item.agreementNo.orEmpty().ifBlank { "-" }}*")
-    appendLine("Vehicle No: *${item.vehicleNo.orEmpty()}*")
-    appendLine("Model/Maker: *${item.model.orEmpty().ifBlank { "-" }}*")
-    appendLine("Chassis No: *${item.chassisNo.orEmpty()}*")
-    appendLine("Engine No: *${item.engineNo.orEmpty().ifBlank { "-" }}*")
-    appendLine("Vehicle location: *${vehicleLocation.ifBlank { "-" }}*")
-    appendLine("Load details: *${loadDetails.ifBlank { "-" }}*")
+    appendLine("Loan No: *${up(item.agreementNo).ifBlank { "-" }}*")
+    appendLine("Customer Name: *${up(item.customerName).ifBlank { "-" }}*")
+    appendLine("Vehicle No: *${up(item.vehicleNo)}*")
+    appendLine("Model/Maker: *${up(item.model).ifBlank { "-" }}*")
+    appendLine("Chassis No: *${up(item.chassisNo)}*")
+    appendLine("Engine No: *${up(item.engineNo).ifBlank { "-" }}*")
+    appendLine("Status: *Ok for repo.*")
     appendLine()
-    appendLine("Status: *$status*")
-    if (agentName.isNotBlank() && agentPhone.isNotBlank())
-        appendLine("$agentName - $agentPhone")
+    val person = listOf(agentName.trim(), agentPhone.trim())
+        .filter { it.isNotBlank() }.joinToString(" - ")
+    if (person.isNotBlank()) appendLine(person)
     append("Agency Name: *${agencyName}*")
 }
 

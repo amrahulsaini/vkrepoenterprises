@@ -55,6 +55,7 @@ fun OkForRepoScreen(
         }
     }
 
+    var vehicleLocation   by remember { mutableStateOf("") }
     var agentName         by remember(item?.id) { mutableStateOf(agentNameAuth.uppercase()) }
     var parkingYardName   by remember { mutableStateOf("") }
     var parkingYardMobile by remember { mutableStateOf("") }
@@ -79,16 +80,33 @@ fun OkForRepoScreen(
         appendLine("*Respected sir,*")
         appendLine("Loan No: *${up(item?.agreementNo).ifBlank { "-" }}*")
         appendLine("Customer Name: *${up(item?.customerName).ifBlank { "-" }}*")
+        appendLine("Branch: *${up(item?.branchFromExcel).ifBlank { up(item?.branchName).ifBlank { "-" } }}*")
         appendLine("Vehicle No: *${up(item?.vehicleNo)}*")
         appendLine("Model/Maker: *${up(item?.model).ifBlank { "-" }}*")
         appendLine("Chassis No: *${up(item?.chassisNo)}*")
         appendLine("Engine No: *${up(item?.engineNo).ifBlank { "-" }}*")
+        if (vehicleLocation.isNotBlank()) appendLine("Vehicle location: *${vehicleLocation.uppercase()}*")
         appendLine("Status: *Ok for repo.*")
         appendLine()
-        val person = listOf(agentNameAuth.trim(), agentPhoneAuth.trim())
+        val person = listOf(agentNameAuth.trim().uppercase(), agentPhoneAuth.trim())
             .filter { it.isNotBlank() }.joinToString(" - ")
         if (person.isNotBlank()) appendLine(person)
-        append("Agency Name: *${agencyName}*")
+        appendLine("Agency Name: *${agencyName.uppercase()}*")
+
+        fun f(label: String, v: String) { if (v.isNotBlank()) appendLine("$label: *${v.trim()}*") }
+        fun comma(vararg vs: String) = vs.map { it.trim() }.filter { it.isNotBlank() }.joinToString(",")
+        val extras = listOf(
+            "Agent Name" to agentName,
+            "Parking Yard Name" to parkingYardName,
+            "Parking Yard Mobile" to parkingYardMobile,
+            "Load Details" to loadDetails,
+            "Additional Charges Notes,Amount" to comma(addlNotes, addlAmount),
+            "Confirmation By (Name,Mobile)" to comma(confirmByName, confirmByMobile),
+            "Executive Name" to executiveName,
+            "Collection Update" to collectionUpdate,
+            "Remark" to remark
+        ).filter { it.second.isNotBlank() }
+        if (extras.isNotEmpty()) { appendLine(); extras.forEach { f(it.first, it.second) } }
     }
 
     fun sendWhatsApp() = openWa(context, buildMessage())
@@ -190,6 +208,7 @@ fun OkForRepoScreen(
             Field("Executive Name", executiveName, Icons.Default.Badge) { executiveName = it }
             Field("Collection Update", collectionUpdate, Icons.Default.Update) { collectionUpdate = it }
             Field("Remark", remark, Icons.Default.Comment) { remark = it }
+            Field("Vehicle Location (for message)", vehicleLocation, Icons.Default.Place) { vehicleLocation = it }
 
             HorizontalDivider(Modifier.padding(vertical = 4.dp))
 
