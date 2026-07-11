@@ -41,6 +41,12 @@ interface ApiService {
         @Query("lite")       lite: Boolean = true
     ): Response<SearchResponse>
 
+    @GET("api/mobile/vehicle/branches")
+    suspend fun getVehicleBranches(
+        @Query("key")        key: String,
+        @Header("X-User-Id") userId: Long
+    ): Response<SearchResponse>
+
     @GET("api/mobile/record/{id}")
     suspend fun getRecord(
         @Path("id")          id: Long,

@@ -136,12 +136,22 @@ fun VehicleDetailScreen(
     var selectedBranchIdx by remember { mutableStateOf(0) }
     val selChecked = remember { mutableStateMapOf<String, Boolean>() }
 
-    val vehicleRecords = remember(item?.vehicleNo, item?.chassisNo, ui.allResults) {
+    LaunchedEffect(isAdmin, item?.id) {
+        if (isAdmin && item != null) {
+            val uid = authVm.userId.first()
+            if (uid > 0L) searchVm.loadVehicleBranches(uid)
+        }
+    }
+
+    val vehicleRecords = remember(item?.vehicleNo, item?.chassisNo, ui.vehicleBranches, ui.allResults) {
         if (item == null) emptyList()
-        else ui.allResults.filter { r ->
-            (item.vehicleNo.isNotBlank() && r.vehicleNo == item.vehicleNo) ||
-            (item.chassisNo.isNotBlank() && r.chassisNo == item.chassisNo)
-        }.ifEmpty { listOf(item) }
+        else {
+            val source = ui.vehicleBranches.ifEmpty { ui.allResults }
+            source.filter { r ->
+                (item.vehicleNo.isNotBlank() && r.vehicleNo == item.vehicleNo) ||
+                (item.chassisNo.isNotBlank() && r.chassisNo == item.chassisNo)
+            }.ifEmpty { listOf(item) }
+        }
     }
 
     val uniqueBranches = remember(vehicleRecords) {
@@ -157,7 +167,7 @@ fun VehicleDetailScreen(
          .sortedByDescending { it.createdOn }
     }
 
-    LaunchedEffect(isAdmin, item?.id) {
+    LaunchedEffect(isAdmin, item?.id, uniqueBranches.size) {
         if (isAdmin && item != null && uniqueBranches.isNotEmpty()) showBranchSheet = true
     }
 
@@ -247,11 +257,6 @@ fun VehicleDetailScreen(
                     showWaSheet = false
                     searchVm.setActionType("okrepo")
                     nav.navigate(Screen.OkForRepo.route)
-                }
-                WaOptionButton("Not Confirmed", Color(0xFFC62828)) {
-                    openWhatsApp(context, buildQuickWaMessage(detailRecord ?: item,"Cancel",
-                        agentName, agentPhone, vehicleLocation, loadDetails, waAgencyName))
-                    showWaSheet = false
                 }
             }
         }

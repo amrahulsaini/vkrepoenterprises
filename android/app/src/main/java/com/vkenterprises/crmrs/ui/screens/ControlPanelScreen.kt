@@ -1,5 +1,6 @@
 package com.vkenterprises.crmrs.ui.screens
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.rememberTransformableState
@@ -42,6 +43,8 @@ fun ControlPanelScreen(
     val ui by vm.ui.collectAsState()
 
     LaunchedEffect(userId) { if (userId > 0) vm.init(userId) }
+
+    BackHandler(enabled = ui.selectedUser != null) { vm.clearUser() }
 
     LaunchedEffect(ui.errorMsg) {
     }

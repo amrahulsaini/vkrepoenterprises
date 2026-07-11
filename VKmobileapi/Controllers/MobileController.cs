@@ -240,6 +240,33 @@ public class MobileController : ControllerBase
         }
     }
 
+    [HttpGet("vehicle/branches")]
+    public async Task<IActionResult> GetVehicleBranches(
+        [FromQuery] string key,
+        [FromHeader(Name = "X-User-Id")] long userId,
+        [FromQuery] int financeId = 0)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(key)) return BadRequest(new ApiError(false, "key is required."));
+
+            var status = await _repo.GetUserStatusAsync(userId);
+            if (status.IsBlacklisted) return StatusCode(403, new ApiError(false, "blacklisted"));
+            if (!status.IsActive)     return StatusCode(403, new ApiError(false, "inactive"));
+            if (status.IsStopped)     return StatusCode(403, new ApiError(false, "app_stopped"));
+
+            if (!await _repo.HasActiveSubscriptionAsync(userId))
+                return StatusCode(402, new ApiError(false, "subscription_expired"));
+
+            var results = await _repo.GetVehicleBranchesAsync(key.Trim(), userId, financeId);
+            return Ok(new SearchResponse(true, "branches", key.Trim().ToUpper(), results.Count, results));
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new ApiError(false, $"Lookup failed: {ex.Message}"));
+        }
+    }
+
     [HttpGet("record/{id:long}")]
     public async Task<IActionResult> GetRecord(
         long id,

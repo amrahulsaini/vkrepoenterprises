@@ -23,6 +23,7 @@ data class SearchUiState(
     val allResults: List<SearchResult> = emptyList(),
     val selectedResult: SearchResult? = null,
     val fullRecord: SearchResult?     = null,
+    val vehicleBranches: List<SearchResult> = emptyList(),
     val errorMsg: String?             = null,
     val isSearching: Boolean          = false,
     val subscriptionExpired: Boolean  = false,
@@ -134,7 +135,17 @@ class SearchViewModel @Inject constructor(
     }
 
     fun selectResult(result: SearchResult) {
-        _ui.update { it.copy(selectedResult = result, fullRecord = null) }
+        _ui.update { it.copy(selectedResult = result, fullRecord = null, vehicleBranches = emptyList()) }
+    }
+
+    fun loadVehicleBranches(userId: Long) {
+        val current = _ui.value.selectedResult ?: return
+        val key = current.vehicleNo.trim().ifBlank { current.chassisNo.trim() }
+        if (key.isBlank()) return
+        viewModelScope.launch {
+            val rows = withContext(Dispatchers.IO) { serverRepo.getVehicleBranches(key, userId) }
+            if (rows.isNotEmpty()) _ui.update { it.copy(vehicleBranches = rows) }
+        }
     }
 
     fun fetchFullRecord(id: Long, userId: Long) {

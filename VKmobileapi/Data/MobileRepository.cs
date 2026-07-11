@@ -787,6 +787,20 @@ public class MobileRepository
             {BestPerGroupFilter("chassis_no")}", last5.ToUpper());
     }
 
+    public async Task<List<SearchResult>> GetVehicleBranchesAsync(string key, long userId, int financeId = 0)
+    {
+        var restricted = await GetFinanceRestrictionsAsync(userId);
+        var filter = restricted.Count > 0
+            ? $"AND b.finance_id NOT IN ({string.Join(",", restricted)})" : "";
+        return await SearchAsync($@"
+            SELECT {SelectFields}
+            FROM vehicle_records vr
+            INNER JOIN branches b ON b.id = vr.branch_id
+            LEFT  JOIN finances f ON f.id = b.finance_id
+            WHERE (vr.vehicle_no = @q OR vr.chassis_no = @q) {filter} {FinanceScope(financeId)}
+            ORDER BY vr.completeness DESC, vr.id DESC", key.ToUpper());
+    }
+
     public async Task<List<HeadOffice>> GetHeadOfficesAsync(long userId)
     {
         var restricted = await GetFinanceRestrictionsAsync(userId);
