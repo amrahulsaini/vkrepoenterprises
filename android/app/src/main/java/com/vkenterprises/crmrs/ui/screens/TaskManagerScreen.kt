@@ -170,9 +170,6 @@ private fun ProgressCard(ui: TaskManagerUiState) {
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            Text("Counts vehicles marked billed in billing for this month.",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.outline)
         }
     }
 }
