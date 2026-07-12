@@ -80,7 +80,7 @@
                         <UniformGrid Columns="2">
                             <StackPanel Margin="0,0,8,8"><TextBlock Text="To (Bank / Head Office)" Foreground="#666" FontSize="12" /><TextBox Name="txtBankTo" Height="30" /></StackPanel>
                             <StackPanel Margin="0,0,0,8"><TextBlock Text="Invoice Date" Foreground="#666" FontSize="12" /><TextBox Name="txtInvoiceDate" Height="30" /></StackPanel>
-                            <StackPanel Margin="0,0,8,8"><TextBlock Text="Invoice No" Foreground="#666" FontSize="12" /><TextBox Name="txtInvoiceNo" Height="30" /></StackPanel>
+                            <StackPanel Margin="0,0,8,8"><TextBlock Text="Invoice No (auto)" Foreground="#666" FontSize="12" /><TextBox Name="txtInvoiceNo" Height="30" IsReadOnly="True" Background="#F3F3F3" /></StackPanel>
                             <StackPanel Margin="0,0,0,8"><TextBlock Text="Branch" Foreground="#666" FontSize="12" /><TextBox Name="txtBranch" Height="30" /></StackPanel>
                             <StackPanel Margin="0,0,8,8"><TextBlock Text="Confirmation By" Foreground="#666" FontSize="12" /><TextBox Name="txtConfirmationBy" Height="30" /></StackPanel>
                             <StackPanel Margin="0,0,0,8" />
@@ -125,7 +125,7 @@
 
                         <TextBlock Text="AGENCY &amp; BANK" FontWeight="Bold" Foreground="{StaticResource Accent}" Margin="0,10,0,6" />
                         <UniformGrid Columns="3">
-                            <StackPanel Margin="0,0,8,8"><TextBlock Text="Name of Agency" Foreground="#666" FontSize="12" /><TextBox Name="txtAgencyName" Height="30" /></StackPanel>
+                            <StackPanel Margin="0,0,8,8"><TextBlock Text="Vendor Code" Foreground="#666" FontSize="12" /><TextBox Name="txtAgencyName" Height="30" /></StackPanel>
                             <StackPanel Margin="0,0,8,8"><TextBlock Text="PAN No" Foreground="#666" FontSize="12" /><TextBox Name="txtPan" Height="30" /></StackPanel>
                             <StackPanel Margin="0,0,0,8"><TextBlock Text="GST State" Foreground="#666" FontSize="12" /><TextBox Name="txtGst" Height="30" /></StackPanel>
                             <StackPanel Margin="0,0,8,8"><TextBlock Text="Bank Account Name" Foreground="#666" FontSize="12" /><TextBox Name="txtAcHolder" Height="30" /></StackPanel>

@@ -3,6 +3,29 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Repo Submissions — All Details" Height="640" Width="1180"
         WindowStartupLocation="CenterScreen" ShowInTaskbar="True" Background="#F5F5F5">
+    <Window.Resources>
+        <Style x:Key="CellText" TargetType="TextBlock">
+            <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Margin" Value="8,0,8,0" />
+            <Setter Property="ToolTip" Value="{Binding RelativeSource={RelativeSource Self}, Path=Text}" />
+            <Style.Triggers>
+                <Trigger Property="Text" Value="">
+                    <Setter Property="ToolTip" Value="{x:Null}" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="GridHeader" TargetType="{x:Type DataGridColumnHeader}">
+            <Setter Property="Background" Value="#1565C0" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Padding" Value="8,8,8,8" />
+            <Setter Property="BorderBrush" Value="#0D47A1" />
+            <Setter Property="BorderThickness" Value="0,0,1,0" />
+            <Setter Property="HorizontalContentAlignment" Value="Left" />
+        </Style>
+    </Window.Resources>
     <Grid Margin="14">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -37,26 +60,35 @@
         </WrapPanel>
 
         <DataGrid Grid.Row="2" Name="grid" AutoGenerateColumns="False" IsReadOnly="True"
-                  CanUserAddRows="False" HeadersVisibility="Column" GridLinesVisibility="Horizontal"
-                  RowHeaderWidth="0" SelectionMode="Single" Background="White" BorderBrush="#E0E0E0">
+                  CanUserAddRows="False" HeadersVisibility="Column" GridLinesVisibility="All"
+                  RowHeaderWidth="0" SelectionMode="Single" SelectionUnit="CellOrRowHeader"
+                  Background="White" BorderBrush="#E0E0E0" BorderThickness="1"
+                  CanUserResizeColumns="True" CanUserReorderColumns="True" CanUserSortColumns="True"
+                  ColumnHeaderStyle="{StaticResource GridHeader}"
+                  RowBackground="White" AlternatingRowBackground="#F3F7FB"
+                  HorizontalGridLinesBrush="#ECECEC" VerticalGridLinesBrush="#ECECEC"
+                  FontSize="12.5" RowHeight="34"
+                  ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                  ScrollViewer.VerticalScrollBarVisibility="Auto"
+                  ScrollViewer.CanContentScroll="True" EnableRowVirtualization="True">
             <DataGrid.Columns>
-                <DataGridTextColumn Header="Date" Binding="{Binding CreatedAt}" Width="120" />
-                <DataGridTextColumn Header="Vehicle No" Binding="{Binding VehicleNo}" Width="100" />
-                <DataGridTextColumn Header="Customer" Binding="{Binding CustomerName}" Width="140" />
-                <DataGridTextColumn Header="Finance" Binding="{Binding FinanceName}" Width="120" />
-                <DataGridTextColumn Header="Branch" Binding="{Binding BranchName}" Width="100" />
-                <DataGridTextColumn Header="Loan No" Binding="{Binding LoanNo}" Width="100" />
-                <DataGridTextColumn Header="Agent" Binding="{Binding AgentName}" Width="100" />
-                <DataGridTextColumn Header="Parking Yard" Binding="{Binding ParkingYardName}" Width="110" />
-                <DataGridTextColumn Header="Addl Amt" Binding="{Binding AddlChargesAmount}" Width="75" />
-                <DataGridTextColumn Header="Collection Update" Binding="{Binding CollectionUpdate}" Width="130" />
-                <DataGridTextColumn Header="Remark" Binding="{Binding Remark}" Width="130" />
-                <DataGridTextColumn Header="Billing" Binding="{Binding ActionText}" Width="120" />
-                <DataGridTextColumn Header="Status" Binding="{Binding StatusText}" Width="80" />
-                <DataGridTemplateColumn Header="" Width="120">
+                <DataGridTextColumn Header="Date" Binding="{Binding CreatedAt}" Width="120" MinWidth="90" ElementStyle="{StaticResource CellText}" />
+                <DataGridTextColumn Header="Vehicle No" Binding="{Binding VehicleNo}" Width="110" MinWidth="80" ElementStyle="{StaticResource CellText}" />
+                <DataGridTextColumn Header="Customer" Binding="{Binding CustomerName}" Width="160" MinWidth="90" ElementStyle="{StaticResource CellText}" />
+                <DataGridTextColumn Header="Finance" Binding="{Binding FinanceName}" Width="140" MinWidth="90" ElementStyle="{StaticResource CellText}" />
+                <DataGridTextColumn Header="Branch" Binding="{Binding BranchName}" Width="120" MinWidth="80" ElementStyle="{StaticResource CellText}" />
+                <DataGridTextColumn Header="Loan No" Binding="{Binding LoanNo}" Width="120" MinWidth="80" ElementStyle="{StaticResource CellText}" />
+                <DataGridTextColumn Header="Agent" Binding="{Binding AgentName}" Width="120" MinWidth="80" ElementStyle="{StaticResource CellText}" />
+                <DataGridTextColumn Header="Parking Yard" Binding="{Binding ParkingYardName}" Width="130" MinWidth="90" ElementStyle="{StaticResource CellText}" />
+                <DataGridTextColumn Header="Addl Amt" Binding="{Binding AddlChargesAmount}" Width="90" MinWidth="70" ElementStyle="{StaticResource CellText}" />
+                <DataGridTextColumn Header="Collection Update" Binding="{Binding CollectionUpdate}" Width="160" MinWidth="100" ElementStyle="{StaticResource CellText}" />
+                <DataGridTextColumn Header="Remark" Binding="{Binding Remark}" Width="160" MinWidth="100" ElementStyle="{StaticResource CellText}" />
+                <DataGridTextColumn Header="Billing" Binding="{Binding ActionText}" Width="130" MinWidth="90" ElementStyle="{StaticResource CellText}" />
+                <DataGridTextColumn Header="Status" Binding="{Binding StatusText}" Width="90" MinWidth="70" ElementStyle="{StaticResource CellText}" />
+                <DataGridTemplateColumn Header="Action" Width="130" MinWidth="120" CanUserResize="False">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
-                            <Button Content="Generate Bill" Height="26" Margin="2" Cursor="Hand"
+                            <Button Content="Generate Bill" Height="26" Margin="4,2,4,2" Cursor="Hand"
                                     Background="{StaticResource Accent}" Foreground="White" BorderThickness="0"
                                     Click="btnGenerate_Click" Tag="{Binding Id}" />
                         </DataTemplate>
