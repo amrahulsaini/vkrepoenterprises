@@ -86,9 +86,11 @@ internal static class DesktopApiClient
     internal record BillingSettingsDto(
         string AgencyName, string PanNo, string GstState, string BankAccountName,
         string AccountNo, string IfscCode, string BankBranch, string ParkingYard,
-        string PaymentName, string FooterLine, string? LetterheadUrl, string? BackgroundUrl);
+        string PaymentName, string FooterLine, string? LetterheadUrl, string? BackgroundUrl,
+        string? VendorCode = null, int NextInvoiceNo = 1);
 
     private record UrlResult(string? Url);
+    private record InvoiceNoResult(int InvoiceNo);
 
     internal static async Task<BillingSettingsDto?> GetBillingSettingsAsync(int financeId)
     {
@@ -99,6 +101,14 @@ internal static class DesktopApiClient
     internal static async Task SaveBillingSettingsAsync(object dto)
     {
         (await Send(HttpMethod.Put, "api/mgr/billing/settings", dto)).Dispose();
+    }
+
+    internal static async Task<int> CommitNextInvoiceNoAsync(int financeId)
+    {
+        var resp = await Send(HttpMethod.Post, "api/mgr/billing/next-invoice", new { FinanceId = financeId });
+        resp.EnsureSuccessStatusCode();
+        var r = await resp.Content.ReadFromJsonAsync<InvoiceNoResult>(_json);
+        return r?.InvoiceNo ?? 0;
     }
 
     internal static async Task<string?> UploadBillingImageAsync(string kind, string base64, int financeId)

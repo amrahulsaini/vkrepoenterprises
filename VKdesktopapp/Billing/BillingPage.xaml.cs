@@ -30,6 +30,7 @@ public partial class BillingPage : Page
     private bool _clearingSearch;
     private readonly BillingSession? _session;
     private long _currentSubmissionId;
+    private string _realAgencyName = "";
 
     private class FinanceOption { public int Id { get; set; } public string Name { get; set; } = ""; }
 
@@ -103,12 +104,10 @@ public partial class BillingPage : Page
         if (string.IsNullOrWhiteSpace(txtQty.Text)) txtQty.Text = "01";
         if (string.IsNullOrWhiteSpace(txtAddlCharges.Text)) txtAddlCharges.Text = "NA";
 
-        var realAgency = (App.SignedAppUser?.IsAgency == true && !string.IsNullOrWhiteSpace(App.SignedAppUser.AgencyName))
+        _realAgencyName = (App.SignedAppUser?.IsAgency == true && !string.IsNullOrWhiteSpace(App.SignedAppUser.AgencyName))
             ? App.SignedAppUser!.AgencyName
             : App.Firm.FirmName;
-        txtAgencyName.Text = realAgency;
-        txtAgencyName.IsReadOnly = true;
-        txtPaymentName.Text = realAgency;
+        txtInvoiceNo.IsReadOnly = true;
 
         try
         {
@@ -132,11 +131,13 @@ public partial class BillingPage : Page
         ShowPreview(imgBackground, null);
         txtPan.Text = txtGst.Text = txtAcHolder.Text = txtAccountNo.Text = "";
         txtIfsc.Text = txtBankBranch.Text = txtParkingYard.Text = txtFooter.Text = "";
+        txtAgencyName.Text = txtPaymentName.Text = txtInvoiceNo.Text = "";
         try
         {
             var s = await DesktopApiClient.GetBillingSettingsAsync(_financeId);
             if (s != null)
             {
+                txtAgencyName.Text = s.VendorCode ?? "";
                 txtPan.Text        = s.PanNo;
                 txtGst.Text        = s.GstState;
                 txtAcHolder.Text   = s.BankAccountName;
@@ -144,7 +145,9 @@ public partial class BillingPage : Page
                 txtIfsc.Text       = s.IfscCode;
                 txtBankBranch.Text = s.BankBranch;
                 txtParkingYard.Text = s.ParkingYard;
+                txtPaymentName.Text = s.PaymentName;
                 txtFooter.Text     = s.FooterLine;
+                txtInvoiceNo.Text  = s.NextInvoiceNo.ToString();
                 _letterheadUrl = s.LetterheadUrl;
                 _backgroundUrl = s.BackgroundUrl;
                 ShowPreview(imgLetterhead, _letterheadUrl);
@@ -322,7 +325,8 @@ public partial class BillingPage : Page
             await DesktopApiClient.SaveBillingSettingsAsync(new
             {
                 FinanceId = _financeId,
-                AgencyName = txtAgencyName.Text.Trim(), PanNo = txtPan.Text.Trim(), GstState = txtGst.Text.Trim(),
+                AgencyName = _realAgencyName, VendorCode = txtAgencyName.Text.Trim(),
+                PanNo = txtPan.Text.Trim(), GstState = txtGst.Text.Trim(),
                 BankAccountName = txtAcHolder.Text.Trim(), AccountNo = txtAccountNo.Text.Trim(), IfscCode = txtIfsc.Text.Trim(),
                 BankBranch = txtBankBranch.Text.Trim(), ParkingYard = txtParkingYard.Text.Trim(),
                 PaymentName = txtPaymentName.Text.Trim(), FooterLine = txtFooter.Text.Trim()
@@ -342,6 +346,13 @@ public partial class BillingPage : Page
 
         try
         {
+            var assigned = await DesktopApiClient.CommitNextInvoiceNoAsync(_financeId);
+            if (assigned > 0) txtInvoiceNo.Text = assigned.ToString();
+        }
+        catch (Exception ex) { MessageBox.Show("Could not assign invoice number: " + ex.Message, "Billing", MessageBoxButton.OK, MessageBoxImage.Warning); }
+
+        try
+        {
             var lh = await DownloadBytes(_letterheadUrl);
             var bg = await DownloadBytes(_backgroundUrl);
             BuildDocx(dlg.FileName, lh, bg);
@@ -353,7 +364,7 @@ public partial class BillingPage : Page
                 _currentSubmissionId = 0;
             }
             ResetVehicle();
-            txtInvoiceNo.Text = "";
+            txtInvoiceNo.Text = int.TryParse(txtInvoiceNo.Text, out var last) ? (last + 1).ToString() : "";
             txtConfirmationBy.Text = "";
             txtRepoAmount.Text = txtRepoWords.Text = "";
             txtTotalAmount.Text = txtTotalWords.Text = "";
@@ -457,7 +468,7 @@ public partial class BillingPage : Page
         KV("RC NO", txtRcNo.Text.Trim());
         KV("DATE OF REPOSSESSION", txtDateRepo.Text.Trim());
         KV("PARKING YARD NAME", txtParkingYard.Text.Trim());
-        KV("NAME OF AGNCY", txtAgencyName.Text.Trim());
+        KV("VENDOR CODE", txtAgencyName.Text.Trim());
         KV("ENCLOSED", txtEnclosed.Text.Trim());
         KV("QTY", txtQty.Text.Trim());
         KV("REPO CHARGES", txtRepoWords.Text.Trim(), Rs(ParseAmt(txtRepoAmount.Text)));

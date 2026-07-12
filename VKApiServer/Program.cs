@@ -1707,7 +1707,8 @@ app.MapGet("/api/mgr/billing/settings", async (HttpContext ctx, int? financeId) 
         await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
         const string sql = @"SELECT agency_name, pan_no, gst_state, bank_account_name, account_no, ifsc_code,
-                                    bank_branch, parking_yard, payment_name, footer_line, letterhead_path, background_path
+                                    bank_branch, parking_yard, payment_name, footer_line, letterhead_path, background_path,
+                                    vendor_code, last_invoice_no
                              FROM billing_settings WHERE finance_id=@fid LIMIT 1";
         await using var cmd = new MySqlCommand(sql, conn) { CommandTimeout = 10 };
         cmd.Parameters.AddWithValue("@fid", fid);
@@ -1716,14 +1717,15 @@ app.MapGet("/api/mgr/billing/settings", async (HttpContext ctx, int? financeId) 
         string baseUrl = $"{ctx.Request.Scheme}://{ctx.Request.Host}";
         string? Url(string? rel) => string.IsNullOrEmpty(rel) ? null : $"{baseUrl}/agency-uploads/{rel.TrimStart('/')}";
         if (!await r.ReadAsync())
-            return Results.Ok(new { agencyName = "", panNo = "", gstState = "", bankAccountName = "", accountNo = "",
+            return Results.Ok(new { agencyName = "", vendorCode = "", panNo = "", gstState = "", bankAccountName = "", accountNo = "",
                 ifscCode = "", bankBranch = "", parkingYard = "", paymentName = "", footerLine = "",
-                letterheadUrl = (string?)null, backgroundUrl = (string?)null });
+                letterheadUrl = (string?)null, backgroundUrl = (string?)null, nextInvoiceNo = 1 });
         return Results.Ok(new
         {
             agencyName = S(0) ?? "", panNo = S(1) ?? "", gstState = S(2) ?? "", bankAccountName = S(3) ?? "",
             accountNo = S(4) ?? "", ifscCode = S(5) ?? "", bankBranch = S(6) ?? "", parkingYard = S(7) ?? "",
-            paymentName = S(8) ?? "", footerLine = S(9) ?? "", letterheadUrl = Url(S(10)), backgroundUrl = Url(S(11))
+            paymentName = S(8) ?? "", footerLine = S(9) ?? "", letterheadUrl = Url(S(10)), backgroundUrl = Url(S(11)),
+            vendorCode = S(12) ?? "", nextInvoiceNo = (r.IsDBNull(13) ? 0 : r.GetInt32(13)) + 1
         });
     }
     catch (Exception ex) { return Results.Problem(ex.Message); }
@@ -1737,20 +1739,41 @@ app.MapPut("/api/mgr/billing/settings", async (HttpContext ctx, MgrBillingSettin
         await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
         const string sql = @"INSERT INTO billing_settings
-            (finance_id, agency_name, pan_no, gst_state, bank_account_name, account_no, ifsc_code, bank_branch, parking_yard, payment_name, footer_line)
-            VALUES (@fid,@an,@pan,@gst,@ban,@acc,@ifsc,@bb,@py,@pn,@fl)
-            ON DUPLICATE KEY UPDATE agency_name=VALUES(agency_name), pan_no=VALUES(pan_no), gst_state=VALUES(gst_state),
+            (finance_id, agency_name, vendor_code, pan_no, gst_state, bank_account_name, account_no, ifsc_code, bank_branch, parking_yard, payment_name, footer_line)
+            VALUES (@fid,@an,@vc,@pan,@gst,@ban,@acc,@ifsc,@bb,@py,@pn,@fl)
+            ON DUPLICATE KEY UPDATE agency_name=VALUES(agency_name), vendor_code=VALUES(vendor_code), pan_no=VALUES(pan_no), gst_state=VALUES(gst_state),
               bank_account_name=VALUES(bank_account_name), account_no=VALUES(account_no), ifsc_code=VALUES(ifsc_code),
               bank_branch=VALUES(bank_branch), parking_yard=VALUES(parking_yard), payment_name=VALUES(payment_name),
               footer_line=VALUES(footer_line)";
         await MgrExec(sql, conn, 10,
             ("@fid", dto.FinanceId),
-            ("@an", (object?)dto.AgencyName ?? DBNull.Value), ("@pan", (object?)dto.PanNo ?? DBNull.Value),
+            ("@an", (object?)dto.AgencyName ?? DBNull.Value), ("@vc", (object?)dto.VendorCode ?? DBNull.Value),
+            ("@pan", (object?)dto.PanNo ?? DBNull.Value),
             ("@gst", (object?)dto.GstState ?? DBNull.Value), ("@ban", (object?)dto.BankAccountName ?? DBNull.Value),
             ("@acc", (object?)dto.AccountNo ?? DBNull.Value), ("@ifsc", (object?)dto.IfscCode ?? DBNull.Value),
             ("@bb", (object?)dto.BankBranch ?? DBNull.Value), ("@py", (object?)dto.ParkingYard ?? DBNull.Value),
             ("@pn", (object?)dto.PaymentName ?? DBNull.Value), ("@fl", (object?)dto.FooterLine ?? DBNull.Value));
         return Results.Ok(new { success = true });
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+app.MapPost("/api/mgr/billing/next-invoice", async (HttpContext ctx, MgrBillingImageDto dto) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    if (dto.FinanceId <= 0) return Results.BadRequest("financeId required.");
+    try
+    {
+        await using var conn = new MySqlConnection(TenantContext.Conn);
+        await conn.OpenAsync();
+        await MgrExec(@"INSERT INTO billing_settings (finance_id, last_invoice_no) VALUES (@fid, 1)
+                        ON DUPLICATE KEY UPDATE last_invoice_no = last_invoice_no + 1", conn, 10,
+            ("@fid", dto.FinanceId));
+        await using var cmd = new MySqlCommand(
+            "SELECT last_invoice_no FROM billing_settings WHERE finance_id=@fid LIMIT 1", conn) { CommandTimeout = 10 };
+        cmd.Parameters.AddWithValue("@fid", dto.FinanceId);
+        var n = Convert.ToInt32(await cmd.ExecuteScalarAsync());
+        return Results.Ok(new { invoiceNo = n });
     }
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
@@ -3777,7 +3800,7 @@ record MgrBillingSettingsDto(
     int FinanceId,
     string? AgencyName, string? PanNo, string? GstState, string? BankAccountName,
     string? AccountNo, string? IfscCode, string? BankBranch, string? ParkingYard,
-    string? PaymentName, string? FooterLine);
+    string? PaymentName, string? FooterLine, string? VendorCode);
 record MgrBillingImageDto(string? ImageBase64, int FinanceId = 0);
 record MgrBillingMemberDto(
     long Id, string Name, string? Mobile, string? Email,

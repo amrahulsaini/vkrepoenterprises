@@ -1,0 +1,3 @@
+ALTER TABLE `billing_settings`
+  ADD COLUMN IF NOT EXISTS `vendor_code`     VARCHAR(128) NULL AFTER `agency_name`,
+  ADD COLUMN IF NOT EXISTS `last_invoice_no` INT NOT NULL DEFAULT 0;
