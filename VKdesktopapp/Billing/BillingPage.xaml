@@ -39,6 +39,12 @@
                 </Border>
                 <Button DockPanel.Dock="Top" Name="btnBackground" Content="Upload Background" Height="28" Margin="0,0,0,12" Click="btnBackground_Click" />
 
+                <TextBlock DockPanel.Dock="Top" Text="Digital Signature (DSC token)" FontSize="12" Foreground="#666" Margin="0,0,0,4" />
+                <CheckBox DockPanel.Dock="Top" Name="chkSign" Content="Also make a signed PDF" Margin="0,0,0,6"
+                          VerticalContentAlignment="Center" Checked="chkSign_Changed" Unchecked="chkSign_Changed" />
+                <Button DockPanel.Dock="Top" Name="btnSignCert" Content="Select Certificate" Height="28" Margin="0,0,0,4" Click="btnSignCert_Click" />
+                <TextBlock DockPanel.Dock="Top" Name="txtCertStatus" FontSize="11" Foreground="#888" TextWrapping="Wrap" Margin="0,0,0,12" />
+
                 <TextBlock DockPanel.Dock="Top" Text="Find Vehicle (in this finance)" FontSize="12" Foreground="#666" Margin="0,0,0,4" />
                 <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,6">
                     <RadioButton Name="rbRc" Content="RC (last 4)" IsChecked="True" GroupName="mode" Margin="0,0,12,0" VerticalAlignment="Center" />
@@ -125,8 +131,9 @@
 
                         <TextBlock Text="AGENCY &amp; BANK" FontWeight="Bold" Foreground="{StaticResource Accent}" Margin="0,10,0,6" />
                         <UniformGrid Columns="3">
+                            <StackPanel Margin="0,0,8,8"><TextBlock Text="Name of Agency" Foreground="#666" FontSize="12" /><TextBox Name="txtAgencyRealName" Height="30" /></StackPanel>
                             <StackPanel Margin="0,0,8,8"><TextBlock Text="Vendor Code" Foreground="#666" FontSize="12" /><TextBox Name="txtAgencyName" Height="30" /></StackPanel>
-                            <StackPanel Margin="0,0,8,8"><TextBlock Text="PAN No" Foreground="#666" FontSize="12" /><TextBox Name="txtPan" Height="30" /></StackPanel>
+                            <StackPanel Margin="0,0,0,8"><TextBlock Text="PAN No" Foreground="#666" FontSize="12" /><TextBox Name="txtPan" Height="30" /></StackPanel>
                             <StackPanel Margin="0,0,0,8"><TextBlock Text="GST State" Foreground="#666" FontSize="12" /><TextBox Name="txtGst" Height="30" /></StackPanel>
                             <StackPanel Margin="0,0,8,8"><TextBlock Text="Bank Account Name" Foreground="#666" FontSize="12" /><TextBox Name="txtAcHolder" Height="30" /></StackPanel>
                             <StackPanel Margin="0,0,8,8"><TextBlock Text="Account No" Foreground="#666" FontSize="12" /><TextBox Name="txtAccountNo" Height="30" /></StackPanel>
