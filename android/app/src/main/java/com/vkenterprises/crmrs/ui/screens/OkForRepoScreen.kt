@@ -217,8 +217,8 @@ fun OkForRepoScreen(
             Text("Billing decision", style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
 
-            BillingChoiceRow("Bill immediately", "immediate", billingAction) { billingAction = it }
-            BillingChoiceRow("Hold for billing", "hold", billingAction) { billingAction = it }
+            BillingChoiceRow("OK for billing", "immediate", billingAction) { billingAction = it }
+            BillingChoiceRow("Hold for collection", "hold", billingAction) { billingAction = it }
             BillingChoiceRow("Cancel", "cancel", billingAction) { billingAction = it }
 
             if (billingAction == "hold") {
