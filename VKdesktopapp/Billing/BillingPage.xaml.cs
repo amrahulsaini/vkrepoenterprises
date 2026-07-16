@@ -9,11 +9,17 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media.Imaging;
 using Microsoft.Win32;
+using System.Security.Cryptography.X509Certificates;
 using Syncfusion.DocIO;
 using Syncfusion.DocIO.DLS;
+using Syncfusion.DocIORenderer;
+using Syncfusion.Pdf;
+using Syncfusion.Pdf.Graphics;
+using Syncfusion.Pdf.Security;
 using CRMRSDesktopApp.Data;
 using CRMRSDesktopApp.Models;
 using SFColor = Syncfusion.Drawing.Color;
+using SFRectF = Syncfusion.Drawing.RectangleF;
 using DocAlign = Syncfusion.DocIO.DLS.HorizontalAlignment;
 
 namespace CRMRSDesktopApp.Billing;
@@ -54,6 +60,8 @@ public partial class BillingPage : Page
         txtTotalAmount.Text = Rs(total);
         txtTotalWords.Text  = Words(total);
     }
+
+    private static string Up(string? s) => (s ?? "").ToUpperInvariant();
 
     private static long ParseAmt(string? s)
     {
@@ -107,7 +115,9 @@ public partial class BillingPage : Page
         _realAgencyName = (App.SignedAppUser?.IsAgency == true && !string.IsNullOrWhiteSpace(App.SignedAppUser.AgencyName))
             ? App.SignedAppUser!.AgencyName
             : App.Firm.FirmName;
+        txtAgencyRealName.Text = (_realAgencyName ?? "").ToUpperInvariant();
         txtInvoiceNo.IsReadOnly = true;
+        RefreshCertStatus();
 
         try
         {
@@ -137,16 +147,16 @@ public partial class BillingPage : Page
             var s = await DesktopApiClient.GetBillingSettingsAsync(_financeId);
             if (s != null)
             {
-                txtAgencyName.Text = s.VendorCode ?? "";
-                txtPan.Text        = s.PanNo;
-                txtGst.Text        = s.GstState;
-                txtAcHolder.Text   = s.BankAccountName;
-                txtAccountNo.Text  = s.AccountNo;
-                txtIfsc.Text       = s.IfscCode;
-                txtBankBranch.Text = s.BankBranch;
-                txtParkingYard.Text = s.ParkingYard;
-                txtPaymentName.Text = s.PaymentName;
-                txtFooter.Text     = s.FooterLine;
+                txtAgencyName.Text = Up(s.VendorCode);
+                txtPan.Text        = Up(s.PanNo);
+                txtGst.Text        = Up(s.GstState);
+                txtAcHolder.Text   = Up(s.BankAccountName);
+                txtAccountNo.Text  = Up(s.AccountNo);
+                txtIfsc.Text       = Up(s.IfscCode);
+                txtBankBranch.Text = Up(s.BankBranch);
+                txtParkingYard.Text = Up(s.ParkingYard);
+                txtPaymentName.Text = Up(s.PaymentName);
+                txtFooter.Text     = Up(s.FooterLine);
                 txtInvoiceNo.Text  = s.NextInvoiceNo.ToString();
                 _letterheadUrl = s.LetterheadUrl;
                 _backgroundUrl = s.BackgroundUrl;
@@ -170,6 +180,48 @@ public partial class BillingPage : Page
             target.Source = bmp;
         }
         catch { }
+    }
+
+    private void RefreshCertStatus()
+    {
+        var saved = SigningCertificates.SavedThumbprint();
+        if (string.IsNullOrWhiteSpace(saved))
+        {
+            chkSign.IsChecked = false;
+            txtCertStatus.Text = "No certificate selected — bill will be a Word file only.";
+            return;
+        }
+        var cert = SigningCertificates.Find(saved);
+        if (cert == null)
+        {
+            chkSign.IsChecked = false;
+            txtCertStatus.Text = "Selected certificate not found — plug in the DSC token, then press Select Certificate.";
+            return;
+        }
+        chkSign.IsChecked = true;
+        var expired = cert.NotAfter < DateTime.Now;
+        txtCertStatus.Text = (expired ? "EXPIRED: " : "Signing as: ")
+            + SigningCertificates.DisplayName(cert)
+            + "  (valid till " + cert.NotAfter.ToString("dd MMM yyyy") + ")";
+    }
+
+    private void chkSign_Changed(object sender, RoutedEventArgs e)
+    {
+        if (chkSign.IsChecked == true && SigningCertificates.Saved() == null)
+        {
+            chkSign.IsChecked = false;
+            btnSignCert_Click(sender, e);
+        }
+    }
+
+    private void btnSignCert_Click(object sender, RoutedEventArgs e)
+    {
+        var w = new CertPickerWindow { Owner = Window.GetWindow(this) };
+        if (w.ShowDialog() != true) return;
+        SigningCertificates.SaveThumbprint(w.Cleared ? null : w.SelectedThumbprint);
+        RefreshCertStatus();
+        txtGenStatus.Foreground = System.Windows.Media.Brushes.Green;
+        txtGenStatus.Text = w.Cleared ? "Signing turned off." : "Signing certificate selected.";
     }
 
     private async void btnLetterhead_Click(object sender, RoutedEventArgs e) => await UploadImage("letterhead", imgLetterhead);
@@ -247,21 +299,21 @@ public partial class BillingPage : Page
             }
         }
 
-        txtAgriLoan.Text  = s.LoanNo;
-        txtCustomer.Text  = s.CustomerName;
-        txtMakeModel.Text = s.Model;
-        txtRcNo.Text      = s.VehicleNo;
-        txtBranch.Text    = s.BranchName;
-        txtConfirmationBy.Text = s.ConfirmationByName;
-        txtConfirmationByMobile.Text = s.ConfirmationByMobile;
-        txtAgentName.Text = s.AgentName;
-        txtParkingYardMobile.Text = s.ParkingYardMobile;
-        txtLoadDetails.Text = s.LoadDetails;
-        txtExecutiveName.Text = s.ExecutiveName;
-        txtCollectionUpdate.Text = s.CollectionUpdate;
-        txtRemark.Text = s.Remark;
-        if (!string.IsNullOrWhiteSpace(s.ParkingYardName)) txtParkingYard.Text = s.ParkingYardName;
-        if (!string.IsNullOrWhiteSpace(s.AddlChargesNotes)) txtAddlCharges.Text = s.AddlChargesNotes;
+        txtAgriLoan.Text  = Up(s.LoanNo);
+        txtCustomer.Text  = Up(s.CustomerName);
+        txtMakeModel.Text = Up(s.Model);
+        txtRcNo.Text      = Up(s.VehicleNo);
+        txtBranch.Text    = Up(s.BranchName);
+        txtConfirmationBy.Text = Up(s.ConfirmationByName);
+        txtConfirmationByMobile.Text = Up(s.ConfirmationByMobile);
+        txtAgentName.Text = Up(s.AgentName);
+        txtParkingYardMobile.Text = Up(s.ParkingYardMobile);
+        txtLoadDetails.Text = Up(s.LoadDetails);
+        txtExecutiveName.Text = Up(s.ExecutiveName);
+        txtCollectionUpdate.Text = Up(s.CollectionUpdate);
+        txtRemark.Text = Up(s.Remark);
+        if (!string.IsNullOrWhiteSpace(s.ParkingYardName)) txtParkingYard.Text = Up(s.ParkingYardName);
+        if (!string.IsNullOrWhiteSpace(s.AddlChargesNotes)) txtAddlCharges.Text = Up(s.AddlChargesNotes);
         if (s.AddlChargesAmount is decimal amt && amt > 0) txtAddlAmount.Text = amt.ToString("0.##");
         txtGenStatus.Foreground = System.Windows.Media.Brushes.Green;
         txtGenStatus.Text = $"Loaded submission for {s.VehicleNo}. Review and generate.";
@@ -310,11 +362,11 @@ public partial class BillingPage : Page
         {
             try { rec = await _search.GetRecordByIdAsync(id) ?? sel; } catch { }
         }
-        txtAgriLoan.Text  = rec.AgreementNo;
-        txtCustomer.Text  = rec.CustomerName;
-        txtMakeModel.Text = rec.Model;
-        txtRcNo.Text      = rec.VehicleNo;
-        txtBranch.Text    = string.IsNullOrWhiteSpace(rec.BranchFromExcel) ? rec.BranchName : rec.BranchFromExcel;
+        txtAgriLoan.Text  = Up(rec.AgreementNo);
+        txtCustomer.Text  = Up(rec.CustomerName);
+        txtMakeModel.Text = Up(rec.Model);
+        txtRcNo.Text      = Up(rec.VehicleNo);
+        txtBranch.Text    = Up(string.IsNullOrWhiteSpace(rec.BranchFromExcel) ? rec.BranchName : rec.BranchFromExcel);
     }
 
     private async void btnGenerate_Click(object sender, RoutedEventArgs e)
@@ -355,9 +407,13 @@ public partial class BillingPage : Page
         {
             var lh = await DownloadBytes(_letterheadUrl);
             var bg = await DownloadBytes(_backgroundUrl);
-            BuildDocx(dlg.FileName, lh, bg);
-            txtGenStatus.Text = "Bill generated.";
-            Process.Start(new ProcessStartInfo(dlg.FileName) { UseShellExecute = true });
+            var (pdfPath, signErr) = BuildDocx(dlg.FileName, lh, bg);
+            txtGenStatus.Foreground = System.Windows.Media.Brushes.Green;
+            txtGenStatus.Text = pdfPath != null ? "Bill generated + digitally signed." : "Bill generated.";
+            Process.Start(new ProcessStartInfo(pdfPath ?? dlg.FileName) { UseShellExecute = true });
+            if (signErr != null)
+                MessageBox.Show("The Word bill was created, but the signed PDF could not be made:\n\n" + signErr,
+                    "Billing", MessageBoxButton.OK, MessageBoxImage.Warning);
             if (_currentSubmissionId > 0 && _session != null)
             {
                 try { await DesktopApiClient.MarkSubmissionBilledAsync(_currentSubmissionId, _session.MemberId); } catch { }
@@ -386,7 +442,7 @@ public partial class BillingPage : Page
 
     private const string FontName = "Times New Roman";
 
-    private void BuildDocx(string filePath, byte[]? letterhead, byte[]? background)
+    private (string? PdfPath, string? Error) BuildDocx(string filePath, byte[]? letterhead, byte[]? background)
     {
         using var doc = new WordDocument();
         var sec = doc.AddSection();
@@ -405,11 +461,7 @@ public partial class BillingPage : Page
         }
         else
         {
-            var p = sec.AddParagraph();
-            p.ParagraphFormat.HorizontalAlignment = DocAlign.Center;
-            var r = p.AppendText(txtAgencyName.Text.Trim());
-            r.CharacterFormat.FontName = FontName; r.CharacterFormat.FontSize = 18; r.CharacterFormat.Bold = true;
-            lhBottom = marginTop + 30f;
+            lhBottom = marginTop;
         }
 
         if (background != null)
@@ -486,14 +538,77 @@ public partial class BillingPage : Page
         CellText(t, ri, 0, $"KINDIY RELEASE THE PAYMENT IN THE NAME OF M/S {pay}");
         t.ApplyHorizontalMerge(ri, 0, 2); ri++;
 
-        var tyLines = new List<string> { "", "", "", "", "Thank You", txtAgencyName.Text.Trim() };
-        if (!string.IsNullOrWhiteSpace(agencyAddr)) tyLines.Add(agencyAddr.Trim());
+        var tyLines = new List<string> { "", "", "", "", "Thank You", Up(txtAgencyRealName.Text.Trim()) };
+        if (!string.IsNullOrWhiteSpace(agencyAddr)) tyLines.Add(Up(agencyAddr.Trim()));
         if (!string.IsNullOrWhiteSpace(txtFooter.Text)) tyLines.Add(txtFooter.Text.Trim());
         CellLines(t, ri, 0, tyLines.ToArray(), align: DocAlign.Right);
         t.ApplyHorizontalMerge(ri, 0, 2);
 
-        using var fs = new FileStream(filePath, FileMode.Create, FileAccess.Write);
-        doc.Save(fs, FormatType.Docx);
+        using (var fs = new FileStream(filePath, FileMode.Create, FileAccess.Write))
+            doc.Save(fs, FormatType.Docx);
+
+        if (chkSign.IsChecked != true) return (null, null);
+
+        var cert = SigningCertificates.Saved();
+        if (cert == null) return (null, "No signing certificate is selected — plug in the DSC token and press Select Certificate.");
+
+        var pdfPath = Path.ChangeExtension(filePath, ".pdf");
+        var signer = Up(txtAgencyRealName.Text.Trim());
+
+        try
+        {
+            RenderSignedPdf(doc, pdfPath, cert, signer, useToken: true);
+            return (pdfPath, null);
+        }
+        catch (Exception token)
+        {
+            try
+            {
+                RenderSignedPdf(doc, pdfPath, cert, signer, useToken: false);
+                return (pdfPath, null);
+            }
+            catch (Exception direct)
+            {
+                return (null, $"{token.Message}\n\n(fallback also failed: {direct.Message})");
+            }
+        }
+    }
+
+    private static void RenderSignedPdf(WordDocument doc, string pdfPath, X509Certificate2 cert, string fallbackName, bool useToken)
+    {
+        using var render = new DocIORenderer();
+        using var pdf = render.ConvertToPDF(doc);
+
+        var page = pdf.Pages[pdf.Pages.Count - 1];
+        var size = page.GetClientSize();
+        float w = 235f, h = 58f;
+        var bounds = new SFRectF(size.Width - w - 20f, size.Height - h - 20f, w, h);
+
+        var signature = useToken
+            ? new PdfSignature(pdf, page, null, "BillSignature") { Bounds = bounds }
+            : new PdfSignature(pdf, page, new PdfCertificate(cert), "BillSignature") { Bounds = bounds };
+
+        signature.Settings.CryptographicStandard = CryptographicStandard.CADES;
+        signature.Settings.DigestAlgorithm = DigestAlgorithm.SHA256;
+        signature.Reason = "Repossession bill";
+
+        var name = SigningCertificates.DisplayName(cert);
+        if (string.IsNullOrWhiteSpace(name)) name = fallbackName;
+        if (string.IsNullOrWhiteSpace(name)) name = "Authorised Signatory";
+
+        var g = signature.Appearance.Normal.Graphics;
+        var big = new PdfStandardFont(PdfFontFamily.TimesRoman, 11f, PdfFontStyle.Bold);
+        var small = new PdfStandardFont(PdfFontFamily.TimesRoman, 6.5f);
+        g.DrawString(name, big, PdfBrushes.Black, new SFRectF(0, 0, w * 0.42f, h));
+        var now = DateTimeOffset.Now;
+        var info = $"Digitally signed by {name}\nDate: {now:yyyy.MM.dd HH:mm:ss} {now:zzz}";
+        g.DrawString(info, small, PdfBrushes.Black, new SFRectF(w * 0.42f + 4f, 4f, w * 0.58f - 4f, h - 8f));
+
+        if (useToken)
+            signature.AddExternalSigner(new TokenSigner(cert), SigningCertificates.ChainFor(cert), null);
+
+        using var fs = new FileStream(pdfPath, FileMode.Create, FileAccess.ReadWrite);
+        pdf.Save(fs);
     }
 
     private static void CellText(IWTable t, int row, int col, string text, bool bold = true, DocAlign align = DocAlign.Left)
