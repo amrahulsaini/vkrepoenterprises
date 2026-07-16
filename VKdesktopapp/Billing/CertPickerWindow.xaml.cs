@@ -33,15 +33,16 @@ public partial class CertPickerWindow : Window
             Name   = SigningCertificates.DisplayName(c),
             Issuer = SigningCertificates.IssuerName(c),
             Expiry = c.NotAfter.ToString("dd MMM yyyy"),
-            Status = c.NotAfter < DateTime.Now ? "EXPIRED" : "Valid",
+            Status = !SigningCertificates.CanSign(c) ? "No private key"
+                   : c.NotAfter < DateTime.Now ? "EXPIRED" : "Ready to sign",
             Cert   = c
         }).ToList();
 
         lst.ItemsSource = rows;
-        if (rows.Count == 0)
-            txtHint.Text = "No certificates found. Plug in the DSC token, install its driver, then press Refresh.";
-        else
-            txtHint.Text = $"{rows.Count} certificate(s) found.";
+        var usable = rows.Count(r => r.Status == "Ready to sign");
+        txtHint.Text = rows.Count == 0
+            ? "Nothing found. Plug in the DSC token, install its driver, then press Refresh."
+            : $"{rows.Count} certificate(s); {usable} ready to sign. Not seeing the token? Don't run CRMRS as administrator.";
 
         if (!string.IsNullOrWhiteSpace(saved))
         {
