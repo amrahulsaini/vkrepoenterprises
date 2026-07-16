@@ -440,7 +440,7 @@ public partial class BillingPage : Page
         try { return await App.HttpClient.GetByteArrayAsync(url); } catch { return null; }
     }
 
-    private const string FontName = "Times New Roman";
+    private const string FontName = "Roboto";
 
     private (string? PdfPath, string? Error) BuildDocx(string filePath, byte[]? letterhead, byte[]? background)
     {
@@ -574,6 +574,26 @@ public partial class BillingPage : Page
         }
     }
 
+    private static PdfFont BillPdfFont(float size, bool bold)
+    {
+        var file = bold ? "Roboto-Bold.ttf" : "Roboto-Regular.ttf";
+        foreach (var dir in new[]
+        {
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "Fonts"),
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Microsoft", "Windows", "Fonts")
+        })
+        {
+            try
+            {
+                var path = Path.Combine(dir, file);
+                if (File.Exists(path))
+                    return new PdfTrueTypeFont(new FileStream(path, FileMode.Open, FileAccess.Read), size);
+            }
+            catch { }
+        }
+        return new PdfStandardFont(PdfFontFamily.Helvetica, size, bold ? PdfFontStyle.Bold : PdfFontStyle.Regular);
+    }
+
     private static void RenderSignedPdf(WordDocument doc, string pdfPath, X509Certificate2 cert, string fallbackName, bool useToken)
     {
         using var render = new DocIORenderer();
@@ -597,12 +617,14 @@ public partial class BillingPage : Page
         if (string.IsNullOrWhiteSpace(name)) name = "Authorised Signatory";
 
         var g = signature.Appearance.Normal.Graphics;
-        var big = new PdfStandardFont(PdfFontFamily.TimesRoman, 11f, PdfFontStyle.Bold);
-        var small = new PdfStandardFont(PdfFontFamily.TimesRoman, 6.5f);
-        g.DrawString(name, big, PdfBrushes.Black, new SFRectF(0, 0, w * 0.42f, h));
+        g.DrawString(name, BillPdfFont(13f, true), PdfBrushes.Black,
+            new SFRectF(0, 2f, w * 0.40f, h - 4f));
         var now = DateTimeOffset.Now;
-        var info = $"Digitally signed by {name}\nDate: {now:yyyy.MM.dd HH:mm:ss} {now:zzz}";
-        g.DrawString(info, small, PdfBrushes.Black, new SFRectF(w * 0.42f + 4f, 4f, w * 0.58f - 4f, h - 8f));
+        var off = now.Offset;
+        var tz = (off < TimeSpan.Zero ? "-" : "+") + $"{Math.Abs(off.Hours):00}'{Math.Abs(off.Minutes):00}'";
+        var info = $"Digitally signed by {name}\nDate: {now:yyyy.MM.dd HH:mm:ss} {tz}";
+        g.DrawString(info, BillPdfFont(7f, false), PdfBrushes.Black,
+            new SFRectF(w * 0.40f + 4f, 2f, w * 0.60f - 6f, h - 4f));
 
         if (useToken)
             signature.AddExternalSigner(new TokenSigner(cert), SigningCertificates.ChainFor(cert), null);
