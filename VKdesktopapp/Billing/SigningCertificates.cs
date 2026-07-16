@@ -23,7 +23,6 @@ internal static class SigningCertificates
                 store.Open(OpenFlags.ReadOnly | OpenFlags.OpenExistingOnly);
                 foreach (var c in store.Certificates)
                 {
-                    if (!c.HasPrivateKey) continue;
                     if (found.Any(x => string.Equals(x.Thumbprint, c.Thumbprint, StringComparison.OrdinalIgnoreCase))) continue;
                     found.Add(c);
                 }
@@ -31,9 +30,23 @@ internal static class SigningCertificates
             catch { }
         }
         return found
-            .OrderBy(c => c.NotAfter < DateTime.Now)
+            .OrderBy(c => !CanSign(c))
+            .ThenBy(c => c.NotAfter < DateTime.Now)
             .ThenBy(c => DisplayName(c), StringComparer.OrdinalIgnoreCase)
             .ToList();
+    }
+
+    public static bool CanSign(X509Certificate2 c)
+    {
+        try
+        {
+            if (c.HasPrivateKey) return true;
+            using var rsa = c.GetRSAPrivateKey();
+            if (rsa != null) return true;
+            using var ecdsa = c.GetECDsaPrivateKey();
+            return ecdsa != null;
+        }
+        catch { return false; }
     }
 
     public static string DisplayName(X509Certificate2 c)
