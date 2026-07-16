@@ -71,6 +71,14 @@ MinVersion=10.0.17763
 ; No separate .NET install needed.
 Source: "{#PublishDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
+; Roboto (Apache 2.0) — the bill is typeset in Roboto. Word and the DOCX->PDF
+; converter can only use it if it is a real installed system font, so it ships
+; with the app rather than being assumed present.
+Source: "VKdesktopapp\fonts\Roboto-Regular.ttf";    DestDir: "{fonts}"; FontInstall: "Roboto";             Flags: onlyifdoesntexist uninsneveruninstall
+Source: "VKdesktopapp\fonts\Roboto-Bold.ttf";       DestDir: "{fonts}"; FontInstall: "Roboto Bold";        Flags: onlyifdoesntexist uninsneveruninstall
+Source: "VKdesktopapp\fonts\Roboto-Italic.ttf";     DestDir: "{fonts}"; FontInstall: "Roboto Italic";      Flags: onlyifdoesntexist uninsneveruninstall
+Source: "VKdesktopapp\fonts\Roboto-BoldItalic.ttf"; DestDir: "{fonts}"; FontInstall: "Roboto Bold Italic"; Flags: onlyifdoesntexist uninsneveruninstall
+
 [Icons]
 ; IconFilename pins the per-agency logo (app-icon.ico — copied into the publish
 ; folder by tools/build_wpf_local.py from THIS agency's favicon.ico) onto every
