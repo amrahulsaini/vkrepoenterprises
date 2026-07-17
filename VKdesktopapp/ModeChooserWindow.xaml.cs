@@ -39,14 +39,8 @@ public partial class ModeChooserWindow : Window
         finally { Show(); }
     }
 
-    private async void btnBilling_Click(object sender, RoutedEventArgs e)
+    private void btnBilling_Click(object sender, RoutedEventArgs e)
     {
-        string configured;
-        try { configured = await DesktopApiClient.GetBillingDesktopPasswordAsync(); }
-        catch { configured = ""; }
-
-        if (!await PassesGate("Billing", configured)) return;
-
         Hide();
         try
         {
