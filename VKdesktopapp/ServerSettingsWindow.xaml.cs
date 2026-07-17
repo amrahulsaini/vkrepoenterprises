@@ -73,9 +73,6 @@ public partial class ServerSettingsWindow : Window
 
             try { pwdSuperAdminPass.Password = await DesktopApiClient.GetSuperAdminPasswordAsync(); }
             catch { }
-
-            try { pwdBillingDesktopPass.Password = await DesktopApiClient.GetBillingDesktopPasswordAsync(); }
-            catch { }
         };
     }
 
@@ -177,9 +174,6 @@ public partial class ServerSettingsWindow : Window
             catch { }
 
             try { await DesktopApiClient.SetSuperAdminPasswordAsync(pwdSuperAdminPass.Password.Trim()); }
-            catch { }
-
-            try { await DesktopApiClient.SetBillingDesktopPasswordAsync(pwdBillingDesktopPass.Password.Trim()); }
             catch { }
 
             MessageBox.Show(
