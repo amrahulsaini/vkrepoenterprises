@@ -12,7 +12,7 @@
                            HorizontalAlignment="Center" Margin="0,0,0,4" />
                 <TextBlock Text="Sign in with the credentials your admin gave you." FontSize="12"
                            Foreground="#888" HorizontalAlignment="Center" TextAlignment="Center" Margin="0,0,0,20" />
-                <TextBlock Text="Username" Foreground="#444" FontSize="13" FontWeight="Bold" Margin="0,0,0,3" />
+                <TextBlock Text="Email" Foreground="#444" FontSize="13" FontWeight="Bold" Margin="0,0,0,3" />
                 <TextBox Name="txtUsername" Height="36" Margin="0,0,0,12" VerticalContentAlignment="Center" FontWeight="Bold" FontSize="14" />
                 <TextBlock Text="Password" Foreground="#444" FontSize="13" FontWeight="Bold" Margin="0,0,0,3" />
                 <PasswordBox Name="txtPassword" Height="36" Margin="0,0,0,16" VerticalContentAlignment="Center" FontWeight="Bold" FontSize="14" />

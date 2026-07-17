@@ -207,8 +207,28 @@ public partial class MainWindow : Window
             case "Reports": LoadPage(_reportsPage); break;
             case "Blacklist": LoadPage(_blacklistPage); break;
             case "DirectData": LoadPage(_directDataPage); break;
-            case "Billing": LoadPage(new BillingGatePage()); break;
+            case "Billing": LoadPage(new Billing.BillingLoginPage()); break;
+            case "Allocations": _ = OpenAllocationsAsync(); break;
         }
+    }
+
+    private async Task OpenAllocationsAsync()
+    {
+        string stored;
+        try { stored = await DesktopApiClient.GetAllocationPasswordAsync(); }
+        catch { stored = ""; }
+
+        if (!string.IsNullOrEmpty(stored))
+        {
+            var prompt = new Billing.PasswordPromptWindow("Allocations") { Owner = this };
+            if (prompt.ShowDialog() != true) return;
+            if (!string.Equals(prompt.EnteredPassword, stored, StringComparison.Ordinal))
+            {
+                MessageBox.Show("Wrong password.", "Allocations", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+        }
+        LoadPage(new Billing.AllocationsPage());
     }
 
     private void OpenRecordsEditor()

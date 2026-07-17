@@ -16,7 +16,7 @@ public partial class BillingShellWindow : Window
         var name = App.SignedAppUser?.AgencyName;
         if (!string.IsNullOrWhiteSpace(name)) lblTitle.Text = name + " Billing";
         LoadAgencyLogo();
-        Loaded += (_, __) => PageContainer.Navigate(new BillingGatePage());
+        Loaded += (_, __) => PageContainer.Navigate(new BillingLoginPage());
     }
 
     private void LoadAgencyLogo()
