@@ -19,15 +19,18 @@ public partial class CertPickerWindow : Window
     public string? SelectedThumbprint { get; private set; }
     public bool Cleared { get; private set; }
 
-    public CertPickerWindow()
+    private readonly string _identity;
+
+    public CertPickerWindow(string identity)
     {
         InitializeComponent();
+        _identity = identity;
         Load();
     }
 
     private void Load()
     {
-        var saved = SigningCertificates.SavedThumbprint();
+        var saved = SigningCertificates.SavedThumbprint(_identity);
         var rows = SigningCertificates.List().Select(c => new Row
         {
             Name   = SigningCertificates.DisplayName(c),

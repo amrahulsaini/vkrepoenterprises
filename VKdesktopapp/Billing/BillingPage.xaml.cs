@@ -182,9 +182,12 @@ public partial class BillingPage : Page
         catch { }
     }
 
+    private string SigningIdentity =>
+        $"u{App.SignedAppUser?.AppUserId ?? 0}-m{_session?.MemberId ?? 0}";
+
     private void RefreshCertStatus()
     {
-        var saved = SigningCertificates.SavedThumbprint();
+        var saved = SigningCertificates.SavedThumbprint(SigningIdentity);
         if (string.IsNullOrWhiteSpace(saved))
         {
             chkSign.IsChecked = false;
@@ -207,7 +210,7 @@ public partial class BillingPage : Page
 
     private void chkSign_Changed(object sender, RoutedEventArgs e)
     {
-        if (chkSign.IsChecked == true && SigningCertificates.Saved() == null)
+        if (chkSign.IsChecked == true && SigningCertificates.Saved(SigningIdentity) == null)
         {
             chkSign.IsChecked = false;
             btnSignCert_Click(sender, e);
@@ -216,9 +219,9 @@ public partial class BillingPage : Page
 
     private void btnSignCert_Click(object sender, RoutedEventArgs e)
     {
-        var w = new CertPickerWindow { Owner = Window.GetWindow(this) };
+        var w = new CertPickerWindow(SigningIdentity) { Owner = Window.GetWindow(this) };
         if (w.ShowDialog() != true) return;
-        SigningCertificates.SaveThumbprint(w.Cleared ? null : w.SelectedThumbprint);
+        SigningCertificates.SaveThumbprint(SigningIdentity, w.Cleared ? null : w.SelectedThumbprint);
         RefreshCertStatus();
         txtGenStatus.Foreground = System.Windows.Media.Brushes.Green;
         txtGenStatus.Text = w.Cleared ? "Signing turned off." : "Signing certificate selected.";
@@ -549,7 +552,7 @@ public partial class BillingPage : Page
 
         if (chkSign.IsChecked != true) return (null, null);
 
-        var cert = SigningCertificates.Saved();
+        var cert = SigningCertificates.Saved(SigningIdentity);
         if (cert == null) return (null, "No signing certificate is selected — plug in the DSC token and press Select Certificate.");
 
         var pdfPath = Path.ChangeExtension(filePath, ".pdf");
@@ -574,8 +577,21 @@ public partial class BillingPage : Page
         }
     }
 
-    private static PdfFont BillPdfFont(float size, bool bold)
+    private static void DrawLines(PdfGraphics g, string[] lines, PdfFont font, float x, float y, float lineHeight)
     {
+        foreach (var line in lines)
+        {
+            g.DrawString(line, font, PdfBrushes.Black, x, y);
+            y += lineHeight;
+        }
+    }
+
+    private static byte[]? _robotoRegular, _robotoBold;
+
+    private static byte[]? RobotoBytes(bool bold)
+    {
+        if (bold && _robotoBold != null) return _robotoBold;
+        if (!bold && _robotoRegular != null) return _robotoRegular;
         var file = bold ? "Roboto-Bold.ttf" : "Roboto-Regular.ttf";
         foreach (var dir in new[]
         {
@@ -586,12 +602,47 @@ public partial class BillingPage : Page
             try
             {
                 var path = Path.Combine(dir, file);
-                if (File.Exists(path))
-                    return new PdfTrueTypeFont(new FileStream(path, FileMode.Open, FileAccess.Read), size);
+                if (!File.Exists(path)) continue;
+                var bytes = File.ReadAllBytes(path);
+                if (bold) _robotoBold = bytes; else _robotoRegular = bytes;
+                return bytes;
             }
             catch { }
         }
+        return null;
+    }
+
+    private static PdfFont BillPdfFont(float size, bool bold)
+    {
+        var bytes = RobotoBytes(bold);
+        if (bytes != null) return new PdfTrueTypeFont(new MemoryStream(bytes), size);
         return new PdfStandardFont(PdfFontFamily.Helvetica, size, bold ? PdfFontStyle.Bold : PdfFontStyle.Regular);
+    }
+
+    private static (PdfFont Font, float LineHeight) FitLines(string[] lines, bool bold, float maxSize, float minSize, float maxW, float maxH)
+    {
+        for (var s = maxSize; s >= minSize; s -= 0.5f)
+        {
+            var f = BillPdfFont(s, bold);
+            var lh = s * 1.18f;
+            if (lines.Max(l => f.MeasureString(l).Width) <= maxW && lines.Length * lh <= maxH)
+                return (f, lh);
+        }
+        return (BillPdfFont(minSize, bold), minSize * 1.18f);
+    }
+
+    private static string[] WrapToWidth(string text, PdfFont font, float maxW)
+    {
+        var lines = new List<string>();
+        var line = "";
+        foreach (var word in text.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var probe = line.Length == 0 ? word : line + " " + word;
+            if (line.Length > 0 && font.MeasureString(probe).Width > maxW) { lines.Add(line); line = word; }
+            else line = probe;
+        }
+        if (line.Length > 0) lines.Add(line);
+        return lines.Count == 0 ? new[] { "" } : lines.ToArray();
     }
 
     private static void RenderSignedPdf(WordDocument doc, string pdfPath, X509Certificate2 cert, string fallbackName, bool useToken)
@@ -601,7 +652,7 @@ public partial class BillingPage : Page
 
         var page = pdf.Pages[pdf.Pages.Count - 1];
         var size = page.GetClientSize();
-        float w = 235f, h = 58f;
+        float w = 132f, h = 58f;
         var bounds = new SFRectF(size.Width - w - 20f, size.Height - h - 20f, w, h);
 
         var signature = useToken
@@ -617,14 +668,32 @@ public partial class BillingPage : Page
         if (string.IsNullOrWhiteSpace(name)) name = "Authorised Signatory";
 
         var g = signature.Appearance.Normal.Graphics;
-        g.DrawString(name, BillPdfFont(13f, true), PdfBrushes.Black,
-            new SFRectF(0, 2f, w * 0.40f, h - 4f));
         var now = DateTimeOffset.Now;
         var off = now.Offset;
         var tz = (off < TimeSpan.Zero ? "-" : "+") + $"{Math.Abs(off.Hours):00}'{Math.Abs(off.Minutes):00}'";
-        var info = $"Digitally signed by {name}\nDate: {now:yyyy.MM.dd HH:mm:ss} {tz}";
-        g.DrawString(info, BillPdfFont(7f, false), PdfBrushes.Black,
-            new SFRectF(w * 0.40f + 4f, 2f, w * 0.60f - 6f, h - 4f));
+        var words = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+
+        const float leftX = 2f, rightX = 62f;
+        float leftW = rightX - leftX - 2f;
+        float rightW = w - rightX - 2f;
+        float innerH = h - 4f;
+
+        var leftLines = words.Length > 0 ? words : new[] { name };
+
+        var right = new List<string> { "Digitally signed" };
+        if (words.Length > 0) right.Add("by " + words[0]);
+        if (words.Length > 1)
+            right.AddRange(WrapToWidth(string.Join(" ", words.Skip(1)), BillPdfFont(6.5f, false), rightW));
+        right.Add("Date:");
+        right.Add(now.ToString("yyyy.MM.dd"));
+        right.Add($"{now:HH:mm:ss} {tz}");
+        var rightLines = right.ToArray();
+
+        var (nameFont, nameLineH) = FitLines(leftLines, true, 13f, 5f, leftW, innerH);
+        var (infoFont, infoLineH) = FitLines(rightLines, false, 6.5f, 4.5f, rightW, innerH);
+
+        DrawLines(g, leftLines, nameFont, leftX, 2f, nameLineH);
+        DrawLines(g, rightLines, infoFont, rightX, 2f, infoLineH);
 
         if (useToken)
             signature.AddExternalSigner(new TokenSigner(cert), SigningCertificates.ChainFor(cert), null);
