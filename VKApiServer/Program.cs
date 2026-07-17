@@ -2046,7 +2046,8 @@ app.MapGet("/api/mgr/billing/submissions", async (HttpContext ctx, string? from,
                    confirmation_by_name, confirmation_by_mobile, executive_name,
                    collection_update, remark,
                    billing_action, hold_until, hold_days, bill_status, billed_at,
-                   submitted_by_name, created_at
+                   submitted_by_name, created_at,
+                   repo_charges, advance, courier_yn, banker_address, pod_number
               FROM repo_submissions {whereSql}
              ORDER BY created_at DESC LIMIT 2000", conn) { CommandTimeout = 30 };
         if (DateTime.TryParse(from, out var f2)) cmd.Parameters.AddWithValue("@from", f2.Date);
@@ -2077,10 +2078,80 @@ app.MapGet("/api/mgr/billing/submissions", async (HttpContext ctx, string? from,
                 billStatus = S(25) ?? "pending",
                 billedAt = rdr.IsDBNull(26) ? (string?)null : rdr.GetDateTime(26).ToString("yyyy-MM-dd HH:mm"),
                 submittedByName = S(27) ?? "",
-                createdAt = rdr.GetDateTime(28).ToString("yyyy-MM-dd HH:mm")
+                createdAt = rdr.GetDateTime(28).ToString("yyyy-MM-dd HH:mm"),
+                repoCharges = rdr.IsDBNull(29) ? (decimal?)null : rdr.GetDecimal(29),
+                advance = rdr.IsDBNull(30) ? (decimal?)null : rdr.GetDecimal(30),
+                courierYn = S(31) ?? "",
+                bankerAddress = S(32) ?? "",
+                podNumber = S(33) ?? ""
             });
         }
         return Results.Ok(list);
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+app.MapPost("/api/mgr/couriers/submissions/{id:long}/update", async (HttpContext ctx, long id, MgrCourierUpdateDto dto) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        await using var conn = new MySqlConnection(TenantContext.Conn);
+        await conn.OpenAsync();
+
+        var sets = new List<string>
+        {
+            "repo_charges=@rc", "advance=@adv", "courier_yn=@cy",
+            "banker_address=@ba", "pod_number=@pod", "courier_updated_at=NOW()"
+        };
+        var ps = new List<(string, object)>
+        {
+            ("@rc", (object?)dto.RepoCharges ?? DBNull.Value),
+            ("@adv", (object?)dto.Advance ?? DBNull.Value),
+            ("@cy", (object?)dto.CourierYn ?? DBNull.Value),
+            ("@ba", (object?)dto.BankerAddress ?? DBNull.Value),
+            ("@pod", (object?)dto.PodNumber ?? DBNull.Value),
+            ("@id", id)
+        };
+        if (dto.BillingAction is "immediate" or "hold" or "cancel")
+        {
+            sets.Add("billing_action=@ba2");
+            ps.Add(("@ba2", dto.BillingAction));
+        }
+
+        await MgrExec($"UPDATE repo_submissions SET {string.Join(", ", sets)} WHERE id=@id",
+            conn, 20, ps.ToArray());
+        return Results.Ok(new { success = true });
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+app.MapGet("/api/mgr/settings/courier-password", async (HttpContext ctx) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        await using var conn = new MySqlConnection(TenantContext.Conn);
+        await conn.OpenAsync();
+        await using var cmd = new MySqlCommand(
+            "SELECT `value` FROM app_settings WHERE `key`='courier_desktop_password' LIMIT 1", conn);
+        var val = await cmd.ExecuteScalarAsync();
+        return Results.Ok(new { password = val?.ToString() ?? "" });
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+app.MapPut("/api/mgr/settings/courier-password", async (HttpContext ctx, MgrSetSubsPasswordDto dto) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        await using var conn = new MySqlConnection(TenantContext.Conn);
+        await conn.OpenAsync();
+        await MgrExec(
+            "INSERT INTO app_settings (`key`, `value`) VALUES ('courier_desktop_password', @v) ON DUPLICATE KEY UPDATE `value`=@v",
+            conn, 10, ("@v", dto.Password));
+        return Results.Ok();
     }
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
@@ -3868,6 +3939,9 @@ record MgrBillingMemberDto(
 record MgrMemberLoginDto(string Username, string Password);
 record MgrSetMemberFinancesDto(List<int> FinanceIds);
 record MgrMarkBilledDto(long MemberId);
+
+record MgrCourierUpdateDto(decimal? RepoCharges, decimal? Advance, string? CourierYn,
+    string? BankerAddress, string? PodNumber, string? BillingAction);
 record MgrSetFinanceRestrictionsDto(List<int> FinanceIds);
 record MgrSetSubsPasswordDto(string Password);
 record MgrSetAdminPassDto(string Password);

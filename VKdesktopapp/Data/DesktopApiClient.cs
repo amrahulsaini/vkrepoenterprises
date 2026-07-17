@@ -131,7 +131,9 @@ internal static class DesktopApiClient
         string ConfirmationByName, string ConfirmationByMobile, string ExecutiveName,
         string CollectionUpdate, string Remark,
         string BillingAction, string? HoldUntil, int? HoldDays, string BillStatus, string? BilledAt,
-        string SubmittedByName, string CreatedAt);
+        string SubmittedByName, string CreatedAt,
+        decimal? RepoCharges = null, decimal? Advance = null, string CourierYn = "",
+        string BankerAddress = "", string PodNumber = "");
 
     internal static async Task<List<BillingMemberDto>> GetBillingMembersAsync()
     {
@@ -505,6 +507,26 @@ internal static class DesktopApiClient
     internal static async Task SetAllocationPasswordAsync(string password)
     {
         var resp = await Send(HttpMethod.Put, "api/mgr/settings/allocation-password", new { Password = password });
+        resp.EnsureSuccessStatusCode();
+    }
+
+    internal static async Task UpdateCourierSubmissionAsync(long id, object dto)
+    {
+        var resp = await Send(HttpMethod.Post, $"api/mgr/couriers/submissions/{id}/update", dto);
+        resp.EnsureSuccessStatusCode();
+    }
+
+    internal static async Task<string> GetCourierPasswordAsync()
+    {
+        var resp = await Send(HttpMethod.Get, "api/mgr/settings/courier-password");
+        resp.EnsureSuccessStatusCode();
+        var r = await resp.Content.ReadFromJsonAsync<SubsPasswordDto>(_json);
+        return r?.Password ?? "";
+    }
+
+    internal static async Task SetCourierPasswordAsync(string password)
+    {
+        var resp = await Send(HttpMethod.Put, "api/mgr/settings/courier-password", new { Password = password });
         resp.EnsureSuccessStatusCode();
     }
 
