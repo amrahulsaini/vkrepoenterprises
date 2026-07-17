@@ -43,7 +43,28 @@
                 <CheckBox DockPanel.Dock="Top" Name="chkSign" Content="Also make a signed PDF" Margin="0,0,0,6"
                           VerticalContentAlignment="Center" Checked="chkSign_Changed" Unchecked="chkSign_Changed" />
                 <Button DockPanel.Dock="Top" Name="btnSignCert" Content="Select Certificate" Height="28" Margin="0,0,0,4" Click="btnSignCert_Click" />
-                <TextBlock DockPanel.Dock="Top" Name="txtCertStatus" FontSize="11" Foreground="#888" TextWrapping="Wrap" Margin="0,0,0,12" />
+                <TextBlock DockPanel.Dock="Top" Name="txtCertStatus" FontSize="11" Foreground="#888" TextWrapping="Wrap" Margin="0,0,0,6" />
+
+                <TextBlock DockPanel.Dock="Top" Name="txtSigPosHint" Text="Signature box in points, from the bottom-left of the page"
+                           FontSize="11" Foreground="#666" TextWrapping="Wrap" Margin="0,0,0,3" />
+                <Grid DockPanel.Dock="Top" Margin="0,0,0,4">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition /><ColumnDefinition /><ColumnDefinition /><ColumnDefinition />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" Margin="0,0,4,0">
+                        <TextBlock Text="X (from left)" FontSize="10" Foreground="#888" /><TextBox Name="txtSigX" Height="26" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Margin="0,0,4,0">
+                        <TextBlock Text="Y (from bottom)" FontSize="10" Foreground="#888" /><TextBox Name="txtSigY" Height="26" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="2" Margin="0,0,4,0">
+                        <TextBlock Text="Width" FontSize="10" Foreground="#888" /><TextBox Name="txtSigW" Height="26" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="3">
+                        <TextBlock Text="Height" FontSize="10" Foreground="#888" /><TextBox Name="txtSigH" Height="26" />
+                    </StackPanel>
+                </Grid>
+                <Button DockPanel.Dock="Top" Name="btnSigReset" Content="Reset to bottom-right" Height="24" FontSize="11" Margin="0,0,0,12" Click="btnSigReset_Click" />
 
                 <TextBlock DockPanel.Dock="Top" Text="Find Vehicle (in this finance)" FontSize="12" Foreground="#666" Margin="0,0,0,4" />
                 <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,6">

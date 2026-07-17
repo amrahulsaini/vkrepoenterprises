@@ -122,4 +122,40 @@ internal static class SigningCertificates
     }
 
     public static X509Certificate2? Saved(string identity) => Find(SavedThumbprint(identity));
+
+    private static string LayoutPath => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+        "CRMRS", "signing-layout.txt");
+
+    public const float DefaultX = 443f, DefaultY = 20f, DefaultW = 132f, DefaultH = 58f;
+
+    public static (float X, float Y, float W, float H) LoadLayout()
+    {
+        var v = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase);
+        try
+        {
+            if (File.Exists(LayoutPath))
+                foreach (var line in File.ReadAllLines(LayoutPath))
+                {
+                    var i = line.IndexOf('=');
+                    if (i > 0 && float.TryParse(line.Substring(i + 1).Trim(), out var f))
+                        v[line.Substring(0, i).Trim()] = f;
+                }
+        }
+        catch { }
+        return (v.TryGetValue("x", out var x) ? x : DefaultX,
+                v.TryGetValue("y", out var y) ? y : DefaultY,
+                v.TryGetValue("w", out var w) ? w : DefaultW,
+                v.TryGetValue("h", out var h) ? h : DefaultH);
+    }
+
+    public static void SaveLayout(float x, float y, float w, float h)
+    {
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(LayoutPath)!);
+            File.WriteAllLines(LayoutPath, new[] { $"x={x}", $"y={y}", $"w={w}", $"h={h}" });
+        }
+        catch { }
+    }
 }
