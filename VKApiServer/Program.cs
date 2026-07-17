@@ -1990,12 +1990,12 @@ app.MapPost("/api/mgr/billing/member-login", async (HttpContext ctx, MgrMemberLo
         await conn.OpenAsync();
         long   mid = 0; string name = ""; bool active = false; string pass = "";
         await using (var cmd = new MySqlCommand(
-            "SELECT id, name, password, is_active FROM billing_members WHERE username=@u LIMIT 1", conn))
+            "SELECT id, name, password, is_active FROM billing_members WHERE username=@u OR email=@u LIMIT 1", conn))
         {
             cmd.Parameters.AddWithValue("@u", dto.Username.Trim());
             await using var rdr = await cmd.ExecuteReaderAsync();
             if (!await rdr.ReadAsync())
-                return Results.BadRequest(new { message = "Invalid username or password." });
+                return Results.BadRequest(new { message = "Invalid email or password." });
             mid = rdr.GetInt64(0); name = rdr.GetString(1);
             pass = rdr.IsDBNull(2) ? "" : rdr.GetString(2);
             active = rdr.GetBoolean(3);

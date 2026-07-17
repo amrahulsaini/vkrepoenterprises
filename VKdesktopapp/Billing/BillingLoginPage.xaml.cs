@@ -19,7 +19,7 @@ public partial class BillingLoginPage : Page
         var password = txtPassword.Password;
         if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
         {
-            txtStatus.Text = "Enter your username and password."; return;
+            txtStatus.Text = "Enter your email and password."; return;
         }
         try
         {
