@@ -17,6 +17,8 @@ public partial class App : Application
 
     public static SignedAppUser? SignedAppUser { get; set; }
 
+    public static string LoginPassword { get; set; } = "";
+
     public static Firm Firm => new Firm
     {
         FirmName = Settings.Default.FirmName,

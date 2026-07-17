@@ -193,28 +193,22 @@ public partial class LoginWindow : Window
         }
 
         App.SignedAppUser = signed;
+        App.LoginPassword = txtPassword.Password;
         App.SetAuthToken(signed.Token);
 
         _ = CacheAgencyBrandingAsync(signed.AgencyName, signed.LogoPath);
 
-        MainWindow window;
-        try
-        {
-            window = new MainWindow();
-        }
-        catch (Exception)
-        {
-            throw;
-        }
+        var chooser = new ModeChooserWindow();
 
         lblStatus.Text = "";
         Hide();
         try
         {
-            window.ShowDialog();
+            chooser.ShowDialog();
         }
         finally
         {
+            txtPassword.Clear();
             Show();
         }
     }

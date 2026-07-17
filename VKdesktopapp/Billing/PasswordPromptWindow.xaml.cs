@@ -12,6 +12,13 @@ public partial class PasswordPromptWindow : Window
         Loaded += (_, __) => pwd.Focus();
     }
 
+    public PasswordPromptWindow(string title) : this()
+    {
+        Title = title;
+        lblTitle.Text = "Enter " + title + " Password";
+        lblHint.Text = "This is protected. Enter the password to continue.";
+    }
+
     private void btnOk_Click(object sender, RoutedEventArgs e)
     {
         EnteredPassword = pwd.Password;
