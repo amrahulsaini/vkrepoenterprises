@@ -10,7 +10,23 @@ internal static class SigningCertificates
 {
     private static string ConfigPath => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-        "CRMRS", "signing-cert.txt");
+        "CRMRS", "signing-certs.txt");
+
+    private static Dictionary<string, string> ReadMap()
+    {
+        var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        try
+        {
+            if (!File.Exists(ConfigPath)) return map;
+            foreach (var line in File.ReadAllLines(ConfigPath))
+            {
+                var i = line.IndexOf('=');
+                if (i > 0) map[line.Substring(0, i).Trim()] = line.Substring(i + 1).Trim();
+            }
+        }
+        catch { }
+        return map;
+    }
 
     public static List<X509Certificate2> List()
     {
@@ -61,22 +77,22 @@ internal static class SigningCertificates
         return string.IsNullOrWhiteSpace(n) ? c.Issuer : n;
     }
 
-    public static string? SavedThumbprint()
+    public static string? SavedThumbprint(string identity)
     {
-        try { return File.Exists(ConfigPath) ? File.ReadAllText(ConfigPath).Trim() : null; }
-        catch { return null; }
+        if (string.IsNullOrWhiteSpace(identity)) return null;
+        return ReadMap().TryGetValue(identity, out var tp) && !string.IsNullOrWhiteSpace(tp) ? tp : null;
     }
 
-    public static void SaveThumbprint(string? thumbprint)
+    public static void SaveThumbprint(string identity, string? thumbprint)
     {
+        if (string.IsNullOrWhiteSpace(identity)) return;
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(ConfigPath)!);
-            if (string.IsNullOrWhiteSpace(thumbprint))
-            {
-                if (File.Exists(ConfigPath)) File.Delete(ConfigPath);
-            }
-            else File.WriteAllText(ConfigPath, thumbprint);
+            var map = ReadMap();
+            if (string.IsNullOrWhiteSpace(thumbprint)) map.Remove(identity);
+            else map[identity] = thumbprint;
+            File.WriteAllLines(ConfigPath, map.Select(kv => kv.Key + "=" + kv.Value));
         }
         catch { }
     }
@@ -105,5 +121,5 @@ internal static class SigningCertificates
             string.Equals(c.Thumbprint, thumbprint, StringComparison.OrdinalIgnoreCase));
     }
 
-    public static X509Certificate2? Saved() => Find(SavedThumbprint());
+    public static X509Certificate2? Saved(string identity) => Find(SavedThumbprint(identity));
 }
