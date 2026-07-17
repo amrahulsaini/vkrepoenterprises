@@ -1,0 +1,29 @@
+<Window x:Class="CRMRSDesktopApp.CourierShellWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Couriers" Height="760" Width="1200"
+        WindowStartupLocation="CenterScreen" WindowState="Maximized" Background="#F5F5F5">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0" Background="{StaticResource Accent}">
+            <DockPanel Margin="16,10">
+                <Button DockPanel.Dock="Right" Name="btnClose" Content="&#x2715;" Width="34" Height="30"
+                        Background="Transparent" Foreground="White" BorderThickness="0" FontSize="14"
+                        Cursor="Hand" Click="btnClose_Click" />
+                <Button DockPanel.Dock="Right" Name="btnLogout" Content="Log out" Height="30" Padding="12,0"
+                        Margin="0,0,10,0" Background="#FFFFFF22" Foreground="White" BorderThickness="0"
+                        Cursor="Hand" Click="btnLogout_Click" />
+                <Image Name="imgLogo" Height="26" Margin="0,0,10,0" DockPanel.Dock="Left" />
+                <TextBlock Name="lblTitle" Text="Couriers" Foreground="White" FontSize="17" FontWeight="Bold"
+                           VerticalAlignment="Center" />
+            </DockPanel>
+        </Border>
+
+        <Frame Grid.Row="1" Name="PageContainer" NavigationUIVisibility="Hidden"
+               Background="White" Padding="0" Margin="0" />
+    </Grid>
+</Window>

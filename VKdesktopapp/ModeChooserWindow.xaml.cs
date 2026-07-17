@@ -51,6 +51,24 @@ public partial class ModeChooserWindow : Window
         finally { if (!LoggedOut) Show(); }
     }
 
+    private async void btnCourier_Click(object sender, RoutedEventArgs e)
+    {
+        string configured;
+        try { configured = await DesktopApiClient.GetCourierPasswordAsync(); }
+        catch { configured = ""; }
+
+        if (!await PassesGate("Couriers", configured)) return;
+
+        Hide();
+        try
+        {
+            var w = new CourierShellWindow();
+            w.ShowDialog();
+            if (w.LoggedOut) { LoggedOut = true; Close(); return; }
+        }
+        finally { if (!LoggedOut) Show(); }
+    }
+
     private System.Threading.Tasks.Task<bool> PassesGate(string title, string configured)
     {
         var required = string.IsNullOrEmpty(configured) ? App.LoginPassword : configured;
