@@ -133,14 +133,6 @@
                              Height="40" FontSize="14" Padding="10,0"
                              BorderBrush="{StaticResource Gray300}" BorderThickness="1"
                              Background="White" />
-
-                <TextBlock Text="Billing Desktop Password" Style="{StaticResource FormHeading}" />
-                <TextBlock Text="Asked when opening Billing on this app. Leave blank to use your login password."
-                           Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,0,0,4" />
-                <PasswordBox Name="pwdBillingDesktopPass" Margin="0,4,0,12"
-                             Height="40" FontSize="14" Padding="10,0"
-                             BorderBrush="{StaticResource Gray300}" BorderThickness="1"
-                             Background="White" />
             </StackPanel>
         </ScrollViewer>
 
