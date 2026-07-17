@@ -118,6 +118,7 @@ public partial class BillingPage : Page
         txtAgencyRealName.Text = (_realAgencyName ?? "").ToUpperInvariant();
         txtInvoiceNo.IsReadOnly = true;
         RefreshCertStatus();
+        LoadSigLayout();
 
         try
         {
@@ -206,6 +207,35 @@ public partial class BillingPage : Page
         txtCertStatus.Text = (expired ? "EXPIRED: " : "Signing as: ")
             + SigningCertificates.DisplayName(cert)
             + "  (valid till " + cert.NotAfter.ToString("dd MMM yyyy") + ")";
+    }
+
+    private void LoadSigLayout()
+    {
+        var (x, y, w, h) = SigningCertificates.LoadLayout();
+        txtSigX.Text = x.ToString("0.##");
+        txtSigY.Text = y.ToString("0.##");
+        txtSigW.Text = w.ToString("0.##");
+        txtSigH.Text = h.ToString("0.##");
+        txtSigPosHint.Text = "Signature box in points, from the bottom-left of the page. The bill is A4 — 595 wide x 842 tall.";
+    }
+
+    private void btnSigReset_Click(object sender, RoutedEventArgs e)
+    {
+        SigningCertificates.SaveLayout(SigningCertificates.DefaultX, SigningCertificates.DefaultY,
+            SigningCertificates.DefaultW, SigningCertificates.DefaultH);
+        LoadSigLayout();
+        txtGenStatus.Foreground = System.Windows.Media.Brushes.Green;
+        txtGenStatus.Text = "Signature position reset.";
+    }
+
+    private (float X, float Y, float W, float H) CurrentSigLayout()
+    {
+        float P(string s, float fallback) => float.TryParse(s?.Trim(), out var v) ? v : fallback;
+        var x = P(txtSigX.Text, SigningCertificates.DefaultX);
+        var y = P(txtSigY.Text, SigningCertificates.DefaultY);
+        var w = Math.Max(40f, P(txtSigW.Text, SigningCertificates.DefaultW));
+        var h = Math.Max(24f, P(txtSigH.Text, SigningCertificates.DefaultH));
+        return (x, y, w, h);
     }
 
     private void chkSign_Changed(object sender, RoutedEventArgs e)
@@ -557,17 +587,19 @@ public partial class BillingPage : Page
 
         var pdfPath = Path.ChangeExtension(filePath, ".pdf");
         var signer = Up(txtAgencyRealName.Text.Trim());
+        var layout = CurrentSigLayout();
+        SigningCertificates.SaveLayout(layout.X, layout.Y, layout.W, layout.H);
 
         try
         {
-            RenderSignedPdf(doc, pdfPath, cert, signer, useToken: true);
+            RenderSignedPdf(doc, pdfPath, cert, signer, useToken: true, layout);
             return (pdfPath, null);
         }
         catch (Exception token)
         {
             try
             {
-                RenderSignedPdf(doc, pdfPath, cert, signer, useToken: false);
+                RenderSignedPdf(doc, pdfPath, cert, signer, useToken: false, layout);
                 return (pdfPath, null);
             }
             catch (Exception direct)
@@ -645,15 +677,19 @@ public partial class BillingPage : Page
         return lines.Count == 0 ? new[] { "" } : lines.ToArray();
     }
 
-    private static void RenderSignedPdf(WordDocument doc, string pdfPath, X509Certificate2 cert, string fallbackName, bool useToken)
+    private static void RenderSignedPdf(WordDocument doc, string pdfPath, X509Certificate2 cert, string fallbackName, bool useToken,
+        (float X, float Y, float W, float H) layout)
     {
         using var render = new DocIORenderer();
         using var pdf = render.ConvertToPDF(doc);
 
         var page = pdf.Pages[pdf.Pages.Count - 1];
         var size = page.GetClientSize();
-        float w = 132f, h = 58f;
-        var bounds = new SFRectF(size.Width - w - 20f, size.Height - h - 20f, w, h);
+        float w = layout.W, h = layout.H;
+        float x = Math.Min(Math.Max(0f, layout.X), Math.Max(0f, size.Width - w));
+        float yTop = size.Height - layout.Y - h;
+        yTop = Math.Min(Math.Max(0f, yTop), Math.Max(0f, size.Height - h));
+        var bounds = new SFRectF(x, yTop, w, h);
 
         var signature = useToken
             ? new PdfSignature(pdf, page, null, "BillSignature") { Bounds = bounds }
