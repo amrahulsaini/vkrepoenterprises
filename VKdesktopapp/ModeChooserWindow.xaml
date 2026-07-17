@@ -1,0 +1,61 @@
+<Window x:Class="CRMRSDesktopApp.ModeChooserWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Choose Mode" Height="360" Width="560"
+        WindowStartupLocation="CenterScreen" ResizeMode="NoResize"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent">
+    <Border Background="#F5F7FA" CornerRadius="12" BorderBrush="#E0E0E0" BorderThickness="1">
+        <Grid Margin="0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <Border Grid.Row="0" Background="{StaticResource Accent}" CornerRadius="12,12,0,0"
+                    MouseLeftButtonDown="TitleBar_MouseDown">
+                <DockPanel Margin="18,12">
+                    <Button DockPanel.Dock="Right" Content="&#x2715;" Width="30" Height="30"
+                            Background="Transparent" Foreground="White" BorderThickness="0"
+                            FontSize="14" Cursor="Hand" Click="btnClose_Click" />
+                    <TextBlock Name="lblWho" Text="Welcome" Foreground="White" FontSize="16" FontWeight="Bold"
+                               VerticalAlignment="Center" />
+                </DockPanel>
+            </Border>
+
+            <StackPanel Grid.Row="1" VerticalAlignment="Center" Margin="30,0">
+                <TextBlock Text="What do you want to open?" FontSize="14" Foreground="#555"
+                           HorizontalAlignment="Center" Margin="0,0,0,20" />
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                    <Button Name="btnSuperAdmin" Width="210" Height="120" Margin="0,0,16,0"
+                            Cursor="Hand" BorderThickness="1" BorderBrush="#D0D7DE" Background="White"
+                            Click="btnSuperAdmin_Click">
+                        <StackPanel>
+                            <TextBlock Text="&#x1F6E1;" FontSize="34" HorizontalAlignment="Center" />
+                            <TextBlock Text="Super Admin" FontSize="16" FontWeight="Bold"
+                                       HorizontalAlignment="Center" Margin="0,8,0,2" />
+                            <TextBlock Text="All features" FontSize="11" Foreground="#888"
+                                       HorizontalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+                    <Button Name="btnBilling" Width="210" Height="120"
+                            Cursor="Hand" BorderThickness="1" BorderBrush="#D0D7DE" Background="White"
+                            Click="btnBilling_Click">
+                        <StackPanel>
+                            <TextBlock Text="&#x1F9FE;" FontSize="34" HorizontalAlignment="Center" />
+                            <TextBlock Text="Billing" FontSize="16" FontWeight="Bold"
+                                       HorizontalAlignment="Center" Margin="0,8,0,2" />
+                            <TextBlock Text="Billing only" FontSize="11" Foreground="#888"
+                                       HorizontalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </StackPanel>
+
+            <Border Grid.Row="2" Background="#EEF1F5" CornerRadius="0,0,12,12" Padding="18,10">
+                <Button Content="Log out" Width="90" Height="30" HorizontalAlignment="Left"
+                        Cursor="Hand" Click="btnLogout_Click" />
+            </Border>
+        </Grid>
+    </Border>
+</Window>

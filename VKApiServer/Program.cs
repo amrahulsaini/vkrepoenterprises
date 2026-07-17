@@ -1617,6 +1617,66 @@ app.MapPut("/api/mgr/settings/allocation-password", async (HttpContext ctx, MgrS
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
 
+app.MapGet("/api/mgr/settings/superadmin-password", async (HttpContext ctx) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        await using var conn = new MySqlConnection(TenantContext.Conn);
+        await conn.OpenAsync();
+        await using var cmd = new MySqlCommand(
+            "SELECT `value` FROM app_settings WHERE `key`='superadmin_desktop_password' LIMIT 1", conn);
+        var val = await cmd.ExecuteScalarAsync();
+        return Results.Ok(new { password = val?.ToString() ?? "" });
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+app.MapPut("/api/mgr/settings/superadmin-password", async (HttpContext ctx, MgrSetSubsPasswordDto dto) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        await using var conn = new MySqlConnection(TenantContext.Conn);
+        await conn.OpenAsync();
+        await MgrExec(
+            "INSERT INTO app_settings (`key`, `value`) VALUES ('superadmin_desktop_password', @v) ON DUPLICATE KEY UPDATE `value`=@v",
+            conn, 10, ("@v", dto.Password));
+        return Results.Ok();
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+app.MapGet("/api/mgr/settings/billing-desktop-password", async (HttpContext ctx) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        await using var conn = new MySqlConnection(TenantContext.Conn);
+        await conn.OpenAsync();
+        await using var cmd = new MySqlCommand(
+            "SELECT `value` FROM app_settings WHERE `key`='billing_desktop_password' LIMIT 1", conn);
+        var val = await cmd.ExecuteScalarAsync();
+        return Results.Ok(new { password = val?.ToString() ?? "" });
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+app.MapPut("/api/mgr/settings/billing-desktop-password", async (HttpContext ctx, MgrSetSubsPasswordDto dto) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        await using var conn = new MySqlConnection(TenantContext.Conn);
+        await conn.OpenAsync();
+        await MgrExec(
+            "INSERT INTO app_settings (`key`, `value`) VALUES ('billing_desktop_password', @v) ON DUPLICATE KEY UPDATE `value`=@v",
+            conn, 10, ("@v", dto.Password));
+        return Results.Ok();
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
 app.MapGet("/api/mgr/users/{id:long}/subscriptions", async (HttpContext ctx, long id) =>
 {
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
