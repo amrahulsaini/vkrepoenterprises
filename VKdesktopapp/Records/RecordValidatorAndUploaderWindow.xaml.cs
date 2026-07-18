@@ -164,8 +164,8 @@ public partial class RecordValidatorAndUploaderWindow : Window
 
     private List<UploadRecord> FilterRecords(RecordFilters filter) => filter switch
     {
-        RecordFilters.Invalid => _records.Where(r => !IsValidRc(r)).ToList(),
-        RecordFilters.Valid   => _records.Where(r =>  IsValidRc(r)).ToList(),
+        RecordFilters.Invalid => _records.Where(r => !IsValidRc(r) && !IsValidChassis(r)).ToList(),
+        RecordFilters.Valid   => _records.Where(r =>  IsValidRc(r) ||  IsValidChassis(r)).ToList(),
         _                     => _records.ToList()
     };
 
