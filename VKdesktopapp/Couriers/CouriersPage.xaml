@@ -47,6 +47,7 @@
                     <ComboBoxItem Content="For Billing" />
                     <ComboBoxItem Content="Hold for Billing" />
                     <ComboBoxItem Content="Cancel" />
+                    <ComboBoxItem Content="Billing Done" />
                 </ComboBox>
                 <Button Name="btnLoad" Content="Load" Width="90" Height="30" FontWeight="Bold"
                         Background="#1565C0" Foreground="White" BorderThickness="0" Cursor="Hand" Click="btnLoad_Click" />
@@ -83,7 +84,21 @@
                 <TextBlock DockPanel.Dock="Top" Text="Update Courier Details" FontSize="15" FontWeight="Bold"
                            Foreground="{StaticResource Accent}" Margin="0,0,0,4" />
                 <TextBlock DockPanel.Dock="Top" Name="txtSel" Text="Select a record from the list."
-                           FontSize="12" Foreground="#888" TextWrapping="Wrap" Margin="0,0,0,14" />
+                           FontSize="12" Foreground="#888" TextWrapping="Wrap" Margin="0,0,0,8" />
+
+                <Border DockPanel.Dock="Top" Name="pnlBilled" Background="#EAF4EA" CornerRadius="6" Padding="10,8"
+                        Margin="0,0,0,12" Visibility="Collapsed">
+                    <StackPanel>
+                        <TextBlock Name="txtInvoice" Text="" FontSize="12.5" FontWeight="Bold" Foreground="#2E7D32" Margin="0,0,0,6" />
+                        <StackPanel Orientation="Horizontal">
+                            <Button Name="btnDetails" Content="View all details" Height="28" Padding="10,0" Margin="0,0,8,0"
+                                    Cursor="Hand" Click="btnDetails_Click" />
+                            <Button Name="btnDownloadBill" Content="Download bill" Height="28" Padding="10,0"
+                                    Background="#1565C0" Foreground="White" BorderThickness="0" Cursor="Hand"
+                                    Click="btnDownloadBill_Click" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
 
                 <StackPanel DockPanel.Dock="Bottom">
                     <TextBlock Name="txtFormStatus" Foreground="#2E7D32" FontSize="12" TextWrapping="Wrap" Margin="0,0,0,8" />

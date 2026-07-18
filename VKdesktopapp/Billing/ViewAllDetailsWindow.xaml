@@ -1,7 +1,7 @@
 <Window x:Class="CRMRSDesktopApp.Billing.ViewAllDetailsWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Repo Submissions — All Details" Height="640" Width="1180"
+        Title="Repo Submissions, All Details" Height="640" Width="1180"
         WindowStartupLocation="CenterScreen" ShowInTaskbar="True" Background="#F5F5F5">
     <Window.Resources>
         <Style x:Key="CellText" TargetType="TextBlock">
@@ -73,7 +73,22 @@
                   ScrollViewer.CanContentScroll="True" EnableRowVirtualization="True">
             <DataGrid.Columns>
                 <DataGridTextColumn Header="Date" Binding="{Binding CreatedAt}" Width="120" MinWidth="90" ElementStyle="{StaticResource CellText}" />
-                <DataGridTextColumn Header="Vehicle No" Binding="{Binding VehicleNo}" Width="110" MinWidth="80" ElementStyle="{StaticResource CellText}" />
+                <DataGridTemplateColumn Header="Vehicle / VIN" Width="130" MinWidth="90">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <Button Content="{Binding VehicleOrChassis}" Click="btnVehicle_Click" Tag="{Binding Id}"
+                                    Cursor="Hand" HorizontalContentAlignment="Left" Margin="8,0" ToolTip="Click to see full vehicle details">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <TextBlock Text="{TemplateBinding Content}" Foreground="#D32F2F" FontWeight="Bold"
+                                                   TextDecorations="Underline" VerticalAlignment="Center"
+                                                   TextTrimming="CharacterEllipsis" />
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
                 <DataGridTextColumn Header="Customer" Binding="{Binding CustomerName}" Width="160" MinWidth="90" ElementStyle="{StaticResource CellText}" />
                 <DataGridTextColumn Header="Finance" Binding="{Binding FinanceName}" Width="140" MinWidth="90" ElementStyle="{StaticResource CellText}" />
                 <DataGridTextColumn Header="Branch" Binding="{Binding BranchName}" Width="120" MinWidth="80" ElementStyle="{StaticResource CellText}" />

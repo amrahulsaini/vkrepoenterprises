@@ -118,7 +118,6 @@ public partial class BillingPage : Page
         txtAgencyRealName.Text = (_realAgencyName ?? "").ToUpperInvariant();
         txtInvoiceNo.IsReadOnly = true;
         RefreshCertStatus();
-        LoadSigLayout();
 
         try
         {
@@ -188,73 +187,28 @@ public partial class BillingPage : Page
 
     private void RefreshCertStatus()
     {
-        var saved = SigningCertificates.SavedThumbprint(SigningIdentity);
-        if (string.IsNullOrWhiteSpace(saved))
+        if (!SigningCertificates.LoadSigningEnabled())
         {
-            chkSign.IsChecked = false;
-            txtCertStatus.Text = "No certificate selected — bill will be a Word file only.";
+            txtCertStatus.Text = "Signature off.";
             return;
         }
-        var cert = SigningCertificates.Find(saved);
+        var cert = SigningCertificates.Saved(SigningIdentity);
         if (cert == null)
         {
-            chkSign.IsChecked = false;
-            txtCertStatus.Text = "Selected certificate not found — plug in the DSC token, then press Select Certificate.";
+            txtCertStatus.Text = "Signature on, but no certificate chosen yet.";
             return;
         }
-        chkSign.IsChecked = true;
-        var expired = cert.NotAfter < DateTime.Now;
-        txtCertStatus.Text = (expired ? "EXPIRED: " : "Signing as: ")
-            + SigningCertificates.DisplayName(cert)
-            + "  (valid till " + cert.NotAfter.ToString("dd MMM yyyy") + ")";
+        txtCertStatus.Text = (cert.NotAfter < DateTime.Now ? "Expired: " : "Signing as ")
+            + SigningCertificates.DisplayName(cert);
     }
 
-    private void LoadSigLayout()
+    private void btnSignature_Click(object sender, RoutedEventArgs e)
     {
-        var (x, y, w, h) = SigningCertificates.LoadLayout();
-        txtSigX.Text = x.ToString("0.##");
-        txtSigY.Text = y.ToString("0.##");
-        txtSigW.Text = w.ToString("0.##");
-        txtSigH.Text = h.ToString("0.##");
-        txtSigPosHint.Text = "Signature box in points, from the bottom-left of the page. The bill is A4 — 595 wide x 842 tall.";
-    }
-
-    private void btnSigReset_Click(object sender, RoutedEventArgs e)
-    {
-        SigningCertificates.SaveLayout(SigningCertificates.DefaultX, SigningCertificates.DefaultY,
-            SigningCertificates.DefaultW, SigningCertificates.DefaultH);
-        LoadSigLayout();
-        txtGenStatus.Foreground = System.Windows.Media.Brushes.Green;
-        txtGenStatus.Text = "Signature position reset.";
-    }
-
-    private (float X, float Y, float W, float H) CurrentSigLayout()
-    {
-        float P(string s, float fallback) => float.TryParse(s?.Trim(), out var v) ? v : fallback;
-        var x = P(txtSigX.Text, SigningCertificates.DefaultX);
-        var y = P(txtSigY.Text, SigningCertificates.DefaultY);
-        var w = Math.Max(40f, P(txtSigW.Text, SigningCertificates.DefaultW));
-        var h = Math.Max(24f, P(txtSigH.Text, SigningCertificates.DefaultH));
-        return (x, y, w, h);
-    }
-
-    private void chkSign_Changed(object sender, RoutedEventArgs e)
-    {
-        if (chkSign.IsChecked == true && SigningCertificates.Saved(SigningIdentity) == null)
-        {
-            chkSign.IsChecked = false;
-            btnSignCert_Click(sender, e);
-        }
-    }
-
-    private void btnSignCert_Click(object sender, RoutedEventArgs e)
-    {
-        var w = new CertPickerWindow(SigningIdentity) { Owner = Window.GetWindow(this) };
+        var w = new SignatureWindow(SigningIdentity) { Owner = Window.GetWindow(this) };
         if (w.ShowDialog() != true) return;
-        SigningCertificates.SaveThumbprint(SigningIdentity, w.Cleared ? null : w.SelectedThumbprint);
         RefreshCertStatus();
         txtGenStatus.Foreground = System.Windows.Media.Brushes.Green;
-        txtGenStatus.Text = w.Cleared ? "Signing turned off." : "Signing certificate selected.";
+        txtGenStatus.Text = "Signature settings saved.";
     }
 
     private async void btnLetterhead_Click(object sender, RoutedEventArgs e) => await UploadImage("letterhead", imgLetterhead);
@@ -297,6 +251,8 @@ public partial class BillingPage : Page
         txtAgentName.Text = txtParkingYardMobile.Text = txtLoadDetails.Text = "";
         txtConfirmationByMobile.Text = txtExecutiveName.Text = "";
         txtCollectionUpdate.Text = txtRemark.Text = "";
+        _currentSubmissionId = 0;
+        SetSubmissionFieldsReadOnly(false);
     }
 
     private void btnBack_Click(object sender, RoutedEventArgs e)
@@ -315,8 +271,6 @@ public partial class BillingPage : Page
 
     internal async Task LoadSubmission(DesktopApiClient.RepoSubmissionDto s)
     {
-        _currentSubmissionId = s.Id;
-
         if (s.FinanceId is int fid && cmbFinance.ItemsSource is IEnumerable<FinanceOption> opts)
         {
             var match = opts.FirstOrDefault(o => o.Id == fid);
@@ -332,6 +286,7 @@ public partial class BillingPage : Page
             }
         }
 
+        _currentSubmissionId = s.Id;
         txtAgriLoan.Text  = Up(s.LoanNo);
         txtCustomer.Text  = Up(s.CustomerName);
         txtMakeModel.Text = Up(s.Model);
@@ -348,8 +303,25 @@ public partial class BillingPage : Page
         if (!string.IsNullOrWhiteSpace(s.ParkingYardName)) txtParkingYard.Text = Up(s.ParkingYardName);
         if (!string.IsNullOrWhiteSpace(s.AddlChargesNotes)) txtAddlCharges.Text = Up(s.AddlChargesNotes);
         if (s.AddlChargesAmount is decimal amt && amt > 0) txtAddlAmount.Text = amt.ToString("0.##");
+        SetSubmissionFieldsReadOnly(true);
         txtGenStatus.Foreground = System.Windows.Media.Brushes.Green;
         txtGenStatus.Text = $"Loaded submission for {s.VehicleNo}. Review and generate.";
+    }
+
+    private void SetSubmissionFieldsReadOnly(bool ro)
+    {
+        var boxes = new[]
+        {
+            txtAgriLoan, txtCustomer, txtMakeModel, txtRcNo, txtBranch,
+            txtConfirmationBy, txtConfirmationByMobile, txtAgentName, txtParkingYardMobile,
+            txtLoadDetails, txtExecutiveName, txtCollectionUpdate, txtRemark,
+            txtParkingYard, txtAddlCharges, txtAddlAmount
+        };
+        foreach (var b in boxes)
+        {
+            b.IsReadOnly = ro;
+            b.Background = ro ? System.Windows.Media.Brushes.WhiteSmoke : System.Windows.Media.Brushes.White;
+        }
     }
 
     private void txtVehSearch_KeyDown(object sender, KeyEventArgs e)
@@ -447,9 +419,23 @@ public partial class BillingPage : Page
             if (signErr != null)
                 MessageBox.Show("The Word bill was created, but the signed PDF could not be made:\n\n" + signErr,
                     "Billing", MessageBoxButton.OK, MessageBoxImage.Warning);
-            if (_currentSubmissionId > 0 && _session != null)
+            if (_currentSubmissionId > 0)
             {
-                try { await DesktopApiClient.MarkSubmissionBilledAsync(_currentSubmissionId, _session.MemberId); } catch { }
+                try
+                {
+                    var billPath = pdfPath ?? dlg.FileName;
+                    string? billB64 = null, ext = null;
+                    try
+                    {
+                        billB64 = Convert.ToBase64String(await File.ReadAllBytesAsync(billPath));
+                        ext = Path.GetExtension(billPath).TrimStart('.');
+                    }
+                    catch { }
+                    await DesktopApiClient.MarkSubmissionBilledAsync(
+                        _currentSubmissionId, _session?.MemberId ?? 0,
+                        txtInvoiceNo.Text.Trim(), billB64, ext);
+                }
+                catch { }
                 _currentSubmissionId = 0;
             }
             ResetVehicle();
@@ -580,15 +566,14 @@ public partial class BillingPage : Page
         using (var fs = new FileStream(filePath, FileMode.Create, FileAccess.Write))
             doc.Save(fs, FormatType.Docx);
 
-        if (chkSign.IsChecked != true) return (null, null);
+        if (!SigningCertificates.LoadSigningEnabled()) return (null, null);
 
         var cert = SigningCertificates.Saved(SigningIdentity);
-        if (cert == null) return (null, "No signing certificate is selected — plug in the DSC token and press Select Certificate.");
+        if (cert == null) return (null, "No certificate chosen. Open Digital Signature and pick your name.");
 
         var pdfPath = Path.ChangeExtension(filePath, ".pdf");
         var signer = Up(txtAgencyRealName.Text.Trim());
-        var layout = CurrentSigLayout();
-        SigningCertificates.SaveLayout(layout.X, layout.Y, layout.W, layout.H);
+        var layout = SigningCertificates.LoadLayout();
 
         try
         {

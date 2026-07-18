@@ -133,7 +133,8 @@ internal static class DesktopApiClient
         string BillingAction, string? HoldUntil, int? HoldDays, string BillStatus, string? BilledAt,
         string SubmittedByName, string CreatedAt,
         decimal? RepoCharges = null, decimal? Advance = null, string CourierYn = "",
-        string BankerAddress = "", string PodNumber = "");
+        string BankerAddress = "", string PodNumber = "",
+        string InvoiceNo = "", string BillUrl = "");
 
     internal static async Task<List<BillingMemberDto>> GetBillingMembersAsync()
     {
@@ -178,8 +179,10 @@ internal static class DesktopApiClient
         return (await resp.Content.ReadFromJsonAsync<List<RepoSubmissionDto>>(_json))!;
     }
 
-    internal static async Task MarkSubmissionBilledAsync(long id, long memberId)
-        => (await Send(HttpMethod.Post, $"api/mgr/billing/submissions/{id}/billed", new { MemberId = memberId })).Dispose();
+    internal static async Task MarkSubmissionBilledAsync(long id, long memberId,
+        string? invoiceNo = null, string? billBase64 = null, string? billExt = null)
+        => (await Send(HttpMethod.Post, $"api/mgr/billing/submissions/{id}/billed",
+            new { MemberId = memberId, InvoiceNo = invoiceNo, BillBase64 = billBase64, BillExt = billExt })).Dispose();
 
     internal static async Task<int> CreateFinanceAsync(string name, string? description)
     {
