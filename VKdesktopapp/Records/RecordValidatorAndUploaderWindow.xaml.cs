@@ -84,7 +84,7 @@ public partial class RecordValidatorAndUploaderWindow : Window
 
         for (var r = 3; r <= lastRow; r++)
         {
-            if (MappedColumns.CI_VehicleNo == 0) continue;
+            if (MappedColumns.CI_VehicleNo == 0 && MappedColumns.CI_ChasisNo == 0) continue;
 
             string Val(short col)
             {
