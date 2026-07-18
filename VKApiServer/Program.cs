@@ -2047,13 +2047,15 @@ app.MapGet("/api/mgr/billing/submissions", async (HttpContext ctx, string? from,
                    collection_update, remark,
                    billing_action, hold_until, hold_days, bill_status, billed_at,
                    submitted_by_name, created_at,
-                   repo_charges, advance, courier_yn, banker_address, pod_number
+                   repo_charges, advance, courier_yn, banker_address, pod_number,
+                   invoice_no, bill_file
               FROM repo_submissions {whereSql}
              ORDER BY created_at DESC LIMIT 2000", conn) { CommandTimeout = 30 };
         if (DateTime.TryParse(from, out var f2)) cmd.Parameters.AddWithValue("@from", f2.Date);
         if (DateTime.TryParse(to, out var t2))   cmd.Parameters.AddWithValue("@to", t2.Date.AddDays(1));
         if (status == "pending" || status == "billed") cmd.Parameters.AddWithValue("@st", status);
 
+        var billBaseUrl = $"{ctx.Request.Scheme}://{ctx.Request.Host}";
         var list = new List<object>();
         await using var rdr = await cmd.ExecuteReaderAsync();
         string? S(int i) => rdr.IsDBNull(i) ? null : rdr.GetString(i);
@@ -2083,7 +2085,9 @@ app.MapGet("/api/mgr/billing/submissions", async (HttpContext ctx, string? from,
                 advance = rdr.IsDBNull(30) ? (decimal?)null : rdr.GetDecimal(30),
                 courierYn = S(31) ?? "",
                 bankerAddress = S(32) ?? "",
-                podNumber = S(33) ?? ""
+                podNumber = S(33) ?? "",
+                invoiceNo = S(34) ?? "",
+                billUrl = string.IsNullOrEmpty(S(35)) ? "" : $"{billBaseUrl}/agency-uploads/{S(35)!.TrimStart('/')}"
             });
         }
         return Results.Ok(list);
@@ -2161,11 +2165,35 @@ app.MapPost("/api/mgr/billing/submissions/{id:long}/billed", async (HttpContext 
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
     try
     {
+        string? billRel = null;
+        if (!string.IsNullOrWhiteSpace(dto.BillBase64))
+        {
+            try
+            {
+                var bytes = Convert.FromBase64String(dto.BillBase64);
+                var ext = string.IsNullOrWhiteSpace(dto.BillExt) ? "pdf" : dto.BillExt!.TrimStart('.');
+                var dir = Path.Combine("/opt/vkapi/agency-uploads", "bills");
+                Directory.CreateDirectory(dir);
+                var file = $"{TenantContext.Key}_sub{id}.{ext}";
+                await File.WriteAllBytesAsync(Path.Combine(dir, file), bytes);
+                billRel = $"bills/{file}";
+            }
+            catch { }
+        }
+
         await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
         await MgrExec(
-            "UPDATE repo_submissions SET bill_status='billed', billed_at=NOW(), billed_by_member_id=@mid WHERE id=@id",
-            conn, 20, ("@mid", dto.MemberId), ("@id", id));
+            @"UPDATE repo_submissions
+                 SET bill_status='billed', billed_at=NOW(), billed_by_member_id=@mid,
+                     invoice_no=COALESCE(@inv, invoice_no),
+                     bill_file=COALESCE(@bf, bill_file)
+               WHERE id=@id",
+            conn, 20,
+            ("@mid", dto.MemberId),
+            ("@inv", (object?)dto.InvoiceNo ?? DBNull.Value),
+            ("@bf", (object?)billRel ?? DBNull.Value),
+            ("@id", id));
         return Results.Ok(new { success = true });
     }
     catch (Exception ex) { return Results.Problem(ex.Message); }
@@ -3938,7 +3966,7 @@ record MgrBillingMemberDto(
     string Username, string? Password, bool IsActive, List<int>? FinanceIds);
 record MgrMemberLoginDto(string Username, string Password);
 record MgrSetMemberFinancesDto(List<int> FinanceIds);
-record MgrMarkBilledDto(long MemberId);
+record MgrMarkBilledDto(long MemberId, string? InvoiceNo = null, string? BillBase64 = null, string? BillExt = null);
 
 record MgrCourierUpdateDto(decimal? RepoCharges, decimal? Advance, string? CourierYn,
     string? BankerAddress, string? PodNumber, string? BillingAction);

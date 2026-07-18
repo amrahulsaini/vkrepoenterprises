@@ -1,0 +1,44 @@
+<Window x:Class="CRMRSDesktopApp.Billing.VehicleDetailsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        FontFamily="{StaticResource FontBody}"
+        Title="Vehicle Details" Height="620" Width="560"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False"
+        Background="{StaticResource Gray200}">
+    <Grid Margin="0">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0" Background="{StaticResource Gray900}" Padding="16,12">
+            <TextBlock Name="lblTitle" Text="Vehicle Details" Foreground="White" FontSize="15" FontWeight="Bold" />
+        </Border>
+
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="16">
+            <ItemsControl Name="items">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Grid Margin="0,0,0,8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="170" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="{Binding Label}" Foreground="{StaticResource Gray600}"
+                                       FontSize="12.5" TextWrapping="Wrap" Margin="0,0,10,0" />
+                            <TextBlock Grid.Column="1" Text="{Binding Value}" Foreground="{StaticResource Gray900}"
+                                       FontSize="12.5" FontWeight="SemiBold" TextWrapping="Wrap" />
+                        </Grid>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+
+        <Border Grid.Row="2" Background="{StaticResource Gray50}" BorderBrush="{StaticResource Gray200}"
+                BorderThickness="0,1,0,0" Padding="16,10">
+            <Button Content="Close" Width="100" Height="34" HorizontalAlignment="Right"
+                    Cursor="Hand" Click="btnClose_Click" />
+        </Border>
+    </Grid>
+</Window>

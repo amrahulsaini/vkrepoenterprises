@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
 using System.Windows;
@@ -52,14 +53,21 @@ public partial class CouriersPage : Page
 
             var data = await DesktopApiClient.GetRepoSubmissionsAsync(from, to, new List<int>(), null);
 
-            string? actionFilter = cmbAction.SelectedIndex switch
+            if (cmbAction.SelectedIndex == 4)
             {
-                1 => "immediate",
-                2 => "hold",
-                3 => "cancel",
-                _ => null
-            };
-            if (actionFilter != null) data = data.Where(d => d.BillingAction == actionFilter).ToList();
+                data = data.Where(d => d.BillStatus == "billed").ToList();
+            }
+            else
+            {
+                string? actionFilter = cmbAction.SelectedIndex switch
+                {
+                    1 => "immediate",
+                    2 => "hold",
+                    3 => "cancel",
+                    _ => null
+                };
+                if (actionFilter != null) data = data.Where(d => d.BillingAction == actionFilter).ToList();
+            }
 
             _rows = data.Select(d => new Row { Src = d }).ToList();
             grid.ItemsSource = _rows;
@@ -77,11 +85,22 @@ public partial class CouriersPage : Page
             pnlForm.IsEnabled = false;
             btnSubmit.IsEnabled = false;
             btnClear.IsEnabled = false;
+            pnlBilled.Visibility = System.Windows.Visibility.Collapsed;
             txtSel.Text = "Select a record from the list.";
             return;
         }
 
-        txtSel.Text = $"{r.VehicleNo}  •  {r.CustomerName}  •  {r.FinanceName}";
+        var veh = string.IsNullOrWhiteSpace(r.VehicleNo) ? r.Src.ChassisNo : r.VehicleNo;
+        txtSel.Text = $"{veh}  •  {r.CustomerName}  •  {r.FinanceName}";
+
+        if (r.Src.BillStatus == "billed")
+        {
+            pnlBilled.Visibility = System.Windows.Visibility.Visible;
+            txtInvoice.Text = string.IsNullOrWhiteSpace(r.Src.InvoiceNo)
+                ? "Bill generated." : "Invoice No: " + r.Src.InvoiceNo;
+            btnDownloadBill.IsEnabled = !string.IsNullOrWhiteSpace(r.Src.BillUrl);
+        }
+        else pnlBilled.Visibility = System.Windows.Visibility.Collapsed;
         txtRepoCharges.Text = r.Src.RepoCharges?.ToString("0.##") ?? "";
         txtAdvance.Text = r.Src.Advance?.ToString("0.##") ?? "";
         cmbCourier.SelectedIndex = string.Equals(r.Src.CourierYn, "Yes", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
@@ -92,6 +111,52 @@ public partial class CouriersPage : Page
         btnSubmit.IsEnabled = true;
         btnClear.IsEnabled = true;
         txtFormStatus.Text = "";
+    }
+
+    private void btnDetails_Click(object sender, RoutedEventArgs e)
+    {
+        if (grid.SelectedItem is not Row r) return;
+        var s = r.Src;
+        var veh = string.IsNullOrWhiteSpace(s.VehicleNo) ? s.ChassisNo : s.VehicleNo;
+        var rows = new (string, string)[]
+        {
+            ("Invoice No", s.InvoiceNo),
+            ("Vehicle No", s.VehicleNo),
+            ("Chassis No (VIN)", s.ChassisNo),
+            ("Engine No", s.EngineNo),
+            ("Model", s.Model),
+            ("Customer Name", s.CustomerName),
+            ("Finance", s.FinanceName),
+            ("Branch", s.BranchName),
+            ("Agri-Loan No", s.LoanNo),
+            ("Agent Name", s.AgentName),
+            ("Parking Yard", s.ParkingYardName),
+            ("Parking Yard Mobile", s.ParkingYardMobile),
+            ("Load Details", s.LoadDetails),
+            ("Confirmation By", s.ConfirmationByName),
+            ("Confirmation By Mobile", s.ConfirmationByMobile),
+            ("Executive Name", s.ExecutiveName),
+            ("Collection Update", s.CollectionUpdate),
+            ("Remark", s.Remark),
+            ("Additional Charges Notes", s.AddlChargesNotes),
+            ("Additional Charges Amount", s.AddlChargesAmount?.ToString("0.##") ?? ""),
+            ("Repo Charges", s.RepoCharges?.ToString("0.##") ?? ""),
+            ("Advance", s.Advance?.ToString("0.##") ?? ""),
+            ("Courier", s.CourierYn),
+            ("Banker Address", s.BankerAddress),
+            ("POD Number", s.PodNumber),
+            ("Submitted By", s.SubmittedByName),
+            ("Submitted At", s.CreatedAt),
+        };
+        var w = new Billing.VehicleDetailsWindow(veh + " all details", rows) { Owner = Window.GetWindow(this) };
+        w.ShowDialog();
+    }
+
+    private void btnDownloadBill_Click(object sender, RoutedEventArgs e)
+    {
+        if (grid.SelectedItem is not Row r || string.IsNullOrWhiteSpace(r.Src.BillUrl)) return;
+        try { Process.Start(new ProcessStartInfo(r.Src.BillUrl) { UseShellExecute = true }); }
+        catch (Exception ex) { MessageBox.Show("Could not open the bill: " + ex.Message, "Couriers", MessageBoxButton.OK, MessageBoxImage.Warning); }
     }
 
     private static decimal? ParseAmt(string s)

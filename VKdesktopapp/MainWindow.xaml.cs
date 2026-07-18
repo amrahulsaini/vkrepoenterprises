@@ -209,6 +209,7 @@ public partial class MainWindow : Window
             case "DirectData": LoadPage(_directDataPage); break;
             case "Billing": LoadPage(new Billing.BillingLoginPage()); break;
             case "Allocations": _ = OpenAllocationsAsync(); break;
+            case "Couriers": LoadPage(new Couriers.CouriersPage()); break;
         }
     }
 

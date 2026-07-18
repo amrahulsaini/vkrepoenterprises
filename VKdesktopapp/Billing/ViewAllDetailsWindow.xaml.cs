@@ -20,6 +20,7 @@ public partial class ViewAllDetailsWindow : Window
         public long Id => Src.Id;
         public string CreatedAt => Src.CreatedAt;
         public string VehicleNo => Src.VehicleNo;
+        public string VehicleOrChassis => !string.IsNullOrWhiteSpace(Src.VehicleNo) ? Src.VehicleNo : Src.ChassisNo;
         public string CustomerName => Src.CustomerName;
         public string FinanceName => Src.FinanceName;
         public string BranchName => Src.BranchName;
@@ -89,5 +90,43 @@ public partial class ViewAllDetailsWindow : Window
         if (row == null) return;
         await _parent.LoadSubmission(row.Src);
         Close();
+    }
+
+    private readonly VehicleSearchRepository _search = new();
+
+    private async void btnVehicle_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button b || b.Tag is not long id) return;
+        var row = _rows.FirstOrDefault(r => r.Id == id);
+        if (row == null) return;
+
+        VehicleDetailsWindow? win = null;
+        if (row.Src.RecordId is long recId && recId > 0)
+        {
+            try
+            {
+                var rec = await _search.GetRecordByIdAsync(recId);
+                if (rec != null) win = VehicleDetailsWindow.FromRecord(rec);
+            }
+            catch { }
+        }
+
+        win ??= new VehicleDetailsWindow(
+            !string.IsNullOrWhiteSpace(row.Src.VehicleNo) ? row.Src.VehicleNo : row.Src.ChassisNo,
+            new (string, string)[]
+            {
+                ("Vehicle No", row.Src.VehicleNo),
+                ("Chassis No (VIN)", row.Src.ChassisNo),
+                ("Engine No", row.Src.EngineNo),
+                ("Model", row.Src.Model),
+                ("Customer Name", row.Src.CustomerName),
+                ("Finance", row.Src.FinanceName),
+                ("Branch", row.Src.BranchName),
+                ("Loan No", row.Src.LoanNo),
+                ("Agent", row.Src.AgentName),
+            });
+
+        win.Owner = this;
+        win.ShowDialog();
     }
 }
