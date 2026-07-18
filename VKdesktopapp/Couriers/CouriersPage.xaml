@@ -72,6 +72,7 @@
                     <DataGridTextColumn Header="Repo Chg" Binding="{Binding RepoChargesText}" Width="90" MinWidth="70" ElementStyle="{StaticResource CellText}" />
                     <DataGridTextColumn Header="Advance" Binding="{Binding AdvanceText}" Width="90" MinWidth="70" ElementStyle="{StaticResource CellText}" />
                     <DataGridTextColumn Header="Courier" Binding="{Binding CourierYn}" Width="70" MinWidth="60" ElementStyle="{StaticResource CellText}" />
+                    <DataGridTextColumn Header="Banker Address" Binding="{Binding BankerAddress}" Width="150" MinWidth="90" ElementStyle="{StaticResource CellText}" />
                     <DataGridTextColumn Header="POD" Binding="{Binding PodNumber}" Width="100" MinWidth="70" ElementStyle="{StaticResource CellText}" />
                 </DataGrid.Columns>
             </DataGrid>
@@ -89,17 +90,13 @@
                     <Button Name="btnSubmit" Content="Submit" Height="40" FontWeight="Bold" IsEnabled="False"
                             Background="{StaticResource Accent}" Foreground="White" BorderThickness="0"
                             Cursor="Hand" Click="btnSubmit_Click" />
+                    <Button Name="btnClear" Content="Clear this record's entries" Height="32" Margin="0,8,0,0" IsEnabled="False"
+                            Background="White" Foreground="#C62828" BorderBrush="#E0A0A0" BorderThickness="1"
+                            Cursor="Hand" Click="btnClear_Click" />
                 </StackPanel>
 
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Name="pnlForm" IsEnabled="False">
-                        <TextBlock Text="Billing" Foreground="#666" FontSize="12" Margin="0,0,0,3" />
-                        <ComboBox Name="cmbBilling" Height="32" Margin="0,0,0,10" SelectedIndex="0">
-                            <ComboBoxItem Content="For Billing" />
-                            <ComboBoxItem Content="Hold for Billing" />
-                            <ComboBoxItem Content="Cancel" />
-                        </ComboBox>
-
                         <TextBlock Text="Repo Charges" Foreground="#666" FontSize="12" Margin="0,0,0,3" />
                         <TextBox Name="txtRepoCharges" Style="{StaticResource Fld}" />
 

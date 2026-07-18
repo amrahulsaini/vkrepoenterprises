@@ -30,6 +30,7 @@ public partial class CouriersPage : Page
         public string RepoChargesText => Src.RepoCharges?.ToString("0.##") ?? "";
         public string AdvanceText => Src.Advance?.ToString("0.##") ?? "";
         public string CourierYn => Src.CourierYn;
+        public string BankerAddress => Src.BankerAddress;
         public string PodNumber => Src.PodNumber;
     }
 
@@ -75,12 +76,12 @@ public partial class CouriersPage : Page
         {
             pnlForm.IsEnabled = false;
             btnSubmit.IsEnabled = false;
+            btnClear.IsEnabled = false;
             txtSel.Text = "Select a record from the list.";
             return;
         }
 
         txtSel.Text = $"{r.VehicleNo}  •  {r.CustomerName}  •  {r.FinanceName}";
-        cmbBilling.SelectedIndex = r.Src.BillingAction switch { "hold" => 1, "cancel" => 2, _ => 0 };
         txtRepoCharges.Text = r.Src.RepoCharges?.ToString("0.##") ?? "";
         txtAdvance.Text = r.Src.Advance?.ToString("0.##") ?? "";
         cmbCourier.SelectedIndex = string.Equals(r.Src.CourierYn, "Yes", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
@@ -89,6 +90,7 @@ public partial class CouriersPage : Page
 
         pnlForm.IsEnabled = true;
         btnSubmit.IsEnabled = true;
+        btnClear.IsEnabled = true;
         txtFormStatus.Text = "";
     }
 
@@ -98,28 +100,47 @@ public partial class CouriersPage : Page
     private async void btnSubmit_Click(object sender, RoutedEventArgs e)
     {
         if (grid.SelectedItem is not Row r) return;
-
-        var billing = cmbBilling.SelectedIndex switch { 1 => "hold", 2 => "cancel", _ => "immediate" };
         var courier = cmbCourier.SelectedIndex == 1 ? "Yes" : "No";
 
+        await SaveAsync(r.Id, new
+        {
+            RepoCharges = ParseAmt(txtRepoCharges.Text),
+            Advance = ParseAmt(txtAdvance.Text),
+            CourierYn = courier,
+            BankerAddress = txtBankerAddress.Text.Trim(),
+            PodNumber = txtPod.Text.Trim()
+        }, "Saved.");
+    }
+
+    private async void btnClear_Click(object sender, RoutedEventArgs e)
+    {
+        if (grid.SelectedItem is not Row r) return;
+        if (MessageBox.Show("Clear this record's courier entries (Repo Charges, Advance, Courier, Banker Address, POD)?",
+                "Couriers", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+
+        await SaveAsync(r.Id, new
+        {
+            RepoCharges = (decimal?)null,
+            Advance = (decimal?)null,
+            CourierYn = (string?)null,
+            BankerAddress = (string?)null,
+            PodNumber = (string?)null
+        }, "Entries cleared.");
+    }
+
+    private async System.Threading.Tasks.Task SaveAsync(long id, object dto, string okText)
+    {
         try
         {
             btnSubmit.IsEnabled = false;
+            btnClear.IsEnabled = false;
             txtFormStatus.Foreground = System.Windows.Media.Brushes.Gray;
             txtFormStatus.Text = "Saving…";
 
-            await DesktopApiClient.UpdateCourierSubmissionAsync(r.Id, new
-            {
-                RepoCharges = ParseAmt(txtRepoCharges.Text),
-                Advance = ParseAmt(txtAdvance.Text),
-                CourierYn = courier,
-                BankerAddress = txtBankerAddress.Text.Trim(),
-                PodNumber = txtPod.Text.Trim(),
-                BillingAction = billing
-            });
+            await DesktopApiClient.UpdateCourierSubmissionAsync(id, dto);
 
             txtFormStatus.Foreground = System.Windows.Media.Brushes.Green;
-            txtFormStatus.Text = "Saved.";
+            txtFormStatus.Text = okText;
             await LoadAsync();
         }
         catch (Exception ex)
@@ -127,6 +148,6 @@ public partial class CouriersPage : Page
             txtFormStatus.Foreground = System.Windows.Media.Brushes.Firebrick;
             txtFormStatus.Text = "Failed: " + ex.Message;
         }
-        finally { btnSubmit.IsEnabled = true; }
+        finally { btnSubmit.IsEnabled = true; btnClear.IsEnabled = true; }
     }
 }
