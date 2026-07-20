@@ -46,6 +46,7 @@ public partial class ModeChooserWindow : Window
     private void btnChangeAgency_Click(object sender, RoutedEventArgs e)
     {
         SavedSession.Clear();
+        GateAccess.ClearAll();
         ChangeAgencyRequested = true;
         Close();
     }
@@ -79,7 +80,7 @@ public partial class ModeChooserWindow : Window
         {
             var w = new BillingShellWindow();
             w.ShowDialog();
-            if (w.LoggedOut) { SavedSession.Clear(); LoggedOut = true; Close(); return; }
+            if (w.LoggedOut) { SavedSession.Clear(); GateAccess.ClearAll(); LoggedOut = true; Close(); return; }
         }
         finally { if (!LoggedOut) Show(); }
     }
@@ -97,7 +98,7 @@ public partial class ModeChooserWindow : Window
         {
             var w = new CourierShellWindow();
             w.ShowDialog();
-            if (w.LoggedOut) { SavedSession.Clear(); LoggedOut = true; Close(); return; }
+            if (w.LoggedOut) { SavedSession.Clear(); GateAccess.ClearAll(); LoggedOut = true; Close(); return; }
         }
         finally { if (!LoggedOut) Show(); }
     }
@@ -109,6 +110,9 @@ public partial class ModeChooserWindow : Window
         if (string.IsNullOrEmpty(required))
             return System.Threading.Tasks.Task.FromResult(true);
 
+        if (GateAccess.RecentlyPassed(title, required))
+            return System.Threading.Tasks.Task.FromResult(true);
+
         var prompt = new PasswordPromptWindow(title) { Owner = this };
         if (prompt.ShowDialog() != true)
             return System.Threading.Tasks.Task.FromResult(false);
@@ -118,6 +122,8 @@ public partial class ModeChooserWindow : Window
             MessageBox.Show("Wrong password.", title, MessageBoxButton.OK, MessageBoxImage.Warning);
             return System.Threading.Tasks.Task.FromResult(false);
         }
+
+        GateAccess.MarkPassed(title, required);
         return System.Threading.Tasks.Task.FromResult(true);
     }
 
