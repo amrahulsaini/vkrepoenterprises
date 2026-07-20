@@ -59,36 +59,36 @@ public partial class ModeChooserWindow : Window
     {
         if (!await AskPasswordAsync("Super Admin", "superadmin")) return;
 
-        var w = new MainWindow { Owner = this };
-        WindowState = WindowState.Minimized;
+        var w = new MainWindow();
+        Hide();
         try { w.ShowDialog(); }
-        finally { WindowState = WindowState.Normal; Activate(); }
+        finally { Show(); Activate(); }
     }
 
     private void btnBilling_Click(object sender, RoutedEventArgs e)
     {
-        var w = new BillingShellWindow { Owner = this };
-        WindowState = WindowState.Minimized;
+        var w = new BillingShellWindow();
+        Hide();
         try
         {
             w.ShowDialog();
             if (w.LoggedOut) { LoggedOut = true; Close(); return; }
         }
-        finally { if (!LoggedOut) { WindowState = WindowState.Normal; Activate(); } }
+        finally { if (!LoggedOut) { Show(); Activate(); } }
     }
 
     private async void btnCourier_Click(object sender, RoutedEventArgs e)
     {
         if (!await AskPasswordAsync("Couriers", "courier")) return;
 
-        var w = new CourierShellWindow { Owner = this };
-        WindowState = WindowState.Minimized;
+        var w = new CourierShellWindow();
+        Hide();
         try
         {
             w.ShowDialog();
             if (w.LoggedOut) { LoggedOut = true; Close(); return; }
         }
-        finally { if (!LoggedOut) { WindowState = WindowState.Normal; Activate(); } }
+        finally { if (!LoggedOut) { Show(); Activate(); } }
     }
 
     /// Asks for the account password every time a mode is opened. The typed

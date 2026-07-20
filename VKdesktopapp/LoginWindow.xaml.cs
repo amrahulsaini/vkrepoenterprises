@@ -275,25 +275,33 @@ public partial class LoginWindow : Window
 
         _ = CacheAgencyBrandingAsync(signed.AgencyName, signed.LogoPath);
 
+        // The chooser is shown non-modally so it can be hidden while a mode is
+        // on screen and brought straight back when that mode closes. Hiding a
+        // window that is itself running a modal loop ends the loop, which is
+        // what previously made the app quit when a mode was closed.
         var chooser = new ModeChooserWindow();
+        chooser.Closed += async (_, __) =>
+        {
+            txtPassword.Clear();
+            if (chooser.ChangeAgencyRequested || chooser.LoggedOut)
+            {
+                await RevokeDeviceAsync();
+                txtEmail.Clear();
+                lblStatus.Text = "";
+                Show();
+                Activate();
+                txtEmail.Focus();
+            }
+            else
+            {
+                Application.Current.Shutdown();
+            }
+        };
 
         lblStatus.Text = "";
         Hide();
-        chooser.ShowDialog();
-
-        txtPassword.Clear();
-        if (chooser.ChangeAgencyRequested || chooser.LoggedOut)
-        {
-            await RevokeDeviceAsync();
-            txtEmail.Clear();
-            lblStatus.Text = "";
-            Show();
-            txtEmail.Focus();
-        }
-        else
-        {
-            Application.Current.Shutdown();
-        }
+        chooser.Show();
+        chooser.Activate();
     }
 
     private static async Task RevokeDeviceAsync()
