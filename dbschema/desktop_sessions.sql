@@ -9,5 +9,7 @@ CREATE TABLE IF NOT EXISTS desktop_sessions (
   expires_at    DATETIME     NOT NULL,
   revoked       TINYINT(1)   NOT NULL DEFAULT 0,
   UNIQUE KEY uk_desktop_sessions_token (token_hash),
-  KEY idx_desktop_sessions_agency (agency_id)
+  KEY idx_desktop_sessions_agency (agency_id),
+  CONSTRAINT fk_desktop_sessions_agency
+    FOREIGN KEY (agency_id) REFERENCES agencies(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
