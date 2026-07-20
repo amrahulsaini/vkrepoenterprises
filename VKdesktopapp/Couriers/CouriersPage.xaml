@@ -65,16 +65,30 @@
                       ScrollViewer.HorizontalScrollBarVisibility="Auto"
                       SelectionChanged="grid_SelectionChanged">
                 <DataGrid.Columns>
-                    <DataGridTextColumn Header="Date" Binding="{Binding CreatedAt}" Width="120" MinWidth="90" ElementStyle="{StaticResource CellText}" />
+                    <DataGridTextColumn Header="Repo Date" Binding="{Binding RepoDate}" Width="120" MinWidth="90" ElementStyle="{StaticResource CellText}" />
+                    <DataGridTextColumn Header="Loan No" Binding="{Binding LoanNo}" Width="150" MinWidth="90" ElementStyle="{StaticResource CellText}" />
+                    <DataGridTextColumn Header="Invoice No" Binding="{Binding InvoiceNo}" Width="90" MinWidth="70" ElementStyle="{StaticResource CellText}" />
+                    <DataGridTextColumn Header="Customer Name" Binding="{Binding CustomerName}" Width="150" MinWidth="90" ElementStyle="{StaticResource CellText}" />
+                    <DataGridTextColumn Header="Branch" Binding="{Binding BranchName}" Width="120" MinWidth="80" ElementStyle="{StaticResource CellText}" />
                     <DataGridTextColumn Header="Vehicle No" Binding="{Binding VehicleNo}" Width="110" MinWidth="80" ElementStyle="{StaticResource CellText}" />
-                    <DataGridTextColumn Header="Customer" Binding="{Binding CustomerName}" Width="150" MinWidth="90" ElementStyle="{StaticResource CellText}" />
+                    <DataGridTextColumn Header="Model/Maker" Binding="{Binding Model}" Width="160" MinWidth="90" ElementStyle="{StaticResource CellText}" />
+                    <DataGridTextColumn Header="Chassis No" Binding="{Binding ChassisNo}" Width="150" MinWidth="90" ElementStyle="{StaticResource CellText}" />
+                    <DataGridTextColumn Header="Engine No" Binding="{Binding EngineNo}" Width="140" MinWidth="90" ElementStyle="{StaticResource CellText}" />
+                    <DataGridTextColumn Header="Agent Name" Binding="{Binding AgentName}" Width="130" MinWidth="80" ElementStyle="{StaticResource CellText}" />
+                    <DataGridTextColumn Header="Parking Yard Name" Binding="{Binding ParkingYardName}" Width="160" MinWidth="90" ElementStyle="{StaticResource CellText}" />
+                    <DataGridTextColumn Header="Parking Yard Mobile" Binding="{Binding ParkingYardMobile}" Width="130" MinWidth="90" ElementStyle="{StaticResource CellText}" />
+                    <DataGridTextColumn Header="Load Details" Binding="{Binding LoadDetails}" Width="120" MinWidth="80" ElementStyle="{StaticResource CellText}" />
+                    <DataGridTextColumn Header="Additional Charges Notes, Amount" Binding="{Binding AddlCharges}" Width="200" MinWidth="110" ElementStyle="{StaticResource CellText}" />
+                    <DataGridTextColumn Header="Confirmation By (Name, Mobile)" Binding="{Binding ConfirmationBy}" Width="190" MinWidth="110" ElementStyle="{StaticResource CellText}" />
+                    <DataGridTextColumn Header="Executive Name" Binding="{Binding ExecutiveName}" Width="130" MinWidth="80" ElementStyle="{StaticResource CellText}" />
+                    <DataGridTextColumn Header="Collection Update" Binding="{Binding CollectionUpdate}" Width="150" MinWidth="90" ElementStyle="{StaticResource CellText}" />
                     <DataGridTextColumn Header="Finance" Binding="{Binding FinanceName}" Width="130" MinWidth="80" ElementStyle="{StaticResource CellText}" />
                     <DataGridTextColumn Header="Billing" Binding="{Binding ActionText}" Width="120" MinWidth="80" ElementStyle="{StaticResource CellText}" />
-                    <DataGridTextColumn Header="Repo Chg" Binding="{Binding RepoChargesText}" Width="90" MinWidth="70" ElementStyle="{StaticResource CellText}" />
+                    <DataGridTextColumn Header="Repo Charges" Binding="{Binding RepoChargesText}" Width="100" MinWidth="70" ElementStyle="{StaticResource CellText}" />
                     <DataGridTextColumn Header="Advance" Binding="{Binding AdvanceText}" Width="90" MinWidth="70" ElementStyle="{StaticResource CellText}" />
                     <DataGridTextColumn Header="Courier" Binding="{Binding CourierYn}" Width="70" MinWidth="60" ElementStyle="{StaticResource CellText}" />
                     <DataGridTextColumn Header="Banker Address" Binding="{Binding BankerAddress}" Width="150" MinWidth="90" ElementStyle="{StaticResource CellText}" />
-                    <DataGridTextColumn Header="POD" Binding="{Binding PodNumber}" Width="100" MinWidth="70" ElementStyle="{StaticResource CellText}" />
+                    <DataGridTextColumn Header="POD Number" Binding="{Binding PodNumber}" Width="110" MinWidth="70" ElementStyle="{StaticResource CellText}" />
                 </DataGrid.Columns>
             </DataGrid>
         </DockPanel>
@@ -86,17 +100,16 @@
                 <TextBlock DockPanel.Dock="Top" Name="txtSel" Text="Select a record from the list."
                            FontSize="12" Foreground="#888" TextWrapping="Wrap" Margin="0,0,0,8" />
 
+                <Button DockPanel.Dock="Top" Name="btnDetails" Content="View all details" Height="30" IsEnabled="False"
+                        Margin="0,0,0,10" Cursor="Hand" Click="btnDetails_Click" />
+
                 <Border DockPanel.Dock="Top" Name="pnlBilled" Background="#EAF4EA" CornerRadius="6" Padding="10,8"
                         Margin="0,0,0,12" Visibility="Collapsed">
                     <StackPanel>
                         <TextBlock Name="txtInvoice" Text="" FontSize="12.5" FontWeight="Bold" Foreground="#2E7D32" Margin="0,0,0,6" />
-                        <StackPanel Orientation="Horizontal">
-                            <Button Name="btnDetails" Content="View all details" Height="28" Padding="10,0" Margin="0,0,8,0"
-                                    Cursor="Hand" Click="btnDetails_Click" />
-                            <Button Name="btnDownloadBill" Content="Download bill" Height="28" Padding="10,0"
-                                    Background="#1565C0" Foreground="White" BorderThickness="0" Cursor="Hand"
-                                    Click="btnDownloadBill_Click" />
-                        </StackPanel>
+                        <Button Name="btnDownloadBill" Content="Download bill" Height="28" Padding="10,0"
+                                HorizontalAlignment="Left" Background="#1565C0" Foreground="White" BorderThickness="0"
+                                Cursor="Hand" Click="btnDownloadBill_Click" />
                     </StackPanel>
                 </Border>
 
