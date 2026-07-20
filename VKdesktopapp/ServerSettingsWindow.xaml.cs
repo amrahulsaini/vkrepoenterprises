@@ -79,6 +79,15 @@ public partial class ServerSettingsWindow : Window
         };
     }
 
+    /// WPF scrolls three small lines per wheel notch here, which crawls on a
+    /// form this long, so each notch moves a useful distance instead.
+    private void Settings_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+    {
+        if (sender is not System.Windows.Controls.ScrollViewer sv) return;
+        sv.ScrollToVerticalOffset(sv.VerticalOffset - e.Delta * 1.5);
+        e.Handled = true;
+    }
+
     private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         if (e.ClickCount == 1 && WindowState != WindowState.Maximized)
