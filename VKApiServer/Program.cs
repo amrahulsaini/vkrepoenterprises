@@ -1,6 +1,8 @@
 using System.Data;
 using System.Diagnostics;
 using System.IO.Compression;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.FileProviders;
@@ -2130,6 +2132,99 @@ app.MapPost("/api/mgr/couriers/submissions/{id:long}/update", async (HttpContext
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
 
+app.MapPost("/api/mgr/settings/verify-gate", async (HttpContext ctx, MgrVerifyGateDto dto) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        var key = dto.Gate switch
+        {
+            "superadmin" => "superadmin_desktop_password",
+            "courier"    => "courier_desktop_password",
+            "allocation" => "allocation_password",
+            _            => null
+        };
+        if (key == null) return Results.BadRequest(new { message = "Unknown gate." });
+
+        string configured = "";
+        await using (var conn = new MySqlConnection(TenantContext.Conn))
+        {
+            await conn.OpenAsync();
+            await using var cmd = new MySqlCommand(
+                "SELECT `value` FROM app_settings WHERE `key`=@k LIMIT 1", conn);
+            cmd.Parameters.AddWithValue("@k", key);
+            configured = (await cmd.ExecuteScalarAsync())?.ToString() ?? "";
+        }
+
+        if (!string.IsNullOrEmpty(configured))
+        {
+            var ok = CryptographicOperations.FixedTimeEquals(
+                Encoding.UTF8.GetBytes(configured), Encoding.UTF8.GetBytes(dto.Password ?? ""));
+            return Results.Ok(new { ok, stamp = AgencyPortal.Sha256Hex("cfg:" + configured)[..16] });
+        }
+
+        // No gate password set, so the agency account password is the fallback.
+        if (string.IsNullOrEmpty(AgencyPortal.MasterConn))
+            return Results.Ok(new { ok = false, stamp = "" });
+
+        string hash = "";
+        await using (var mconn = new MySqlConnection(AgencyPortal.MasterConn))
+        {
+            await mconn.OpenAsync();
+            await using var cmd = new MySqlCommand(
+                "SELECT COALESCE(password_hash,'') FROM agencies WHERE slug=@s LIMIT 1", mconn);
+            cmd.Parameters.AddWithValue("@s", TenantContext.Key);
+            hash = (await cmd.ExecuteScalarAsync())?.ToString() ?? "";
+        }
+        if (string.IsNullOrEmpty(hash)) return Results.Ok(new { ok = false, stamp = "" });
+
+        var valid = AgencyPortal.VerifyPassword(dto.Password ?? "", hash);
+        return Results.Ok(new { ok = valid, stamp = AgencyPortal.Sha256Hex("acct:" + hash)[..16] });
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+app.MapGet("/api/mgr/settings/gate-stamp", async (HttpContext ctx, string? gate) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        var key = gate switch
+        {
+            "superadmin" => "superadmin_desktop_password",
+            "courier"    => "courier_desktop_password",
+            "allocation" => "allocation_password",
+            _            => null
+        };
+        if (key == null) return Results.BadRequest(new { message = "Unknown gate." });
+
+        string configured = "";
+        await using (var conn = new MySqlConnection(TenantContext.Conn))
+        {
+            await conn.OpenAsync();
+            await using var cmd = new MySqlCommand(
+                "SELECT `value` FROM app_settings WHERE `key`=@k LIMIT 1", conn);
+            cmd.Parameters.AddWithValue("@k", key);
+            configured = (await cmd.ExecuteScalarAsync())?.ToString() ?? "";
+        }
+        if (!string.IsNullOrEmpty(configured))
+            return Results.Ok(new { stamp = AgencyPortal.Sha256Hex("cfg:" + configured)[..16] });
+
+        if (string.IsNullOrEmpty(AgencyPortal.MasterConn)) return Results.Ok(new { stamp = "" });
+        string hash = "";
+        await using (var mconn = new MySqlConnection(AgencyPortal.MasterConn))
+        {
+            await mconn.OpenAsync();
+            await using var cmd = new MySqlCommand(
+                "SELECT COALESCE(password_hash,'') FROM agencies WHERE slug=@s LIMIT 1", mconn);
+            cmd.Parameters.AddWithValue("@s", TenantContext.Key);
+            hash = (await cmd.ExecuteScalarAsync())?.ToString() ?? "";
+        }
+        return Results.Ok(new { stamp = string.IsNullOrEmpty(hash) ? "" : AgencyPortal.Sha256Hex("acct:" + hash)[..16] });
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
 app.MapGet("/api/mgr/settings/courier-password", async (HttpContext ctx) =>
 {
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
@@ -3972,6 +4067,8 @@ record MgrCourierUpdateDto(decimal? RepoCharges, decimal? Advance, string? Couri
     string? BankerAddress, string? PodNumber, string? BillingAction);
 record MgrSetFinanceRestrictionsDto(List<int> FinanceIds);
 record MgrSetSubsPasswordDto(string Password);
+
+record MgrVerifyGateDto(string Gate, string Password);
 record MgrSetAdminPassDto(string Password);
 record WebhookCreateUserDto(string Username, string Password);
 record WebhookFileInfoDto(

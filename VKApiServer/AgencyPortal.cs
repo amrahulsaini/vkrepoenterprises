@@ -1095,9 +1095,30 @@ internal static class AgencyPortal
             }
 
             string token = AgencyToken.Issue(id, slug);
+
+            string deviceToken = "";
+            bool remember = (dto.GetValueOrDefault("rememberDevice") ?? "").Trim().ToLowerInvariant() is "1" or "true";
+            if (remember)
+            {
+                try
+                {
+                    deviceToken = NewDeviceToken();
+                    await using var ins = new MySqlCommand(@"
+                        INSERT INTO desktop_sessions (agency_id, token_hash, pw_stamp, device_label, expires_at)
+                        VALUES (@a, @t, @p, @d, DATE_ADD(NOW(), INTERVAL 90 DAY));", conn);
+                    ins.Parameters.AddWithValue("@a", id);
+                    ins.Parameters.AddWithValue("@t", Sha256Hex(deviceToken));
+                    ins.Parameters.AddWithValue("@p", Sha256Hex(hash));
+                    ins.Parameters.AddWithValue("@d", (dto.GetValueOrDefault("deviceLabel") ?? "").Trim());
+                    await ins.ExecuteNonQueryAsync();
+                }
+                catch { deviceToken = ""; }
+            }
+
             return Results.Ok(new
             {
                 token,
+                deviceToken,
                 agencyId   = id,
                 agencyName = name,
                 slug,
@@ -1107,6 +1128,110 @@ internal static class AgencyPortal
                 logoPath   = logoPath ?? "",
                 isAgency   = true,
             });
+        });
+
+        app.MapPost("/api/agency/desktop/session/resume", async (HttpRequest req) =>
+        {
+            var dto = await ReadJsonAsync(req);
+            string deviceToken = (dto.GetValueOrDefault("deviceToken") ?? "").Trim();
+            if (string.IsNullOrEmpty(deviceToken))
+                return Results.Json(new { message = "No session." }, statusCode: 401);
+
+            await using var conn = new MySqlConnection(masterConn);
+            await conn.OpenAsync();
+
+            long sessionId = 0; int agencyId = 0; string storedStamp = "";
+            await using (var cmd = new MySqlCommand(@"
+                SELECT id, agency_id, pw_stamp
+                  FROM desktop_sessions
+                 WHERE token_hash = @t AND revoked = 0 AND expires_at > NOW()
+                 LIMIT 1;", conn))
+            {
+                cmd.Parameters.AddWithValue("@t", Sha256Hex(deviceToken));
+                await using var rdr = await cmd.ExecuteReaderAsync();
+                if (!await rdr.ReadAsync())
+                    return Results.Json(new { message = "Session expired." }, statusCode: 401);
+                sessionId   = rdr.GetInt64(0);
+                agencyId    = rdr.GetInt32(1);
+                storedStamp = rdr.GetString(2);
+            }
+
+            int id = 0;
+            string name = "", slug = "", status = "", hash = "", email = "";
+            string? logoPath = null, mobile1 = null, address = null;
+            await using (var cmd = new MySqlCommand(@"
+                SELECT id, name, slug, status, COALESCE(password_hash,''), logo_path, mobile1, address, email1
+                  FROM agencies WHERE id = @id LIMIT 1;", conn))
+            {
+                cmd.Parameters.AddWithValue("@id", agencyId);
+                await using var rdr = await cmd.ExecuteReaderAsync();
+                if (!await rdr.ReadAsync())
+                    return Results.Json(new { message = "Session expired." }, statusCode: 401);
+                id       = rdr.GetInt32(0);
+                name     = rdr.GetString(1);
+                slug     = rdr.GetString(2);
+                status   = rdr.GetString(3);
+                hash     = rdr.GetString(4);
+                logoPath = rdr.IsDBNull(5) ? null : rdr.GetString(5);
+                mobile1  = rdr.IsDBNull(6) ? null : rdr.GetString(6);
+                address  = rdr.IsDBNull(7) ? null : rdr.GetString(7);
+                email    = rdr.IsDBNull(8) ? "" : rdr.GetString(8);
+            }
+
+            // The password changed since this device signed in, so the session is dead.
+            if (!CryptographicOperations.FixedTimeEquals(
+                    Encoding.UTF8.GetBytes(storedStamp), Encoding.UTF8.GetBytes(Sha256Hex(hash))))
+            {
+                await using var rev = new MySqlCommand(
+                    "UPDATE desktop_sessions SET revoked = 1 WHERE id = @id;", conn);
+                rev.Parameters.AddWithValue("@id", sessionId);
+                await rev.ExecuteNonQueryAsync();
+                return Results.Json(new { message = "Password changed. Please sign in again." }, statusCode: 401);
+            }
+
+            if (status != "approved")
+                return Results.Json(new { message = "Your agency account is not active." }, statusCode: 403);
+
+            await using (var upd = new MySqlCommand(@"
+                UPDATE desktop_sessions
+                   SET last_used_at = NOW(), expires_at = DATE_ADD(NOW(), INTERVAL 90 DAY)
+                 WHERE id = @id;", conn))
+            {
+                upd.Parameters.AddWithValue("@id", sessionId);
+                await upd.ExecuteNonQueryAsync();
+            }
+
+            return Results.Ok(new
+            {
+                token      = AgencyToken.Issue(id, slug),
+                deviceToken,
+                agencyId   = id,
+                agencyName = name,
+                slug,
+                email,
+                mobile1    = mobile1 ?? "",
+                address    = address ?? "",
+                logoPath   = logoPath ?? "",
+                isAgency   = true,
+            });
+        });
+
+        app.MapPost("/api/agency/desktop/session/revoke", async (HttpRequest req) =>
+        {
+            var dto = await ReadJsonAsync(req);
+            string deviceToken = (dto.GetValueOrDefault("deviceToken") ?? "").Trim();
+            if (string.IsNullOrEmpty(deviceToken)) return Results.Ok(new { success = true });
+            try
+            {
+                await using var conn = new MySqlConnection(masterConn);
+                await conn.OpenAsync();
+                await using var cmd = new MySqlCommand(
+                    "UPDATE desktop_sessions SET revoked = 1 WHERE token_hash = @t;", conn);
+                cmd.Parameters.AddWithValue("@t", Sha256Hex(deviceToken));
+                await cmd.ExecuteNonQueryAsync();
+            }
+            catch { }
+            return Results.Ok(new { success = true });
         });
 
         app.MapPost("/api/agency/web/login", async (HttpRequest req) =>
@@ -2770,6 +2895,15 @@ internal static class AgencyPortal
         var hash = kdf.GetBytes(32);
         return $"pbkdf2${iter}${Convert.ToBase64String(salt)}${Convert.ToBase64String(hash)}";
     }
+
+    private static string NewDeviceToken()
+    {
+        var bytes = RandomNumberGenerator.GetBytes(32);
+        return Convert.ToBase64String(bytes).Replace('+', '-').Replace('/', '_').TrimEnd('=');
+    }
+
+    internal static string Sha256Hex(string s)
+        => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(s ?? ""))).ToLowerInvariant();
 
     public static bool VerifyPassword(string password, string stored)
     {

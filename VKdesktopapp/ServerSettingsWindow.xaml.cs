@@ -204,6 +204,8 @@ public partial class ServerSettingsWindow : Window
 
         App.SignedAppUser = null;
         App.HttpClient.DefaultRequestHeaders.Authorization = null;
+        SavedSession.Clear();
+        GateAccess.ClearAll();
         try
         {
             var exe = Process.GetCurrentProcess().MainModule?.FileName;

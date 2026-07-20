@@ -17,8 +17,6 @@ public partial class App : Application
 
     public static SignedAppUser? SignedAppUser { get; set; }
 
-    public static string LoginPassword { get; set; } = "";
-
     public static string LoginEmail { get; set; } = "";
 
     public static Firm Firm => new Firm

@@ -215,15 +215,30 @@ public partial class MainWindow : Window
 
     private async Task OpenAllocationsAsync()
     {
-        string stored;
-        try { stored = await DesktopApiClient.GetAllocationPasswordAsync(); }
-        catch { stored = ""; }
+        string stamp;
+        try { stamp = await DesktopApiClient.GetGateStampAsync("allocation"); }
+        catch
+        {
+            MessageBox.Show("Cannot reach the server to check the password. Try again.",
+                "Allocations", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
 
-        if (!string.IsNullOrEmpty(stored))
+        if (!string.IsNullOrEmpty(stamp))
         {
             var prompt = new Billing.PasswordPromptWindow("Allocations") { Owner = this };
             if (prompt.ShowDialog() != true) return;
-            if (!string.Equals(prompt.EnteredPassword, stored, StringComparison.Ordinal))
+
+            DesktopApiClient.GateVerifyResult result;
+            try { result = await DesktopApiClient.VerifyGateAsync("allocation", prompt.EnteredPassword); }
+            catch
+            {
+                MessageBox.Show("Cannot reach the server to check the password. Try again.",
+                    "Allocations", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            if (!result.Ok)
             {
                 MessageBox.Show("Wrong password.", "Allocations", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
