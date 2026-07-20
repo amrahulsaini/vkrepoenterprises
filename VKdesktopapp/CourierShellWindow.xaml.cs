@@ -13,8 +13,7 @@ public partial class CourierShellWindow : Window
     public CourierShellWindow()
     {
         InitializeComponent();
-        var name = App.SignedAppUser?.AgencyName;
-        if (!string.IsNullOrWhiteSpace(name)) lblTitle.Text = name + " Couriers";
+        lblTitle.Text = BillingShellWindow.AgencyDisplayName();
         LoadAgencyLogo();
         Loaded += (_, __) => PageContainer.Navigate(new CouriersPage());
     }
@@ -38,18 +37,4 @@ public partial class CourierShellWindow : Window
         catch { }
     }
 
-    private void btnLogout_Click(object sender, RoutedEventArgs e)
-    {
-        var confirm = MessageBox.Show(
-            "Log out and forget this sign in on this computer?\n\n" +
-            "You will have to type your email and password next time. " +
-            "To just close Couriers, use the X instead.",
-            "Log out", MessageBoxButton.YesNo, MessageBoxImage.Question);
-        if (confirm != MessageBoxResult.Yes) return;
-
-        LoggedOut = true;
-        Close();
-    }
-
-    private void btnClose_Click(object sender, RoutedEventArgs e) => Close();
 }

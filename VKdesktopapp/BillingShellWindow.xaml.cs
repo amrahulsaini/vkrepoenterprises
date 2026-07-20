@@ -13,8 +13,7 @@ public partial class BillingShellWindow : Window
     public BillingShellWindow()
     {
         InitializeComponent();
-        var name = App.SignedAppUser?.AgencyName;
-        if (!string.IsNullOrWhiteSpace(name)) lblTitle.Text = name + " Billing";
+        lblTitle.Text = AgencyDisplayName();
         LoadAgencyLogo();
         Loaded += (_, __) => PageContainer.Navigate(new BillingLoginPage());
     }
@@ -38,18 +37,24 @@ public partial class BillingShellWindow : Window
         catch { }
     }
 
-    private void btnLogout_Click(object sender, RoutedEventArgs e)
+    /// The tenant brand where the build has one, otherwise the account's
+    /// agency name, matching what the sign in screen shows.
+    internal static string AgencyDisplayName()
     {
-        var confirm = MessageBox.Show(
-            "Log out and forget this sign in on this computer?\n\n" +
-            "You will have to type your email and password next time. " +
-            "To just close Billing, use the X instead.",
-            "Log out", MessageBoxButton.YesNo, MessageBoxImage.Question);
-        if (confirm != MessageBoxResult.Yes) return;
+        try
+        {
+            var cached = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "CRMRS", "agency-name.txt");
+            if (File.Exists(cached))
+            {
+                var n = File.ReadAllText(cached).Trim();
+                if (!string.IsNullOrWhiteSpace(n)) return n;
+            }
+        }
+        catch { }
 
-        LoggedOut = true;
-        Close();
+        if (Branding.IsTenantBuild && !string.IsNullOrWhiteSpace(Branding.Name)) return Branding.Name;
+        return App.SignedAppUser?.AgencyName ?? "";
     }
-
-    private void btnClose_Click(object sender, RoutedEventArgs e) => Close();
 }
