@@ -15,12 +15,42 @@ public partial class LoginWindow : Window
     private static readonly string AgencyLogoCachePath = System.IO.Path.Combine(AgencyCacheDir, "agency-logo.png");
     private static readonly string AgencyNameCachePath = System.IO.Path.Combine(AgencyCacheDir, "agency-name.txt");
 
+    private bool _autoLoginTried;
+
     public LoginWindow()
     {
         InitializeComponent();
         if (Branding.IsTenantBuild)
             lblAppName.Text = Branding.Name;
-        Loaded += (_, __) => LoadCachedAgencyBranding();
+        Loaded += async (_, __) =>
+        {
+            LoadCachedAgencyBranding();
+            await TryAutoLoginAsync();
+        };
+    }
+
+    private async Task TryAutoLoginAsync()
+    {
+        if (_autoLoginTried) return;
+        _autoLoginTried = true;
+
+        var saved = SavedSession.Load();
+        if (saved == null) return;
+
+        btnLogin.IsEnabled = false;
+        lblStatus.Text = "Signing in...";
+        try
+        {
+            await Login(saved.Value.Email, saved.Value.Password, silent: true);
+        }
+        catch
+        {
+            lblStatus.Text = "";
+        }
+        finally
+        {
+            btnLogin.IsEnabled = true;
+        }
     }
 
     private void LoadCachedAgencyBranding()
@@ -122,12 +152,14 @@ public partial class LoginWindow : Window
         }
     }
 
-    public async Task Login()
+    public Task Login() => Login(txtEmail.Text.Trim(), txtPassword.Password, silent: false);
+
+    public async Task Login(string emailIn, string passwordIn, bool silent)
     {
         var formData = new
         {
-            email    = txtEmail.Text.Trim().ToLowerInvariant(),
-            password = txtPassword.Password
+            email    = emailIn.Trim().ToLowerInvariant(),
+            password = passwordIn
         };
 
         App.HttpClient.DefaultRequestHeaders.Authorization = null;
@@ -155,15 +187,17 @@ public partial class LoginWindow : Window
             catch (OperationCanceledException)
             {
                 lblStatus.Text = "";
-                MessageBox.Show("The server didn't respond in time. Check your internet connection and try again.",
-                    "Connection Timeout", MessageBoxButton.OK, MessageBoxImage.Warning);
+                if (!silent)
+                    MessageBox.Show("The server didn't respond in time. Check your internet connection and try again.",
+                        "Connection Timeout", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
             catch (HttpRequestException rex) when (rex.InnerException is System.Net.Sockets.SocketException)
             {
                 lblStatus.Text = "";
-                MessageBox.Show("Cannot reach the server. Please check your internet connection and that the API URL in settings is correct.",
-                    "Connection Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+                if (!silent)
+                    MessageBox.Show("Cannot reach the server. Please check your internet connection and that the API URL in settings is correct.",
+                        "Connection Error", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
         }
@@ -171,6 +205,12 @@ public partial class LoginWindow : Window
         if (!response.IsSuccessStatusCode)
         {
             lblStatus.Text = "";
+            if (silent)
+            {
+                SavedSession.Clear();
+                txtEmail.Text = emailIn;
+                return;
+            }
             string msg = "Sign in failed. Please check your email and password.";
             try
             {
@@ -188,13 +228,16 @@ public partial class LoginWindow : Window
         if (signed == null || string.IsNullOrEmpty(signed.Token))
         {
             lblStatus.Text = "";
-            MessageBox.Show("Unexpected response from the server. Please try again.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            if (!silent)
+                MessageBox.Show("Unexpected response from the server. Please try again.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             return;
         }
 
         App.SignedAppUser = signed;
-        App.LoginPassword = txtPassword.Password;
+        App.LoginPassword = passwordIn;
+        App.LoginEmail = formData.email;
         App.SetAuthToken(signed.Token);
+        SavedSession.Save(formData.email, passwordIn);
 
         _ = CacheAgencyBrandingAsync(signed.AgencyName, signed.LogoPath);
 
@@ -209,6 +252,12 @@ public partial class LoginWindow : Window
         finally
         {
             txtPassword.Clear();
+            if (chooser.ChangeAgencyRequested)
+            {
+                txtEmail.Clear();
+                lblStatus.Text = "";
+                txtEmail.Focus();
+            }
             Show();
         }
     }

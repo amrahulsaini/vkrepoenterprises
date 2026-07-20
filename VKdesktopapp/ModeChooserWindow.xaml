@@ -2,7 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         FontFamily="{StaticResource FontBody}"
-        Title="Choose Mode" Height="400" Width="760"
+        Title="Choose Mode" Height="470" Width="760"
         WindowStartupLocation="CenterScreen" ResizeMode="NoResize"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent">
     <Window.Resources>
@@ -33,6 +33,7 @@
         <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="44" />
+                <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
@@ -42,7 +43,7 @@
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="14,0,0,0">
                     <Image Source="public/crmrs-logo.png" Width="20" Height="20" Margin="0,0,8,0"
                            VerticalAlignment="Center" RenderOptions.BitmapScalingMode="HighQuality" />
-                    <TextBlock Name="lblWho" Text="Welcome" Foreground="White" FontSize="14" FontWeight="Bold"
+                    <TextBlock Text="CRMRS" Foreground="White" FontSize="14" FontWeight="Bold"
                                VerticalAlignment="Center" />
                 </StackPanel>
                 <Button HorizontalAlignment="Right" Width="44" Height="44" Content="&#x2715;"
@@ -64,9 +65,26 @@
                 </Button>
             </Grid>
 
-            <StackPanel Grid.Row="1" VerticalAlignment="Center" Margin="30,0">
+            <Border Grid.Row="1" Background="White" BorderBrush="{StaticResource Gray200}"
+                    BorderThickness="0,0,0,1" Padding="24,14">
+                <DockPanel>
+                    <Border DockPanel.Dock="Left" Width="52" Height="52" CornerRadius="26"
+                            Background="{StaticResource Gray100}" Margin="0,0,14,0">
+                        <Image Name="imgAgencyLogo" Stretch="UniformToFill" Margin="4"
+                               RenderOptions.BitmapScalingMode="HighQuality" />
+                    </Border>
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Name="lblAgencyName" Text="Agency" FontSize="17" FontWeight="Bold"
+                                   Foreground="{StaticResource Gray900}" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Name="lblAgencyAddress" Text="" FontSize="12" Foreground="{StaticResource Gray600}"
+                                   TextWrapping="Wrap" Margin="0,2,0,0" />
+                    </StackPanel>
+                </DockPanel>
+            </Border>
+
+            <StackPanel Grid.Row="2" VerticalAlignment="Center" Margin="30,0">
                 <TextBlock Text="What do you want to open?" FontSize="14" Foreground="{StaticResource Gray600}"
-                           HorizontalAlignment="Center" Margin="0,0,0,20" />
+                           HorizontalAlignment="Center" Margin="0,0,0,18" />
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                     <Button Name="btnSuperAdmin" Style="{StaticResource ModeTile}" Margin="0,0,16,0" Click="btnSuperAdmin_Click">
                         <StackPanel>
@@ -98,10 +116,14 @@
                 </StackPanel>
             </StackPanel>
 
-            <Border Grid.Row="2" Background="{StaticResource Gray50}"
-                    BorderBrush="{StaticResource Gray200}" BorderThickness="0,1,0,0" Padding="18,10">
-                <Button Content="Log out" Width="90" Height="30" HorizontalAlignment="Left"
-                        Cursor="Hand" Click="btnLogout_Click" />
+            <Border Grid.Row="3" Background="{StaticResource Gray50}"
+                    BorderBrush="{StaticResource Gray200}" BorderThickness="0,1,0,0" Padding="18,12">
+                <DockPanel>
+                    <Button DockPanel.Dock="Right" Name="btnChangeAgency" Content="Change agency"
+                            Height="32" Padding="16,0" Cursor="Hand" Click="btnChangeAgency_Click" />
+                    <TextBlock Name="lblSignedIn" Text="" FontSize="12.5" Foreground="{StaticResource Gray600}"
+                               VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                </DockPanel>
             </Border>
         </Grid>
     </Border>

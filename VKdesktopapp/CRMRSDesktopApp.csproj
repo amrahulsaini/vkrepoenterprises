@@ -42,6 +42,7 @@
     <PackageReference Include="Syncfusion.SfSkinManager.WPF" Version="28.1.33" />
     <PackageReference Include="Syncfusion.Themes.Windows11Light.WPF" Version="28.1.33" />
     <PackageReference Include="System.Net.Http.Json" Version="6.0.1" />
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="6.0.0" />
   </ItemGroup>
 
   <ItemGroup>
