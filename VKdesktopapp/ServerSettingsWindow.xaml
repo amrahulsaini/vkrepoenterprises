@@ -48,7 +48,8 @@
         </Grid>
 
         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto"
-                      HorizontalScrollBarVisibility="Disabled">
+                      HorizontalScrollBarVisibility="Disabled"
+                      PreviewMouseWheel="Settings_PreviewMouseWheel">
             <StackPanel Margin="24,18,24,8">
                 <TextBlock Text="These details show on the mobile app's Agency panel and update everywhere automatically."
                            Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,0,0,14" />
