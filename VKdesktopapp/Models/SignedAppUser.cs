@@ -23,4 +23,7 @@ public class SignedAppUser
     public string Mobile1    { get; set; } = string.Empty;
     public string Address    { get; set; } = string.Empty;
     public string LogoPath   { get; set; } = string.Empty;
+
+    /// Server-issued token that lets this device resume without the password.
+    public string DeviceToken { get; set; } = string.Empty;
 }

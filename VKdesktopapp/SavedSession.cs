@@ -5,45 +5,60 @@ using System.Text;
 
 namespace CRMRSDesktopApp;
 
+/// Holds only the server-issued device token. The account password is never
+/// written to disk. The token is still encrypted at rest because it is a
+/// bearer credential, and the server can revoke it at any time.
 internal static class SavedSession
 {
     private static string Path_ => System.IO.Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+        "CRMRS", "device.dat");
+
+    private static string LegacyPath => System.IO.Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
         "CRMRS", "session.dat");
 
-    private static readonly byte[] Entropy = Encoding.UTF8.GetBytes("CRMRS.desktop.session.v1");
+    private static readonly byte[] Entropy = Encoding.UTF8.GetBytes("CRMRS.desktop.device.v2");
 
-    public static bool Exists => File.Exists(Path_);
-
-    public static void Save(string email, string password)
+    public static void Save(string deviceToken)
     {
         try
         {
             Directory.CreateDirectory(System.IO.Path.GetDirectoryName(Path_)!);
-            var plain = Encoding.UTF8.GetBytes(email + "\n" + password);
-            var enc = ProtectedData.Protect(plain, Entropy, DataProtectionScope.CurrentUser);
+            var enc = ProtectedData.Protect(
+                Encoding.UTF8.GetBytes(deviceToken), Entropy, DataProtectionScope.CurrentUser);
             File.WriteAllBytes(Path_, enc);
         }
         catch { }
     }
 
-    public static (string Email, string Password)? Load()
+    public static string? Load()
     {
         try
         {
             if (!File.Exists(Path_)) return null;
-            var enc = File.ReadAllBytes(Path_);
-            var plain = ProtectedData.Unprotect(enc, Entropy, DataProtectionScope.CurrentUser);
-            var parts = Encoding.UTF8.GetString(plain).Split('\n');
-            if (parts.Length < 2 || string.IsNullOrWhiteSpace(parts[0])) return null;
-            return (parts[0], parts[1]);
+            var plain = ProtectedData.Unprotect(
+                File.ReadAllBytes(Path_), Entropy, DataProtectionScope.CurrentUser);
+            var token = Encoding.UTF8.GetString(plain).Trim();
+            return string.IsNullOrEmpty(token) ? null : token;
         }
         catch { return null; }
     }
 
     public static void Clear()
     {
-        try { if (File.Exists(Path_)) File.Delete(Path_); }
+        foreach (var p in new[] { Path_, LegacyPath })
+        {
+            try { if (File.Exists(p)) File.Delete(p); }
+            catch { }
+        }
+    }
+
+    /// Removes any credentials written by older builds, which stored the
+    /// email and password rather than a revocable token.
+    public static void PurgeLegacy()
+    {
+        try { if (File.Exists(LegacyPath)) File.Delete(LegacyPath); }
         catch { }
     }
 }

@@ -34,14 +34,38 @@ public partial class LoginWindow : Window
         if (_autoLoginTried) return;
         _autoLoginTried = true;
 
-        var saved = SavedSession.Load();
-        if (saved == null) return;
+        SavedSession.PurgeLegacy();
+
+        var deviceToken = SavedSession.Load();
+        if (string.IsNullOrEmpty(deviceToken)) return;
 
         btnLogin.IsEnabled = false;
         lblStatus.Text = "Signing in...";
         try
         {
-            await Login(saved.Value.Email, saved.Value.Password, silent: true);
+            using var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(20));
+            var resp = await App.HttpClient.PostAsync(
+                App.ApiBaseUrl + "api/agency/desktop/session/resume",
+                JsonContent.Create(new { deviceToken }), cts.Token);
+
+            if (!resp.IsSuccessStatusCode)
+            {
+                // Expired, revoked, or the account password changed.
+                SavedSession.Clear();
+                GateAccess.ClearAll();
+                lblStatus.Text = "";
+                return;
+            }
+
+            var signed = await resp.Content.ReadFromJsonAsync<SignedAppUser>();
+            if (signed == null || string.IsNullOrEmpty(signed.Token))
+            {
+                SavedSession.Clear();
+                lblStatus.Text = "";
+                return;
+            }
+
+            await EnterAppAsync(signed, deviceToken);
         }
         catch
         {
@@ -158,8 +182,10 @@ public partial class LoginWindow : Window
     {
         var formData = new
         {
-            email    = emailIn.Trim().ToLowerInvariant(),
-            password = passwordIn
+            email          = emailIn.Trim().ToLowerInvariant(),
+            password       = passwordIn,
+            rememberDevice = "true",
+            deviceLabel    = Environment.MachineName
         };
 
         App.HttpClient.DefaultRequestHeaders.Authorization = null;
@@ -233,11 +259,16 @@ public partial class LoginWindow : Window
             return;
         }
 
+        await EnterAppAsync(signed, signed.DeviceToken);
+    }
+
+    private async Task EnterAppAsync(SignedAppUser signed, string? deviceToken)
+    {
         App.SignedAppUser = signed;
-        App.LoginPassword = passwordIn;
-        App.LoginEmail = formData.email;
+        App.LoginEmail = signed.Email;
         App.SetAuthToken(signed.Token);
-        SavedSession.Save(formData.email, passwordIn);
+
+        if (!string.IsNullOrEmpty(deviceToken)) SavedSession.Save(deviceToken!);
 
         _ = CacheAgencyBrandingAsync(signed.AgencyName, signed.LogoPath);
 
@@ -250,6 +281,7 @@ public partial class LoginWindow : Window
         txtPassword.Clear();
         if (chooser.ChangeAgencyRequested || chooser.LoggedOut)
         {
+            await RevokeDeviceAsync();
             txtEmail.Clear();
             lblStatus.Text = "";
             Show();
@@ -259,6 +291,22 @@ public partial class LoginWindow : Window
         {
             Application.Current.Shutdown();
         }
+    }
+
+    private static async Task RevokeDeviceAsync()
+    {
+        var token = SavedSession.Load();
+        SavedSession.Clear();
+        GateAccess.ClearAll();
+        if (string.IsNullOrEmpty(token)) return;
+        try
+        {
+            using var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(10));
+            await App.HttpClient.PostAsync(
+                App.ApiBaseUrl + "api/agency/desktop/session/revoke",
+                JsonContent.Create(new { deviceToken = token }), cts.Token);
+        }
+        catch { }
     }
 
     private void btnClose_Click(object sender, RoutedEventArgs e)

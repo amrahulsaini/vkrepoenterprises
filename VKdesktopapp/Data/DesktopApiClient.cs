@@ -533,6 +533,28 @@ internal static class DesktopApiClient
         resp.EnsureSuccessStatusCode();
     }
 
+    internal record GateVerifyResult(bool Ok, string Stamp);
+    internal record GateStampResult(string Stamp);
+
+    /// The password is checked on the server; it is never returned to the app.
+    internal static async Task<GateVerifyResult> VerifyGateAsync(string gate, string password)
+    {
+        var resp = await Send(HttpMethod.Post, "api/mgr/settings/verify-gate",
+            new { Gate = gate, Password = password });
+        resp.EnsureSuccessStatusCode();
+        return (await resp.Content.ReadFromJsonAsync<GateVerifyResult>(_json))
+               ?? new GateVerifyResult(false, "");
+    }
+
+    /// Short fingerprint of the gate's current password, used to notice a change.
+    internal static async Task<string> GetGateStampAsync(string gate)
+    {
+        var resp = await Send(HttpMethod.Get, $"api/mgr/settings/gate-stamp?gate={Uri.EscapeDataString(gate)}");
+        resp.EnsureSuccessStatusCode();
+        var r = await resp.Content.ReadFromJsonAsync<GateStampResult>(_json);
+        return r?.Stamp ?? "";
+    }
+
     internal static async Task<string> GetSuperAdminPasswordAsync()
     {
         var resp = await Send(HttpMethod.Get, "api/mgr/settings/superadmin-password");

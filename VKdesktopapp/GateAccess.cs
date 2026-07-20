@@ -2,11 +2,13 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Security.Cryptography;
-using System.Text;
 
 namespace CRMRSDesktopApp;
 
+/// Remembers that a mode password was accepted on this device, so it is not
+/// asked for again for a week. Nothing password-derived is stored locally:
+/// the stamp is an opaque fingerprint the server returns, which changes when
+/// the password changes, so a change forces the prompt back immediately.
 internal static class GateAccess
 {
     private static readonly TimeSpan Window = TimeSpan.FromDays(7);
@@ -15,10 +17,7 @@ internal static class GateAccess
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
         "CRMRS", "gates.dat");
 
-    private static string Hash(string s)
-        => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(s ?? "")));
-
-    private static Dictionary<string, (string Hash, DateTime When)> Read()
+    private static Dictionary<string, (string Stamp, DateTime When)> Read()
     {
         var map = new Dictionary<string, (string, DateTime)>(StringComparer.OrdinalIgnoreCase);
         try
@@ -36,29 +35,30 @@ internal static class GateAccess
         return map;
     }
 
-    private static void Write(Dictionary<string, (string Hash, DateTime When)> map)
+    private static void Write(Dictionary<string, (string Stamp, DateTime When)> map)
     {
         try
         {
             Directory.CreateDirectory(System.IO.Path.GetDirectoryName(Path_)!);
-            File.WriteAllLines(Path_, map.Select(kv =>
-                $"{kv.Key}|{kv.Value.Hash}|{kv.Value.When:O}"));
+            File.WriteAllLines(Path_, map.Select(kv => $"{kv.Key}|{kv.Value.Stamp}|{kv.Value.When:O}"));
         }
         catch { }
     }
 
-    public static bool RecentlyPassed(string gate, string requiredPassword)
+    public static bool RecentlyPassed(string gate, string currentStamp)
     {
+        if (string.IsNullOrEmpty(currentStamp)) return false;
         var map = Read();
         if (!map.TryGetValue(gate, out var e)) return false;
-        if (e.Hash != Hash(requiredPassword)) return false;
+        if (!string.Equals(e.Stamp, currentStamp, StringComparison.Ordinal)) return false;
         return DateTime.UtcNow - e.When < Window;
     }
 
-    public static void MarkPassed(string gate, string requiredPassword)
+    public static void MarkPassed(string gate, string stamp)
     {
+        if (string.IsNullOrEmpty(stamp)) return;
         var map = Read();
-        map[gate] = (Hash(requiredPassword), DateTime.UtcNow);
+        map[gate] = (stamp, DateTime.UtcNow);
         Write(map);
     }
 
