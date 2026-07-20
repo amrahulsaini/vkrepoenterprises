@@ -9,12 +9,45 @@ namespace CRMRSDesktopApp;
 public partial class ModeChooserWindow : Window
 {
     public bool LoggedOut { get; private set; }
+    public bool ChangeAgencyRequested { get; private set; }
 
     public ModeChooserWindow()
     {
         InitializeComponent();
-        var name = App.SignedAppUser?.AgencyName;
-        if (!string.IsNullOrWhiteSpace(name)) lblWho.Text = "Welcome, " + name;
+        LoadAgencyHeader();
+    }
+
+    private void LoadAgencyHeader()
+    {
+        var u = App.SignedAppUser;
+        var name = u?.AgencyName;
+        lblAgencyName.Text = string.IsNullOrWhiteSpace(name) ? App.Firm.FirmName : name;
+        lblAgencyAddress.Text = u?.Address ?? "";
+        lblSignedIn.Text = string.IsNullOrWhiteSpace(App.LoginEmail)
+            ? "" : "Signed in as " + App.LoginEmail;
+
+        try
+        {
+            var path = System.IO.Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "CRMRS", "agency-logo.png");
+            if (!System.IO.File.Exists(path)) return;
+            var bmp = new System.Windows.Media.Imaging.BitmapImage();
+            bmp.BeginInit();
+            bmp.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
+            bmp.UriSource = new Uri(path);
+            bmp.EndInit();
+            bmp.Freeze();
+            imgAgencyLogo.Source = bmp;
+        }
+        catch { }
+    }
+
+    private void btnChangeAgency_Click(object sender, RoutedEventArgs e)
+    {
+        SavedSession.Clear();
+        ChangeAgencyRequested = true;
+        Close();
     }
 
     private void TitleBar_MouseDown(object sender, MouseButtonEventArgs e)
@@ -46,7 +79,7 @@ public partial class ModeChooserWindow : Window
         {
             var w = new BillingShellWindow();
             w.ShowDialog();
-            if (w.LoggedOut) { LoggedOut = true; Close(); return; }
+            if (w.LoggedOut) { SavedSession.Clear(); LoggedOut = true; Close(); return; }
         }
         finally { if (!LoggedOut) Show(); }
     }
@@ -64,7 +97,7 @@ public partial class ModeChooserWindow : Window
         {
             var w = new CourierShellWindow();
             w.ShowDialog();
-            if (w.LoggedOut) { LoggedOut = true; Close(); return; }
+            if (w.LoggedOut) { SavedSession.Clear(); LoggedOut = true; Close(); return; }
         }
         finally { if (!LoggedOut) Show(); }
     }
@@ -86,12 +119,6 @@ public partial class ModeChooserWindow : Window
             return System.Threading.Tasks.Task.FromResult(false);
         }
         return System.Threading.Tasks.Task.FromResult(true);
-    }
-
-    private void btnLogout_Click(object sender, RoutedEventArgs e)
-    {
-        LoggedOut = true;
-        Close();
     }
 
     private void btnClose_Click(object sender, RoutedEventArgs e)
