@@ -1105,7 +1105,7 @@ internal static class AgencyPortal
                     deviceToken = NewDeviceToken();
                     await using var ins = new MySqlCommand(@"
                         INSERT INTO desktop_sessions (agency_id, token_hash, pw_stamp, device_label, expires_at)
-                        VALUES (@a, @t, @p, @d, DATE_ADD(NOW(), INTERVAL 90 DAY));", conn);
+                        VALUES (@a, @t, @p, @d, DATE_ADD(NOW(), INTERVAL 7 DAY));", conn);
                     ins.Parameters.AddWithValue("@a", id);
                     ins.Parameters.AddWithValue("@t", Sha256Hex(deviceToken));
                     ins.Parameters.AddWithValue("@p", Sha256Hex(hash));
@@ -1194,7 +1194,7 @@ internal static class AgencyPortal
 
             await using (var upd = new MySqlCommand(@"
                 UPDATE desktop_sessions
-                   SET last_used_at = NOW(), expires_at = DATE_ADD(NOW(), INTERVAL 90 DAY)
+                   SET last_used_at = NOW(), expires_at = DATE_ADD(NOW(), INTERVAL 7 DAY)
                  WHERE id = @id;", conn))
             {
                 upd.Parameters.AddWithValue("@id", sessionId);

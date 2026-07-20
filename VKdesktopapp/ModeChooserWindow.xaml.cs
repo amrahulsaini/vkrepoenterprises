@@ -55,8 +55,10 @@ public partial class ModeChooserWindow : Window
         if (e.ClickCount == 1) DragMove();
     }
 
-    private void btnSuperAdmin_Click(object sender, RoutedEventArgs e)
+    private async void btnSuperAdmin_Click(object sender, RoutedEventArgs e)
     {
+        if (!await AskPasswordAsync("Super Admin", "superadmin")) return;
+
         var w = new MainWindow { Owner = this };
         WindowState = WindowState.Minimized;
         try { w.ShowDialog(); }
@@ -75,8 +77,10 @@ public partial class ModeChooserWindow : Window
         finally { if (!LoggedOut) { WindowState = WindowState.Normal; Activate(); } }
     }
 
-    private void btnCourier_Click(object sender, RoutedEventArgs e)
+    private async void btnCourier_Click(object sender, RoutedEventArgs e)
     {
+        if (!await AskPasswordAsync("Couriers", "courier")) return;
+
         var w = new CourierShellWindow { Owner = this };
         WindowState = WindowState.Minimized;
         try
@@ -85,6 +89,29 @@ public partial class ModeChooserWindow : Window
             if (w.LoggedOut) { LoggedOut = true; Close(); return; }
         }
         finally { if (!LoggedOut) { WindowState = WindowState.Normal; Activate(); } }
+    }
+
+    /// Asks for the account password every time a mode is opened. The typed
+    /// password is checked on the server; it is never held in the app.
+    private async System.Threading.Tasks.Task<bool> AskPasswordAsync(string title, string gate)
+    {
+        var prompt = new PasswordPromptWindow(title) { Owner = this };
+        if (prompt.ShowDialog() != true) return false;
+
+        try
+        {
+            var result = await DesktopApiClient.VerifyGateAsync(gate, prompt.EnteredPassword);
+            if (result.Ok) return true;
+        }
+        catch
+        {
+            MessageBox.Show("Cannot reach the server to check the password. Try again.",
+                title, MessageBoxButton.OK, MessageBoxImage.Warning);
+            return false;
+        }
+
+        MessageBox.Show("Wrong password.", title, MessageBoxButton.OK, MessageBoxImage.Warning);
+        return false;
     }
 
     private void btnClose_Click(object sender, RoutedEventArgs e) => Close();
