@@ -513,6 +513,14 @@ internal static class DesktopApiClient
         resp.EnsureSuccessStatusCode();
     }
 
+    /// Changes only the billing decision, leaving courier entries untouched.
+    internal static async Task UpdateBillingActionAsync(long id, string billingAction)
+    {
+        var resp = await Send(HttpMethod.Post, $"api/mgr/billing/submissions/{id}/action",
+            new { BillingAction = billingAction });
+        resp.EnsureSuccessStatusCode();
+    }
+
     internal static async Task UpdateCourierSubmissionAsync(long id, object dto)
     {
         var resp = await Send(HttpMethod.Post, $"api/mgr/couriers/submissions/{id}/update", dto);
