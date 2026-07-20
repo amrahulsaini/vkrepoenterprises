@@ -2,9 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using Microsoft.Win32;
 using CRMRSDesktopApp.Data;
 
 namespace CRMRSDesktopApp.Couriers;
@@ -173,11 +175,54 @@ public partial class CouriersPage : Page
         w.ShowDialog();
     }
 
-    private void btnDownloadBill_Click(object sender, RoutedEventArgs e)
+    /// Fetches the bill and saves it locally rather than handing the URL to a
+    /// browser, which blocks the download. The suggested name carries the
+    /// vehicle, invoice and a timestamp so no two saves collide.
+    private async void btnDownloadBill_Click(object sender, RoutedEventArgs e)
     {
         if (grid.SelectedItem is not Row r || string.IsNullOrWhiteSpace(r.Src.BillUrl)) return;
-        try { Process.Start(new ProcessStartInfo(r.Src.BillUrl) { UseShellExecute = true }); }
-        catch (Exception ex) { MessageBox.Show("Could not open the bill: " + ex.Message, "Couriers", MessageBoxButton.OK, MessageBoxImage.Warning); }
+
+        var ext = Path.GetExtension(new Uri(r.Src.BillUrl).AbsolutePath);
+        if (string.IsNullOrWhiteSpace(ext)) ext = ".pdf";
+
+        var veh = new string((string.IsNullOrWhiteSpace(r.VehicleNo) ? r.ChassisNo : r.VehicleNo)
+            .Where(char.IsLetterOrDigit).ToArray());
+        if (veh.Length == 0) veh = "bill";
+        var inv = new string((r.InvoiceNo ?? "").Where(char.IsLetterOrDigit).ToArray());
+
+        var name = $"RepoBill_{veh}"
+                 + (inv.Length > 0 ? $"_INV{inv}" : "")
+                 + $"_{DateTime.Now:yyyyMMdd_HHmmss}{ext}";
+
+        var dlg = new SaveFileDialog
+        {
+            Title = "Save bill",
+            FileName = name,
+            Filter = ext.Equals(".pdf", StringComparison.OrdinalIgnoreCase)
+                ? "PDF document (*.pdf)|*.pdf|All files (*.*)|*.*"
+                : "Word document (*.docx)|*.docx|All files (*.*)|*.*"
+        };
+        if (dlg.ShowDialog() != true) return;
+
+        try
+        {
+            btnDownloadBill.IsEnabled = false;
+            txtFormStatus.Foreground = System.Windows.Media.Brushes.Gray;
+            txtFormStatus.Text = "Downloading bill…";
+
+            var bytes = await App.HttpClient.GetByteArrayAsync(r.Src.BillUrl);
+            await File.WriteAllBytesAsync(dlg.FileName, bytes);
+
+            txtFormStatus.Foreground = System.Windows.Media.Brushes.Green;
+            txtFormStatus.Text = "Bill saved.";
+            Process.Start(new ProcessStartInfo(dlg.FileName) { UseShellExecute = true });
+        }
+        catch (Exception ex)
+        {
+            txtFormStatus.Foreground = System.Windows.Media.Brushes.Firebrick;
+            txtFormStatus.Text = "Could not download the bill: " + ex.Message;
+        }
+        finally { btnDownloadBill.IsEnabled = true; }
     }
 
     private static decimal? ParseAmt(string s)
