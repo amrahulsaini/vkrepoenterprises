@@ -92,6 +92,19 @@ public partial class ViewAllDetailsWindow : Window
         Close();
     }
 
+    private async void btnChangeAction_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button b || b.Tag is not long id) return;
+        var row = _rows.FirstOrDefault(r => r.Id == id);
+        if (row == null) return;
+
+        var veh = string.IsNullOrWhiteSpace(row.Src.VehicleNo) ? row.Src.ChassisNo : row.Src.VehicleNo;
+        var w = new BillingActionWindow(id, row.Src.BillingAction,
+            $"{veh}  •  {row.Src.CustomerName}") { Owner = this };
+
+        if (w.ShowDialog() == true) await LoadAsync();
+    }
+
     private readonly VehicleSearchRepository _search = new();
 
     private async void btnVehicle_Click(object sender, RoutedEventArgs e)

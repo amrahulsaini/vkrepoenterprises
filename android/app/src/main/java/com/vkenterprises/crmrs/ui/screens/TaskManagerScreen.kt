@@ -215,9 +215,9 @@ private fun TaskRow(item: RepoTaskItem, onClick: () -> Unit) {
 private fun StatusChip(billed: Boolean, action: String) {
     val (label, color) = when {
         billed -> "BILLED" to Color(0xFF2E7D32)
-        action.equals("hold", true)   -> "HOLD"   to Color(0xFFF57F17)
+        action.equals("hold", true)   -> "HOLD FOR COLLECTION" to Color(0xFFF57F17)
         action.equals("cancel", true) -> "CANCEL" to Color(0xFFC62828)
-        else -> "PENDING" to Color(0xFF1565C0)
+        else -> "OK FOR BILLING" to Color(0xFF1565C0)
     }
     Surface(shape = RoundedCornerShape(6.dp), color = color.copy(alpha = 0.12f)) {
         Text(
@@ -298,11 +298,15 @@ private fun TaskEditSheet(
 
             Text("Billing decision", style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                listOf("immediate" to "Immediate", "hold" to "Hold", "cancel" to "Cancel").forEach { (v, l) ->
+            Column {
+                listOf(
+                    "immediate" to "OK for billing",
+                    "hold"      to "Hold for collection",
+                    "cancel"    to "Cancel"
+                ).forEach { (v, l) ->
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         RadioButton(selected = action == v, onClick = { action = v })
-                        Text(l, style = MaterialTheme.typography.bodySmall)
+                        Text(l, style = MaterialTheme.typography.bodyMedium)
                     }
                 }
             }

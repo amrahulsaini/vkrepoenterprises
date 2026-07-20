@@ -2225,6 +2225,23 @@ app.MapGet("/api/mgr/settings/gate-stamp", async (HttpContext ctx, string? gate)
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
 
+app.MapPost("/api/mgr/billing/submissions/{id:long}/action", async (HttpContext ctx, long id, MgrSetActionDto dto) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    if (dto.BillingAction is not ("immediate" or "hold" or "cancel"))
+        return Results.BadRequest(new { message = "Unknown billing action." });
+    try
+    {
+        await using var conn = new MySqlConnection(TenantContext.Conn);
+        await conn.OpenAsync();
+        // Only the decision changes; courier entries and bill details stay put.
+        await MgrExec("UPDATE repo_submissions SET billing_action=@a WHERE id=@id",
+            conn, 20, ("@a", dto.BillingAction), ("@id", id));
+        return Results.Ok(new { success = true });
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
 app.MapGet("/api/mgr/settings/courier-password", async (HttpContext ctx) =>
 {
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
@@ -4069,6 +4086,8 @@ record MgrSetFinanceRestrictionsDto(List<int> FinanceIds);
 record MgrSetSubsPasswordDto(string Password);
 
 record MgrVerifyGateDto(string Gate, string Password);
+
+record MgrSetActionDto(string BillingAction);
 record MgrSetAdminPassDto(string Password);
 record WebhookCreateUserDto(string Username, string Password);
 record WebhookFileInfoDto(

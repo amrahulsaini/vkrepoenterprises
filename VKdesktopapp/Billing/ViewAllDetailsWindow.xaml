@@ -100,6 +100,15 @@
                 <DataGridTextColumn Header="Remark" Binding="{Binding Remark}" Width="160" MinWidth="100" ElementStyle="{StaticResource CellText}" />
                 <DataGridTextColumn Header="Billing" Binding="{Binding ActionText}" Width="130" MinWidth="90" ElementStyle="{StaticResource CellText}" />
                 <DataGridTextColumn Header="Status" Binding="{Binding StatusText}" Width="90" MinWidth="70" ElementStyle="{StaticResource CellText}" />
+                <DataGridTemplateColumn Header="Change Billing" Width="120" MinWidth="110" CanUserResize="False">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <Button Content="Change" Height="26" Margin="4,2,4,2" Cursor="Hand"
+                                    Click="btnChangeAction_Click" Tag="{Binding Id}"
+                                    ToolTip="Set OK for billing, Hold for collection or Cancel" />
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
                 <DataGridTemplateColumn Header="Action" Width="130" MinWidth="120" CanUserResize="False">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
