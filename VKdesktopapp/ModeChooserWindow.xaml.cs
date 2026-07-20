@@ -127,8 +127,5 @@ public partial class ModeChooserWindow : Window
         return System.Threading.Tasks.Task.FromResult(true);
     }
 
-    private void btnClose_Click(object sender, RoutedEventArgs e)
-    {
-        Application.Current.Shutdown();
-    }
+    private void btnClose_Click(object sender, RoutedEventArgs e) => Close();
 }

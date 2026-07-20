@@ -245,20 +245,19 @@ public partial class LoginWindow : Window
 
         lblStatus.Text = "";
         Hide();
-        try
+        chooser.ShowDialog();
+
+        txtPassword.Clear();
+        if (chooser.ChangeAgencyRequested || chooser.LoggedOut)
         {
-            chooser.ShowDialog();
-        }
-        finally
-        {
-            txtPassword.Clear();
-            if (chooser.ChangeAgencyRequested)
-            {
-                txtEmail.Clear();
-                lblStatus.Text = "";
-                txtEmail.Focus();
-            }
+            txtEmail.Clear();
+            lblStatus.Text = "";
             Show();
+            txtEmail.Focus();
+        }
+        else
+        {
+            Application.Current.Shutdown();
         }
     }
 
