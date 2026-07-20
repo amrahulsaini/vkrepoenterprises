@@ -46,7 +46,6 @@ public partial class ModeChooserWindow : Window
     private void btnChangeAgency_Click(object sender, RoutedEventArgs e)
     {
         SavedSession.Clear();
-        GateAccess.ClearAll();
         ChangeAgencyRequested = true;
         Close();
     }
@@ -56,10 +55,8 @@ public partial class ModeChooserWindow : Window
         if (e.ClickCount == 1) DragMove();
     }
 
-    private async void btnSuperAdmin_Click(object sender, RoutedEventArgs e)
+    private void btnSuperAdmin_Click(object sender, RoutedEventArgs e)
     {
-        if (!await PassesGate("Super Admin", "superadmin")) return;
-
         var w = new MainWindow { Owner = this };
         WindowState = WindowState.Minimized;
         try { w.ShowDialog(); }
@@ -78,10 +75,8 @@ public partial class ModeChooserWindow : Window
         finally { if (!LoggedOut) { WindowState = WindowState.Normal; Activate(); } }
     }
 
-    private async void btnCourier_Click(object sender, RoutedEventArgs e)
+    private void btnCourier_Click(object sender, RoutedEventArgs e)
     {
-        if (!await PassesGate("Couriers", "courier")) return;
-
         var w = new CourierShellWindow { Owner = this };
         WindowState = WindowState.Minimized;
         try
@@ -90,44 +85,6 @@ public partial class ModeChooserWindow : Window
             if (w.LoggedOut) { LoggedOut = true; Close(); return; }
         }
         finally { if (!LoggedOut) { WindowState = WindowState.Normal; Activate(); } }
-    }
-
-    private async System.Threading.Tasks.Task<bool> PassesGate(string title, string gate)
-    {
-        string stamp;
-        try { stamp = await DesktopApiClient.GetGateStampAsync(gate); }
-        catch
-        {
-            MessageBox.Show("Cannot reach the server to check the password. Try again.",
-                title, MessageBoxButton.OK, MessageBoxImage.Warning);
-            return false;
-        }
-
-        // No password set for this mode and no account password to fall back on.
-        if (string.IsNullOrEmpty(stamp)) return true;
-
-        if (GateAccess.RecentlyPassed(title, stamp)) return true;
-
-        var prompt = new PasswordPromptWindow(title) { Owner = this };
-        if (prompt.ShowDialog() != true) return false;
-
-        DesktopApiClient.GateVerifyResult result;
-        try { result = await DesktopApiClient.VerifyGateAsync(gate, prompt.EnteredPassword); }
-        catch
-        {
-            MessageBox.Show("Cannot reach the server to check the password. Try again.",
-                title, MessageBoxButton.OK, MessageBoxImage.Warning);
-            return false;
-        }
-
-        if (!result.Ok)
-        {
-            MessageBox.Show("Wrong password.", title, MessageBoxButton.OK, MessageBoxImage.Warning);
-            return false;
-        }
-
-        GateAccess.MarkPassed(title, string.IsNullOrEmpty(result.Stamp) ? stamp : result.Stamp);
-        return true;
     }
 
     private void btnClose_Click(object sender, RoutedEventArgs e) => Close();

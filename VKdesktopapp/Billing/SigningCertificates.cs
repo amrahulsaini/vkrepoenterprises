@@ -154,7 +154,28 @@ internal static class SigningCertificates
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(LayoutPath)!);
-            File.WriteAllLines(LayoutPath, new[] { $"x={x}", $"y={y}", $"w={w}", $"h={h}" });
+            var on = LoadSigningEnabled();
+            File.WriteAllLines(LayoutPath, new[] { $"x={x}", $"y={y}", $"w={w}", $"h={h}", $"enabled={(on ? 1 : 0)}" });
+        }
+        catch { }
+    }
+
+    private static string EnabledPath => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+        "CRMRS", "signing-enabled.txt");
+
+    public static bool LoadSigningEnabled()
+    {
+        try { return File.Exists(EnabledPath) && File.ReadAllText(EnabledPath).Trim() == "1"; }
+        catch { return false; }
+    }
+
+    public static void SaveSigningEnabled(bool on)
+    {
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(EnabledPath)!);
+            File.WriteAllText(EnabledPath, on ? "1" : "0");
         }
         catch { }
     }
