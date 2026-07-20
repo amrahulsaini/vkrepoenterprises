@@ -17,9 +17,23 @@ public partial class CouriersPage : Page
     {
         public DesktopApiClient.RepoSubmissionDto Src { get; set; } = null!;
         public long Id => Src.Id;
-        public string CreatedAt => Src.CreatedAt;
+        public string RepoDate => Src.CreatedAt;
+        public string LoanNo => Src.LoanNo;
+        public string InvoiceNo => Src.InvoiceNo;
         public string VehicleNo => Src.VehicleNo;
         public string CustomerName => Src.CustomerName;
+        public string BranchName => Src.BranchName;
+        public string Model => Src.Model;
+        public string ChassisNo => Src.ChassisNo;
+        public string EngineNo => Src.EngineNo;
+        public string AgentName => Src.AgentName;
+        public string ParkingYardName => Src.ParkingYardName;
+        public string ParkingYardMobile => Src.ParkingYardMobile;
+        public string LoadDetails => Src.LoadDetails;
+        public string AddlCharges => JoinParts(Src.AddlChargesNotes, Src.AddlChargesAmount?.ToString("0.##"));
+        public string ConfirmationBy => JoinParts(Src.ConfirmationByName, Src.ConfirmationByMobile);
+        public string ExecutiveName => Src.ExecutiveName;
+        public string CollectionUpdate => Src.CollectionUpdate;
         public string FinanceName => Src.FinanceName;
         public string ActionText => Src.BillingAction switch
         {
@@ -33,6 +47,11 @@ public partial class CouriersPage : Page
         public string CourierYn => Src.CourierYn;
         public string BankerAddress => Src.BankerAddress;
         public string PodNumber => Src.PodNumber;
+
+        /// Joins the paired fields the way the app's OK-for-repo message does,
+        /// skipping whichever side is blank so no stray comma is left behind.
+        private static string JoinParts(params string?[] parts)
+            => string.Join(", ", parts.Where(p => !string.IsNullOrWhiteSpace(p)).Select(p => p!.Trim()));
     }
 
     public CouriersPage()
@@ -85,10 +104,13 @@ public partial class CouriersPage : Page
             pnlForm.IsEnabled = false;
             btnSubmit.IsEnabled = false;
             btnClear.IsEnabled = false;
+            btnDetails.IsEnabled = false;
             pnlBilled.Visibility = System.Windows.Visibility.Collapsed;
             txtSel.Text = "Select a record from the list.";
             return;
         }
+
+        btnDetails.IsEnabled = true;
 
         var veh = string.IsNullOrWhiteSpace(r.VehicleNo) ? r.Src.ChassisNo : r.VehicleNo;
         txtSel.Text = $"{veh}  •  {r.CustomerName}  •  {r.FinanceName}";
@@ -118,35 +140,34 @@ public partial class CouriersPage : Page
         if (grid.SelectedItem is not Row r) return;
         var s = r.Src;
         var veh = string.IsNullOrWhiteSpace(s.VehicleNo) ? s.ChassisNo : s.VehicleNo;
+        // Same order the app sends in its OK-for-repo message.
         var rows = new (string, string)[]
         {
+            ("Repo Date", s.CreatedAt),
+            ("Loan No", s.LoanNo),
             ("Invoice No", s.InvoiceNo),
-            ("Vehicle No", s.VehicleNo),
-            ("Chassis No (VIN)", s.ChassisNo),
-            ("Engine No", s.EngineNo),
-            ("Model", s.Model),
             ("Customer Name", s.CustomerName),
-            ("Finance", s.FinanceName),
             ("Branch", s.BranchName),
-            ("Agri-Loan No", s.LoanNo),
+            ("Vehicle No", s.VehicleNo),
+            ("Model/Maker", s.Model),
+            ("Chassis No", s.ChassisNo),
+            ("Engine No", s.EngineNo),
             ("Agent Name", s.AgentName),
-            ("Parking Yard", s.ParkingYardName),
+            ("Parking Yard Name", s.ParkingYardName),
             ("Parking Yard Mobile", s.ParkingYardMobile),
             ("Load Details", s.LoadDetails),
-            ("Confirmation By", s.ConfirmationByName),
-            ("Confirmation By Mobile", s.ConfirmationByMobile),
+            ("Additional Charges Notes, Amount", r.AddlCharges),
+            ("Confirmation By (Name, Mobile)", r.ConfirmationBy),
             ("Executive Name", s.ExecutiveName),
             ("Collection Update", s.CollectionUpdate),
             ("Remark", s.Remark),
-            ("Additional Charges Notes", s.AddlChargesNotes),
-            ("Additional Charges Amount", s.AddlChargesAmount?.ToString("0.##") ?? ""),
+            ("Finance", s.FinanceName),
             ("Repo Charges", s.RepoCharges?.ToString("0.##") ?? ""),
             ("Advance", s.Advance?.ToString("0.##") ?? ""),
             ("Courier", s.CourierYn),
             ("Banker Address", s.BankerAddress),
             ("POD Number", s.PodNumber),
             ("Submitted By", s.SubmittedByName),
-            ("Submitted At", s.CreatedAt),
         };
         var w = new Billing.VehicleDetailsWindow(veh + " all details", rows) { Owner = Window.GetWindow(this) };
         w.ShowDialog();
