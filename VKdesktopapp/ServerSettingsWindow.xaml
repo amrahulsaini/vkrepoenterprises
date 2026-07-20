@@ -124,6 +124,24 @@
                              BorderBrush="{StaticResource Gray300}" BorderThickness="1"
                              Background="White" />
 
+                <Separator Margin="0,12" />
+
+                <TextBlock Text="Super Admin Password" Style="{StaticResource FormHeading}" />
+                <TextBlock Text="Asked every time Super Admin is opened. Leave blank to use your login password."
+                           Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,0,0,4" />
+                <PasswordBox Name="pwdSuperAdminPass" Margin="0,4,0,12"
+                             Height="40" FontSize="14" Padding="10,0"
+                             BorderBrush="{StaticResource Gray300}" BorderThickness="1"
+                             Background="White" />
+
+                <TextBlock Text="Couriers Password" Style="{StaticResource FormHeading}" />
+                <TextBlock Text="Asked every time Couriers is opened, from the chooser and from the Super Admin dashboard. Leave blank to use your login password."
+                           Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,0,0,4" />
+                <PasswordBox Name="pwdCourierPass" Margin="0,4,0,12"
+                             Height="40" FontSize="14" Padding="10,0"
+                             BorderBrush="{StaticResource Gray300}" BorderThickness="1"
+                             Background="White" />
+
             </StackPanel>
         </ScrollViewer>
 

@@ -77,6 +77,24 @@
         </div>
 
         <div class="card mt-3">
+          <div>
+            <h2 style="margin:0; font-size:20px;">Sign in password</h2>
+            <p class="text-muted" style="margin:4px 0 0; font-size:14px;">
+              Sets the password this agency uses to sign in to the desktop app and the portal.
+              Every device that is still signed in is signed out, so they will have to enter the new password.
+            </p>
+          </div>
+          <div class="flex items-center" style="gap:10px; flex-wrap:wrap; margin-top:14px;">
+            <input class="input" id="pw-new" type="password" autocomplete="new-password"
+                   placeholder="New password (min 6 characters)" style="max-width:280px;">
+            <input class="input" id="pw-confirm" type="password" autocomplete="new-password"
+                   placeholder="Confirm new password" style="max-width:280px;">
+            <button class="btn btn-primary" id="pw-save-btn">Change password</button>
+            <span id="pw-msg" style="font-size:13px;"></span>
+          </div>
+        </div>
+
+        <div class="card mt-3">
           <div class="flex items-center justify-between" style="flex-wrap:wrap; gap:12px;">
             <div>
               <h2 style="margin:0; font-size:20px;">Integrations</h2>
@@ -204,6 +222,31 @@
   }
 
   $('#make-integration-btn').addEventListener('click', openIntegration);
+
+  $('#pw-save-btn').addEventListener('click', async () => {
+    const btn = $('#pw-save-btn'), msg = $('#pw-msg');
+    const pw = $('#pw-new').value, confirm = $('#pw-confirm').value;
+
+    const fail = (t) => { msg.style.color = '#c62828'; msg.textContent = t; };
+    if (pw.length < 6) return fail('Password must be at least 6 characters.');
+    if (pw !== confirm) return fail('The two passwords do not match.');
+
+    btn.disabled = true;
+    msg.style.color = '#666';
+    msg.textContent = 'Saving…';
+    try {
+      const r = await api('/manage/agency/' + agency.id + '/password', { method: 'POST', body: { password: pw } });
+      $('#pw-new').value = '';
+      $('#pw-confirm').value = '';
+      msg.style.color = '#2e7d32';
+      msg.textContent = 'Password changed.' +
+        (r.signedOutDevices ? ' ' + r.signedOutDevices + ' device(s) signed out.' : '');
+    } catch (e) {
+      fail(e.message || 'Could not change the password.');
+    } finally {
+      btn.disabled = false;
+    }
+  });
 
   let assignMap = {};
   let curFin = null, curSel = null, hoFilter = '';

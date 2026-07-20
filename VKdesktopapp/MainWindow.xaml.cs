@@ -209,8 +209,30 @@ public partial class MainWindow : Window
             case "DirectData": LoadPage(_directDataPage); break;
             case "Billing": LoadPage(new Billing.BillingLoginPage()); break;
             case "Allocations": _ = OpenAllocationsAsync(); break;
-            case "Couriers": LoadPage(new Couriers.CouriersPage()); break;
+            case "Couriers": _ = OpenCouriersAsync(); break;
         }
+    }
+
+    private async Task OpenCouriersAsync()
+    {
+        var prompt = new Billing.PasswordPromptWindow("Couriers") { Owner = this };
+        if (prompt.ShowDialog() != true) return;
+
+        DesktopApiClient.GateVerifyResult result;
+        try { result = await DesktopApiClient.VerifyGateAsync("courier", prompt.EnteredPassword); }
+        catch
+        {
+            MessageBox.Show("Cannot reach the server to check the password. Try again.",
+                "Couriers", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        if (!result.Ok)
+        {
+            MessageBox.Show("Wrong password.", "Couriers", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+        LoadPage(new Couriers.CouriersPage());
     }
 
     private async Task OpenAllocationsAsync()

@@ -654,6 +654,40 @@ internal static class AgencyPortal
             return Results.Ok(new { ok = true });
         });
 
+        app.MapPost("/api/agency/manage/agency/{id:int}/password", async (HttpContext ctx, int id, HttpRequest req) =>
+        {
+            if (!await IsManageTokenValid(masterConn, ctx))
+                return Results.Json(new { message = "Unauthorized" }, statusCode: 401);
+
+            var dto = await ReadJsonAsync(req);
+            string password = dto.GetValueOrDefault("password") ?? "";
+            if (password.Length < 6)
+                return Results.BadRequest(new { message = "Password must be at least 6 characters." });
+
+            await using var conn = new MySqlConnection(masterConn);
+            await conn.OpenAsync();
+
+            await using (var cmd = new MySqlCommand(
+                "UPDATE agencies SET password_hash=@h WHERE id=@id", conn))
+            {
+                cmd.Parameters.AddWithValue("@h", HashPassword(password));
+                cmd.Parameters.AddWithValue("@id", id);
+                if (await cmd.ExecuteNonQueryAsync() == 0)
+                    return Results.NotFound(new { message = "Agency not found" });
+            }
+
+            // Every device that stayed signed in used the old password, so drop them.
+            int dropped = 0;
+            await using (var rev = new MySqlCommand(
+                "UPDATE desktop_sessions SET revoked=1 WHERE agency_id=@id AND revoked=0", conn))
+            {
+                rev.Parameters.AddWithValue("@id", id);
+                dropped = await rev.ExecuteNonQueryAsync();
+            }
+
+            return Results.Ok(new { ok = true, signedOutDevices = dropped });
+        });
+
         app.MapGet("/api/agency/desktop/profile", async (HttpContext ctx) =>
         {
             var who = VerifyAgencyBearer(ctx);

@@ -71,6 +71,11 @@ public partial class ServerSettingsWindow : Window
             try { pwdAllocationPass.Password = await DesktopApiClient.GetAllocationPasswordAsync(); }
             catch { }
 
+            try { pwdSuperAdminPass.Password = await DesktopApiClient.GetSuperAdminPasswordAsync(); }
+            catch { }
+
+            try { pwdCourierPass.Password = await DesktopApiClient.GetCourierPasswordAsync(); }
+            catch { }
         };
     }
 
@@ -169,6 +174,12 @@ public partial class ServerSettingsWindow : Window
             }
 
             try { await DesktopApiClient.SetAllocationPasswordAsync(pwdAllocationPass.Password.Trim()); }
+            catch { }
+
+            try { await DesktopApiClient.SetSuperAdminPasswordAsync(pwdSuperAdminPass.Password.Trim()); }
+            catch { }
+
+            try { await DesktopApiClient.SetCourierPasswordAsync(pwdCourierPass.Password.Trim()); }
             catch { }
 
             MessageBox.Show(
