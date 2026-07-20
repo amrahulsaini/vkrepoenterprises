@@ -50,8 +50,12 @@ public partial class LoginWindow : Window
 
             if (!resp.IsSuccessStatusCode)
             {
-                // Expired, revoked, or the account password changed.
-                SavedSession.Clear();
+                // Only forget the sign in when the server actually rejects it:
+                // expired, revoked, or the password changed. A server hiccup
+                // must not cost the user their saved sign in.
+                if (resp.StatusCode == System.Net.HttpStatusCode.Unauthorized ||
+                    resp.StatusCode == System.Net.HttpStatusCode.Forbidden)
+                    SavedSession.Clear();
                 lblStatus.Text = "";
                 return;
             }
