@@ -71,11 +71,6 @@ public partial class ServerSettingsWindow : Window
             try { pwdAllocationPass.Password = await DesktopApiClient.GetAllocationPasswordAsync(); }
             catch { }
 
-            try { pwdSuperAdminPass.Password = await DesktopApiClient.GetSuperAdminPasswordAsync(); }
-            catch { }
-
-            try { pwdCourierPass.Password = await DesktopApiClient.GetCourierPasswordAsync(); }
-            catch { }
         };
     }
 
@@ -176,12 +171,6 @@ public partial class ServerSettingsWindow : Window
             try { await DesktopApiClient.SetAllocationPasswordAsync(pwdAllocationPass.Password.Trim()); }
             catch { }
 
-            try { await DesktopApiClient.SetSuperAdminPasswordAsync(pwdSuperAdminPass.Password.Trim()); }
-            catch { }
-
-            try { await DesktopApiClient.SetCourierPasswordAsync(pwdCourierPass.Password.Trim()); }
-            catch { }
-
             MessageBox.Show(
                 "Saved. These details now show on the mobile app's Agency panel too.",
                 "Agency Settings", MessageBoxButton.OK, MessageBoxImage.Information);
@@ -205,7 +194,6 @@ public partial class ServerSettingsWindow : Window
         App.SignedAppUser = null;
         App.HttpClient.DefaultRequestHeaders.Authorization = null;
         SavedSession.Clear();
-        GateAccess.ClearAll();
         try
         {
             var exe = Process.GetCurrentProcess().MainModule?.FileName;

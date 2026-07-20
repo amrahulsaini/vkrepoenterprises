@@ -52,7 +52,6 @@ public partial class LoginWindow : Window
             {
                 // Expired, revoked, or the account password changed.
                 SavedSession.Clear();
-                GateAccess.ClearAll();
                 lblStatus.Text = "";
                 return;
             }
@@ -297,7 +296,6 @@ public partial class LoginWindow : Window
     {
         var token = SavedSession.Load();
         SavedSession.Clear();
-        GateAccess.ClearAll();
         if (string.IsNullOrEmpty(token)) return;
         try
         {

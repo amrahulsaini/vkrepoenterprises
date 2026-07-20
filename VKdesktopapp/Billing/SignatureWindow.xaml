@@ -1,0 +1,75 @@
+<Window x:Class="CRMRSDesktopApp.Billing.SignatureWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Digital Signature" Height="560" Width="780"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False" Background="#F5F5F5">
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" Text="Digital Signature" FontSize="17" FontWeight="Bold"
+                   Foreground="{StaticResource Accent}" Margin="0,0,0,10" />
+
+        <CheckBox Grid.Row="1" Name="chkSign" Content="Also make a signed PDF of the bill"
+                  FontSize="13" VerticalContentAlignment="Center" Margin="0,0,0,12" />
+
+        <DockPanel Grid.Row="2">
+            <TextBlock DockPanel.Dock="Top" Text="Certificate" FontSize="13" FontWeight="Bold" Margin="0,0,0,5" />
+            <TextBlock DockPanel.Dock="Top" Name="txtHint" Foreground="#777" FontSize="12"
+                       TextWrapping="Wrap" Margin="0,0,0,6" />
+            <ListView Name="lst" SelectionMode="Single" BorderBrush="#E0E0E0">
+                <ListView.View>
+                    <GridView>
+                        <GridViewColumn Header="Signer" Width="230" DisplayMemberBinding="{Binding Name}" />
+                        <GridViewColumn Header="Issued by" Width="230" DisplayMemberBinding="{Binding Issuer}" />
+                        <GridViewColumn Header="Valid till" Width="110" DisplayMemberBinding="{Binding Expiry}" />
+                        <GridViewColumn Header="Status" Width="120" DisplayMemberBinding="{Binding Status}" />
+                    </GridView>
+                </ListView.View>
+            </ListView>
+        </DockPanel>
+
+        <StackPanel Grid.Row="3" Margin="0,14,0,0">
+            <TextBlock Text="Where the signature sits on the bill" FontSize="13" FontWeight="Bold" Margin="0,0,0,6" />
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition /><ColumnDefinition /><ColumnDefinition /><ColumnDefinition /><ColumnDefinition />
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0" Margin="0,0,8,0">
+                    <TextBlock Text="From left" FontSize="11" Foreground="#888" />
+                    <TextBox Name="txtSigX" Height="28" VerticalContentAlignment="Center" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Margin="0,0,8,0">
+                    <TextBlock Text="From bottom" FontSize="11" Foreground="#888" />
+                    <TextBox Name="txtSigY" Height="28" VerticalContentAlignment="Center" />
+                </StackPanel>
+                <StackPanel Grid.Column="2" Margin="0,0,8,0">
+                    <TextBlock Text="Width" FontSize="11" Foreground="#888" />
+                    <TextBox Name="txtSigW" Height="28" VerticalContentAlignment="Center" />
+                </StackPanel>
+                <StackPanel Grid.Column="3" Margin="0,0,8,0">
+                    <TextBlock Text="Height" FontSize="11" Foreground="#888" />
+                    <TextBox Name="txtSigH" Height="28" VerticalContentAlignment="Center" />
+                </StackPanel>
+                <StackPanel Grid.Column="4" VerticalAlignment="Bottom">
+                    <Button Name="btnReset" Content="Put back to corner" Height="28" Cursor="Hand" Click="btnReset_Click" />
+                </StackPanel>
+            </Grid>
+        </StackPanel>
+
+        <DockPanel Grid.Row="4" Margin="0,16,0,0">
+            <Button DockPanel.Dock="Right" Name="btnSave" Content="Save" Width="130" Height="34"
+                    FontWeight="Bold" Background="{StaticResource Accent}" Foreground="White"
+                    BorderThickness="0" Cursor="Hand" Margin="8,0,0,0" Click="btnSave_Click" />
+            <Button DockPanel.Dock="Right" Name="btnCancel" Content="Cancel" Width="100" Height="34"
+                    Cursor="Hand" Margin="8,0,0,0" Click="btnCancel_Click" />
+            <Button DockPanel.Dock="Left" Name="btnRefresh" Content="Refresh" Width="100" Height="34"
+                    Cursor="Hand" Click="btnRefresh_Click" />
+        </DockPanel>
+    </Grid>
+</Window>
