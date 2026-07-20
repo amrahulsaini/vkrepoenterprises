@@ -60,39 +60,36 @@ public partial class ModeChooserWindow : Window
     {
         if (!await PassesGate("Super Admin", "superadmin")) return;
 
-        Hide();
-        try
-        {
-            var w = new MainWindow();
-            w.ShowDialog();
-        }
-        finally { Show(); }
+        var w = new MainWindow { Owner = this };
+        WindowState = WindowState.Minimized;
+        try { w.ShowDialog(); }
+        finally { WindowState = WindowState.Normal; Activate(); }
     }
 
     private void btnBilling_Click(object sender, RoutedEventArgs e)
     {
-        Hide();
+        var w = new BillingShellWindow { Owner = this };
+        WindowState = WindowState.Minimized;
         try
         {
-            var w = new BillingShellWindow();
             w.ShowDialog();
-            if (w.LoggedOut) { SavedSession.Clear(); GateAccess.ClearAll(); LoggedOut = true; Close(); return; }
+            if (w.LoggedOut) { LoggedOut = true; Close(); return; }
         }
-        finally { if (!LoggedOut) Show(); }
+        finally { if (!LoggedOut) { WindowState = WindowState.Normal; Activate(); } }
     }
 
     private async void btnCourier_Click(object sender, RoutedEventArgs e)
     {
         if (!await PassesGate("Couriers", "courier")) return;
 
-        Hide();
+        var w = new CourierShellWindow { Owner = this };
+        WindowState = WindowState.Minimized;
         try
         {
-            var w = new CourierShellWindow();
             w.ShowDialog();
-            if (w.LoggedOut) { SavedSession.Clear(); GateAccess.ClearAll(); LoggedOut = true; Close(); return; }
+            if (w.LoggedOut) { LoggedOut = true; Close(); return; }
         }
-        finally { if (!LoggedOut) Show(); }
+        finally { if (!LoggedOut) { WindowState = WindowState.Normal; Activate(); } }
     }
 
     private async System.Threading.Tasks.Task<bool> PassesGate(string title, string gate)
