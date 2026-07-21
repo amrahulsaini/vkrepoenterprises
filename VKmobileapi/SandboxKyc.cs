@@ -46,14 +46,32 @@ public static class SandboxKyc
 
     private static async Task<JsonElement> CallAsync(HttpMethod method, string path, object? body, string? apiVersion)
     {
-        var token = await TokenAsync();
-        using var req = new HttpRequestMessage(method, BaseUrl + path);
-        req.Headers.TryAddWithoutValidation("Authorization", token);
-        req.Headers.TryAddWithoutValidation("x-api-key", ApiKey);
-        if (apiVersion != null) req.Headers.TryAddWithoutValidation("x-api-version", apiVersion);
-        if (body != null) req.Content = new StringContent(JsonSerializer.Serialize(body), Encoding.UTF8, "application/json");
-        using var resp = await Http.SendAsync(req);
-        return JsonDocument.Parse(await resp.Content.ReadAsStringAsync()).RootElement.Clone();
+        JsonElement result = default;
+        for (var attempt = 1; attempt <= 2; attempt++)
+        {
+            var token = await TokenAsync();
+            using var req = new HttpRequestMessage(method, BaseUrl + path);
+            req.Headers.TryAddWithoutValidation("Authorization", token);
+            req.Headers.TryAddWithoutValidation("x-api-key", ApiKey);
+            if (apiVersion != null) req.Headers.TryAddWithoutValidation("x-api-version", apiVersion);
+            if (body != null) req.Content = new StringContent(JsonSerializer.Serialize(body), Encoding.UTF8, "application/json");
+            using var resp = await Http.SendAsync(req);
+            result = JsonDocument.Parse(await resp.Content.ReadAsStringAsync()).RootElement.Clone();
+
+            // UIDAI's own upstream intermittently reports itself briefly
+            // unavailable even for an otherwise-valid request — observed on
+            // both the OTP-send and OTP-verify calls, mixed in with requests
+            // that succeed seconds apart. One short retry papers over that
+            // transient blip instead of surfacing it to the user as a failure.
+            var msg = Message(result);
+            if (attempt < 2 && msg.Contains("Source Unavailable", StringComparison.OrdinalIgnoreCase))
+            {
+                await Task.Delay(2000);
+                continue;
+            }
+            break;
+        }
+        return result;
     }
 
     public static string Message(JsonElement r)
