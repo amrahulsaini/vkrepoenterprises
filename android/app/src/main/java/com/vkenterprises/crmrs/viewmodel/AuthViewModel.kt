@@ -129,8 +129,10 @@ class AuthViewModel @Inject constructor(
                         when {
                             body.isBlacklisted -> _kickReason.value = "blacklisted"
                             body.isStopped     -> _kickReason.value = "app_stopped"
+                            !body.isActive     -> _kickReason.value = "inactive"
                             _kickReason.value == "app_stopped" ||
-                            _kickReason.value == "blacklisted"  -> _kickReason.value = "running"
+                            _kickReason.value == "blacklisted"  ||
+                            _kickReason.value == "inactive"     -> _kickReason.value = "running"
                         }
                     }
                 }
@@ -166,6 +168,11 @@ class AuthViewModel @Inject constructor(
             prefs.saveAgency(BuildConfig.AGENCY_SLUG, BuildConfig.AGENCY_NAME, "")
             val savedToken  = prefs.tenantToken.first()
             val savedUserId = prefs.userId.first()
+            // A session restored silently by SplashScreen never calls login(),
+            // so lastMobile stays "" unless we backfill it here — otherwise a
+            // later "CHECK AGAIN" (after being un-blacklisted/un-stopped) would
+            // retry login with an empty mobile number and fail every time.
+            prefs.userMobile.first().takeIf { it.isNotBlank() }?.let { lastMobile = it }
             if (savedUserId > 0L && savedToken.isNullOrBlank()) {
                 prefs.clearSession()
                 SessionTokens.tenantToken = null

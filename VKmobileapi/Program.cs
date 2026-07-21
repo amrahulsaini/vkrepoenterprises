@@ -59,14 +59,32 @@ app.Use(async (ctx, next) =>
     var token = ctx.Request.Headers["X-Tenant-Token"].FirstOrDefault();
     if (!string.IsNullOrEmpty(token))
     {
-        var slug = MobileToken.Verify(token);
-        if (slug == null)
+        var session = MobileToken.VerifyFull(token);
+        if (session == null)
         {
             ctx.Response.StatusCode = 401;
             await ctx.Response.WriteAsJsonAsync(new { success = false, message = "Session expired — please sign in again." });
             return;
         }
-        TenantContext.UseAgency(slug);
+        TenantContext.UseAgency(session.Value.Slug);
+
+        if (session.Value.HasIdentity)
+        {
+            // The token — not the client — is the source of truth for who's
+            // calling. A second device can no longer act as an arbitrary user
+            // just by sending that user's X-User-Id with any valid tenant token.
+            var deviceHeader = ctx.Request.Headers["X-Device-Id"].FirstOrDefault();
+            if (!string.IsNullOrEmpty(deviceHeader) && !string.IsNullOrEmpty(session.Value.DeviceId)
+                && !string.Equals(deviceHeader, session.Value.DeviceId, StringComparison.Ordinal))
+            {
+                ctx.Response.StatusCode = 401;
+                await ctx.Response.WriteAsJsonAsync(new { success = false, message = "device_mismatch" });
+                return;
+            }
+            ctx.Request.Headers["X-User-Id"] = session.Value.UserId.ToString();
+        }
+        // else: a pre-upgrade token with no embedded identity — fall back to
+        // whatever X-User-Id the client sent, same as before this change.
     }
     else if (ctx.Request.Path.StartsWithSegments("/api/mobile") && !IsTenantBoundByBody(ctx.Request.Path))
     {

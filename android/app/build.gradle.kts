@@ -49,8 +49,8 @@ android {
         applicationId = "com.crmrecoverysoftware.crms"
         minSdk        = 26
         targetSdk     = 35
-        versionCode   = 76
-        versionName   = "1.0.75"
+        versionCode   = 80
+        versionName   = "1.0.79"
 
         buildConfigField("String", "BASE_URL", "\"https://api.crmrecoverysoftware.com/\"")
     }
@@ -78,8 +78,8 @@ android {
             create(t.flavor) {
                 dimension      = "agency"
                 applicationId  = "com.crmrecoverysoftware.${t.pkg}"
-                versionCode    = 76
-                versionName    = "1.0.75"
+                versionCode    = 80
+                versionName    = "1.0.79"
                 // Bundled into BuildConfig so the app pre-binds to this tenant
                 // — no agency picker on the login screen.
                 buildConfigField("String", "AGENCY_SLUG",    "\"${t.slug}\"")
@@ -95,12 +95,8 @@ android {
 
     buildTypes {
         release {
-            // Keep minify off for now — Compose + Hilt + Retrofit + Room +
-            // WorkManager already need a bunch of keep rules to survive R8
-            // and turning it on without thorough testing tends to break
-            // reflection-heavy bits. Re-enable after the first Play Store
-            // round-trip is stable.
-            isMinifyEnabled = false
+            isMinifyEnabled   = true
+            isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             if (releaseKeystore.exists()) {
                 signingConfig = signingConfigs.getByName("release")

@@ -234,6 +234,7 @@ fun HomeScreen(
         when (reason) {
             "app_stopped" -> nav.navigate(Screen.AppStopped.route)  { popUpTo(Screen.Home.route) { inclusive = true } }
             "blacklisted" -> nav.navigate(Screen.Blacklisted.route) { popUpTo(Screen.Home.route) { inclusive = true } }
+            "inactive"    -> nav.navigate(Screen.Inactive.route)    { popUpTo(Screen.Home.route) { inclusive = true } }
         }
     }
 

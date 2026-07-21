@@ -14,6 +14,7 @@ import java.util.concurrent.TimeUnit
 object SessionTokens {
     @Volatile var tenantToken: String? = null
     @Volatile var agencySlug:  String? = null
+    @Volatile var deviceId:    String? = null
 }
 
 private object CachingDns : Dns {
@@ -54,13 +55,12 @@ object ApiClient {
         .writeTimeout(60, TimeUnit.SECONDS)
         .callTimeout(120, TimeUnit.SECONDS)
         .addInterceptor { chain ->
-            val token = SessionTokens.tenantToken
-            val request =
-                if (!token.isNullOrEmpty())
-                    chain.request().newBuilder()
-                        .header("X-Tenant-Token", token)
-                        .build()
-                else chain.request()
+            val token    = SessionTokens.tenantToken
+            val deviceId = SessionTokens.deviceId
+            var builder  = chain.request().newBuilder()
+            if (!token.isNullOrEmpty())    builder = builder.header("X-Tenant-Token", token)
+            if (!deviceId.isNullOrEmpty()) builder = builder.header("X-Device-Id", deviceId)
+            val request = builder.build()
             if (request.url.encodedPath.endsWith("/heartbeat")) {
                 chain.withConnectTimeout(8, TimeUnit.SECONDS)
                     .withReadTimeout(8, TimeUnit.SECONDS)

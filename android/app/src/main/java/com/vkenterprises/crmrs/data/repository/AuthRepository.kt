@@ -25,28 +25,35 @@ class AuthRepository {
             resp.code() == 400 || resp.code() == 403 -> {
                 val body = resp.errorBody()?.string() ?: ""
                 val reason = when {
-                    body.contains("kyc_failed")      -> "kyc_failed"
-                    body.contains("kyc_pending")     -> "kyc_pending"
-                    body.contains("app_stopped")     -> "app_stopped"
-                    body.contains("blacklisted")     -> "blacklisted"
-                    body.contains("\"inactive\"")    -> "inactive"
-                    body.contains("device_mismatch") -> "device_mismatch"
-                    body.contains("otp_required")    -> "otp_required"
-                    else                             -> "pending_approval"
+                    body.contains("kyc_failed")       -> "kyc_failed"
+                    body.contains("kyc_pending")      -> "kyc_pending"
+                    body.contains("app_stopped")      -> "app_stopped"
+                    body.contains("blacklisted")      -> "blacklisted"
+                    body.contains("\"inactive\"")     -> "inactive"
+                    body.contains("device_mismatch")  -> "device_mismatch"
+                    body.contains("otp_required")     -> "otp_required"
+                    body.contains("pending_approval") -> "pending_approval"
+                    // Anything unrecognized (transient proxy/WAF error, a body
+                    // shape we don't know about, etc.) must NOT be silently
+                    // relabeled as "pending admin approval" — that previously
+                    // made unrelated failures look identical to a real
+                    // approval-pending account.
+                    else                              -> ""
                 }
                 val serverMsg = runCatching {
                     org.json.JSONObject(body).optString("message", "")
                 }.getOrNull() ?: ""
                 AuthResult.Error(serverMsg.ifBlank {
                     when (reason) {
-                        "kyc_failed"      -> "Your KYC was rejected. Please re-submit your documents."
-                        "kyc_pending"     -> "Your KYC is under review. Please wait for verification."
-                        "app_stopped"     -> "Your app has been stopped by admin. Please contact agency to start app."
-                        "blacklisted"     -> "You have been blocked by the agency. Please contact the agency for assistance."
-                        "inactive"        -> "Your account is inactive. Please contact agency."
-                        "device_mismatch" -> "This account is registered on another device.\nAsk admin to reset your device ID."
-                        "otp_required"    -> "Please verify your mobile number with the OTP first."
-                        else              -> "Your account is pending admin approval.\nPlease wait."
+                        "kyc_failed"       -> "Your KYC was rejected. Please re-submit your documents."
+                        "kyc_pending"      -> "Your KYC is under review. Please wait for verification."
+                        "app_stopped"      -> "Your app has been stopped by admin. Please contact agency to start app."
+                        "blacklisted"      -> "You have been blocked by the agency. Please contact the agency for assistance."
+                        "inactive"         -> "Your account is inactive. Please contact agency."
+                        "device_mismatch"  -> "This account is registered on another device.\nAsk admin to reset your device ID."
+                        "otp_required"     -> "Please verify your mobile number with the OTP first."
+                        "pending_approval" -> "Your account is pending admin approval.\nPlease wait."
+                        else               -> "Login failed. Please try again."
                     }
                 }, reason)
             }
