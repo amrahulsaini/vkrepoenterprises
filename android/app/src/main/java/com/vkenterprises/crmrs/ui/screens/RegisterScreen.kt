@@ -541,7 +541,15 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
                                         aaPhoto = body.photo?.takeIf { it.isNotBlank() }
                                         kycMsg = ""
                                     } else {
-                                        kycMsg = body?.message ?: "OTP verification failed. Try again."
+                                        // r.body() is only populated for 2xx responses — the real
+                                        // failure message for a 400/500/504 lives in errorBody().
+                                        val serverMsg = runCatching {
+                                            r?.errorBody()?.string()?.let {
+                                                org.json.JSONObject(it).optString("message", "")
+                                            }
+                                        }.getOrNull()
+                                        kycMsg = serverMsg?.ifBlank { null }
+                                            ?: "OTP verification failed. Try again."
                                     }
                                     otpVerifying = false
                                 }

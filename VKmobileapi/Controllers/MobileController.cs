@@ -960,12 +960,17 @@ public class MobileController : ControllerBase
         {
             var r = await SandboxKyc.AadhaarVerifyAsync(req.ReferenceId!, req.Otp!);
             if (!r.TryGetProperty("data", out var d))
-                return BadRequest(new { ok = false, message = SandboxKyc.Message(r) });
+            {
+                var topMsg = SandboxKyc.Message(r);
+                Console.Error.WriteLine($"[KycAadhaarVerify] Sandbox returned no data: {topMsg}");
+                return BadRequest(new { ok = false, message = topMsg });
+            }
             string vName = JStr(d, "name");
             string vDob  = JStr(d, "date_of_birth");
             if (vName.Length == 0 && vDob.Length == 0)
             {
                 var dm = JStr(d, "message");
+                Console.Error.WriteLine($"[KycAadhaarVerify] no name/dob in response: {dm}");
                 return BadRequest(new { ok = false,
                     message = dm.Length > 0 ? dm : "OTP verification failed. Please check the OTP and try again." });
             }
@@ -990,7 +995,17 @@ public class MobileController : ControllerBase
             return Ok(new { ok = true, verified = true, name = JStr(d, "name"), dob = JStr(d, "date_of_birth"),
                             gender = JStr(d, "gender"), address = addr, photo = JStr(d, "photo") });
         }
-        catch (Exception ex) { return StatusCode(500, new ApiError(false, ex.Message)); }
+        catch (TaskCanceledException ex) when (ex.InnerException is TimeoutException)
+        {
+            Console.Error.WriteLine("[KycAadhaarVerify] Sandbox call timed out");
+            return StatusCode(504, new { ok = false,
+                message = "The verification service took longer than expected to respond. Please try again in a moment." });
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"[KycAadhaarVerify] failed: {ex}");
+            return StatusCode(500, new ApiError(false, ex.Message));
+        }
     }
 
     [HttpPost("kyc/pan")]
