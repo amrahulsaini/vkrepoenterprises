@@ -13,7 +13,11 @@ public static class SandboxKyc
 
     public static bool Configured => ApiKey.Length > 0 && ApiSecret.Length > 0;
 
-    private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(30) };
+    // UIDAI's own OTP dispatch (proxied through Sandbox) can take much longer
+    // than a typical API call under load — a short timeout here means the SMS
+    // still goes out but our server gives up waiting for the confirmation,
+    // making a real send look like a failure to the app.
+    private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(60) };
     private static string _token = "";
     private static DateTime _tokenExpiry = DateTime.MinValue;
     private static readonly SemaphoreSlim _lock = new(1, 1);

@@ -926,9 +926,27 @@ public class MobileController : ControllerBase
             var r = await SandboxKyc.AadhaarOtpAsync(aadhaar);
             if (r.TryGetProperty("data", out var d) && d.TryGetProperty("reference_id", out var refId))
                 return Ok(new { ok = true, referenceId = refId.ToString() });
-            return BadRequest(new { ok = false, message = SandboxKyc.Message(r) });
+            var msg = SandboxKyc.Message(r);
+            Console.Error.WriteLine($"[KycAadhaarOtp] Sandbox returned no reference_id: {msg}");
+            return BadRequest(new { ok = false, message = msg });
         }
-        catch (Exception ex) { return StatusCode(500, new ApiError(false, ex.Message)); }
+        // HttpClient wraps its own Timeout expiry in a TaskCanceledException whose
+        // InnerException is TimeoutException — distinct from the caller aborting
+        // the request. UIDAI can dispatch the OTP SMS well before Sandbox's own
+        // API confirms it, so a timeout here does NOT mean the Aadhaar number
+        // was wrong; telling the user to "check the Aadhaar number" would be
+        // actively misleading in that case.
+        catch (TaskCanceledException ex) when (ex.InnerException is TimeoutException)
+        {
+            Console.Error.WriteLine($"[KycAadhaarOtp] Sandbox call timed out for aadhaar ending {aadhaar[^4..]}");
+            return StatusCode(504, new { ok = false,
+                message = "The OTP service took longer than expected to respond — your Aadhaar number was fine. Please tap Send OTP again in a moment." });
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"[KycAadhaarOtp] failed: {ex}");
+            return StatusCode(500, new ApiError(false, ex.Message));
+        }
     }
 
     [HttpPost("kyc/aadhaar/verify")]
