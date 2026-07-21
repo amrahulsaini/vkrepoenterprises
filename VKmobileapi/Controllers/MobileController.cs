@@ -770,7 +770,7 @@ public class MobileController : ControllerBase
         try
         {
             var status = await _repo.GetUserStatusAsync(userId);
-            return Ok(new { isStopped = status.IsStopped, isBlacklisted = status.IsBlacklisted, isActive = status.IsActive });
+            return Ok(new { isStopped = status.IsStopped, isBlacklisted = status.IsBlacklisted, isActive = status.IsActive, found = status.Found });
         }
         catch (Exception ex)
         {
@@ -789,7 +789,8 @@ public class MobileController : ControllerBase
                 success       = true,
                 isStopped     = status.IsStopped,
                 isBlacklisted = status.IsBlacklisted,
-                isActive      = status.IsActive
+                isActive      = status.IsActive,
+                found         = status.Found
             });
         }
         catch (Exception ex)

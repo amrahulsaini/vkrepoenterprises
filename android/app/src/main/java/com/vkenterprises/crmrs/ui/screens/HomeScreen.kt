@@ -232,9 +232,13 @@ fun HomeScreen(
     LaunchedEffect(kickReason) {
         val reason = kickReason ?: return@LaunchedEffect
         when (reason) {
-            "app_stopped" -> nav.navigate(Screen.AppStopped.route)  { popUpTo(Screen.Home.route) { inclusive = true } }
-            "blacklisted" -> nav.navigate(Screen.Blacklisted.route) { popUpTo(Screen.Home.route) { inclusive = true } }
-            "inactive"    -> nav.navigate(Screen.Inactive.route)    { popUpTo(Screen.Home.route) { inclusive = true } }
+            "app_stopped"    -> nav.navigate(Screen.AppStopped.route)  { popUpTo(Screen.Home.route) { inclusive = true } }
+            "blacklisted"    -> nav.navigate(Screen.Blacklisted.route) { popUpTo(Screen.Home.route) { inclusive = true } }
+            "inactive"       -> nav.navigate(Screen.Inactive.route)    { popUpTo(Screen.Home.route) { inclusive = true } }
+            "stale_session"  -> {
+                authVm.logout()
+                nav.navigate(Screen.Login.route) { popUpTo(0) { inclusive = true } }
+            }
         }
     }
 

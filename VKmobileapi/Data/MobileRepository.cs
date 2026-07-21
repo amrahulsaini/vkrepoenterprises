@@ -691,7 +691,7 @@ public class MobileRepository
             conn) { CommandTimeout = 5 };
         cmd.Parameters.AddWithValue("@id", userId);
         await using var rdr = await cmd.ExecuteReaderAsync();
-        if (!await rdr.ReadAsync()) return new UserStatusDto(false, false, false);
+        if (!await rdr.ReadAsync()) return new UserStatusDto(false, false, false, Found: false);
         return new UserStatusDto(rdr.GetInt32(0)==1, rdr.GetInt32(1)==1, rdr.GetInt32(2)==1);
     }
 

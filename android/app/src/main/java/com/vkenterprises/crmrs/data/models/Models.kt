@@ -325,13 +325,15 @@ data class HeartbeatResponse(
     val success: Boolean,
     val isStopped: Boolean,
     val isBlacklisted: Boolean,
-    val isActive: Boolean = true
+    val isActive: Boolean = true,
+    val found: Boolean = true
 )
 
 data class UserStatusResponse(
     val isStopped: Boolean,
     val isBlacklisted: Boolean,
-    val isActive: Boolean = true
+    val isActive: Boolean = true,
+    val found: Boolean = true
 )
 
 data class LiveUser(

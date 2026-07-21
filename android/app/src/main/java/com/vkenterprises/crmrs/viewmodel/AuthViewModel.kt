@@ -127,6 +127,12 @@ class AuthViewModel @Inject constructor(
                     if (resp.isSuccessful) {
                         val body = resp.body() ?: return@runCatching
                         when {
+                            // The account this session's userId points at no longer
+                            // exists (e.g. it was deleted and re-registered under a
+                            // new id with the same mobile). Reporting this as plain
+                            // "inactive" is misleading — force a clean logout so the
+                            // next login re-authenticates against the real account.
+                            !body.found        -> _kickReason.value = "stale_session"
                             body.isBlacklisted -> _kickReason.value = "blacklisted"
                             body.isStopped     -> _kickReason.value = "app_stopped"
                             !body.isActive     -> _kickReason.value = "inactive"
