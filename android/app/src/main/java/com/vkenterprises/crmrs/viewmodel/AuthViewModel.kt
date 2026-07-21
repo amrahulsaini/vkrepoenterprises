@@ -64,6 +64,7 @@ class AuthViewModel @Inject constructor(
     val state: StateFlow<AuthUiState> = _state.asStateFlow()
 
     val isLoggedIn      = prefs.isLoggedIn
+    val tenantToken     = prefs.tenantToken
     val userId          = prefs.userId
     val userName        = prefs.userName
     val userMobile      = prefs.userMobile
@@ -119,9 +120,15 @@ class AuthViewModel @Inject constructor(
     fun startStatusPolling(userId: Long) {
         if (pollingJob?.isActive == true) return
         pollingJob = viewModelScope.launch(Dispatchers.IO) {
+            var tick = 0
             while (true) {
                 delay(15_000)
                 refreshCachedLocation()
+                // Every ~60s re-pull the profile so a subscription renewal (or
+                // name/pfp change) an admin makes while the user is logged in
+                // reflects live, instead of the user seeing a stale "No active
+                // subscription" until they restart the app.
+                if (tick++ % 4 == 0) refreshSession()
                 runCatching {
                     val resp = ApiClient.api.heartbeat(HeartbeatRequest(userId, lastLat, lastLng))
                     if (resp.isSuccessful) {
@@ -310,16 +317,22 @@ class AuthViewModel @Inject constructor(
     }
 
     fun logout() = viewModelScope.launch {
+        // Persist the logged-out state FIRST. Everything below (WorkManager
+        // cancel, Room cache wipe) can be slow, and if the user swipes the app
+        // from Recents right after tapping Logout the coroutine is killed
+        // mid-way — previously that happened before clearSession() ran, so
+        // isLoggedIn stayed true and the app reopened still logged in. Writing
+        // it first makes logout durable even if the process dies immediately.
         pollingJob?.cancel()
         pollingJob = null
         _kickReason.value = null
         lastMobile = ""
         SessionTokens.tenantToken = null
-        runCatching { WorkManager.getInstance(context).cancelAllWork() }
-        clearOfflineCache()
         SessionTokens.agencySlug = null
         prefs.clearSession()
         _state.value = AuthUiState.Idle
+        runCatching { WorkManager.getInstance(context).cancelAllWork() }
+        clearOfflineCache()
     }
 
     fun resetState() { _state.value = AuthUiState.Idle }
