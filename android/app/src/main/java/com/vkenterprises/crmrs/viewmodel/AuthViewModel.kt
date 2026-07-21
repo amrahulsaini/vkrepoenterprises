@@ -307,6 +307,7 @@ class AuthViewModel @Inject constructor(
         pollingJob?.cancel()
         pollingJob = null
         _kickReason.value = null
+        lastMobile = ""
         SessionTokens.tenantToken = null
         runCatching { WorkManager.getInstance(context).cancelAllWork() }
         clearOfflineCache()
