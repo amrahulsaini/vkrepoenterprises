@@ -19,9 +19,14 @@ import kotlinx.coroutines.flow.first
 @Composable
 fun SplashScreen(vm: AuthViewModel, navigate: (String) -> Unit) {
     LaunchedEffect(Unit) {
+        // Require BOTH the logged-in flag AND a real session token. If logout
+        // was interrupted and only half-cleared, or a token was wiped, treat it
+        // as logged out rather than auto-entering Home with no valid session.
         val loggedIn = runCatching { vm.isLoggedIn.first() }.getOrDefault(false)
-        if (loggedIn) vm.refreshSession()
-        navigate(if (loggedIn) Screen.Home.route else Screen.Login.route)
+        val hasToken = runCatching { !vm.tenantToken.first().isNullOrBlank() }.getOrDefault(false)
+        val enter = loggedIn && hasToken
+        if (enter) vm.refreshSession()
+        navigate(if (enter) Screen.Home.route else Screen.Login.route)
     }
 
     Box(
