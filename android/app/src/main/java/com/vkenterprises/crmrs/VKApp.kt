@@ -3,6 +3,8 @@ package com.vkenterprises.crmrs
 import android.app.Application
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.*
+import com.vkenterprises.crmrs.data.api.SessionTokens
+import com.vkenterprises.crmrs.utils.DeviceIdUtil
 import com.vkenterprises.crmrs.workers.LocationWorker
 import com.vkenterprises.crmrs.workers.SyncWorker
 import dagger.hilt.android.HiltAndroidApp
@@ -19,6 +21,7 @@ class VKApp : Application(), Configuration.Provider {
 
     override fun onCreate() {
         super.onCreate()
+        SessionTokens.deviceId = DeviceIdUtil.get(this)
         Thread {
             runCatching {
                 com.vkenterprises.crmrs.data.api.ApiClient.warmUp()

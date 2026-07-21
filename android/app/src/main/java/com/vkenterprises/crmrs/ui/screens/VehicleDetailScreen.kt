@@ -170,8 +170,12 @@ fun VehicleDetailScreen(
          .sortedByDescending { it.createdOn }
     }
 
-    LaunchedEffect(isAdmin, item?.id, uniqueBranches.size) {
-        if (isAdmin && item != null && uniqueBranches.isNotEmpty()) showBranchSheet = true
+    var branchSheetAutoShown by remember(item?.id) { mutableStateOf(false) }
+    LaunchedEffect(isAdmin, item?.id, ui.vehicleBranches) {
+        if (isAdmin && item != null && ui.vehicleBranches.isNotEmpty() && !branchSheetAutoShown) {
+            showBranchSheet     = true
+            branchSheetAutoShown = true
+        }
     }
 
     val branchRecord: SearchResult? = uniqueBranches.getOrNull(selectedBranchIdx)?.record ?: item

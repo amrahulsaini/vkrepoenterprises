@@ -14,13 +14,11 @@ import androidx.compose.ui.unit.dp
 import com.vkenterprises.crmrs.R
 import com.vkenterprises.crmrs.navigation.Screen
 import com.vkenterprises.crmrs.viewmodel.AuthViewModel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 
 @Composable
 fun SplashScreen(vm: AuthViewModel, navigate: (String) -> Unit) {
     LaunchedEffect(Unit) {
-        delay(1200)
         val loggedIn = runCatching { vm.isLoggedIn.first() }.getOrDefault(false)
         if (loggedIn) vm.refreshSession()
         navigate(if (loggedIn) Screen.Home.route else Screen.Login.route)

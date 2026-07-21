@@ -159,12 +159,13 @@ public class MobileController : ControllerBase
 
             TenantContext.UseAgency(req.Slug.Trim());
 
-            var result = await _repo.LoginAsync(NormalizeMobile(req.Mobile), req.DeviceId.Trim());
+            var deviceId = req.DeviceId.Trim();
+            var result = await _repo.LoginAsync(NormalizeMobile(req.Mobile), deviceId);
             if (result.Reason == "ok")
                 result = result with
                 {
                     PfpUrl      = AbsUrl(result.PfpUrl),
-                    TenantToken = MobileToken.Issue(req.Slug.Trim())
+                    TenantToken = MobileToken.Issue(req.Slug.Trim(), result.UserId ?? 0, deviceId)
                 };
 
             return result.Reason switch
@@ -769,7 +770,7 @@ public class MobileController : ControllerBase
         try
         {
             var status = await _repo.GetUserStatusAsync(userId);
-            return Ok(new { isStopped = status.IsStopped, isBlacklisted = status.IsBlacklisted });
+            return Ok(new { isStopped = status.IsStopped, isBlacklisted = status.IsBlacklisted, isActive = status.IsActive });
         }
         catch (Exception ex)
         {
@@ -785,9 +786,10 @@ public class MobileController : ControllerBase
             await _repo.HeartbeatAsync(req.UserId, req.Lat, req.Lng);
             var status = await _repo.GetUserStatusAsync(req.UserId);
             return Ok(new {
-                success      = true,
-                isStopped    = status.IsStopped,
-                isBlacklisted = status.IsBlacklisted
+                success       = true,
+                isStopped     = status.IsStopped,
+                isBlacklisted = status.IsBlacklisted,
+                isActive      = status.IsActive
             });
         }
         catch (Exception ex)

@@ -119,7 +119,13 @@ fun VKNavHost() {
         }
 
         composable(Screen.Inactive.route) {
-            val ui by searchVm.ui.collectAsState()
+            val ui         by searchVm.ui.collectAsState()
+            val kickReason by authVm.kickReason.collectAsState()
+            LaunchedEffect(kickReason) {
+                if (kickReason == "running") {
+                    navController.navigate(Screen.Home.route) { popUpTo(0) { inclusive = true } }
+                }
+            }
             InactiveScreen(
                 msg = ui.inactiveMsg.ifBlank { "Your account is inactive. Please contact agency." },
                 vm = authVm, nav = navController

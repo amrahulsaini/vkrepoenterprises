@@ -61,14 +61,26 @@ internal static class MobileToken
         Environment.GetEnvironmentVariable("TENANT_DB_SECRET")
         ?? "crmrs-tenant-secret-rotate-me-2026");
 
-    public static string Issue(string slug, int validDays = 90)
+    // Session = the decoded, verified contents of a token. Tokens issued before
+    // this change carry only {slug}|{exp} — HasIdentity is false for those, so
+    // the caller falls back to trusting the legacy X-User-Id header rather than
+    // rejecting every already-logged-in device the moment this ships.
+    public readonly record struct Session(string Slug, long UserId, string? DeviceId, bool HasIdentity);
+
+    /// <summary>
+    /// Issues a token bound to one user on one device. Any endpoint gated by
+    /// X-Tenant-Token now derives the caller's identity from this token instead
+    /// of trusting a client-supplied X-User-Id header — closing the hole where
+    /// any valid tenant token could impersonate any userId in that agency.
+    /// </summary>
+    public static string Issue(string slug, long userId, string deviceId, int validDays = 90)
     {
         long exp = DateTimeOffset.UtcNow.AddDays(validDays).ToUnixTimeSeconds();
-        var payload = Encoding.UTF8.GetBytes($"{slug}|{exp}");
+        var payload = Encoding.UTF8.GetBytes($"{slug}|{exp}|{userId}|{deviceId}");
         return "mt1." + B64(payload) + "." + B64(Sign(payload));
     }
 
-    public static string? Verify(string? token)
+    public static Session? VerifyFull(string? token)
     {
         try
         {
@@ -78,10 +90,13 @@ internal static class MobileToken
             if (p.Length != 3) return null;
             var payload = UnB64(p[1]);
             if (!CryptographicOperations.FixedTimeEquals(UnB64(p[2]), Sign(payload))) return null;
-            var f = Encoding.UTF8.GetString(payload).Split('|');
-            if (f.Length != 2) return null;
+            var f = Encoding.UTF8.GetString(payload).Split('|', 4);
+            if (f.Length < 2) return null;
             if (DateTimeOffset.UtcNow.ToUnixTimeSeconds() > long.Parse(f[1])) return null;
-            return f[0];
+            var slug = f[0];
+            if (f.Length == 4 && long.TryParse(f[2], out var uid) && uid > 0)
+                return new Session(slug, uid, f[3].Length > 0 ? f[3] : null, true);
+            return new Session(slug, 0, null, false);
         }
         catch { return null; }
     }
