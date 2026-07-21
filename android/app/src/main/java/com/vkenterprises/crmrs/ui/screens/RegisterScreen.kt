@@ -494,7 +494,15 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
                                     otpRefId = body.referenceId
                                     kycMsg = "OTP sent to your Aadhaar-linked mobile."
                                 } else {
-                                    kycMsg = body?.message ?: "Could not send OTP. Check the Aadhaar number."
+                                    // r.body() is only populated for 2xx responses — the actual
+                                    // server message for a 400/500/504 lives in errorBody().
+                                    val serverMsg = runCatching {
+                                        r?.errorBody()?.string()?.let {
+                                            org.json.JSONObject(it).optString("message", "")
+                                        }
+                                    }.getOrNull()
+                                    kycMsg = serverMsg?.ifBlank { null }
+                                        ?: "Could not send OTP. Please try again in a moment."
                                 }
                                 otpSending = false
                             }
