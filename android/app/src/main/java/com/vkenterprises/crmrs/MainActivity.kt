@@ -94,8 +94,12 @@ fun VKNavHost() {
             val ui         by searchVm.ui.collectAsState()
             val kickReason by authVm.kickReason.collectAsState()
             LaunchedEffect(kickReason) {
-                if (kickReason == "running") {
-                    navController.navigate(Screen.Home.route) { popUpTo(0) { inclusive = true } }
+                when (kickReason) {
+                    "running" -> navController.navigate(Screen.Home.route) { popUpTo(0) { inclusive = true } }
+                    "stale_session" -> {
+                        authVm.logout()
+                        navController.navigate(Screen.Login.route) { popUpTo(0) { inclusive = true } }
+                    }
                 }
             }
             AppStoppedScreen(
@@ -108,8 +112,12 @@ fun VKNavHost() {
             val ui         by searchVm.ui.collectAsState()
             val kickReason by authVm.kickReason.collectAsState()
             LaunchedEffect(kickReason) {
-                if (kickReason == "running") {
-                    navController.navigate(Screen.Home.route) { popUpTo(0) { inclusive = true } }
+                when (kickReason) {
+                    "running" -> navController.navigate(Screen.Home.route) { popUpTo(0) { inclusive = true } }
+                    "stale_session" -> {
+                        authVm.logout()
+                        navController.navigate(Screen.Login.route) { popUpTo(0) { inclusive = true } }
+                    }
                 }
             }
             BlacklistedScreen(
@@ -122,8 +130,12 @@ fun VKNavHost() {
             val ui         by searchVm.ui.collectAsState()
             val kickReason by authVm.kickReason.collectAsState()
             LaunchedEffect(kickReason) {
-                if (kickReason == "running") {
-                    navController.navigate(Screen.Home.route) { popUpTo(0) { inclusive = true } }
+                when (kickReason) {
+                    "running" -> navController.navigate(Screen.Home.route) { popUpTo(0) { inclusive = true } }
+                    "stale_session" -> {
+                        authVm.logout()
+                        navController.navigate(Screen.Login.route) { popUpTo(0) { inclusive = true } }
+                    }
                 }
             }
             InactiveScreen(
