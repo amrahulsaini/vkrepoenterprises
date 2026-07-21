@@ -7,32 +7,16 @@ import androidx.compose.material.icons.filled.HourglassTop
 import androidx.compose.material.icons.filled.PhonelinkLock
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.*
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.*
 import androidx.navigation.NavController
-import com.vkenterprises.crmrs.BuildConfig
 import com.vkenterprises.crmrs.viewmodel.AuthViewModel
-import kotlinx.coroutines.delay
 
 @Composable
 fun WaitingApprovalScreen(reason: String, vm: AuthViewModel, nav: NavController) {
     val isDeviceMismatch = reason == "device_mismatch"
-
-    // There's no live session/token here (login never succeeded), so this
-    // can't ride the heartbeat like AppStopped/Blacklisted do — it has to
-    // retry the login call itself. Previously the ONLY way this screen ever
-    // re-checked was a manual "CHECK AGAIN" tap; if the account was fixed
-    // server-side and the user didn't tap it, it stayed stuck forever.
-    LaunchedEffect(vm.lastMobile) {
-        while (true) {
-            delay(20_000)
-            if (vm.lastMobile.isNotBlank())
-                vm.login(vm.lastMobile, BuildConfig.AGENCY_SLUG, BuildConfig.AGENCY_NAME)
-        }
-    }
 
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(
