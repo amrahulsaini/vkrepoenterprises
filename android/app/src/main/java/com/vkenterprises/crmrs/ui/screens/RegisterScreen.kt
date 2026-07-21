@@ -90,6 +90,14 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
     var otpSending    by remember { mutableStateOf(false) }
     var otpVerifying  by remember { mutableStateOf(false) }
     var kycMsg        by remember { mutableStateOf("") }
+    // Sandbox/UIDAI enforces its own ~45s cooldown between Aadhaar OTP sends.
+    // Without a client-side countdown, tapping Resend immediately just hits
+    // that cooldown and shows a confusing error, while the OTP already sent
+    // quietly expires in the meantime.
+    var aadhaarOtpCooldown by remember { mutableStateOf(0) }
+    LaunchedEffect(aadhaarOtpCooldown) {
+        if (aadhaarOtpCooldown > 0) { kotlinx.coroutines.delay(1000); aadhaarOtpCooldown-- }
+    }
     var aadhaarVerified by remember { mutableStateOf(false) }
     var aaName    by remember { mutableStateOf<String?>(null) }
     var aaDob     by remember { mutableStateOf<String?>(null) }
@@ -479,37 +487,52 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
                 singleLine = true, modifier = Modifier.fillMaxWidth()
             )
 
+            fun sendAadhaarOtp(isResend: Boolean) {
+                kycMsg = ""
+                scope.launch {
+                    otpSending = true
+                    val r = runCatching {
+                        ApiClient.api.kycAadhaarOtp(mapOf("aadhaarNumber" to aadhaarNumber))
+                    }.getOrNull()
+                    val body = r?.body()
+                    if (r?.isSuccessful == true && body?.ok == true && body.referenceId != null) {
+                        otpRefId = body.referenceId
+                        otp = ""
+                        aadhaarOtpCooldown = 45
+                        kycMsg = if (isResend) "OTP resent." else "OTP sent to your Aadhaar-linked mobile."
+                    } else {
+                        // r.body() is only populated for 2xx responses — the actual
+                        // server message for a 400/500/504 lives in errorBody().
+                        val serverMsg = runCatching {
+                            r?.errorBody()?.string()?.let {
+                                org.json.JSONObject(it).optString("message", "")
+                            }
+                        }.getOrNull()
+                        kycMsg = serverMsg?.ifBlank { null }
+                            ?: "Could not send OTP. Please try again in a moment."
+                        // Sandbox reports its own cooldown in the message when we're
+                        // still within one — mirror that lockout client-side too so
+                        // the button doesn't invite an immediate identical failure.
+                        if (serverMsg?.contains("try after", ignoreCase = true) == true)
+                            aadhaarOtpCooldown = 45
+                    }
+                    otpSending = false
+                }
+            }
+
             if (!aadhaarVerified) {
                 if (otpRefId == null) {
                     Button(
-                        onClick = {
-                            focusManager.clearFocus(); kycMsg = ""
-                            scope.launch {
-                                otpSending = true
-                                val r = runCatching {
-                                    ApiClient.api.kycAadhaarOtp(mapOf("aadhaarNumber" to aadhaarNumber))
-                                }.getOrNull()
-                                val body = r?.body()
-                                if (r?.isSuccessful == true && body?.ok == true && body.referenceId != null) {
-                                    otpRefId = body.referenceId
-                                    kycMsg = "OTP sent to your Aadhaar-linked mobile."
-                                } else {
-                                    // r.body() is only populated for 2xx responses — the actual
-                                    // server message for a 400/500/504 lives in errorBody().
-                                    val serverMsg = runCatching {
-                                        r?.errorBody()?.string()?.let {
-                                            org.json.JSONObject(it).optString("message", "")
-                                        }
-                                    }.getOrNull()
-                                    kycMsg = serverMsg?.ifBlank { null }
-                                        ?: "Could not send OTP. Please try again in a moment."
-                                }
-                                otpSending = false
-                            }
-                        },
-                        enabled = aadhaarNumber.length == 12 && !otpSending,
+                        onClick = { focusManager.clearFocus(); sendAadhaarOtp(isResend = false) },
+                        enabled = aadhaarNumber.length == 12 && !otpSending && aadhaarOtpCooldown == 0,
                         modifier = Modifier.fillMaxWidth()
-                    ) { if (otpSending) Spinner(onPrimary = true) else Text("SEND OTP") }
+                    ) {
+                        when {
+                            otpSending             -> Spinner(onPrimary = true)
+                            aadhaarOtpCooldown > 0 -> Text("Wait ${aadhaarOtpCooldown}s")
+                            else                    -> Text("SEND OTP")
+                        }
+                    }
                 } else {
                     OutlinedTextField(
                         value = otp, onValueChange = { otp = it.filter { c -> c.isDigit() }.take(6) },
@@ -520,9 +543,10 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
                     )
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         OutlinedButton(
-                            onClick = { otpRefId = null; otp = ""; kycMsg = "" },
+                            onClick = { sendAadhaarOtp(isResend = true) },
+                            enabled = !otpSending && aadhaarOtpCooldown == 0,
                             modifier = Modifier.weight(1f)
-                        ) { Text("Resend") }
+                        ) { Text(if (aadhaarOtpCooldown > 0) "Resend in ${aadhaarOtpCooldown}s" else "Resend") }
                         Button(
                             onClick = {
                                 focusManager.clearFocus(); kycMsg = ""
