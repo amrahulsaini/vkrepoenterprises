@@ -321,6 +321,13 @@ data class HeartbeatRequest(
     val lng: Double?
 )
 
+data class ConfirmCaptureRequest(
+    val vehicleNo: String?,
+    val chassisNo: String?,
+    val imageBase64: String,
+    val capturedAtIso: String
+)
+
 data class HeartbeatResponse(
     val success: Boolean,
     val isStopped: Boolean,

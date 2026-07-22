@@ -24,6 +24,36 @@ public class MobileRepository
         catch { return null; }
     }
 
+    /// <summary>
+    /// Persists a "Send Confirm" photo: saves the image under uploads/confirm/
+    /// and inserts a confirm_captures row for the agent's active tenant. Returns
+    /// the stored relative image path, or null if no image was supplied.
+    /// </summary>
+    public async Task<string?> SaveConfirmCaptureAsync(
+        long userId, string? vehicleNo, string? chassisNo,
+        string imageBase64, DateTime capturedAt)
+    {
+        var stamp    = DateTime.UtcNow.ToString("yyyyMMddHHmmssfff");
+        var fileName = $"user_{userId}_{stamp}.jpg";
+        var rel      = await SaveBase64ImageAsync(imageBase64, "confirm", fileName);
+        if (rel == null) return null;
+
+        await using var conn = DbFactory.Create();
+        await conn.OpenAsync();
+        await using var cmd = new MySqlCommand(@"
+            INSERT INTO confirm_captures (user_id, vehicle_no, chassis_no, image_path, captured_at)
+            VALUES (@uid, @veh, @cha, @img, @cap)", conn) { CommandTimeout = 15 };
+        static object Clean(string? s) =>
+            string.IsNullOrWhiteSpace(s) ? DBNull.Value : s.Trim();
+        cmd.Parameters.AddWithValue("@uid", userId);
+        cmd.Parameters.AddWithValue("@veh", Clean(vehicleNo));
+        cmd.Parameters.AddWithValue("@cha", Clean(chassisNo));
+        cmd.Parameters.AddWithValue("@img", rel);
+        cmd.Parameters.AddWithValue("@cap", capturedAt);
+        await cmd.ExecuteNonQueryAsync();
+        return rel;
+    }
+
     private static readonly ConcurrentDictionary<string, (List<SearchResult> Results, DateTime At)> _cache = new();
     private static readonly TimeSpan CacheTtl = TimeSpan.FromMinutes(1);
 

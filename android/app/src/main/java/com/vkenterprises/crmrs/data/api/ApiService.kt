@@ -180,6 +180,12 @@ interface ApiService {
     @POST("api/mobile/search-log")
     suspend fun logSearch(@Body request: SearchLogRequest): Response<Map<String, Any>>
 
+    @POST("api/mobile/confirm-capture")
+    suspend fun confirmCapture(
+        @Header("X-User-Id") userId: Long,
+        @Body request: ConfirmCaptureRequest
+    ): Response<Map<String, Any>>
+
     @GET("api/mobile/live-users")
     suspend fun getLiveUsers(
         @Header("X-User-Id") userId: Long

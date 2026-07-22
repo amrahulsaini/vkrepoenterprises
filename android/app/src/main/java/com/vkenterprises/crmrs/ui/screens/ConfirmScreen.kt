@@ -2,6 +2,10 @@ package com.vkenterprises.crmrs.ui.screens
 
 import android.content.Intent
 import android.net.Uri
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -11,20 +15,30 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.*
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.*
+import androidx.core.content.FileProvider
 import androidx.navigation.NavController
+import coil.compose.AsyncImage
 import com.vkenterprises.crmrs.BuildConfig
+import com.vkenterprises.crmrs.data.api.ApiClient
+import com.vkenterprises.crmrs.data.models.ConfirmCaptureRequest
+import com.vkenterprises.crmrs.utils.compressImageToBase64
 import com.vkenterprises.crmrs.utils.getCurrentLocation
 import com.vkenterprises.crmrs.utils.googleMapsLink
 import com.vkenterprises.crmrs.utils.reverseGeocodeAddress
 import com.vkenterprises.crmrs.viewmodel.AuthViewModel
 import com.vkenterprises.crmrs.viewmodel.SearchViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -204,6 +218,80 @@ fun ConfirmScreen(
         }
     }
 
+    // ── Mandatory confirm photo (non-admin field agents) ────────────────────
+    var photoUri  by remember(item?.id) { mutableStateOf<Uri?>(null) }
+    var photoFile by remember(item?.id) { mutableStateOf<File?>(null) }
+    var sending   by remember { mutableStateOf(false) }
+
+    fun newPhotoTarget(): Uri {
+        val f = File(context.cacheDir, "confirm_${System.currentTimeMillis()}.jpg")
+        photoFile = f
+        return FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", f)
+    }
+
+    val cameraLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.TakePicture()
+    ) { ok ->
+        if (ok && photoFile?.let { it.exists() && it.length() > 0 } == true) {
+            photoUri = FileProvider.getUriForFile(
+                context, "${context.packageName}.fileprovider", photoFile!!)
+        } else {
+            photoUri = null
+            photoFile = null
+        }
+    }
+
+    fun sendWhatsAppWithImage(imageUri: Uri) {
+        val msg  = buildMessage()
+        val base = Intent(Intent.ACTION_SEND).apply {
+            type = "image/jpeg"
+            putExtra(Intent.EXTRA_STREAM, imageUri)
+            putExtra(Intent.EXTRA_TEXT, msg)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        val pm = context.packageManager
+        val target = listOf("com.whatsapp", "com.whatsapp.w4b").firstOrNull { p ->
+            runCatching { pm.getPackageInfo(p, 0); true }.getOrDefault(false)
+        }
+        val launch = if (target != null) Intent(base).setPackage(target)
+                     else Intent.createChooser(base, "Share confirmation via")
+        runCatching { context.startActivity(launch) }.onFailure {
+            runCatching { context.startActivity(Intent.createChooser(base, "Share confirmation via")) }
+        }
+    }
+
+    // Non-admin "Send Confirm": the photo is mandatory. On tap we save the
+    // capture to the server (confirm_captures) and then open WhatsApp with the
+    // image + message. A server hiccup must not strand a field agent, so if the
+    // save fails we still send — the photo is attached to WhatsApp regardless.
+    fun confirmWithPhoto() {
+        val uri = photoUri ?: return
+        if (sending) return
+        sending = true
+        scope.launch {
+            runCatching {
+                val b64 = withContext(Dispatchers.IO) { compressImageToBase64(context, uri) }
+                if (b64 != null && userId > 0L) {
+                    ApiClient.api.confirmCapture(
+                        userId,
+                        ConfirmCaptureRequest(
+                            vehicleNo     = item?.vehicleNo,
+                            chassisNo     = item?.chassisNo,
+                            imageBase64   = b64,
+                            capturedAtIso = java.time.Instant.now().toString()
+                        )
+                    )
+                }
+            }.onFailure {
+                Toast.makeText(context,
+                    "Couldn't save the photo to the server, sending anyway.",
+                    Toast.LENGTH_SHORT).show()
+            }
+            sending = false
+            sendWhatsAppWithImage(uri)
+        }
+    }
+
     fun sendSms() {
         val msg   = buildMessage().replace("*", "")
         val nums  = checkedNumbers()
@@ -364,18 +452,73 @@ fun ConfirmScreen(
                 }
             }
 
+            if (!isAdmin) {
+                Card(
+                    shape  = RoundedCornerShape(10.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    border = BorderStroke(
+                        1.dp,
+                        if (photoUri == null) MaterialTheme.colorScheme.error.copy(alpha = 0.5f)
+                        else Color(0xFF16A34A).copy(alpha = 0.6f)
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                if (photoUri == null) Icons.Default.PhotoCamera else Icons.Default.CheckCircle,
+                                null,
+                                tint = if (photoUri == null) MaterialTheme.colorScheme.error else Color(0xFF16A34A),
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                if (photoUri == null) "Vehicle photo required *" else "Vehicle photo captured",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = if (photoUri == null) MaterialTheme.colorScheme.error else Color(0xFF16A34A)
+                            )
+                        }
+                        if (photoUri != null) {
+                            AsyncImage(
+                                model = photoUri,
+                                contentDescription = "Captured vehicle photo",
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier
+                                    .fillMaxWidth().height(180.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                            )
+                        }
+                        OutlinedButton(
+                            onClick = { cameraLauncher.launch(newPhotoTarget()) },
+                            enabled = !sending,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(Icons.Default.PhotoCamera, null, Modifier.size(18.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text(if (photoUri == null) "Capture Vehicle Photo" else "Retake Photo")
+                        }
+                    }
+                }
+            }
+
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Button(
-                    onClick  = { sendWhatsApp() },
+                    onClick  = { if (isAdmin) sendWhatsApp() else confirmWithPhoto() },
+                    enabled  = isAdmin || (photoUri != null && !sending),
                     modifier = Modifier.weight(1f).height(52.dp),
                     shape    = RoundedCornerShape(10.dp),
                     colors   = ButtonDefaults.buttonColors(
                         containerColor = Color(0xFF25D366),
                         contentColor   = Color.White)
                 ) {
-                    Icon(Icons.Default.Chat, null, Modifier.size(18.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text("WhatsApp", fontWeight = FontWeight.Bold)
+                    if (sending) {
+                        CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = Color.White)
+                    } else {
+                        Icon(Icons.Default.Chat, null, Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("WhatsApp", fontWeight = FontWeight.Bold)
+                    }
                 }
 
                 Button(
