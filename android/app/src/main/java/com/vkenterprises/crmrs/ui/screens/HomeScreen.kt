@@ -662,6 +662,19 @@ private fun AgencyLandingPanel(
                 modifier = Modifier.weight(1f)
             ) { nav.navigate(Screen.Profile.route) }
         }
+        if (!isAdmin) {
+            Spacer(Modifier.height(10.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                GridTile(
+                    label    = "ID CARD",
+                    icon     = Icons.Default.Badge,
+                    subtitle = "Your official agent ID",
+                    accent   = Color(0xFF1565C0),
+                    modifier = Modifier.weight(1f)
+                ) { nav.navigate(Screen.IdCard.route) }
+                Spacer(Modifier.weight(1f))
+            }
+        }
         if (isAdmin) {
             Spacer(Modifier.height(10.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {

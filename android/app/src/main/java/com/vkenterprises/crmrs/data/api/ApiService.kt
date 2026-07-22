@@ -186,6 +186,15 @@ interface ApiService {
         @Body request: ConfirmCaptureRequest
     ): Response<Map<String, Any>>
 
+    @GET("api/mobile/id-card")
+    suspend fun getIdCard(@Header("X-User-Id") userId: Long): Response<IdCardResponse>
+
+    @POST("api/mobile/id-card/submit")
+    suspend fun submitIdCard(
+        @Header("X-User-Id") userId: Long,
+        @Body request: IdCardSubmitRequest
+    ): Response<Map<String, Any>>
+
     @GET("api/mobile/live-users")
     suspend fun getLiveUsers(
         @Header("X-User-Id") userId: Long

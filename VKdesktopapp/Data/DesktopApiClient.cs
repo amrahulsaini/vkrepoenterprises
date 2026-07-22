@@ -290,6 +290,44 @@ internal static class DesktopApiClient
         return (await resp.Content.ReadFromJsonAsync<IntegrationMessagesDto>(_json))!;
     }
 
+    // ── ID cards ────────────────────────────────────────────────────────────
+    internal sealed class IdCardReviewDto
+    {
+        public long UserId { get; set; }
+        public string Name { get; set; } = "";
+        public string Mobile { get; set; } = "";
+        public string Status { get; set; } = "pending";
+        public string? BloodGroup { get; set; }
+        public string? Dob { get; set; }
+        public string? PhotoUrl { get; set; }
+        public string? PccUrl { get; set; }
+        public string? DraUrl { get; set; }
+        public string? ValidUntil { get; set; }
+        public int? ValidDays { get; set; }
+        public string? DeclineReason { get; set; }
+        public DateTime? SubmittedAt { get; set; }
+        public bool Expired { get; set; }
+    }
+
+    internal static async Task<List<IdCardReviewDto>> GetIdCardsAsync(string status = "pending")
+    {
+        var resp = await Send(HttpMethod.Get, $"api/mgr/id-cards?status={status}");
+        resp.EnsureSuccessStatusCode();
+        return (await resp.Content.ReadFromJsonAsync<List<IdCardReviewDto>>(_json))!;
+    }
+
+    internal static async Task ApproveIdCardAsync(long userId, int validDays)
+    {
+        var resp = await Send(HttpMethod.Post, $"api/mgr/id-cards/{userId}/approve", new { ValidDays = validDays });
+        resp.EnsureSuccessStatusCode();
+    }
+
+    internal static async Task DeclineIdCardAsync(long userId, string reason)
+    {
+        var resp = await Send(HttpMethod.Post, $"api/mgr/id-cards/{userId}/decline", new { Reason = reason });
+        resp.EnsureSuccessStatusCode();
+    }
+
     internal static async Task MarkIntegrationMessagesReadAsync()
     {
         var resp = await Send(HttpMethod.Post, "api/mgr/integration-messages/read");
