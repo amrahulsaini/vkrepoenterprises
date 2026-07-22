@@ -842,6 +842,59 @@ public class MobileController : ControllerBase
         }
     }
 
+    [HttpPost("id-card/submit")]
+    public async Task<IActionResult> SubmitIdCard(
+        [FromHeader(Name = "X-User-Id")] long userId,
+        [FromBody] IdCardSubmitReq req)
+    {
+        try
+        {
+            var status = await _repo.GetUserStatusAsync(userId);
+            if (status.IsBlacklisted) return StatusCode(403, new ApiError(false, "blacklisted"));
+            if (!status.IsActive)     return StatusCode(403, new ApiError(false, "inactive"));
+
+            // Photo, PCC and DRA are required on a first submission; a re-submit
+            // may reuse previously-stored images (SubmitIdCardAsync COALESCEs).
+            var existing = await _repo.GetIdCardAsync(userId);
+            bool firstTime = existing.Status == "none";
+            if (firstTime && (string.IsNullOrWhiteSpace(req?.PhotoBase64)
+                              || string.IsNullOrWhiteSpace(req?.PccBase64)
+                              || string.IsNullOrWhiteSpace(req?.DraBase64)))
+                return BadRequest(new ApiError(false, "Photo, PCC and DRA documents are required."));
+            if (string.IsNullOrWhiteSpace(req?.BloodGroup) || string.IsNullOrWhiteSpace(req?.Dob))
+                return BadRequest(new ApiError(false, "Blood group and date of birth are required."));
+
+            await _repo.SubmitIdCardAsync(userId, req!.PhotoBase64, req.PccBase64, req.DraBase64,
+                req.BloodGroup, req.Dob);
+            return Ok(new { success = true, message = "Submitted for admin approval." });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new ApiError(false, $"Submit failed: {ex.Message}"));
+        }
+    }
+
+    [HttpGet("id-card")]
+    public async Task<IActionResult> GetIdCard([FromHeader(Name = "X-User-Id")] long userId)
+    {
+        try
+        {
+            var c = await _repo.GetIdCardAsync(userId);
+            return Ok(new IdCardDto(
+                Status:        c.Status,
+                BloodGroup:    c.BloodGroup,
+                Dob:           c.Dob,
+                PhotoUrl:      AbsUrl(c.PhotoRel),
+                ValidUntil:    c.ValidUntil,
+                Expired:       c.Expired,
+                DeclineReason: c.DeclineReason));
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new ApiError(false, $"Fetch failed: {ex.Message}"));
+        }
+    }
+
     [HttpPost("confirm-capture")]
     public async Task<IActionResult> ConfirmCapture(
         [FromHeader(Name = "X-User-Id")] long userId,
@@ -1149,6 +1202,10 @@ public record KycResubmitReq(
 
 public record ConfirmCaptureReq(
     string? VehicleNo, string? ChassisNo, string? ImageBase64, string? CapturedAtIso);
+
+public record IdCardSubmitReq(
+    string? PhotoBase64, string? PccBase64, string? DraBase64,
+    string? BloodGroup, string? Dob);
 
 public record CheckMobileReq(string? Mobile, string? Slug);
 public record OtpSendReq(string? Mobile);
