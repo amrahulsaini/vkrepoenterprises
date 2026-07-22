@@ -865,7 +865,7 @@ public class MobileController : ControllerBase
                 return BadRequest(new ApiError(false, "Blood group and date of birth are required."));
 
             await _repo.SubmitIdCardAsync(userId, req!.PhotoBase64, req.PccBase64, req.DraBase64,
-                req.BloodGroup, req.Dob);
+                req.BloodGroup, req.Dob, req.Gender);
             return Ok(new { success = true, message = "Submitted for admin approval." });
         }
         catch (Exception ex)
@@ -881,13 +881,19 @@ public class MobileController : ControllerBase
         {
             var c = await _repo.GetIdCardAsync(userId);
             return Ok(new IdCardDto(
-                Status:        c.Status,
-                BloodGroup:    c.BloodGroup,
-                Dob:           c.Dob,
-                PhotoUrl:      AbsUrl(c.PhotoRel),
-                ValidUntil:    c.ValidUntil,
-                Expired:       c.Expired,
-                DeclineReason: c.DeclineReason));
+                Status:         c.Status,
+                BloodGroup:     c.BloodGroup,
+                Dob:            c.Dob,
+                PhotoUrl:       AbsUrl(c.PhotoRel),
+                ValidUntil:     c.ValidUntil,
+                Expired:        c.Expired,
+                DeclineReason:  c.DeclineReason,
+                RegistrationNo: c.RegistrationNo,
+                Name:           c.Name,
+                Mobile:         c.Mobile,
+                Gender:         c.Gender,
+                Address:        c.Address,
+                ValidFrom:      c.ValidFrom));
         }
         catch (Exception ex)
         {
@@ -1205,7 +1211,7 @@ public record ConfirmCaptureReq(
 
 public record IdCardSubmitReq(
     string? PhotoBase64, string? PccBase64, string? DraBase64,
-    string? BloodGroup, string? Dob);
+    string? BloodGroup, string? Dob, string? Gender);
 
 public record CheckMobileReq(string? Mobile, string? Slug);
 public record OtpSendReq(string? Mobile);

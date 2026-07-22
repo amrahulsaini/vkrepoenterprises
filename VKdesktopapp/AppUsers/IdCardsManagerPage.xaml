@@ -51,8 +51,8 @@
 
                                     <!-- Photo -->
                                     <Border Grid.Column="0" Width="96" Height="96" CornerRadius="8"
-                                            Background="{StaticResource Gray100}" VerticalAlignment="Top">
-                                        <Image Source="{Binding PhotoUrl}" Stretch="UniformToFill" />
+                                            Background="{StaticResource Gray100}" VerticalAlignment="Top" ClipToBounds="True">
+                                        <Image Source="{Binding PhotoImage}" Stretch="UniformToFill" />
                                     </Border>
 
                                     <!-- Details -->
@@ -78,14 +78,14 @@
 
                                         <!-- Document thumbnails -->
                                         <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
-                                            <Button Tag="{Binding PhotoUrl}" Click="ViewImage_Click" Cursor="Hand" Margin="0,0,8,0" Padding="0" BorderThickness="1" BorderBrush="{StaticResource Gray200}">
-                                                <Image Source="{Binding PhotoUrl}" Width="70" Height="52" Stretch="UniformToFill" />
+                                            <Button Tag="{Binding PhotoImage}" Click="ViewImage_Click" Cursor="Hand" Margin="0,0,8,0" Padding="0" BorderThickness="1" BorderBrush="{StaticResource Gray200}">
+                                                <Image Source="{Binding PhotoImage}" Width="70" Height="52" Stretch="UniformToFill" />
                                             </Button>
-                                            <Button Tag="{Binding PccUrl}" Click="ViewImage_Click" Cursor="Hand" Margin="0,0,8,0" Padding="0" BorderThickness="1" BorderBrush="{StaticResource Gray200}">
-                                                <Image Source="{Binding PccUrl}" Width="70" Height="52" Stretch="UniformToFill" />
+                                            <Button Tag="{Binding PccImage}" Click="ViewImage_Click" Cursor="Hand" Margin="0,0,8,0" Padding="0" BorderThickness="1" BorderBrush="{StaticResource Gray200}">
+                                                <Image Source="{Binding PccImage}" Width="70" Height="52" Stretch="UniformToFill" />
                                             </Button>
-                                            <Button Tag="{Binding DraUrl}" Click="ViewImage_Click" Cursor="Hand" Padding="0" BorderThickness="1" BorderBrush="{StaticResource Gray200}">
-                                                <Image Source="{Binding DraUrl}" Width="70" Height="52" Stretch="UniformToFill" />
+                                            <Button Tag="{Binding DraImage}" Click="ViewImage_Click" Cursor="Hand" Padding="0" BorderThickness="1" BorderBrush="{StaticResource Gray200}">
+                                                <Image Source="{Binding DraImage}" Width="70" Height="52" Stretch="UniformToFill" />
                                             </Button>
                                         </StackPanel>
                                         <TextBlock Text="Photo · PCC · DRA (click to enlarge)" FontSize="10" Foreground="{StaticResource Gray600}" Margin="0,4,0,0" />

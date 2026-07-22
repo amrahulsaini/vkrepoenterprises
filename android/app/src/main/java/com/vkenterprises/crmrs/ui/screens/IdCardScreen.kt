@@ -1,15 +1,15 @@
 package com.vkenterprises.crmrs.ui.screens
 
-import android.app.Activity
 import android.net.Uri
-import android.view.WindowManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -55,13 +55,6 @@ fun IdCardScreen(vm: AuthViewModel, nav: NavController) {
     val userName by vm.userName.collectAsState(initial = "")
     val userMobile by vm.userMobile.collectAsState(initial = "")
     val userId by vm.userId.collectAsState(initial = -1L)
-
-    // Screenshot / screen-record protection for this whole screen.
-    DisposableEffect(Unit) {
-        val window = (context as? Activity)?.window
-        window?.setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE)
-        onDispose { window?.clearFlags(WindowManager.LayoutParams.FLAG_SECURE) }
-    }
 
     var loading by remember { mutableStateOf(true) }
     var card    by remember { mutableStateOf<IdCardResponse?>(null) }
@@ -111,97 +104,93 @@ fun IdCardScreen(vm: AuthViewModel, nav: NavController) {
     }
 }
 
+private fun fmtDate(iso: String?): String {
+    if (iso.isNullOrBlank()) return "—"
+    return runCatching {
+        val d = java.time.LocalDate.parse(iso)
+        "%02d-%02d-%04d".format(d.dayOfMonth, d.monthValue, d.year)
+    }.getOrDefault(iso)
+}
+
 @Composable
 private fun ApprovedCard(card: IdCardResponse, name: String, mobile: String) {
+    val displayName = (card.name ?: name).ifBlank { "—" }
     Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 8.dp)) {
-            Icon(Icons.Default.Lock, null, tint = OK_GREEN, modifier = Modifier.size(14.dp))
-            Spacer(Modifier.width(4.dp))
-            Text("Protected — screenshots are disabled",
-                style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-
         Surface(
-            shape = RoundedCornerShape(18.dp),
-            shadowElevation = 8.dp,
+            shape = RoundedCornerShape(14.dp),
+            shadowElevation = 6.dp,
+            border = BorderStroke(1.dp, BRAND.copy(alpha = 0.3f)),
             modifier = Modifier.fillMaxWidth()
         ) {
-            Column(Modifier.background(Color.White)) {
-                // Header band with agency identity
-                Row(
-                    Modifier.fillMaxWidth()
-                        .background(Brush.horizontalGradient(listOf(BRAND, Color(0xFF0D47A1))))
-                        .padding(14.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Image(
-                        painter = painterResource(id = R.drawable.agency_logo),
-                        contentDescription = null,
-                        modifier = Modifier.size(40.dp).clip(RoundedCornerShape(8.dp))
-                    )
-                    Spacer(Modifier.width(10.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text(BuildConfig.AGENCY_NAME, color = Color.White,
-                            fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium, maxLines = 1)
-                        Text("OFFICIAL AGENT ID CARD", color = Color.White.copy(alpha = 0.85f),
-                            style = MaterialTheme.typography.labelSmall, letterSpacing = 1.5.sp)
-                    }
-                }
+            Column(
+                Modifier.background(Color.White).padding(horizontal = 20.dp, vertical = 18.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // Agency name
+                Text(BuildConfig.AGENCY_NAME.uppercase(),
+                    style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold,
+                    color = Color(0xFF111111), textAlign = TextAlign.Center, letterSpacing = 1.sp)
+                Spacer(Modifier.height(14.dp))
 
-                Row(Modifier.padding(16.dp)) {
+                // Oval photo with brand ring
+                Box(
+                    Modifier.size(150.dp).clip(CircleShape)
+                        .background(BRAND.copy(alpha = 0.12f))
+                        .border(3.dp, BRAND, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
                     AsyncImage(
-                        model = card.photoUrl,
-                        contentDescription = "Photo",
+                        model = card.photoUrl, contentDescription = "Photo",
                         contentScale = ContentScale.Crop,
-                        modifier = Modifier.size(96.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                        modifier = Modifier.size(140.dp).clip(CircleShape)
                     )
-                    Spacer(Modifier.width(16.dp))
-                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text(name.ifBlank { "—" }, fontWeight = FontWeight.Bold,
-                            style = MaterialTheme.typography.titleMedium, color = Color(0xFF111111))
-                        IdField("Blood Group", card.bloodGroup ?: "—")
-                        IdField("Date of Birth", card.dob ?: "—")
-                        if (mobile.isNotBlank()) IdField("Mobile", mobile)
-                    }
+                }
+                Spacer(Modifier.height(16.dp))
+
+                // Detail rows: Name, DOB, Blood group, Valid
+                Column(Modifier.fillMaxWidth().padding(start = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    CardRow("Name", displayName)
+                    CardRow("Date of Birth", fmtDate(card.dob))
+                    CardRow("Blood group", card.bloodGroup ?: "—")
+                    CardRow("Valid", "${fmtDate(card.validFrom)} To ${fmtDate(card.validUntil)}")
                 }
 
+                Spacer(Modifier.height(18.dp))
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                Row(
-                    Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Verified, null, tint = OK_GREEN, modifier = Modifier.size(16.dp))
-                        Spacer(Modifier.width(4.dp))
-                        Text("Verified by ${BuildConfig.AGENCY_NAME}",
-                            style = MaterialTheme.typography.labelSmall, color = OK_GREEN, fontWeight = FontWeight.SemiBold)
-                    }
-                    Text("Valid until ${card.validUntil ?: "—"}",
-                        style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.height(10.dp))
+
+                // Hindi note (as per the official format)
+                val note = buildString {
+                    appendLine("नोट:")
+                    appendLine("यह कार्ड केवल RBI के नियमों के अनुसार Repossession (वाहन जब्ती) कार्य के लिए उपयोग किया जाएगा और Collection कार्य के लिए उपयोग नहीं किया जाएगा।")
+                    appendLine("आपका Police Verification दिनांक ${fmtDate(card.validFrom)} को पूरा हो चुका है।")
+                    appendLine("आप एक DRA Certified Agent हैं।")
+                    append("कार्य समय: सुबह 8:00 बजे से शाम 6:00 बजे तक ही।")
                 }
+                Text(note, style = MaterialTheme.typography.bodySmall,
+                    color = Color(0xFF222222), lineHeight = 18.sp)
             }
         }
-        Spacer(Modifier.height(16.dp))
-        Text("Show this card to the customer for verification. It expires on ${card.validUntil ?: "—"}.",
+        Spacer(Modifier.height(14.dp))
+        Text("Show this card to the customer for verification. Valid until ${fmtDate(card.validUntil)}.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+        Spacer(Modifier.height(16.dp))
     }
 }
 
 @Composable
-private fun IdField(label: String, value: String) {
-    Row {
-        Text("$label: ", style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(value, style = MaterialTheme.typography.bodySmall,
-            fontWeight = FontWeight.SemiBold, color = Color(0xFF111111))
+private fun CardRow(label: String, value: String) {
+    Row(Modifier.fillMaxWidth()) {
+        Text("$label -", style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.SemiBold, color = Color(0xFF222222),
+            modifier = Modifier.width(120.dp))
+        Text(value, style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Bold, color = Color(0xFF000000), modifier = Modifier.weight(1f))
     }
 }
 
