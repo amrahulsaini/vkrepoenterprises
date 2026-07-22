@@ -59,7 +59,7 @@ public class MobileRepository
     /// upserts the row back to 'pending', clearing any previous decline.</summary>
     public async Task SubmitIdCardAsync(
         long userId, string? photoB64, string? pccB64, string? draB64,
-        string? bloodGroup, string? dob)
+        string? bloodGroup, string? dob, string? gender)
     {
         var dir      = $"idcard/{userId}";
         var photoRel = await SaveBase64ImageAsync(photoB64, dir, "photo.jpg");
@@ -70,52 +70,73 @@ public class MobileRepository
         await conn.OpenAsync();
         // COALESCE keeps a previously-uploaded image if this submit omits it.
         await using var cmd = new MySqlCommand(@"
-            INSERT INTO id_cards (user_id, photo_path, pcc_path, dra_path, blood_group, dob,
+            INSERT INTO id_cards (user_id, photo_path, pcc_path, dra_path, blood_group, dob, gender,
                                   status, decline_reason, valid_days, approved_at, valid_until, submitted_at)
-            VALUES (@uid, @photo, @pcc, @dra, @bg, @dob, 'pending', NULL, NULL, NULL, NULL, NOW())
+            VALUES (@uid, @photo, @pcc, @dra, @bg, @dob, @gender, 'pending', NULL, NULL, NULL, NULL, NOW())
             ON DUPLICATE KEY UPDATE
                 photo_path     = COALESCE(@photo, photo_path),
                 pcc_path       = COALESCE(@pcc,   pcc_path),
                 dra_path       = COALESCE(@dra,   dra_path),
                 blood_group    = @bg,
                 dob            = @dob,
+                gender         = @gender,
                 status         = 'pending',
                 decline_reason = NULL,
                 valid_days     = NULL,
                 approved_at    = NULL,
                 valid_until    = NULL,
                 submitted_at   = NOW()", conn) { CommandTimeout = 20 };
-        cmd.Parameters.AddWithValue("@uid",   userId);
-        cmd.Parameters.AddWithValue("@photo", (object?)photoRel ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("@pcc",   (object?)pccRel   ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("@dra",   (object?)draRel   ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("@bg",    (object?)bloodGroup?.Trim() ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("@dob",   (object?)dob?.Trim() ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@uid",    userId);
+        cmd.Parameters.AddWithValue("@photo",  (object?)photoRel ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@pcc",    (object?)pccRel   ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@dra",    (object?)draRel   ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@bg",     (object?)bloodGroup?.Trim() ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@dob",    (object?)dob?.Trim() ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@gender", (object?)gender?.Trim() ?? DBNull.Value);
         await cmd.ExecuteNonQueryAsync();
     }
 
+    /// <summary>Stable 9-digit registration number derived from the user id
+    /// (looks random, never changes for a given user).</summary>
+    private static string RegistrationNo(long userId)
+    {
+        unchecked
+        {
+            long h = (userId * 2654435761L) % 900000000L;
+            if (h < 0) h += 900000000L;
+            return (100000000L + h).ToString();
+        }
+    }
+
     public async Task<(string Status, string? BloodGroup, string? Dob, string? PhotoRel,
-                       string? ValidUntil, bool Expired, string? DeclineReason)>
+                       string? ValidUntil, bool Expired, string? DeclineReason,
+                       string RegistrationNo, string? Name, string? Mobile, string? Gender,
+                       string? Address, string? ValidFrom)>
         GetIdCardAsync(long userId)
     {
         await using var conn = DbFactory.Create();
         await conn.OpenAsync();
         await using var cmd = new MySqlCommand(@"
-            SELECT status, blood_group, dob, photo_path,
-                   DATE_FORMAT(valid_until,'%Y-%m-%d') AS vu,
-                   (valid_until IS NOT NULL AND valid_until < CURDATE()) AS expired,
-                   decline_reason
-            FROM id_cards WHERE user_id=@uid LIMIT 1", conn) { CommandTimeout = 10 };
+            SELECT c.status, c.blood_group, c.dob, c.photo_path,
+                   DATE_FORMAT(c.valid_until,'%Y-%m-%d') AS vu,
+                   (c.valid_until IS NOT NULL AND c.valid_until < CURDATE()) AS expired,
+                   c.decline_reason, c.gender,
+                   DATE_FORMAT(c.approved_at,'%Y-%m-%d') AS vf,
+                   u.name, u.mobile, u.address
+            FROM id_cards c JOIN app_users u ON u.id = c.user_id
+            WHERE c.user_id=@uid LIMIT 1", conn) { CommandTimeout = 10 };
         cmd.Parameters.AddWithValue("@uid", userId);
         await using var rdr = await cmd.ExecuteReaderAsync();
         if (!await rdr.ReadAsync())
-            return ("none", null, null, null, null, false, null);
+            return ("none", null, null, null, null, false, null, RegistrationNo(userId), null, null, null, null, null);
         string? S(int i) => rdr.IsDBNull(i) ? null : rdr.GetString(i);
         return (
             rdr.GetString(0),
             S(1), S(2), S(3), S(4),
             !rdr.IsDBNull(5) && rdr.GetInt64(5) == 1,
-            S(6));
+            S(6),
+            RegistrationNo(userId),
+            S(9), S(10), S(7), S(11), S(8));
     }
 
     private static readonly ConcurrentDictionary<string, (List<SearchResult> Results, DateTime At)> _cache = new();

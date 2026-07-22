@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS id_cards (
     dra_path       VARCHAR(255)          DEFAULT NULL,
     blood_group    VARCHAR(8)            DEFAULT NULL,
     dob            VARCHAR(20)           DEFAULT NULL,
+    gender         VARCHAR(10)           DEFAULT NULL,
     status         VARCHAR(12)  NOT NULL DEFAULT 'pending',  -- pending | approved | declined
     decline_reason TEXT                  DEFAULT NULL,
     valid_days     INT                   DEFAULT NULL,

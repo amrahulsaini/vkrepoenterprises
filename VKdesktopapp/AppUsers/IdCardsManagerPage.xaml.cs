@@ -1,10 +1,30 @@
 using System.Collections.Generic;
-using System.Diagnostics;
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using CRMRSDesktopApp.Data;
 
 namespace CRMRSDesktopApp.AppUsers;
+
+/// <summary>Row shown in the ID-cards list. Holds the raw DTO fields plus the
+/// three document images decoded into WPF ImageSources (bound directly to
+/// Image.Source so they render inline, like the App Users KYC previews).</summary>
+public sealed class IdCardVm
+{
+    public long UserId { get; set; }
+    public string Name { get; set; } = "";
+    public string Mobile { get; set; } = "";
+    public string Status { get; set; } = "pending";
+    public string? BloodGroup { get; set; }
+    public string? Dob { get; set; }
+    public string? ValidUntil { get; set; }
+    public string? DeclineReason { get; set; }
+    public ImageSource? PhotoImage { get; set; }
+    public ImageSource? PccImage { get; set; }
+    public ImageSource? DraImage { get; set; }
+}
 
 public partial class IdCardsManagerPage : Page
 {
@@ -23,6 +43,24 @@ public partial class IdCardsManagerPage : Page
         return "pending";
     }
 
+    private static async System.Threading.Tasks.Task<ImageSource?> LoadImageAsync(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url)) return null;
+        try
+        {
+            var bytes = await App.HttpClient.GetByteArrayAsync(url);
+            if (bytes.Length == 0) return null;
+            var bmp = new BitmapImage();
+            bmp.BeginInit();
+            bmp.CacheOption = BitmapCacheOption.OnLoad;
+            bmp.StreamSource = new MemoryStream(bytes);
+            bmp.EndInit();
+            bmp.Freeze();
+            return bmp;
+        }
+        catch { return null; }
+    }
+
     private async System.Threading.Tasks.Task LoadAsync()
     {
         txtLoading.Visibility = Visibility.Visible;
@@ -31,8 +69,26 @@ public partial class IdCardsManagerPage : Page
         try
         {
             var items = await DesktopApiClient.GetIdCardsAsync(CurrentFilter());
-            listCards.ItemsSource = items;
-            txtEmpty.Visibility = items.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+            var vms = new List<IdCardVm>();
+            foreach (var it in items)
+            {
+                vms.Add(new IdCardVm
+                {
+                    UserId        = it.UserId,
+                    Name          = it.Name,
+                    Mobile        = it.Mobile,
+                    Status        = it.Status,
+                    BloodGroup    = it.BloodGroup,
+                    Dob           = it.Dob,
+                    ValidUntil    = it.ValidUntil,
+                    DeclineReason = it.DeclineReason,
+                    PhotoImage    = await LoadImageAsync(it.PhotoUrl),
+                    PccImage      = await LoadImageAsync(it.PccUrl),
+                    DraImage      = await LoadImageAsync(it.DraUrl),
+                });
+            }
+            listCards.ItemsSource = vms;
+            txtEmpty.Visibility = vms.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         }
         catch (System.Exception ex)
         {
@@ -87,10 +143,20 @@ public partial class IdCardsManagerPage : Page
         }
     }
 
+    /// <summary>Enlarge a document image in a modal preview window (no browser).</summary>
     private void ViewImage_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is Button b && b.Tag is string url && !string.IsNullOrWhiteSpace(url))
-            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+        if (sender is not Button b || b.Tag is not ImageSource src) return;
+        var win = new Window
+        {
+            Title = "Document preview",
+            Width = 720, Height = 720,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Owner = Window.GetWindow(this),
+            Background = Brushes.Black
+        };
+        win.Content = new Image { Source = src, Stretch = Stretch.Uniform, Margin = new Thickness(8) };
+        win.ShowDialog();
     }
 
     /// <summary>Minimal modal text prompt. Returns null if cancelled.</summary>

@@ -335,7 +335,13 @@ data class IdCardResponse(
     val photoUrl: String?,
     val validUntil: String?,
     val expired: Boolean = false,
-    val declineReason: String?
+    val declineReason: String?,
+    val registrationNo: String? = null,
+    val name: String? = null,
+    val mobile: String? = null,
+    val gender: String? = null,
+    val address: String? = null,
+    val validFrom: String? = null
 )
 
 data class IdCardSubmitRequest(

@@ -163,7 +163,13 @@ public record IdCardDto(
     string? PhotoUrl,
     string? ValidUntil,    // yyyy-MM-dd
     bool    Expired,
-    string? DeclineReason);
+    string? DeclineReason,
+    string? RegistrationNo = null,
+    string? Name = null,
+    string? Mobile = null,
+    string? Gender = null,
+    string? Address = null,
+    string? ValidFrom = null);  // yyyy-MM-dd (approval date)
 public record VerifySubsPassRequest(string Password);
 public record AdminAddSubRequest(string StartDate, string EndDate, decimal Amount, string? Notes);
 public record AdminUserItem(long Id, string Name, string Mobile, string? Address, string? SubEnd,
