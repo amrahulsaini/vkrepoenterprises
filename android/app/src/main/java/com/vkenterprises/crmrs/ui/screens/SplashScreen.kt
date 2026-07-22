@@ -38,7 +38,7 @@ fun SplashScreen(vm: AuthViewModel, navigate: (String) -> Unit) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Image(
                 painter = painterResource(id = R.drawable.crmrs_logo),
-                contentDescription = "CRMS",
+                contentDescription = "CRMRS",
                 contentScale = ContentScale.Fit,
                 modifier = Modifier.size(200.dp)
             )

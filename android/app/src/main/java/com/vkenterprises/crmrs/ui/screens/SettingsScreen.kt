@@ -70,7 +70,7 @@ fun SettingsScreen(
                 val bgColor    = if (isAdmin) Color(0xFF1A237E) else MaterialTheme.colorScheme.primaryContainer
                 val textColor  = if (isAdmin) Color.White else MaterialTheme.colorScheme.onPrimaryContainer
                 val roleLabel  = if (isAdmin) "Administrator" else "Agent"
-                val roleDesc   = if (isAdmin) "You are Admin" else "You are an agency user of CRMS"
+                val roleDesc   = if (isAdmin) "You are Admin" else "You are an agency user of CRMRS"
                 val roleIcon   = if (isAdmin) Icons.Default.AdminPanelSettings else Icons.Default.Person
                 Surface(
                     color  = bgColor,
@@ -209,7 +209,7 @@ fun SettingsScreen(
                         Column(Modifier.weight(1f)) {
                             Text("View Only Online", style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.Medium)
-                            Text("Skip local cache — search server directly for lowest latency",
+                            Text("Latest results",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
