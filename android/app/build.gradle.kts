@@ -42,15 +42,15 @@ val tenants: List<Tenant> = run {
 
 android {
     namespace   = "com.vkenterprises.crmrs"
-    compileSdk  = 35
+    compileSdk  = 36
 
     defaultConfig {
         // Per-flavor applicationId overrides this — kept only as a fallback.
-        applicationId = "com.crmrecoverysoftware.crms"
+        applicationId = "com.crmrecoverysoftware.crmrs"
         minSdk        = 26
-        targetSdk     = 35
-        versionCode   = 87
-        versionName   = "1.0.86"
+        targetSdk     = 36
+        versionCode   = 88
+        versionName   = "1.0.87"
 
         buildConfigField("String", "BASE_URL", "\"https://api.crmrecoverysoftware.com/\"")
     }
@@ -78,8 +78,8 @@ android {
             create(t.flavor) {
                 dimension      = "agency"
                 applicationId  = "com.crmrecoverysoftware.${t.pkg}"
-                versionCode    = 87
-                versionName    = "1.0.86"
+                versionCode    = 88
+                versionName    = "1.0.87"
                 // Bundled into BuildConfig so the app pre-binds to this tenant
                 // — no agency picker on the login screen.
                 buildConfigField("String", "AGENCY_SLUG",    "\"${t.slug}\"")
