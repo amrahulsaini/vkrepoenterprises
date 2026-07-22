@@ -842,6 +842,39 @@ public class MobileController : ControllerBase
         }
     }
 
+    [HttpPost("confirm-capture")]
+    public async Task<IActionResult> ConfirmCapture(
+        [FromHeader(Name = "X-User-Id")] long userId,
+        [FromBody] ConfirmCaptureReq req)
+    {
+        try
+        {
+            if (req == null || string.IsNullOrWhiteSpace(req.ImageBase64))
+                return BadRequest(new ApiError(false, "A photo is required."));
+
+            var status = await _repo.GetUserStatusAsync(userId);
+            if (status.IsBlacklisted) return StatusCode(403, new ApiError(false, "blacklisted"));
+            if (!status.IsActive)     return StatusCode(403, new ApiError(false, "inactive"));
+            if (status.IsStopped)     return StatusCode(403, new ApiError(false, "app_stopped"));
+
+            if (!DateTime.TryParse(req.CapturedAtIso,
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.AssumeUniversal |
+                    System.Globalization.DateTimeStyles.AdjustToUniversal,
+                    out var capturedAt))
+                capturedAt = DateTime.UtcNow;
+
+            var rel = await _repo.SaveConfirmCaptureAsync(
+                userId, req.VehicleNo, req.ChassisNo, req.ImageBase64, capturedAt);
+            if (rel == null) return BadRequest(new ApiError(false, "Could not save the photo."));
+            return Ok(new { success = true, imageUrl = AbsUrl(rel) });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new ApiError(false, $"Save failed: {ex.Message}"));
+        }
+    }
+
     private static readonly HttpClient _geo = new()
     {
         Timeout = TimeSpan.FromSeconds(6),
@@ -1113,6 +1146,9 @@ public record KycResubmitReq(
     string? AadhaarNumber, string? AadhaarName, string? AadhaarDob,
     string? AadhaarGender, string? AadhaarAddress, bool AadhaarVerified = false,
     double? RegLat = null, double? RegLng = null, string? RegLocation = null);
+
+public record ConfirmCaptureReq(
+    string? VehicleNo, string? ChassisNo, string? ImageBase64, string? CapturedAtIso);
 
 public record CheckMobileReq(string? Mobile, string? Slug);
 public record OtpSendReq(string? Mobile);

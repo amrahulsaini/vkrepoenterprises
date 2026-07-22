@@ -672,3 +672,18 @@ CREATE TABLE IF NOT EXISTS `billing_member_finances` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
+
+-- confirm_captures — "Send Confirm" photos captured by field agents.
+CREATE TABLE IF NOT EXISTS confirm_captures (
+    id          BIGINT       NOT NULL AUTO_INCREMENT,
+    user_id     BIGINT       NOT NULL,
+    vehicle_no  VARCHAR(32)           DEFAULT NULL,
+    chassis_no  VARCHAR(40)           DEFAULT NULL,
+    image_path  VARCHAR(255) NOT NULL,
+    captured_at DATETIME              DEFAULT NULL,
+    created_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    INDEX idx_cc_user    (user_id),
+    INDEX idx_cc_vehicle (vehicle_no),
+    INDEX idx_cc_chassis (chassis_no)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
