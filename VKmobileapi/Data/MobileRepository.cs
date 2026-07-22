@@ -54,6 +54,70 @@ public class MobileRepository
         return rel;
     }
 
+    // ── ID card ─────────────────────────────────────────────────────────────
+    /// <summary>Submit (or re-submit) ID-card documents. Saves the images and
+    /// upserts the row back to 'pending', clearing any previous decline.</summary>
+    public async Task SubmitIdCardAsync(
+        long userId, string? photoB64, string? pccB64, string? draB64,
+        string? bloodGroup, string? dob)
+    {
+        var dir      = $"idcard/{userId}";
+        var photoRel = await SaveBase64ImageAsync(photoB64, dir, "photo.jpg");
+        var pccRel   = await SaveBase64ImageAsync(pccB64,   dir, "pcc.jpg");
+        var draRel   = await SaveBase64ImageAsync(draB64,   dir, "dra.jpg");
+
+        await using var conn = DbFactory.Create();
+        await conn.OpenAsync();
+        // COALESCE keeps a previously-uploaded image if this submit omits it.
+        await using var cmd = new MySqlCommand(@"
+            INSERT INTO id_cards (user_id, photo_path, pcc_path, dra_path, blood_group, dob,
+                                  status, decline_reason, valid_days, approved_at, valid_until, submitted_at)
+            VALUES (@uid, @photo, @pcc, @dra, @bg, @dob, 'pending', NULL, NULL, NULL, NULL, NOW())
+            ON DUPLICATE KEY UPDATE
+                photo_path     = COALESCE(@photo, photo_path),
+                pcc_path       = COALESCE(@pcc,   pcc_path),
+                dra_path       = COALESCE(@dra,   dra_path),
+                blood_group    = @bg,
+                dob            = @dob,
+                status         = 'pending',
+                decline_reason = NULL,
+                valid_days     = NULL,
+                approved_at    = NULL,
+                valid_until    = NULL,
+                submitted_at   = NOW()", conn) { CommandTimeout = 20 };
+        cmd.Parameters.AddWithValue("@uid",   userId);
+        cmd.Parameters.AddWithValue("@photo", (object?)photoRel ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@pcc",   (object?)pccRel   ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@dra",   (object?)draRel   ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@bg",    (object?)bloodGroup?.Trim() ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@dob",   (object?)dob?.Trim() ?? DBNull.Value);
+        await cmd.ExecuteNonQueryAsync();
+    }
+
+    public async Task<(string Status, string? BloodGroup, string? Dob, string? PhotoRel,
+                       string? ValidUntil, bool Expired, string? DeclineReason)>
+        GetIdCardAsync(long userId)
+    {
+        await using var conn = DbFactory.Create();
+        await conn.OpenAsync();
+        await using var cmd = new MySqlCommand(@"
+            SELECT status, blood_group, dob, photo_path,
+                   DATE_FORMAT(valid_until,'%Y-%m-%d') AS vu,
+                   (valid_until IS NOT NULL AND valid_until < CURDATE()) AS expired,
+                   decline_reason
+            FROM id_cards WHERE user_id=@uid LIMIT 1", conn) { CommandTimeout = 10 };
+        cmd.Parameters.AddWithValue("@uid", userId);
+        await using var rdr = await cmd.ExecuteReaderAsync();
+        if (!await rdr.ReadAsync())
+            return ("none", null, null, null, null, false, null);
+        string? S(int i) => rdr.IsDBNull(i) ? null : rdr.GetString(i);
+        return (
+            rdr.GetString(0),
+            S(1), S(2), S(3), S(4),
+            !rdr.IsDBNull(5) && rdr.GetInt64(5) == 1,
+            S(6));
+    }
+
     private static readonly ConcurrentDictionary<string, (List<SearchResult> Results, DateTime At)> _cache = new();
     private static readonly TimeSpan CacheTtl = TimeSpan.FromMinutes(1);
 

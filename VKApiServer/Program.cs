@@ -1760,6 +1760,98 @@ app.MapDelete("/api/mgr/subscriptions/{id:long}", async (HttpContext ctx, long i
 });
 
 
+// ── ID card review (desktop admin) ──────────────────────────────────────────
+app.MapGet("/api/mgr/id-cards", async (HttpContext ctx, string? status) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        await using var conn = new MySqlConnection(TenantContext.Conn);
+        await conn.OpenAsync();
+        var where = string.IsNullOrWhiteSpace(status) || status == "all"
+            ? "" : "WHERE c.status=@st";
+        var sql = $@"
+            SELECT c.user_id, u.name, u.mobile, c.status, c.blood_group, c.dob,
+                   c.photo_path, c.pcc_path, c.dra_path,
+                   DATE_FORMAT(c.valid_until,'%Y-%m-%d') AS vu, c.valid_days,
+                   c.decline_reason, c.submitted_at,
+                   (c.valid_until IS NOT NULL AND c.valid_until < CURDATE()) AS expired
+            FROM id_cards c JOIN app_users u ON u.id = c.user_id
+            {where}
+            ORDER BY (c.status='pending') DESC, c.submitted_at DESC";
+        await using var cmd = new MySqlCommand(sql, conn) { CommandTimeout = 15 };
+        if (where.Length > 0) cmd.Parameters.AddWithValue("@st", status);
+        string baseUrl = $"{ctx.Request.Scheme}://{ctx.Request.Host}";
+        string? Url(string? rel) => string.IsNullOrEmpty(rel) ? null : $"{baseUrl}/uploads/{rel.TrimStart('/')}";
+        var list = new List<object>();
+        await using var r = await cmd.ExecuteReaderAsync();
+        string? S(int i) => r.IsDBNull(i) ? null : r.GetString(i);
+        while (await r.ReadAsync())
+            list.Add(new
+            {
+                userId        = r.GetInt64(0),
+                name          = S(1) ?? "",
+                mobile        = S(2) ?? "",
+                status        = S(3) ?? "pending",
+                bloodGroup    = S(4),
+                dob           = S(5),
+                photoUrl      = Url(S(6)),
+                pccUrl        = Url(S(7)),
+                draUrl        = Url(S(8)),
+                validUntil    = S(9),
+                validDays     = r.IsDBNull(10) ? (int?)null : r.GetInt32(10),
+                declineReason = S(11),
+                submittedAt   = r.IsDBNull(12) ? (DateTime?)null : r.GetDateTime(12),
+                expired       = !r.IsDBNull(13) && r.GetInt64(13) == 1,
+            });
+        return Results.Ok(list);
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+app.MapPost("/api/mgr/id-cards/{id:long}/approve", async (HttpContext ctx, long id, MgrApproveIdCardDto dto) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        int days = dto.ValidDays <= 0 ? 1 : dto.ValidDays;
+        await using var conn = new MySqlConnection(TenantContext.Conn);
+        await conn.OpenAsync();
+        await using var cmd = new MySqlCommand(@"
+            UPDATE id_cards
+               SET status='approved', decline_reason=NULL, valid_days=@d,
+                   approved_at=NOW(), valid_until=DATE_ADD(CURDATE(), INTERVAL @d DAY)
+             WHERE user_id=@id", conn) { CommandTimeout = 10 };
+        cmd.Parameters.AddWithValue("@d", days);
+        cmd.Parameters.AddWithValue("@id", id);
+        var n = await cmd.ExecuteNonQueryAsync();
+        if (n == 0) return Results.NotFound(new { message = "No ID-card request for this user." });
+        return Results.Ok(new { success = true });
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+app.MapPost("/api/mgr/id-cards/{id:long}/decline", async (HttpContext ctx, long id, MgrDeclineIdCardDto dto) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        await using var conn = new MySqlConnection(TenantContext.Conn);
+        await conn.OpenAsync();
+        await using var cmd = new MySqlCommand(@"
+            UPDATE id_cards
+               SET status='declined', decline_reason=@r,
+                   valid_days=NULL, approved_at=NULL, valid_until=NULL
+             WHERE user_id=@id", conn) { CommandTimeout = 10 };
+        cmd.Parameters.AddWithValue("@r", (object?)dto.Reason?.Trim() ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@id", id);
+        var n = await cmd.ExecuteNonQueryAsync();
+        if (n == 0) return Results.NotFound(new { message = "No ID-card request for this user." });
+        return Results.Ok(new { success = true });
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
 app.MapGet("/api/mgr/billing/settings", async (HttpContext ctx, int? financeId) =>
 {
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
@@ -4062,6 +4154,8 @@ record MgrSetActiveDto(bool Active);
 record MgrSetAdminDto(bool Admin);
 record MgrSetBillingTargetsDto(int? Demand, int? Target, int Year, int Month);
 record MgrAddSubscriptionDto(string StartDate, string EndDate, decimal Amount, string? Notes);
+record MgrApproveIdCardDto(int ValidDays);
+record MgrDeclineIdCardDto(string? Reason);
 record MgrCreateMappingDto(int ColumnTypeId, string RawName);
 record MgrCreateColumnTypeDto(string Name);
 record MgrSetStoppedDto(bool Stopped);

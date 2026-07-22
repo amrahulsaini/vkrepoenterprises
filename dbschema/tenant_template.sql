@@ -687,3 +687,24 @@ CREATE TABLE IF NOT EXISTS confirm_captures (
     INDEX idx_cc_vehicle (vehicle_no),
     INDEX idx_cc_chassis (chassis_no)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- id_cards — agent ID-card requests & approvals (one row per user).
+CREATE TABLE IF NOT EXISTS id_cards (
+    user_id        BIGINT       NOT NULL,
+    photo_path     VARCHAR(255)          DEFAULT NULL,
+    pcc_path       VARCHAR(255)          DEFAULT NULL,
+    dra_path       VARCHAR(255)          DEFAULT NULL,
+    blood_group    VARCHAR(8)            DEFAULT NULL,
+    dob            VARCHAR(20)           DEFAULT NULL,
+    status         VARCHAR(12)  NOT NULL DEFAULT 'pending',
+    decline_reason TEXT                  DEFAULT NULL,
+    valid_days     INT                   DEFAULT NULL,
+    approved_at    DATETIME              DEFAULT NULL,
+    valid_until    DATE                  DEFAULT NULL,
+    submitted_at   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id),
+    INDEX idx_idcard_status (status),
+    CONSTRAINT fk_idcard_user FOREIGN KEY (user_id)
+        REFERENCES app_users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
