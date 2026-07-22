@@ -328,6 +328,24 @@ data class ConfirmCaptureRequest(
     val capturedAtIso: String
 )
 
+data class IdCardResponse(
+    val status: String,          // none | pending | approved | declined
+    val bloodGroup: String?,
+    val dob: String?,
+    val photoUrl: String?,
+    val validUntil: String?,
+    val expired: Boolean = false,
+    val declineReason: String?
+)
+
+data class IdCardSubmitRequest(
+    val photoBase64: String?,
+    val pccBase64: String?,
+    val draBase64: String?,
+    val bloodGroup: String?,
+    val dob: String?
+)
+
 data class HeartbeatResponse(
     val success: Boolean,
     val isStopped: Boolean,
