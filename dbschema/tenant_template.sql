@@ -709,3 +709,17 @@ CREATE TABLE IF NOT EXISTS id_cards (
     CONSTRAINT fk_idcard_user FOREIGN KEY (user_id)
         REFERENCES app_users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- repo_kits — PDF repo kits uploaded per head office (finance).
+CREATE TABLE IF NOT EXISTS repo_kits (
+    id          BIGINT       NOT NULL AUTO_INCREMENT,
+    finance_id  INT          NOT NULL,
+    title       VARCHAR(200)          DEFAULT NULL,
+    file_path   VARCHAR(255) NOT NULL,
+    file_name   VARCHAR(200)          DEFAULT NULL,
+    uploaded_at TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    INDEX idx_rk_finance (finance_id),
+    CONSTRAINT fk_rk_finance FOREIGN KEY (finance_id)
+        REFERENCES finances(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

@@ -316,15 +316,49 @@ internal static class DesktopApiClient
         return (await resp.Content.ReadFromJsonAsync<List<IdCardReviewDto>>(_json))!;
     }
 
-    internal static async Task ApproveIdCardAsync(long userId, int validDays)
+    internal static async Task ApproveIdCardAsync(long userId, string validFrom, string validUntil)
     {
-        var resp = await Send(HttpMethod.Post, $"api/mgr/id-cards/{userId}/approve", new { ValidDays = validDays });
+        var resp = await Send(HttpMethod.Post, $"api/mgr/id-cards/{userId}/approve",
+            new { ValidDays = 1, ValidFrom = validFrom, ValidUntil = validUntil });
         resp.EnsureSuccessStatusCode();
     }
 
     internal static async Task DeclineIdCardAsync(long userId, string reason)
     {
         var resp = await Send(HttpMethod.Post, $"api/mgr/id-cards/{userId}/decline", new { Reason = reason });
+        resp.EnsureSuccessStatusCode();
+    }
+
+    // ── Repo kits ─────────────────────────────────────────────────────────────
+    internal sealed class RepoKitDto
+    {
+        public long Id { get; set; }
+        public int FinanceId { get; set; }
+        public string FinanceName { get; set; } = "";
+        public string? Title { get; set; }
+        public string? FileName { get; set; }
+        public string? PdfUrl { get; set; }
+        public DateTime UploadedAt { get; set; }
+    }
+
+    internal static async Task<List<RepoKitDto>> GetRepoKitsAsync(int financeId = 0)
+    {
+        var q = financeId > 0 ? $"?financeId={financeId}" : "";
+        var resp = await Send(HttpMethod.Get, $"api/mgr/repokits{q}");
+        resp.EnsureSuccessStatusCode();
+        return (await resp.Content.ReadFromJsonAsync<List<RepoKitDto>>(_json))!;
+    }
+
+    internal static async Task UploadRepoKitAsync(int financeId, string? title, string fileName, string pdfBase64)
+    {
+        var resp = await Send(HttpMethod.Post, "api/mgr/repokits",
+            new { FinanceId = financeId, Title = title, FileName = fileName, PdfBase64 = pdfBase64 });
+        resp.EnsureSuccessStatusCode();
+    }
+
+    internal static async Task DeleteRepoKitAsync(long id)
+    {
+        var resp = await Send(HttpMethod.Delete, $"api/mgr/repokits/{id}");
         resp.EnsureSuccessStatusCode();
     }
 

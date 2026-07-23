@@ -1,0 +1,90 @@
+<Page
+    x:Class="CRMRSDesktopApp.AppUsers.RepoKitsManagerPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Background="{StaticResource Gray50}"
+    FontFamily="{StaticResource FontBody}"
+    Loaded="Page_Loaded">
+
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,16">
+            <TextBlock Text="Repo Kits" FontSize="22" FontWeight="Bold" Foreground="{StaticResource Gray900}" />
+            <TextBlock Text="Upload a PDF repo kit for a head office. Field agents can search that head office and download it."
+                       FontSize="12" Foreground="{StaticResource Gray600}" Margin="0,2,0,0" />
+        </StackPanel>
+
+        <!-- Upload row -->
+        <Border Grid.Row="1" Background="White" CornerRadius="10" Padding="16" Margin="0,0,0,16"
+                BorderBrush="{StaticResource Gray200}" BorderThickness="1">
+            <StackPanel>
+                <TextBlock Text="Upload a repo kit" FontWeight="SemiBold" Foreground="{StaticResource Gray900}" Margin="0,0,0,10" />
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" Margin="0,0,10,0">
+                        <TextBlock Text="Head Office (Finance)" FontSize="11" Foreground="{StaticResource Gray600}" />
+                        <ComboBox x:Name="cmbFinance" DisplayMemberPath="Name" SelectedValuePath="Id" Height="32" Margin="0,2,0,0" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Margin="0,0,10,0">
+                        <TextBlock Text="Title (optional)" FontSize="11" Foreground="{StaticResource Gray600}" />
+                        <TextBox x:Name="txtTitle" Height="32" Margin="0,2,0,0" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="2" VerticalAlignment="Bottom" Margin="0,0,10,0">
+                        <Button x:Name="btnChoose" Content="Choose PDF…" Padding="14,7" Click="ChoosePdf_Click" Cursor="Hand" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="3" VerticalAlignment="Bottom">
+                        <Button x:Name="btnUpload" Content="Upload" Padding="18,7" Click="Upload_Click"
+                                Background="#1565C0" Foreground="White" BorderThickness="0" Cursor="Hand" />
+                    </StackPanel>
+                </Grid>
+                <TextBlock x:Name="txtChosen" Text="No file chosen" FontSize="11" Foreground="{StaticResource Gray600}" Margin="0,8,0,0" />
+            </StackPanel>
+        </Border>
+
+        <!-- Existing kits -->
+        <Grid Grid.Row="2">
+            <TextBlock x:Name="txtEmpty" Text="No repo kits uploaded yet." HorizontalAlignment="Center" VerticalAlignment="Center"
+                       Foreground="{StaticResource Gray600}" Visibility="Collapsed" />
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <ItemsControl x:Name="listKits">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Background="White" CornerRadius="8" Margin="0,0,0,8" Padding="14"
+                                    BorderBrush="{StaticResource Gray200}" BorderThickness="1">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="📄" FontSize="24" VerticalAlignment="Center" Margin="0,0,12,0" />
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding FinanceName}" FontWeight="Bold" Foreground="{StaticResource Gray900}" FontSize="14" />
+                                        <TextBlock Text="{Binding Title}" FontSize="12" Foreground="{StaticResource Gray700}" />
+                                        <TextBlock Text="{Binding FileName}" FontSize="11" Foreground="{StaticResource Gray600}" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Button Content="Open" Tag="{Binding PdfUrl}" Click="Open_Click" Padding="12,6" Margin="0,0,8,0" Cursor="Hand" />
+                                        <Button Content="Delete" Tag="{Binding Id}" Click="Delete_Click" Padding="12,6"
+                                                Background="#DC2626" Foreground="White" BorderThickness="0" Cursor="Hand" />
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </Grid>
+    </Grid>
+</Page>

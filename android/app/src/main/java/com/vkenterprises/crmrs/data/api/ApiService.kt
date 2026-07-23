@@ -195,6 +195,18 @@ interface ApiService {
         @Body request: IdCardSubmitRequest
     ): Response<Map<String, Any>>
 
+    @GET("api/mobile/repokits/head-offices")
+    suspend fun searchRepoKitHeadOffices(
+        @Header("X-User-Id") userId: Long,
+        @Query("q") q: String
+    ): Response<List<HeadOfficeItem>>
+
+    @GET("api/mobile/repokits")
+    suspend fun getRepoKits(
+        @Header("X-User-Id") userId: Long,
+        @Query("financeId") financeId: Int
+    ): Response<List<RepoKitItem>>
+
     @GET("api/mobile/live-users")
     suspend fun getLiveUsers(
         @Header("X-User-Id") userId: Long
