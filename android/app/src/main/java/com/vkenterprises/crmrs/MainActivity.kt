@@ -176,6 +176,10 @@ fun VKNavHost() {
             IdCardScreen(authVm, navController)
         }
 
+        composable(Screen.RepoKits.route) {
+            RepoKitsScreen(authVm, navController)
+        }
+
         composable(Screen.Settings.route) {
             val settingsVm: SettingsViewModel = hiltViewModel()
             SettingsScreen(settingsVm, searchVm, authVm, navController)

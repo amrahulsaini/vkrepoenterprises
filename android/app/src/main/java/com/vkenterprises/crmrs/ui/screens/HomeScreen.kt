@@ -664,12 +664,22 @@ private fun AgencyLandingPanel(
         }
         if (!isAdmin) {
             Spacer(Modifier.height(10.dp))
-            LandingTile(
-                label    = "ID CARD",
-                icon     = Icons.Default.Badge,
-                subtitle = "Your official agent ID — tap to view or apply",
-                accent   = Color(0xFF1565C0)
-            ) { nav.navigate(Screen.IdCard.route) }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                GridTile(
+                    label    = "ID CARD",
+                    icon     = Icons.Default.Badge,
+                    subtitle = "Your official agent ID",
+                    accent   = Color(0xFF1565C0),
+                    modifier = Modifier.weight(1f)
+                ) { nav.navigate(Screen.IdCard.route) }
+                GridTile(
+                    label    = "DOWNLOAD REPOKITS",
+                    icon     = Icons.Default.PictureAsPdf,
+                    subtitle = "Head office repo kits",
+                    accent   = Color(0xFF00897B),
+                    modifier = Modifier.weight(1f)
+                ) { nav.navigate(Screen.RepoKits.route) }
+            }
         }
         if (isAdmin) {
             Spacer(Modifier.height(10.dp))

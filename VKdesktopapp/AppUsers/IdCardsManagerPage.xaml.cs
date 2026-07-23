@@ -24,12 +24,19 @@ public sealed class IdCardVm
     public ImageSource? PhotoImage { get; set; }
     public ImageSource? PccImage { get; set; }
     public ImageSource? DraImage { get; set; }
+
+    public bool   IsPending  => Status == "pending";
+    public bool   IsApproved => Status == "approved";
+    public string StatusLabel => Status switch
+    {
+        "approved" => "ACTIVE",
+        "declined" => "DECLINED",
+        _          => "PENDING"
+    };
 }
 
 public partial class IdCardsManagerPage : Page
 {
-    private readonly Dictionary<long, int> _days = new();
-
     public IdCardsManagerPage()
     {
         InitializeComponent();
@@ -104,21 +111,38 @@ public partial class IdCardsManagerPage : Page
         if (IsLoaded) await LoadAsync();
     }
 
-    private void Days_Changed(object sender, TextChangedEventArgs e)
+    private readonly Dictionary<long, System.DateTime> _from = new();
+    private readonly Dictionary<long, System.DateTime> _to = new();
+
+    private void FromDate_Changed(object sender, SelectionChangedEventArgs e)
     {
-        if (sender is TextBox tb && tb.Tag is long uid && int.TryParse(tb.Text, out var d))
-            _days[uid] = d;
+        if (sender is DatePicker dp && dp.Tag is long uid && dp.SelectedDate is System.DateTime d)
+            _from[uid] = d;
+    }
+
+    private void ToDate_Changed(object sender, SelectionChangedEventArgs e)
+    {
+        if (sender is DatePicker dp && dp.Tag is long uid && dp.SelectedDate is System.DateTime d)
+            _to[uid] = d;
     }
 
     private async void Approve_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not Button b || b.Tag is not long uid) return;
-        int days = _days.TryGetValue(uid, out var d) && d > 0 ? d : 1;
-        if (MessageBox.Show($"Approve this ID card for {days} day(s)?", "Approve ID Card",
-                MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+
+        var from = _from.TryGetValue(uid, out var f) ? f : System.DateTime.Today;
+        var to   = _to.TryGetValue(uid, out var t) ? t : System.DateTime.Today.AddDays(1);
+        if (to < from)
+        {
+            MessageBox.Show("‘Valid To’ cannot be before ‘Valid From’.", "Invalid dates",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+        if (MessageBox.Show($"Approve this ID card, valid {from:dd-MM-yyyy} to {to:dd-MM-yyyy}?",
+                "Approve ID Card", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
         try
         {
-            await DesktopApiClient.ApproveIdCardAsync(uid, days);
+            await DesktopApiClient.ApproveIdCardAsync(uid, from.ToString("yyyy-MM-dd"), to.ToString("yyyy-MM-dd"));
             await LoadAsync();
         }
         catch (System.Exception ex)

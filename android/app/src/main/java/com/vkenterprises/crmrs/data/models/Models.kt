@@ -352,6 +352,19 @@ data class IdCardSubmitRequest(
     val dob: String?
 )
 
+data class HeadOfficeItem(
+    val id: Int,
+    val name: String
+)
+
+data class RepoKitItem(
+    val id: Long,
+    val title: String?,
+    val fileName: String?,
+    val pdfUrl: String?,
+    val uploadedAt: String?
+)
+
 data class HeartbeatResponse(
     val success: Boolean,
     val isStopped: Boolean,

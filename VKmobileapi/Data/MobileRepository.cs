@@ -96,6 +96,38 @@ public class MobileRepository
         await cmd.ExecuteNonQueryAsync();
     }
 
+    // ── Repo kits ───────────────────────────────────────────────────────────
+    public async Task<List<(int Id, string Name)>> SearchHeadOfficesAsync(string q)
+    {
+        await using var conn = DbFactory.Create();
+        await conn.OpenAsync();
+        await using var cmd = new MySqlCommand(
+            "SELECT id, name FROM finances WHERE name LIKE @q ORDER BY name LIMIT 50", conn)
+            { CommandTimeout = 10 };
+        cmd.Parameters.AddWithValue("@q", "%" + (q ?? "").Trim() + "%");
+        var list = new List<(int, string)>();
+        await using var rdr = await cmd.ExecuteReaderAsync();
+        while (await rdr.ReadAsync()) list.Add((rdr.GetInt32(0), rdr.GetString(1)));
+        return list;
+    }
+
+    public async Task<List<(long Id, string? Title, string? FileName, string FilePath, DateTime UploadedAt)>>
+        GetRepoKitsAsync(int financeId)
+    {
+        await using var conn = DbFactory.Create();
+        await conn.OpenAsync();
+        await using var cmd = new MySqlCommand(
+            "SELECT id, title, file_name, file_path, uploaded_at FROM repo_kits WHERE finance_id=@fid ORDER BY uploaded_at DESC",
+            conn) { CommandTimeout = 10 };
+        cmd.Parameters.AddWithValue("@fid", financeId);
+        var list = new List<(long, string?, string?, string, DateTime)>();
+        await using var rdr = await cmd.ExecuteReaderAsync();
+        string? S(int i) => rdr.IsDBNull(i) ? null : rdr.GetString(i);
+        while (await rdr.ReadAsync())
+            list.Add((rdr.GetInt64(0), S(1), S(2), rdr.GetString(3), rdr.GetDateTime(4)));
+        return list;
+    }
+
     /// <summary>Stable 9-digit registration number derived from the user id
     /// (looks random, never changes for a given user).</summary>
     private static string RegistrationNo(long userId)

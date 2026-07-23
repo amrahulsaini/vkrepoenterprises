@@ -1814,17 +1814,37 @@ app.MapPost("/api/mgr/id-cards/{id:long}/approve", async (HttpContext ctx, long 
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
     try
     {
-        int days = dto.ValidDays <= 0 ? 1 : dto.ValidDays;
         await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
-        await using var cmd = new MySqlCommand(@"
-            UPDATE id_cards
-               SET status='approved', decline_reason=NULL, valid_days=@d,
-                   approved_at=NOW(), valid_until=DATE_ADD(CURDATE(), INTERVAL @d DAY)
-             WHERE user_id=@id", conn) { CommandTimeout = 10 };
-        cmd.Parameters.AddWithValue("@d", days);
+
+        // Prefer explicit calendar dates (ValidFrom..ValidUntil) if given;
+        // otherwise fall back to a validity in days from today.
+        MySqlCommand cmd;
+        if (!string.IsNullOrWhiteSpace(dto.ValidUntil))
+        {
+            var from = string.IsNullOrWhiteSpace(dto.ValidFrom) ? DateTime.Today.ToString("yyyy-MM-dd") : dto.ValidFrom!;
+            cmd = new MySqlCommand(@"
+                UPDATE id_cards
+                   SET status='approved', decline_reason=NULL,
+                       valid_days=DATEDIFF(@to, @from),
+                       approved_at=@from, valid_until=@to
+                 WHERE user_id=@id", conn) { CommandTimeout = 10 };
+            cmd.Parameters.AddWithValue("@from", from);
+            cmd.Parameters.AddWithValue("@to", dto.ValidUntil);
+        }
+        else
+        {
+            int days = dto.ValidDays <= 0 ? 1 : dto.ValidDays;
+            cmd = new MySqlCommand(@"
+                UPDATE id_cards
+                   SET status='approved', decline_reason=NULL, valid_days=@d,
+                       approved_at=NOW(), valid_until=DATE_ADD(CURDATE(), INTERVAL @d DAY)
+                 WHERE user_id=@id", conn) { CommandTimeout = 10 };
+            cmd.Parameters.AddWithValue("@d", days);
+        }
         cmd.Parameters.AddWithValue("@id", id);
         var n = await cmd.ExecuteNonQueryAsync();
+        cmd.Dispose();
         if (n == 0) return Results.NotFound(new { message = "No ID-card request for this user." });
         return Results.Ok(new { success = true });
     }
@@ -1847,6 +1867,84 @@ app.MapPost("/api/mgr/id-cards/{id:long}/decline", async (HttpContext ctx, long 
         cmd.Parameters.AddWithValue("@id", id);
         var n = await cmd.ExecuteNonQueryAsync();
         if (n == 0) return Results.NotFound(new { message = "No ID-card request for this user." });
+        return Results.Ok(new { success = true });
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+// ── Repo kits (desktop admin uploads PDFs per head office) ──────────────────
+app.MapGet("/api/mgr/repokits", async (HttpContext ctx, int? financeId) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        await using var conn = new MySqlConnection(TenantContext.Conn);
+        await conn.OpenAsync();
+        var where = financeId is > 0 ? "WHERE k.finance_id=@fid" : "";
+        var sql = $@"
+            SELECT k.id, k.finance_id, f.name, k.title, k.file_path, k.file_name, k.uploaded_at
+            FROM repo_kits k JOIN finances f ON f.id = k.finance_id
+            {where}
+            ORDER BY k.uploaded_at DESC";
+        await using var cmd = new MySqlCommand(sql, conn) { CommandTimeout = 15 };
+        if (where.Length > 0) cmd.Parameters.AddWithValue("@fid", financeId);
+        string baseUrl = $"{ctx.Request.Scheme}://{ctx.Request.Host}";
+        var list = new List<object>();
+        await using var r = await cmd.ExecuteReaderAsync();
+        string? S(int i) => r.IsDBNull(i) ? null : r.GetString(i);
+        while (await r.ReadAsync())
+            list.Add(new
+            {
+                id          = r.GetInt64(0),
+                financeId   = r.GetInt32(1),
+                financeName = S(2) ?? "",
+                title       = S(3),
+                fileName    = S(5),
+                pdfUrl      = $"{baseUrl}/uploads/{S(4)!.TrimStart('/')}",
+                uploadedAt  = r.GetDateTime(6),
+            });
+        return Results.Ok(list);
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+app.MapPost("/api/mgr/repokits", async (HttpContext ctx, MgrUploadRepoKitDto dto) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    if (dto.FinanceId <= 0 || string.IsNullOrWhiteSpace(dto.PdfBase64))
+        return Results.BadRequest(new { message = "Finance and PDF are required." });
+    try
+    {
+        var bytes = Convert.FromBase64String(dto.PdfBase64);
+        var dir   = "/opt/vkmobileapi/uploads/repokits";
+        Directory.CreateDirectory(dir);
+        var fname = $"{dto.FinanceId}_{DateTime.UtcNow:yyyyMMddHHmmssfff}.pdf";
+        await File.WriteAllBytesAsync(Path.Combine(dir, fname), bytes);
+        var rel = $"repokits/{fname}";
+
+        await using var conn = new MySqlConnection(TenantContext.Conn);
+        await conn.OpenAsync();
+        await using var cmd = new MySqlCommand(
+            "INSERT INTO repo_kits (finance_id, title, file_path, file_name) VALUES (@fid,@t,@p,@fn)",
+            conn) { CommandTimeout = 20 };
+        cmd.Parameters.AddWithValue("@fid", dto.FinanceId);
+        cmd.Parameters.AddWithValue("@t",   (object?)dto.Title?.Trim() ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@p",   rel);
+        cmd.Parameters.AddWithValue("@fn",  (object?)dto.FileName?.Trim() ?? DBNull.Value);
+        await cmd.ExecuteNonQueryAsync();
+        return Results.Ok(new { success = true });
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+app.MapDelete("/api/mgr/repokits/{id:long}", async (HttpContext ctx, long id) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        await using var conn = new MySqlConnection(TenantContext.Conn);
+        await conn.OpenAsync();
+        await MgrExec("DELETE FROM repo_kits WHERE id=@id", conn, 10, ("@id", id));
         return Results.Ok(new { success = true });
     }
     catch (Exception ex) { return Results.Problem(ex.Message); }
@@ -4154,8 +4252,9 @@ record MgrSetActiveDto(bool Active);
 record MgrSetAdminDto(bool Admin);
 record MgrSetBillingTargetsDto(int? Demand, int? Target, int Year, int Month);
 record MgrAddSubscriptionDto(string StartDate, string EndDate, decimal Amount, string? Notes);
-record MgrApproveIdCardDto(int ValidDays);
+record MgrApproveIdCardDto(int ValidDays, string? ValidFrom = null, string? ValidUntil = null);
 record MgrDeclineIdCardDto(string? Reason);
+record MgrUploadRepoKitDto(int FinanceId, string? Title, string? FileName, string? PdfBase64);
 record MgrCreateMappingDto(int ColumnTypeId, string RawName);
 record MgrCreateColumnTypeDto(string Name);
 record MgrSetStoppedDto(bool Stopped);

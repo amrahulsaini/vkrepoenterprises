@@ -842,6 +842,43 @@ public class MobileController : ControllerBase
         }
     }
 
+    [HttpGet("repokits/head-offices")]
+    public async Task<IActionResult> SearchRepoKitHeadOffices(
+        [FromHeader(Name = "X-User-Id")] long userId, [FromQuery] string q = "")
+    {
+        try
+        {
+            var list = await _repo.SearchHeadOfficesAsync(q);
+            return Ok(list.Select(x => new { id = x.Id, name = x.Name }));
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new ApiError(false, $"Search failed: {ex.Message}"));
+        }
+    }
+
+    [HttpGet("repokits")]
+    public async Task<IActionResult> GetRepoKits(
+        [FromHeader(Name = "X-User-Id")] long userId, [FromQuery] int financeId)
+    {
+        try
+        {
+            if (financeId <= 0) return BadRequest(new ApiError(false, "financeId is required."));
+            var kits = await _repo.GetRepoKitsAsync(financeId);
+            return Ok(kits.Select(k => new {
+                id         = k.Id,
+                title      = k.Title,
+                fileName   = k.FileName,
+                pdfUrl     = AbsUrl(k.FilePath),
+                uploadedAt = k.UploadedAt
+            }));
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new ApiError(false, $"Failed to load repo kits: {ex.Message}"));
+        }
+    }
+
     [HttpPost("id-card/submit")]
     public async Task<IActionResult> SubmitIdCard(
         [FromHeader(Name = "X-User-Id")] long userId,
