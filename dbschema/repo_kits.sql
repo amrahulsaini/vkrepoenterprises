@@ -5,7 +5,7 @@
 -- ─────────────────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS repo_kits (
     id          BIGINT       NOT NULL AUTO_INCREMENT,
-    finance_id  INT          NOT NULL,
+    finance_id  INT UNSIGNED NOT NULL,
     title       VARCHAR(200)          DEFAULT NULL,
     file_path   VARCHAR(255) NOT NULL,
     file_name   VARCHAR(200)          DEFAULT NULL,
