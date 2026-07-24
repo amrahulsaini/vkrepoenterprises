@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
@@ -8,10 +9,11 @@ using CRMRSDesktopApp.Data;
 
 namespace CRMRSDesktopApp.AppUsers;
 
-/// <summary>Row shown in the ID-cards list. Holds the raw DTO fields plus the
-/// three document images decoded into WPF ImageSources (bound directly to
-/// Image.Source so they render inline, like the App Users KYC previews).</summary>
-public sealed class IdCardVm
+/// <summary>One ID-card row. Text binds immediately; the three document images
+/// load in the background and notify when ready (so the list shows instantly).
+/// The validity calendar is only shown when it's needed — pending / expired,
+/// or when the admin clicks "Change validity" on an active card.</summary>
+public sealed class IdCardVm : INotifyPropertyChanged
 {
     public long UserId { get; set; }
     public string Name { get; set; } = "";
@@ -19,30 +21,55 @@ public sealed class IdCardVm
     public string Status { get; set; } = "pending";
     public string? BloodGroup { get; set; }
     public string? Dob { get; set; }
-    public string? ValidUntil { get; set; }
     public string? ValidFrom { get; set; }
+    public string? ValidUntil { get; set; }
     public bool Expired { get; set; }
     public string? DeclineReason { get; set; }
-    public ImageSource? PhotoImage { get; set; }
-    public ImageSource? PccImage { get; set; }
-    public ImageSource? DraImage { get; set; }
 
-    public bool   IsPending  => Status == "pending";
-    public bool   IsApproved => Status == "approved";
+    public bool IsPending  => Status == "pending";
+    public bool IsActive   => Status == "approved" && !Expired;
+    public bool IsExpired  => Status == "approved" && Expired;
+
     public string StatusLabel => Status switch
     {
         "approved" => Expired ? "EXPIRED" : "ACTIVE",
         "declined" => "DECLINED",
         _          => "PENDING"
     };
-    // "22-07-2026 → 24-07-2026" or a dash when not approved yet.
+
+    public Brush StatusBrush => Status switch
+    {
+        "approved" => Expired ? Brushes.Red : (Brush)new SolidColorBrush(Color.FromRgb(0x16, 0xA3, 0x4A)),
+        "declined" => Brushes.Red,
+        _          => (Brush)new SolidColorBrush(Color.FromRgb(0xB4, 0x53, 0x09))
+    };
+
     public string ValidRange =>
         string.IsNullOrEmpty(ValidUntil)
             ? "—"
-            : $"{Fmt(ValidFrom)} → {Fmt(ValidUntil)}" + (Expired ? "  (expired)" : "");
+            : $"{Fmt(ValidFrom)} → {Fmt(ValidUntil)}";
 
     private static string Fmt(string? iso) =>
         System.DateTime.TryParse(iso, out var d) ? d.ToString("dd-MM-yyyy") : (iso ?? "—");
+
+    // ── Calendar visibility ──────────────────────────────────────────────
+    private bool _showPickers;
+    public bool ShowPickers
+    {
+        get => _showPickers;
+        set { _showPickers = value; Raise(nameof(ShowPickers)); Raise(nameof(ShowChangeButton)); }
+    }
+    // Active cards hide the calendar until the admin asks to change validity.
+    public bool ShowChangeButton => IsActive && !ShowPickers;
+
+    // ── Lazy images ──────────────────────────────────────────────────────
+    private ImageSource? _photo, _pcc, _dra;
+    public ImageSource? PhotoImage { get => _photo; set { _photo = value; Raise(nameof(PhotoImage)); } }
+    public ImageSource? PccImage   { get => _pcc;   set { _pcc = value;   Raise(nameof(PccImage)); } }
+    public ImageSource? DraImage   { get => _dra;   set { _dra = value;   Raise(nameof(DraImage)); } }
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+    private void Raise(string n) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(n));
 }
 
 public partial class IdCardsManagerPage : Page
@@ -57,7 +84,7 @@ public partial class IdCardsManagerPage : Page
     private string CurrentFilter()
     {
         if (cmbFilter.SelectedItem is ComboBoxItem it && it.Tag is string s) return s;
-        return "pending";
+        return "all";
     }
 
     private static async System.Threading.Tasks.Task<ImageSource?> LoadImageAsync(string? url)
@@ -89,7 +116,7 @@ public partial class IdCardsManagerPage : Page
             var vms = new List<IdCardVm>();
             foreach (var it in items)
             {
-                vms.Add(new IdCardVm
+                var vm = new IdCardVm
                 {
                     UserId        = it.UserId,
                     Name          = it.Name,
@@ -101,26 +128,50 @@ public partial class IdCardsManagerPage : Page
                     ValidFrom     = it.ValidFrom,
                     Expired       = it.Expired,
                     DeclineReason = it.DeclineReason,
-                    PhotoImage    = await LoadImageAsync(it.PhotoUrl),
-                    PccImage      = await LoadImageAsync(it.PccUrl),
-                    DraImage      = await LoadImageAsync(it.DraUrl),
-                });
+                };
+                // Pending / expired / declined -> show the calendar right away.
+                // Active -> hide it (a "Change validity" button reveals it).
+                vm.ShowPickers = !vm.IsActive;
+                vms.Add(vm);
             }
+            // Bind text immediately; images stream in afterwards.
             listCards.ItemsSource = vms;
             txtEmpty.Visibility = vms.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+            txtLoading.Visibility = Visibility.Collapsed;
+
+            foreach (var (vm, it) in Zip(vms, items))
+            {
+                _ = LoadImageAsync(it.PhotoUrl).ContinueWith(t => vm.PhotoImage = t.Result,
+                    System.Threading.Tasks.TaskScheduler.FromCurrentSynchronizationContext());
+                _ = LoadImageAsync(it.PccUrl).ContinueWith(t => vm.PccImage = t.Result,
+                    System.Threading.Tasks.TaskScheduler.FromCurrentSynchronizationContext());
+                _ = LoadImageAsync(it.DraUrl).ContinueWith(t => vm.DraImage = t.Result,
+                    System.Threading.Tasks.TaskScheduler.FromCurrentSynchronizationContext());
+            }
         }
         catch (System.Exception ex)
         {
+            txtLoading.Visibility = Visibility.Collapsed;
             MessageBox.Show($"Failed to load ID card requests:\n{ex.Message}", "Error",
                 MessageBoxButton.OK, MessageBoxImage.Error);
         }
-        finally { txtLoading.Visibility = Visibility.Collapsed; }
+    }
+
+    private static IEnumerable<(IdCardVm, DesktopApiClient.IdCardReviewDto)> Zip(
+        List<IdCardVm> a, List<DesktopApiClient.IdCardReviewDto> b)
+    {
+        for (int i = 0; i < a.Count && i < b.Count; i++) yield return (a[i], b[i]);
     }
 
     private async void Refresh_Click(object sender, RoutedEventArgs e) => await LoadAsync();
     private async void Filter_Changed(object sender, SelectionChangedEventArgs e)
     {
         if (IsLoaded) await LoadAsync();
+    }
+
+    private void ChangeValidity_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button b && b.DataContext is IdCardVm vm) vm.ShowPickers = true;
     }
 
     private readonly Dictionary<long, System.DateTime> _from = new();
@@ -150,8 +201,8 @@ public partial class IdCardsManagerPage : Page
                 MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
-        if (MessageBox.Show($"Approve this ID card, valid {from:dd-MM-yyyy} to {to:dd-MM-yyyy}?",
-                "Approve ID Card", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+        if (MessageBox.Show($"Set this ID card valid {from:dd-MM-yyyy} to {to:dd-MM-yyyy}?",
+                "ID Card Validity", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
         try
         {
             await DesktopApiClient.ApproveIdCardAsync(uid, from.ToString("yyyy-MM-dd"), to.ToString("yyyy-MM-dd"));
@@ -167,7 +218,7 @@ public partial class IdCardsManagerPage : Page
     {
         if (sender is not Button b || b.Tag is not long uid) return;
         var reason = PromptReason();
-        if (reason == null) return;   // cancelled
+        if (reason == null) return;
         try
         {
             await DesktopApiClient.DeclineIdCardAsync(uid, reason);
@@ -179,7 +230,6 @@ public partial class IdCardsManagerPage : Page
         }
     }
 
-    /// <summary>Enlarge a document image in a modal preview window (no browser).</summary>
     private void ViewImage_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not Button b || b.Tag is not ImageSource src) return;
@@ -195,7 +245,6 @@ public partial class IdCardsManagerPage : Page
         win.ShowDialog();
     }
 
-    /// <summary>Minimal modal text prompt. Returns null if cancelled.</summary>
     private string? PromptReason()
     {
         var win = new Window
