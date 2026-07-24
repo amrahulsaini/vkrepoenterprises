@@ -18,9 +18,10 @@ public partial class BillingActionWindow : Window
 
         switch ((currentAction ?? "").ToLowerInvariant())
         {
-            case "hold":   rbHold.IsChecked = true; break;
-            case "cancel": rbCancel.IsChecked = true; break;
-            default:       rbImmediate.IsChecked = true; break;
+            case "hold":            rbHold.IsChecked = true; break;
+            case "collection_done": rbCollectionDone.IsChecked = true; break;
+            case "cancel":          rbCancel.IsChecked = true; break;
+            default:                rbImmediate.IsChecked = true; break;
         }
     }
 
@@ -29,6 +30,7 @@ public partial class BillingActionWindow : Window
     private async void btnSave_Click(object sender, RoutedEventArgs e)
     {
         var action = rbHold.IsChecked == true ? "hold"
+                   : rbCollectionDone.IsChecked == true ? "collection_done"
                    : rbCancel.IsChecked == true ? "cancel"
                    : "immediate";
         try

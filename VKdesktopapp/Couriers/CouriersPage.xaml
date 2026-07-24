@@ -44,8 +44,9 @@
                 <TextBlock Text="Billing" VerticalAlignment="Center" Foreground="#666" Margin="0,0,6,0" />
                 <ComboBox Name="cmbAction" Width="150" Margin="0,0,14,0" SelectedIndex="0">
                     <ComboBoxItem Content="All" />
-                    <ComboBoxItem Content="For Billing" />
-                    <ComboBoxItem Content="Hold for Billing" />
+                    <ComboBoxItem Content="OK for billing" />
+                    <ComboBoxItem Content="Hold for collection" />
+                    <ComboBoxItem Content="Collection done" />
                     <ComboBoxItem Content="Cancel" />
                     <ComboBoxItem Content="Billing Done" />
                 </ComboBox>

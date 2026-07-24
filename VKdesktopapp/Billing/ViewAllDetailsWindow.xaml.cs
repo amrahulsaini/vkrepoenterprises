@@ -32,12 +32,11 @@ public partial class ViewAllDetailsWindow : Window
         public string Remark => Src.Remark;
         public string ActionText => Src.BillingAction switch
         {
-            "immediate" => "Bill immediately",
-            "hold"      => "Hold" + (string.IsNullOrWhiteSpace(Src.HoldUntil)
-                                ? (Src.HoldDays is int d ? $" {d}d" : "")
-                                : $" till {Src.HoldUntil}"),
-            "cancel"    => "Cancel",
-            _           => Src.BillingAction
+            "immediate"       => "OK for billing",
+            "hold"            => "Hold for collection",
+            "collection_done" => "Collection done",
+            "cancel"          => "Cancel",
+            _                 => Src.BillingAction
         };
         public string StatusText => Src.BillStatus == "billed" ? "Billed" : "Pending";
     }
@@ -69,7 +68,8 @@ public partial class ViewAllDetailsWindow : Window
             {
                 1 => "immediate",
                 2 => "hold",
-                3 => "cancel",
+                3 => "collection_done",
+                4 => "cancel",
                 _ => null
             };
             if (actionFilter != null) data = data.Where(d => d.BillingAction == actionFilter).ToList();

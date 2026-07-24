@@ -42,10 +42,11 @@
             <TextBlock Text="To" VerticalAlignment="Center" Foreground="#666" Margin="0,0,6,0" />
             <DatePicker Name="dpTo" Width="130" Margin="0,0,14,0" />
             <TextBlock Text="Billing" VerticalAlignment="Center" Foreground="#666" Margin="0,0,6,0" />
-            <ComboBox Name="cmbAction" Width="140" Margin="0,0,14,0" SelectedIndex="0">
+            <ComboBox Name="cmbAction" Width="150" Margin="0,0,14,0" SelectedIndex="0">
                 <ComboBoxItem Content="All" />
-                <ComboBoxItem Content="Bill immediately" />
-                <ComboBoxItem Content="Hold for billing" />
+                <ComboBoxItem Content="OK for billing" />
+                <ComboBoxItem Content="Hold for collection" />
+                <ComboBoxItem Content="Collection done" />
                 <ComboBoxItem Content="Cancel" />
             </ComboBox>
             <TextBlock Text="Status" VerticalAlignment="Center" Foreground="#666" Margin="0,0,6,0" />
