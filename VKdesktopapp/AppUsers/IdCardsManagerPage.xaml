@@ -18,10 +18,15 @@
 
         <!-- Header -->
         <Grid Grid.Row="0" Margin="0,0,0,16">
-            <StackPanel>
-                <TextBlock Text="ID Card Requests" FontSize="22" FontWeight="Bold" Foreground="{StaticResource Gray900}" />
-                <TextBlock Text="Review submitted documents, then approve with a validity or decline with a reason."
-                           FontSize="12" Foreground="{StaticResource Gray600}" Margin="0,2,0,0" />
+            <StackPanel Orientation="Horizontal">
+                <Border Width="40" Height="40" CornerRadius="10" Background="#E3F2FD" VerticalAlignment="Center">
+                    <TextBlock Text="&#x1F194;" FontSize="20" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Border>
+                <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
+                    <TextBlock Text="ID Card Requests" FontSize="22" FontWeight="Bold" Foreground="{StaticResource Gray900}" />
+                    <TextBlock Text="Review documents, set a validity, or decline. Active cards hide the calendar until you change it."
+                               FontSize="12" Foreground="{StaticResource Gray600}" Margin="0,2,0,0" />
+                </StackPanel>
             </StackPanel>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
                 <ComboBox x:Name="cmbFilter" Width="140" SelectedIndex="3" SelectionChanged="Filter_Changed">
@@ -64,7 +69,7 @@
                                         <StackPanel Orientation="Horizontal">
                                             <TextBlock Text="{Binding Name}" FontSize="16" FontWeight="Bold" Foreground="{StaticResource Gray900}" />
                                             <Border Margin="10,0,0,0" Padding="8,2" CornerRadius="10" Background="{StaticResource Gray100}" VerticalAlignment="Center">
-                                                <TextBlock Text="{Binding StatusLabel}" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource Gray700}" />
+                                                <TextBlock Text="{Binding StatusLabel}" FontSize="11" FontWeight="Bold" Foreground="{Binding StatusBrush}" />
                                             </Border>
                                         </StackPanel>
                                         <TextBlock Text="{Binding Mobile}" FontSize="12" Foreground="{StaticResource Gray600}" Margin="0,2,0,0" />
@@ -74,41 +79,52 @@
                                             <TextBlock Text="   DOB: " FontSize="12" Foreground="{StaticResource Gray600}" />
                                             <TextBlock Text="{Binding Dob}" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource Gray900}" />
                                         </StackPanel>
-                                        <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                        <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
                                             <TextBlock Text="Validity: " FontSize="12" Foreground="{StaticResource Gray600}" />
-                                            <TextBlock Text="{Binding ValidRange}" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource Gray900}" />
+                                            <TextBlock Text="{Binding ValidRange}" FontSize="12" FontWeight="SemiBold" Foreground="{Binding StatusBrush}" />
                                         </StackPanel>
-                                        <TextBlock Text="{Binding DeclineReason}" FontSize="12" Foreground="#DC2626" Margin="0,6,0,0" TextWrapping="Wrap" />
+                                        <TextBlock Text="{Binding DeclineReason}" FontSize="12" Foreground="#DC2626" Margin="0,4,0,0" TextWrapping="Wrap" />
 
-                                        <!-- Document thumbnails -->
+                                        <!-- Document thumbnails, label beneath each -->
                                         <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
-                                            <Button Tag="{Binding PhotoImage}" Click="ViewImage_Click" Cursor="Hand" Margin="0,0,8,0" Padding="0" BorderThickness="1" BorderBrush="{StaticResource Gray200}">
-                                                <Image Source="{Binding PhotoImage}" Width="70" Height="52" Stretch="UniformToFill" />
-                                            </Button>
-                                            <Button Tag="{Binding PccImage}" Click="ViewImage_Click" Cursor="Hand" Margin="0,0,8,0" Padding="0" BorderThickness="1" BorderBrush="{StaticResource Gray200}">
-                                                <Image Source="{Binding PccImage}" Width="70" Height="52" Stretch="UniformToFill" />
-                                            </Button>
-                                            <Button Tag="{Binding DraImage}" Click="ViewImage_Click" Cursor="Hand" Padding="0" BorderThickness="1" BorderBrush="{StaticResource Gray200}">
-                                                <Image Source="{Binding DraImage}" Width="70" Height="52" Stretch="UniformToFill" />
-                                            </Button>
+                                            <StackPanel Margin="0,0,10,0">
+                                                <Button Tag="{Binding PhotoImage}" Click="ViewImage_Click" Cursor="Hand" Padding="0" BorderThickness="1" BorderBrush="{StaticResource Gray200}">
+                                                    <Image Source="{Binding PhotoImage}" Width="76" Height="56" Stretch="UniformToFill" />
+                                                </Button>
+                                                <TextBlock Text="Photo" FontSize="10" Foreground="{StaticResource Gray600}" HorizontalAlignment="Center" Margin="0,2,0,0" />
+                                            </StackPanel>
+                                            <StackPanel Margin="0,0,10,0">
+                                                <Button Tag="{Binding PccImage}" Click="ViewImage_Click" Cursor="Hand" Padding="0" BorderThickness="1" BorderBrush="{StaticResource Gray200}">
+                                                    <Image Source="{Binding PccImage}" Width="76" Height="56" Stretch="UniformToFill" />
+                                                </Button>
+                                                <TextBlock Text="PCC" FontSize="10" Foreground="{StaticResource Gray600}" HorizontalAlignment="Center" Margin="0,2,0,0" />
+                                            </StackPanel>
+                                            <StackPanel>
+                                                <Button Tag="{Binding DraImage}" Click="ViewImage_Click" Cursor="Hand" Padding="0" BorderThickness="1" BorderBrush="{StaticResource Gray200}">
+                                                    <Image Source="{Binding DraImage}" Width="76" Height="56" Stretch="UniformToFill" />
+                                                </Button>
+                                                <TextBlock Text="DRA" FontSize="10" Foreground="{StaticResource Gray600}" HorizontalAlignment="Center" Margin="0,2,0,0" />
+                                            </StackPanel>
                                         </StackPanel>
-                                        <TextBlock Text="Photo · PCC · DRA (click to enlarge)" FontSize="10" Foreground="{StaticResource Gray600}" Margin="0,4,0,0" />
                                     </StackPanel>
 
                                     <!-- Actions -->
-                                    <StackPanel Grid.Column="2" VerticalAlignment="Center" Width="200">
-                                        <TextBlock Text="Valid From" FontSize="11" Foreground="{StaticResource Gray600}" />
-                                        <DatePicker Tag="{Binding UserId}" x:Name="dpFrom" Margin="0,2,0,6"
-                                                    SelectedDateChanged="FromDate_Changed" />
-                                        <TextBlock Text="Valid To" FontSize="11" Foreground="{StaticResource Gray600}" />
-                                        <DatePicker Tag="{Binding UserId}" x:Name="dpTo" Margin="0,2,0,8"
-                                                    SelectedDateChanged="ToDate_Changed" />
-                                        <Button Content="✓ Approve" Tag="{Binding UserId}" Click="Approve_Click"
-                                                IsEnabled="{Binding IsPending}"
-                                                Background="#16A34A" Foreground="White" BorderThickness="0" Padding="10,8" Cursor="Hand" />
-                                        <TextBlock Text="Already active" FontSize="10" Foreground="#16A34A" Margin="0,4,0,0"
-                                                   HorizontalAlignment="Center"
-                                                   Visibility="{Binding IsApproved, Converter={StaticResource BoolToVis}}" />
+                                    <StackPanel Grid.Column="2" VerticalAlignment="Center" Width="210">
+                                        <!-- Active card: hide calendar, offer Change validity -->
+                                        <Button Content="Change validity" Click="ChangeValidity_Click"
+                                                Visibility="{Binding ShowChangeButton, Converter={StaticResource BoolToVis}}"
+                                                Padding="10,8" Cursor="Hand" Margin="0,0,0,8" />
+
+                                        <!-- Calendar (pending / expired / change requested) -->
+                                        <StackPanel Visibility="{Binding ShowPickers, Converter={StaticResource BoolToVis}}">
+                                            <TextBlock Text="Valid From" FontSize="11" Foreground="{StaticResource Gray600}" />
+                                            <DatePicker Tag="{Binding UserId}" Margin="0,2,0,6" SelectedDateChanged="FromDate_Changed" />
+                                            <TextBlock Text="Valid To" FontSize="11" Foreground="{StaticResource Gray600}" />
+                                            <DatePicker Tag="{Binding UserId}" Margin="0,2,0,8" SelectedDateChanged="ToDate_Changed" />
+                                            <Button Content="✓ Save validity" Tag="{Binding UserId}" Click="Approve_Click"
+                                                    Background="#16A34A" Foreground="White" BorderThickness="0" Padding="10,8" Cursor="Hand" />
+                                        </StackPanel>
+
                                         <Button Content="✕ Decline" Tag="{Binding UserId}" Click="Decline_Click"
                                                 Background="#DC2626" Foreground="White" BorderThickness="0" Padding="10,8" Margin="0,8,0,0" Cursor="Hand" />
                                     </StackPanel>
