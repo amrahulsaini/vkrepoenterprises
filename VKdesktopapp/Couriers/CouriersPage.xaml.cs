@@ -39,10 +39,11 @@ public partial class CouriersPage : Page
         public string FinanceName => Src.FinanceName;
         public string ActionText => Src.BillingAction switch
         {
-            "immediate" => "For Billing",
-            "hold"      => "Hold for Billing",
-            "cancel"    => "Cancel",
-            _           => Src.BillingAction
+            "immediate"       => "OK for billing",
+            "hold"            => "Hold for collection",
+            "collection_done" => "Collection done",
+            "cancel"          => "Cancel",
+            _                 => Src.BillingAction
         };
         public string RepoChargesText => Src.RepoCharges?.ToString("0.##") ?? "";
         public string AdvanceText => Src.Advance?.ToString("0.##") ?? "";
@@ -74,7 +75,7 @@ public partial class CouriersPage : Page
 
             var data = await DesktopApiClient.GetRepoSubmissionsAsync(from, to, new List<int>(), null);
 
-            if (cmbAction.SelectedIndex == 4)
+            if (cmbAction.SelectedIndex == 5)
             {
                 data = data.Where(d => d.BillStatus == "billed").ToList();
             }
@@ -84,7 +85,8 @@ public partial class CouriersPage : Page
                 {
                     1 => "immediate",
                     2 => "hold",
-                    3 => "cancel",
+                    3 => "collection_done",
+                    4 => "cancel",
                     _ => null
                 };
                 if (actionFilter != null) data = data.Where(d => d.BillingAction == actionFilter).ToList();

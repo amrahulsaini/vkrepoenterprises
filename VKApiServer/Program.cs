@@ -2311,7 +2311,7 @@ app.MapPost("/api/mgr/couriers/submissions/{id:long}/update", async (HttpContext
             ("@pod", (object?)dto.PodNumber ?? DBNull.Value),
             ("@id", id)
         };
-        if (dto.BillingAction is "immediate" or "hold" or "cancel")
+        if (dto.BillingAction is "immediate" or "hold" or "collection_done" or "cancel")
         {
             sets.Add("billing_action=@ba2");
             ps.Add(("@ba2", dto.BillingAction));
@@ -2420,7 +2420,7 @@ app.MapGet("/api/mgr/settings/gate-stamp", async (HttpContext ctx, string? gate)
 app.MapPost("/api/mgr/billing/submissions/{id:long}/action", async (HttpContext ctx, long id, MgrSetActionDto dto) =>
 {
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
-    if (dto.BillingAction is not ("immediate" or "hold" or "cancel"))
+    if (dto.BillingAction is not ("immediate" or "hold" or "collection_done" or "cancel"))
         return Results.BadRequest(new { message = "Unknown billing action." });
     try
     {

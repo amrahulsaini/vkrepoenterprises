@@ -1465,7 +1465,7 @@ public class MobileRepository
         }
 
         string action = (req.BillingAction ?? "immediate").Trim().ToLowerInvariant();
-        if (action != "immediate" && action != "hold" && action != "cancel") action = "immediate";
+        if (action != "immediate" && action != "hold" && action != "collection_done" && action != "cancel") action = "immediate";
 
         DateTime? holdUntil = null;
         if (!string.IsNullOrWhiteSpace(req.HoldUntil) &&
@@ -1589,7 +1589,7 @@ public class MobileRepository
         await conn.OpenAsync();
 
         string action = (req.BillingAction ?? "immediate").Trim().ToLowerInvariant();
-        if (action != "immediate" && action != "hold" && action != "cancel") action = "immediate";
+        if (action != "immediate" && action != "hold" && action != "collection_done" && action != "cancel") action = "immediate";
         DateTime? holdUntil = null;
         if (!string.IsNullOrWhiteSpace(req.HoldUntil) && DateTime.TryParse(req.HoldUntil, out var hu)) holdUntil = hu.Date;
 
