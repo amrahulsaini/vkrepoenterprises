@@ -43,17 +43,19 @@ fun RepoKitsScreen(vm: AuthViewModel, nav: NavController) {
     var searching by remember { mutableStateOf(false) }
     var loadingKits by remember { mutableStateOf(false) }
 
-    fun search() {
-        scope.launch {
-            searching = true
-            selected = null; kits = emptyList()
-            runCatching {
-                val uid = vm.userId.first()
-                val r = ApiClient.api.searchRepoKitHeadOffices(uid, query.trim())
-                if (r.isSuccessful) offices = r.body().orEmpty()
-            }
-            searching = false
+    // Instant, debounced search: results refresh as the agent types (no button).
+    LaunchedEffect(query) {
+        if (selected != null) return@LaunchedEffect
+        val q = query.trim()
+        if (q.isEmpty()) { offices = emptyList(); searching = false; return@LaunchedEffect }
+        searching = true
+        kotlinx.coroutines.delay(300)
+        runCatching {
+            val uid = vm.userId.first()
+            val r = ApiClient.api.searchRepoKitHeadOffices(uid, q)
+            if (r.isSuccessful) offices = r.body().orEmpty()
         }
+        searching = false
     }
 
     fun openOffice(o: HeadOfficeItem) {
@@ -107,7 +109,7 @@ fun RepoKitsScreen(vm: AuthViewModel, nav: NavController) {
                 leadingIcon = { Icon(Icons.Default.Search, null) },
                 trailingIcon = {
                     if (searching) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
-                    else IconButton(onClick = { search() }) { Icon(Icons.Default.ArrowForward, "Search") }
+                    else if (query.isNotEmpty()) IconButton(onClick = { query = "" }) { Icon(Icons.Default.Close, "Clear") }
                 },
                 singleLine = true,
                 shape = RoundedCornerShape(10.dp),
