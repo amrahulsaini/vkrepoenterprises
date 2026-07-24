@@ -303,6 +303,7 @@ internal static class DesktopApiClient
         public string? PccUrl { get; set; }
         public string? DraUrl { get; set; }
         public string? ValidUntil { get; set; }
+        public string? ValidFrom { get; set; }
         public int? ValidDays { get; set; }
         public string? DeclineReason { get; set; }
         public DateTime? SubmittedAt { get; set; }

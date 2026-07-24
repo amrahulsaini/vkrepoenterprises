@@ -1775,7 +1775,8 @@ app.MapGet("/api/mgr/id-cards", async (HttpContext ctx, string? status) =>
                    c.photo_path, c.pcc_path, c.dra_path,
                    DATE_FORMAT(c.valid_until,'%Y-%m-%d') AS vu, c.valid_days,
                    c.decline_reason, c.submitted_at,
-                   (c.valid_until IS NOT NULL AND c.valid_until < CURDATE()) AS expired
+                   (c.valid_until IS NOT NULL AND c.valid_until < CURDATE()) AS expired,
+                   DATE_FORMAT(c.approved_at,'%Y-%m-%d') AS vf
             FROM id_cards c JOIN app_users u ON u.id = c.user_id
             {where}
             ORDER BY (c.status='pending') DESC, c.submitted_at DESC";
@@ -1803,6 +1804,7 @@ app.MapGet("/api/mgr/id-cards", async (HttpContext ctx, string? status) =>
                 declineReason = S(11),
                 submittedAt   = r.IsDBNull(12) ? (DateTime?)null : r.GetDateTime(12),
                 expired       = !r.IsDBNull(13) && r.GetInt64(13) == 1,
+                validFrom     = S(14),
             });
         return Results.Ok(list);
     }

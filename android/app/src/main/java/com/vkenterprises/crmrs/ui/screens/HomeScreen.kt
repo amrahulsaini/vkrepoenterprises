@@ -764,14 +764,6 @@ private fun GridTile(
                 overflow = TextOverflow.Ellipsis,
                 lineHeight = 15.sp
             )
-            Text(
-                subtitle,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                lineHeight = 13.sp
-            )
         }
     }
 }
@@ -814,9 +806,6 @@ private fun LandingTile(
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            Icon(Icons.Default.ChevronRight, null,
-                tint = MaterialTheme.colorScheme.outline,
-                modifier = Modifier.size(20.dp))
         }
     }
 }

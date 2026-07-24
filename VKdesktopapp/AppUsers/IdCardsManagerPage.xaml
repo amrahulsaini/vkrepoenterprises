@@ -24,7 +24,7 @@
                            FontSize="12" Foreground="{StaticResource Gray600}" Margin="0,2,0,0" />
             </StackPanel>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                <ComboBox x:Name="cmbFilter" Width="140" SelectedIndex="0" SelectionChanged="Filter_Changed">
+                <ComboBox x:Name="cmbFilter" Width="140" SelectedIndex="3" SelectionChanged="Filter_Changed">
                     <ComboBoxItem Content="Pending" Tag="pending" />
                     <ComboBoxItem Content="Approved" Tag="approved" />
                     <ComboBoxItem Content="Declined" Tag="declined" />
@@ -75,8 +75,8 @@
                                             <TextBlock Text="{Binding Dob}" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource Gray900}" />
                                         </StackPanel>
                                         <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
-                                            <TextBlock Text="Valid until: " FontSize="12" Foreground="{StaticResource Gray600}" />
-                                            <TextBlock Text="{Binding ValidUntil}" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource Gray900}" />
+                                            <TextBlock Text="Validity: " FontSize="12" Foreground="{StaticResource Gray600}" />
+                                            <TextBlock Text="{Binding ValidRange}" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource Gray900}" />
                                         </StackPanel>
                                         <TextBlock Text="{Binding DeclineReason}" FontSize="12" Foreground="#DC2626" Margin="0,6,0,0" TextWrapping="Wrap" />
 

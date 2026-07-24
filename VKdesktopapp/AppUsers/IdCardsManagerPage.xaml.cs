@@ -20,6 +20,8 @@ public sealed class IdCardVm
     public string? BloodGroup { get; set; }
     public string? Dob { get; set; }
     public string? ValidUntil { get; set; }
+    public string? ValidFrom { get; set; }
+    public bool Expired { get; set; }
     public string? DeclineReason { get; set; }
     public ImageSource? PhotoImage { get; set; }
     public ImageSource? PccImage { get; set; }
@@ -29,10 +31,18 @@ public sealed class IdCardVm
     public bool   IsApproved => Status == "approved";
     public string StatusLabel => Status switch
     {
-        "approved" => "ACTIVE",
+        "approved" => Expired ? "EXPIRED" : "ACTIVE",
         "declined" => "DECLINED",
         _          => "PENDING"
     };
+    // "22-07-2026 → 24-07-2026" or a dash when not approved yet.
+    public string ValidRange =>
+        string.IsNullOrEmpty(ValidUntil)
+            ? "—"
+            : $"{Fmt(ValidFrom)} → {Fmt(ValidUntil)}" + (Expired ? "  (expired)" : "");
+
+    private static string Fmt(string? iso) =>
+        System.DateTime.TryParse(iso, out var d) ? d.ToString("dd-MM-yyyy") : (iso ?? "—");
 }
 
 public partial class IdCardsManagerPage : Page
@@ -88,6 +98,8 @@ public partial class IdCardsManagerPage : Page
                     BloodGroup    = it.BloodGroup,
                     Dob           = it.Dob,
                     ValidUntil    = it.ValidUntil,
+                    ValidFrom     = it.ValidFrom,
+                    Expired       = it.Expired,
                     DeclineReason = it.DeclineReason,
                     PhotoImage    = await LoadImageAsync(it.PhotoUrl),
                     PccImage      = await LoadImageAsync(it.PccUrl),

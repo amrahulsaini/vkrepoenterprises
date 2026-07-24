@@ -449,7 +449,7 @@ fun VehicleDetailScreen(
                         nav.navigate(Screen.Confirm.route)
                     },
                     icon = { Icon(Icons.Default.Send, null) },
-                    text = { Text("Send Confirm", fontWeight = FontWeight.Bold) },
+                    text = { Text("Send Confirmation to Agency", fontWeight = FontWeight.Bold) },
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor   = MaterialTheme.colorScheme.onPrimary
                 )
