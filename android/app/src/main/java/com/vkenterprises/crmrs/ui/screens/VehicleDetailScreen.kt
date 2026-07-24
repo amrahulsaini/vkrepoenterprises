@@ -454,7 +454,8 @@ fun VehicleDetailScreen(
                     contentColor   = MaterialTheme.colorScheme.onPrimary
                 )
             }
-        }
+        },
+        floatingActionButtonPosition = FabPosition.Center
     ) { pad ->
         if (item == null) {
             Box(Modifier.fillMaxSize().padding(pad), contentAlignment = Alignment.Center) {
