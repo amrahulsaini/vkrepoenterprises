@@ -17,7 +17,11 @@ public partial class ModeChooserWindow : Window
         LoadAgencyHeader();
     }
 
-    private void LoadAgencyHeader()
+    private static string LogoCachePath => System.IO.Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "CRMRS", "agency-logo.png");
+
+    private async void LoadAgencyHeader()
     {
         var u = App.SignedAppUser;
         var name = u?.AgencyName;
@@ -26,19 +30,60 @@ public partial class ModeChooserWindow : Window
         lblSignedIn.Text = string.IsNullOrWhiteSpace(App.LoginEmail)
             ? "" : "Signed in as " + App.LoginEmail;
 
+        // Fast: show the cached logo immediately.
         try
         {
-            var path = System.IO.Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "CRMRS", "agency-logo.png");
-            if (!System.IO.File.Exists(path)) return;
-            var bmp = new System.Windows.Media.Imaging.BitmapImage();
-            bmp.BeginInit();
-            bmp.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
-            bmp.UriSource = new Uri(path);
-            bmp.EndInit();
-            bmp.Freeze();
-            imgAgencyLogo.Source = bmp;
+            if (System.IO.File.Exists(LogoCachePath))
+            {
+                var bmp = new System.Windows.Media.Imaging.BitmapImage();
+                bmp.BeginInit();
+                bmp.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
+                bmp.UriSource = new Uri(LogoCachePath);
+                bmp.EndInit();
+                bmp.Freeze();
+                imgAgencyLogo.Source = bmp;
+            }
+        }
+        catch { }
+
+        // Dynamic: refresh name/address/logo from the server so a change made
+        // in the portal or Server Settings shows without re-logging in. Also
+        // refreshes the local cache the billing/courier shells read.
+        try
+        {
+            var p = await DesktopApiClient.GetAgencyProfileAsync();
+            if (p == null) return;
+
+            if (!string.IsNullOrWhiteSpace(p.Name))
+            {
+                lblAgencyName.Text = p.Name;
+                if (u != null) u.AgencyName = p.Name;
+            }
+            lblAgencyAddress.Text = p.Address ?? lblAgencyAddress.Text;
+            if (u != null && p.Address != null) u.Address = p.Address;
+
+            if (!string.IsNullOrWhiteSpace(p.LogoPath))
+            {
+                if (u != null) u.LogoPath = p.LogoPath;
+                var url = App.ApiBaseUrl.TrimEnd('/') + "/" + p.LogoPath.TrimStart('/');
+                var bytes = await App.HttpClient.GetByteArrayAsync(url);
+
+                using var ms = new System.IO.MemoryStream(bytes);
+                var bmp = new System.Windows.Media.Imaging.BitmapImage();
+                bmp.BeginInit();
+                bmp.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
+                bmp.StreamSource = ms;
+                bmp.EndInit();
+                bmp.Freeze();
+                imgAgencyLogo.Source = bmp;
+
+                try
+                {
+                    System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(LogoCachePath)!);
+                    await System.IO.File.WriteAllBytesAsync(LogoCachePath, bytes);
+                }
+                catch { }
+            }
         }
         catch { }
     }
