@@ -1,0 +1,120 @@
+<Page x:Class="CRMRSDesktopApp.Accounts.AccountsPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      Background="#F5F5F5">
+    <Page.Resources>
+        <Style x:Key="CellText" TargetType="TextBlock">
+            <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Margin" Value="8,0,8,0" />
+            <Setter Property="ToolTip" Value="{Binding RelativeSource={RelativeSource Self}, Path=Text}" />
+        </Style>
+        <Style x:Key="GridHeader" TargetType="{x:Type DataGridColumnHeader}">
+            <Setter Property="Background" Value="#1565C0" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Padding" Value="8" />
+            <Setter Property="BorderBrush" Value="#0D47A1" />
+            <Setter Property="BorderThickness" Value="0,0,1,0" />
+            <Setter Property="HorizontalContentAlignment" Value="Left" />
+        </Style>
+    </Page.Resources>
+
+    <Grid Margin="14">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="300" />
+        </Grid.ColumnDefinitions>
+
+        <DockPanel Grid.Column="0" Margin="0,0,14,0">
+            <TextBlock DockPanel.Dock="Top" Text="Accounts" FontSize="18" FontWeight="Bold"
+                       Foreground="{StaticResource Accent}" Margin="0,0,0,8" />
+
+            <WrapPanel DockPanel.Dock="Top" Margin="0,0,0,10">
+                <TextBlock Text="From" VerticalAlignment="Center" Foreground="#666" Margin="0,0,6,0" />
+                <DatePicker Name="dpFrom" Width="130" Margin="0,0,14,0" SelectedDateChanged="Reload_Changed" />
+                <TextBlock Text="To" VerticalAlignment="Center" Foreground="#666" Margin="0,0,6,0" />
+                <DatePicker Name="dpTo" Width="130" Margin="0,0,14,0" SelectedDateChanged="Reload_Changed" />
+                <TextBlock Text="Status" VerticalAlignment="Center" Foreground="#666" Margin="0,0,6,0" />
+                <ComboBox Name="cmbAction" Width="150" Margin="0,0,14,0" SelectedIndex="0" SelectionChanged="Reload_Changed">
+                    <ComboBoxItem Content="All" />
+                    <ComboBoxItem Content="OK for billing" />
+                    <ComboBoxItem Content="Hold for collection" />
+                    <ComboBoxItem Content="Collection done" />
+                    <ComboBoxItem Content="Cancel" />
+                    <ComboBoxItem Content="Billing Done" />
+                </ComboBox>
+                <TextBlock Text="Agent" VerticalAlignment="Center" Foreground="#666" Margin="0,0,6,0" />
+                <TextBox Name="txtAgent" Width="160" Height="26" VerticalContentAlignment="Center"
+                         Padding="6,0" TextChanged="Filter_Changed" />
+                <TextBlock Name="txtStatus" VerticalAlignment="Center" Foreground="#888" FontSize="12" Margin="14,0,0,0" />
+            </WrapPanel>
+
+            <DataGrid Name="grid" AutoGenerateColumns="False"
+                      CanUserAddRows="False" HeadersVisibility="Column" GridLinesVisibility="All"
+                      RowHeaderWidth="0" SelectionMode="Single"
+                      Background="White" BorderBrush="#E0E0E0" BorderThickness="1"
+                      CanUserResizeColumns="True" CanUserSortColumns="True"
+                      ColumnHeaderStyle="{StaticResource GridHeader}"
+                      RowBackground="White" AlternatingRowBackground="#F3F7FB"
+                      FontSize="12.5" RowHeight="32"
+                      ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                      CellEditEnding="grid_CellEditEnding"
+                      SelectionChanged="grid_SelectionChanged">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Repo Date" Binding="{Binding RepoDate}" Width="120" IsReadOnly="True" ElementStyle="{StaticResource CellText}" />
+                    <DataGridTextColumn Header="Agent" Binding="{Binding AgentName}" Width="140" IsReadOnly="True" ElementStyle="{StaticResource CellText}" />
+                    <DataGridTextColumn Header="Vehicle No" Binding="{Binding VehicleNo}" Width="110" IsReadOnly="True" ElementStyle="{StaticResource CellText}" />
+                    <DataGridTextColumn Header="Customer" Binding="{Binding CustomerName}" Width="150" IsReadOnly="True" ElementStyle="{StaticResource CellText}" />
+                    <DataGridTextColumn Header="Finance" Binding="{Binding FinanceName}" Width="130" IsReadOnly="True" ElementStyle="{StaticResource CellText}" />
+                    <DataGridTextColumn Header="Branch" Binding="{Binding BranchName}" Width="120" IsReadOnly="True" ElementStyle="{StaticResource CellText}" />
+                    <DataGridTextColumn Header="Status" Binding="{Binding ActionText}" Width="120" IsReadOnly="True" ElementStyle="{StaticResource CellText}" />
+                    <DataGridTextColumn Header="Gross" Binding="{Binding GrossText}" Width="90" IsReadOnly="True" ElementStyle="{StaticResource CellText}" />
+                    <DataGridTextColumn Header="%" Binding="{Binding PercentText}" Width="60" IsReadOnly="True" ElementStyle="{StaticResource CellText}" />
+                    <DataGridTextColumn Header="Repo Charges" Binding="{Binding RepoChargesText, UpdateSourceTrigger=PropertyChanged}" Width="110" ElementStyle="{StaticResource CellText}" />
+                    <DataGridTextColumn Header="Advance" Binding="{Binding AdvanceText, UpdateSourceTrigger=PropertyChanged}" Width="90" ElementStyle="{StaticResource CellText}" />
+                    <DataGridTextColumn Header="Final" Binding="{Binding FinalText}" Width="100" IsReadOnly="True">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock" BasedOn="{StaticResource CellText}">
+                                <Setter Property="FontWeight" Value="Bold" />
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+                    <DataGridTemplateColumn Header="Screenshot" Width="90">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <Button Content="View" Padding="8,2" Margin="4" Cursor="Hand"
+                                        Visibility="{Binding HasScreenshot}"
+                                        Tag="{Binding}" Click="ViewScreenshot_Click" />
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                </DataGrid.Columns>
+            </DataGrid>
+        </DockPanel>
+
+        <Border Grid.Column="1" Background="White" CornerRadius="8" BorderBrush="#E0E0E0" BorderThickness="1" Padding="14">
+            <DockPanel>
+                <TextBlock DockPanel.Dock="Top" Text="Per-agent summary" FontSize="15" FontWeight="Bold"
+                           Foreground="{StaticResource Accent}" Margin="0,0,0,8" />
+                <Border DockPanel.Dock="Bottom" Background="#EAF4EA" CornerRadius="6" Padding="10,8" Margin="0,10,0,0">
+                    <StackPanel>
+                        <TextBlock Name="txtGrandVehicles" Text="Vehicles: 0" FontWeight="Bold" FontSize="13" />
+                        <TextBlock Name="txtGrandRepo" Text="Total Repo: 0" FontSize="12.5" Foreground="#2E7D32" />
+                        <TextBlock Name="txtGrandFinal" Text="Total Final: 0" FontSize="12.5" Foreground="#1565C0" FontWeight="Bold" />
+                    </StackPanel>
+                </Border>
+                <DataGrid Name="gridSummary" AutoGenerateColumns="False" IsReadOnly="True"
+                          CanUserAddRows="False" HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                          RowHeaderWidth="0" Background="White" BorderThickness="0"
+                          ColumnHeaderStyle="{StaticResource GridHeader}" FontSize="12" RowHeight="28">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Agent" Binding="{Binding Agent}" Width="*" ElementStyle="{StaticResource CellText}" />
+                        <DataGridTextColumn Header="Veh" Binding="{Binding Count}" Width="46" ElementStyle="{StaticResource CellText}" />
+                        <DataGridTextColumn Header="Repo" Binding="{Binding RepoText}" Width="80" ElementStyle="{StaticResource CellText}" />
+                    </DataGrid.Columns>
+                </DataGrid>
+            </DockPanel>
+        </Border>
+    </Grid>
+</Page>

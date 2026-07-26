@@ -136,6 +136,20 @@ public partial class ModeChooserWindow : Window
         finally { if (!LoggedOut) { Show(); Activate(); } }
     }
 
+    private async void btnAccounts_Click(object sender, RoutedEventArgs e)
+    {
+        if (!await AskPasswordAsync("Accounts", "accounts")) return;
+
+        var w = new AccountsShellWindow();
+        Hide();
+        try
+        {
+            w.ShowDialog();
+            if (w.LoggedOut) { LoggedOut = true; Close(); return; }
+        }
+        finally { if (!LoggedOut) { Show(); Activate(); } }
+    }
+
     /// Asks for the account password every time a mode is opened. The typed
     /// password is checked on the server; it is never held in the app.
     private async System.Threading.Tasks.Task<bool> AskPasswordAsync(string title, string gate)
