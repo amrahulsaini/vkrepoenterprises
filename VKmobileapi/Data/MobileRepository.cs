@@ -1610,6 +1610,11 @@ public class MobileRepository
         DateTime? holdUntil = null;
         if (!string.IsNullOrWhiteSpace(req.HoldUntil) && DateTime.TryParse(req.HoldUntil, out var hu)) holdUntil = hu.Date;
 
+        string? screenshotRel = await SaveBase64ImageAsync(
+            req.PaymentScreenshotB64, "payments",
+            $"sub_{id}_{DateTime.UtcNow:yyyyMMddHHmmssfff}.jpg");
+        bool autoBill = action is "hold" or "collection_done";
+
         await using var cmd = new MySqlCommand(@"
             UPDATE repo_submissions SET
                 loan_no=@loan, customer_name=@cust, vehicle_no=@veh, model=@model,
@@ -1618,7 +1623,14 @@ public class MobileRepository
                 load_details=@load, addl_charges_notes=@acn, addl_charges_amount=@aca,
                 confirmation_by_name=@cbn, confirmation_by_mobile=@cbm, executive_name=@exec,
                 collection_update=@colup, remark=@rmk,
-                billing_action=@action, hold_until=@holdu, hold_days=@holdd
+                billing_action=@action, hold_until=@holdu, hold_days=@holdd,
+                payment_screenshot=COALESCE(@pscreen, payment_screenshot),
+                bill_status = CASE WHEN @autobill=1 THEN 'billed'
+                                   WHEN invoice_no IS NOT NULL OR bill_file IS NOT NULL THEN bill_status
+                                   ELSE 'pending' END,
+                billed_at   = CASE WHEN @autobill=1 THEN COALESCE(billed_at, NOW())
+                                   WHEN invoice_no IS NOT NULL OR bill_file IS NOT NULL THEN billed_at
+                                   ELSE NULL END
             WHERE id=@id AND submitted_by_user_id=@uid", conn) { CommandTimeout = 15 };
         void P(string n, object? v) => cmd.Parameters.AddWithValue(n, v ?? DBNull.Value);
         P("@loan", req.LoanNo); P("@cust", req.CustomerName); P("@veh", req.VehicleNo); P("@model", req.Model);
@@ -1628,6 +1640,7 @@ public class MobileRepository
         P("@cbn", req.ConfirmationByName); P("@cbm", req.ConfirmationByMobile); P("@exec", req.ExecutiveName);
         P("@colup", req.CollectionUpdate); P("@rmk", req.Remark);
         P("@action", action); P("@holdu", holdUntil); P("@holdd", req.HoldDays);
+        P("@pscreen", screenshotRel); P("@autobill", autoBill ? 1 : 0);
         P("@id", id); P("@uid", userId);
         return await cmd.ExecuteNonQueryAsync() > 0;
     }

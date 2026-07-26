@@ -1,6 +1,10 @@
 package com.vkenterprises.crmrs.ui.screens
 
+import android.net.Uri
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -13,14 +17,19 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import coil.compose.AsyncImage
 import com.vkenterprises.crmrs.data.models.RepoTaskItem
+import com.vkenterprises.crmrs.utils.compressImageToBase64
+import com.vkenterprises.crmrs.utils.createCameraImageUri
 import com.vkenterprises.crmrs.viewmodel.TaskManagerUiState
 import com.vkenterprises.crmrs.viewmodel.TaskManagerViewModel
 
@@ -42,7 +51,7 @@ fun TaskManagerScreen(
             item    = item,
             saving  = ui.saving,
             onCancel = { vm.cancelEdit() },
-            onSave   = { vm.saveEdit(it) }
+            onSave   = { edited, b64 -> vm.saveEdit(edited, b64) }
         )
     }
 
@@ -236,8 +245,9 @@ private fun TaskEditSheet(
     item: RepoTaskItem,
     saving: Boolean,
     onCancel: () -> Unit,
-    onSave: (RepoTaskItem) -> Unit
+    onSave: (RepoTaskItem, String?) -> Unit
 ) {
+    val context = LocalContext.current
     var loanNo      by remember(item.id) { mutableStateOf(item.loanNo) }
     var customer    by remember(item.id) { mutableStateOf(item.customerName) }
     var vehicleNo   by remember(item.id) { mutableStateOf(item.vehicleNo) }
@@ -259,6 +269,27 @@ private fun TaskEditSheet(
     var action      by remember(item.id) { mutableStateOf(item.billingAction) }
     var holdDays    by remember(item.id) { mutableStateOf(if (item.holdDays > 0) item.holdDays.toString() else "") }
     var holdUntil   by remember(item.id) { mutableStateOf(item.holdUntil) }
+
+    // Payment screenshot — required when moving to Collection done.
+    var payUri by remember(item.id) { mutableStateOf<Uri?>(null) }
+    var payB64 by remember(item.id) { mutableStateOf<String?>(null) }
+    var showPaySrc by remember { mutableStateOf(false) }
+    var payCamUri by remember { mutableStateOf<Uri?>(null) }
+    var editErr by remember { mutableStateOf<String?>(null) }
+    val payGallery = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri != null) { payUri = uri; payB64 = runCatching { compressImageToBase64(context, uri) }.getOrNull() }
+    }
+    val payCamera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { ok ->
+        if (ok) payCamUri?.let { u -> payUri = u; payB64 = runCatching { compressImageToBase64(context, u) }.getOrNull() }
+    }
+    if (showPaySrc) {
+        ImageSourceDialog(
+            title = "Attach payment screenshot",
+            onCamera = { showPaySrc = false; val u = createCameraImageUri(context); payCamUri = u; payCamera.launch(u) },
+            onGallery = { showPaySrc = false; payGallery.launch("image/*") },
+            onDismiss = { showPaySrc = false }
+        )
+    }
 
     ModalBottomSheet(onDismissRequest = onCancel) {
         Column(
@@ -300,9 +331,10 @@ private fun TaskEditSheet(
                 fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
             Column {
                 listOf(
-                    "immediate" to "OK for billing",
-                    "hold"      to "Hold for collection",
-                    "cancel"    to "Cancel"
+                    "immediate"       to "OK for billing",
+                    "hold"            to "Hold for collection",
+                    "collection_done" to "Collection done",
+                    "cancel"          to "Cancel"
                 ).forEach { (v, l) ->
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         RadioButton(selected = action == v, onClick = { action = v })
@@ -331,6 +363,33 @@ private fun TaskEditSheet(
                 }
             }
 
+            if (action == "collection_done") {
+                Text("Payment screenshot *", style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                if (payUri != null) {
+                    AsyncImage(
+                        model = payUri, contentDescription = "Payment screenshot",
+                        modifier = Modifier.fillMaxWidth().height(180.dp)
+                            .clip(RoundedCornerShape(10.dp)).clickable { showPaySrc = true }
+                    )
+                    TextButton(onClick = { showPaySrc = true }) { Text("Change screenshot") }
+                } else {
+                    OutlinedButton(
+                        onClick = { showPaySrc = true },
+                        modifier = Modifier.fillMaxWidth().height(48.dp),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Icon(Icons.Default.AttachFile, null, Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Attach payment screenshot")
+                    }
+                }
+            }
+
+            editErr?.let {
+                Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+            }
+
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 OutlinedButton(
                     onClick = onCancel,
@@ -338,7 +397,12 @@ private fun TaskEditSheet(
                     shape = RoundedCornerShape(10.dp)
                 ) { Text("Cancel") }
                 Button(
-                    onClick = {
+                    onClick = save@ {
+                        if (action == "collection_done" && payB64 == null) {
+                            editErr = "Attach the payment screenshot for Collection done."
+                            return@save
+                        }
+                        editErr = null
                         onSave(
                             item.copy(
                                 loanNo               = loanNo,
@@ -362,7 +426,8 @@ private fun TaskEditSheet(
                                 billingAction        = action,
                                 holdUntil            = if (action == "hold") holdUntil else "",
                                 holdDays             = if (action == "hold") (holdDays.toIntOrNull() ?: 0) else 0
-                            )
+                            ),
+                            payB64
                         )
                     },
                     enabled = !saving,

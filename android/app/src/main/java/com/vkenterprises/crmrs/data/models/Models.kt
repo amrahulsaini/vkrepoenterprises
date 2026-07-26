@@ -189,7 +189,8 @@ data class RepoTaskEditRequest(
     val remark: String?,
     val billingAction: String?,
     val holdUntil: String?,
-    val holdDays: Int?
+    val holdDays: Int?,
+    val paymentScreenshotB64: String? = null
 )
 
 data class RepoLetterSettings(
