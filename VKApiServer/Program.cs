@@ -2242,7 +2242,7 @@ app.MapGet("/api/mgr/billing/submissions", async (HttpContext ctx, string? from,
                    billing_action, hold_until, hold_days, bill_status, billed_at,
                    submitted_by_name, created_at,
                    repo_charges, advance, courier_yn, banker_address, pod_number,
-                   invoice_no, bill_file
+                   invoice_no, bill_file, total_gross, courier_percent, payment_screenshot
               FROM repo_submissions {whereSql}
              ORDER BY created_at DESC LIMIT 2000", conn) { CommandTimeout = 30 };
         if (DateTime.TryParse(from, out var f2)) cmd.Parameters.AddWithValue("@from", f2.Date);
@@ -2281,7 +2281,10 @@ app.MapGet("/api/mgr/billing/submissions", async (HttpContext ctx, string? from,
                 bankerAddress = S(32) ?? "",
                 podNumber = S(33) ?? "",
                 invoiceNo = S(34) ?? "",
-                billUrl = string.IsNullOrEmpty(S(35)) ? "" : $"{billBaseUrl}/agency-uploads/{S(35)!.TrimStart('/')}"
+                billUrl = string.IsNullOrEmpty(S(35)) ? "" : $"{billBaseUrl}/agency-uploads/{S(35)!.TrimStart('/')}",
+                totalGross = rdr.IsDBNull(36) ? (decimal?)null : rdr.GetDecimal(36),
+                courierPercent = rdr.IsDBNull(37) ? (decimal?)null : rdr.GetDecimal(37),
+                screenshotUrl = string.IsNullOrEmpty(S(38)) ? "" : $"{billBaseUrl}/uploads/{S(38)!.TrimStart('/')}"
             });
         }
         return Results.Ok(list);
@@ -2300,7 +2303,8 @@ app.MapPost("/api/mgr/couriers/submissions/{id:long}/update", async (HttpContext
         var sets = new List<string>
         {
             "repo_charges=@rc", "advance=@adv", "courier_yn=@cy",
-            "banker_address=@ba", "pod_number=@pod", "courier_updated_at=NOW()"
+            "banker_address=@ba", "pod_number=@pod",
+            "courier_percent=@cp", "courier_updated_at=NOW()"
         };
         var ps = new List<(string, object)>
         {
@@ -2309,12 +2313,23 @@ app.MapPost("/api/mgr/couriers/submissions/{id:long}/update", async (HttpContext
             ("@cy", (object?)dto.CourierYn ?? DBNull.Value),
             ("@ba", (object?)dto.BankerAddress ?? DBNull.Value),
             ("@pod", (object?)dto.PodNumber ?? DBNull.Value),
+            ("@cp", (object?)dto.CourierPercent ?? DBNull.Value),
             ("@id", id)
         };
         if (dto.BillingAction is "immediate" or "hold" or "collection_done" or "cancel")
         {
             sets.Add("billing_action=@ba2");
             ps.Add(("@ba2", dto.BillingAction));
+            if (dto.BillingAction is "hold" or "collection_done")
+            {
+                sets.Add("bill_status='billed'");
+                sets.Add("billed_at=COALESCE(billed_at, NOW())");
+            }
+            else
+            {
+                sets.Add("bill_status = CASE WHEN invoice_no IS NOT NULL OR bill_file IS NOT NULL THEN bill_status ELSE 'pending' END");
+                sets.Add("billed_at = CASE WHEN invoice_no IS NOT NULL OR bill_file IS NOT NULL THEN billed_at ELSE NULL END");
+            }
         }
 
         await MgrExec($"UPDATE repo_submissions SET {string.Join(", ", sets)} WHERE id=@id",
@@ -2426,9 +2441,32 @@ app.MapPost("/api/mgr/billing/submissions/{id:long}/action", async (HttpContext 
     {
         await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
-        // Only the decision changes; courier entries and bill details stay put.
-        await MgrExec("UPDATE repo_submissions SET billing_action=@a WHERE id=@id",
-            conn, 20, ("@a", dto.BillingAction), ("@id", id));
+        // Hold-for-collection / Collection-done fulfil demand, so they are
+        // auto-billed the moment they are set. Moving back to OK-for-billing or
+        // Cancel reverts to pending UNLESS a real bill was already generated
+        // (invoice_no / bill_file present). Courier entries stay put.
+        if (dto.BillingAction is "hold" or "collection_done")
+        {
+            await MgrExec(
+                @"UPDATE repo_submissions
+                     SET billing_action=@a,
+                         bill_status='billed',
+                         billed_at=COALESCE(billed_at, NOW())
+                   WHERE id=@id",
+                conn, 20, ("@a", dto.BillingAction), ("@id", id));
+        }
+        else
+        {
+            await MgrExec(
+                @"UPDATE repo_submissions
+                     SET billing_action=@a,
+                         bill_status = CASE WHEN invoice_no IS NOT NULL OR bill_file IS NOT NULL
+                                            THEN bill_status ELSE 'pending' END,
+                         billed_at   = CASE WHEN invoice_no IS NOT NULL OR bill_file IS NOT NULL
+                                            THEN billed_at ELSE NULL END
+                   WHERE id=@id",
+                conn, 20, ("@a", dto.BillingAction), ("@id", id));
+        }
         return Results.Ok(new { success = true });
     }
     catch (Exception ex) { return Results.Problem(ex.Message); }
@@ -4278,7 +4316,7 @@ record MgrSetMemberFinancesDto(List<int> FinanceIds);
 record MgrMarkBilledDto(long MemberId, string? InvoiceNo = null, string? BillBase64 = null, string? BillExt = null, decimal? TotalGross = null);
 
 record MgrCourierUpdateDto(decimal? RepoCharges, decimal? Advance, string? CourierYn,
-    string? BankerAddress, string? PodNumber, string? BillingAction);
+    string? BankerAddress, string? PodNumber, string? BillingAction, decimal? CourierPercent = null);
 record MgrSetFinanceRestrictionsDto(List<int> FinanceIds);
 record MgrSetSubsPasswordDto(string Password);
 

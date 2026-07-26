@@ -1479,7 +1479,8 @@ public class MobileRepository
                  addl_charges_notes, addl_charges_amount,
                  confirmation_by_name, confirmation_by_mobile, executive_name,
                  collection_update, remark,
-                 billing_action, hold_until, hold_days, submitted_by_name, submitted_by_user_id)
+                 billing_action, hold_until, hold_days, submitted_by_name, submitted_by_user_id,
+                 bill_status, billed_at)
             VALUES
                 (@rid, @fid, @fname, @branch,
                  @loan, @cust, @veh, @model, @chassis, @engine,
@@ -1487,7 +1488,8 @@ public class MobileRepository
                  @acn, @aca,
                  @cbn, @cbm, @exec,
                  @colup, @rmk,
-                 @action, @holdu, @holdd, @subby, @subuid)", conn) { CommandTimeout = 15 };
+                 @action, @holdu, @holdd, @subby, @subuid,
+                 @bstatus, @battime)", conn) { CommandTimeout = 15 };
 
         void P(string n, object? v) => cmd.Parameters.AddWithValue(n, v ?? DBNull.Value);
         P("@rid",   req.RecordId is > 0 ? req.RecordId : (object?)null);
@@ -1516,6 +1518,12 @@ public class MobileRepository
         P("@holdd", req.HoldDays);
         P("@subby", req.SubmittedByName);
         P("@subuid", submittedByUserId > 0 ? submittedByUserId : (object?)null);
+        // Hold-for-collection and Collection-done fulfil demand immediately, so
+        // they are auto-marked billed (billed_at = now). OK-for-billing stays
+        // pending until an actual bill is generated in the billing module.
+        bool autoBilled = action is "hold" or "collection_done";
+        P("@bstatus", autoBilled ? "billed" : "pending");
+        P("@battime", autoBilled ? (object)DateTime.Now : DBNull.Value);
         await cmd.ExecuteNonQueryAsync();
         return cmd.LastInsertedId;
     }
@@ -1540,16 +1548,14 @@ public class MobileRepository
         }
 
         int billed = 0;
-        // Counts toward the agent's monthly demand: billed submissions (by the
-        // month billed) plus any Hold-for-collection / Collection-done ones (by
-        // the month submitted) — those two statuses also fulfil demand.
+        // Demand fulfilment = billed submissions in this calendar month (any
+        // month length). Hold-for-collection / Collection-done are auto-billed
+        // when set, and OK-for-billing is billed when its bill is generated, so
+        // both fall out of this single billed_at check.
         await using (var bc = new MySqlCommand(@"
             SELECT COUNT(*) FROM repo_submissions
-             WHERE submitted_by_user_id=@id
-               AND (
-                    (bill_status='billed' AND billed_at IS NOT NULL AND YEAR(billed_at)=@y AND MONTH(billed_at)=@m)
-                 OR (billing_action IN ('hold','collection_done') AND YEAR(created_at)=@y AND MONTH(created_at)=@m)
-               )", conn))
+             WHERE submitted_by_user_id=@id AND bill_status='billed'
+               AND billed_at IS NOT NULL AND YEAR(billed_at)=@y AND MONTH(billed_at)=@m", conn))
         {
             bc.Parameters.AddWithValue("@id", userId);
             bc.Parameters.AddWithValue("@y", year);
