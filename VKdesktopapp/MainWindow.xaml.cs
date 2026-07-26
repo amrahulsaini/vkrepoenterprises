@@ -338,9 +338,15 @@ public partial class MainWindow : Window
                 {
                     if (!string.IsNullOrWhiteSpace(p.LogoPath)) { logoPath = p.LogoPath; u.LogoPath = p.LogoPath; }
                     if (!string.IsNullOrWhiteSpace(p.Name)) u.AgencyName = p.Name;
-                    if (p.Mobile1 != null) u.Mobile1 = p.Mobile1;
-                    if (p.Address != null) u.Address = p.Address;
-                    RefreshFirmLabels();
+                    u.Mobile1 = p.Mobile1 ?? "";
+                    u.Address = p.Address ?? "";
+
+                    // Set labels straight from the server so a value the agency
+                    // cleared shows as blank instead of the App.Firm fallback.
+                    if (FindName("lblFirmName")    is TextBlock nameTb)
+                        nameTb.Text   = string.IsNullOrWhiteSpace(p.Name) ? App.Firm.FirmName : p.Name;
+                    if (FindName("lblFirmMobile")  is TextBlock mobileTb) mobileTb.Text = p.Mobile1 ?? "";
+                    if (FindName("lblFirmAddress") is TextBlock addrTb)   addrTb.Text   = p.Address ?? "";
                 }
             }
             catch { }
