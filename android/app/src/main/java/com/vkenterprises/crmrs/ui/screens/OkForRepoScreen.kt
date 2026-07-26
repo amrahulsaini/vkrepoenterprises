@@ -2,6 +2,7 @@ package com.vkenterprises.crmrs.ui.screens
 
 import android.content.Context
 import android.content.Intent
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -15,6 +16,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -29,7 +32,11 @@ import com.vkenterprises.crmrs.viewmodel.AuthViewModel
 import com.vkenterprises.crmrs.viewmodel.SearchViewModel
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(
+    ExperimentalMaterial3Api::class,
+    androidx.compose.foundation.layout.ExperimentalLayoutApi::class,
+    androidx.compose.ui.ExperimentalComposeUiApi::class
+)
 @Composable
 fun OkForRepoScreen(
     searchVm: SearchViewModel,
@@ -38,6 +45,14 @@ fun OkForRepoScreen(
 ) {
     val context    = LocalContext.current
     val scope      = rememberCoroutineScope()
+
+    val imeVisible = WindowInsets.isImeVisible
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val focusManager = LocalFocusManager.current
+    BackHandler(enabled = imeVisible) {
+        focusManager.clearFocus()
+        keyboardController?.hide()
+    }
     val ui         by searchVm.ui.collectAsState()
     val skinny     = ui.selectedResult
     val full       = ui.fullRecord

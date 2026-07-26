@@ -6,6 +6,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -26,6 +27,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.SpanStyle
@@ -109,7 +111,7 @@ private fun buildAdminFields(item: SearchResult, br: SearchResult): List<Pair<St
     "Uploaded On"    to br.createdOn.orEmpty(),
 )
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class, ExperimentalComposeUiApi::class)
 @Composable
 fun VehicleDetailScreen(
     searchVm: SearchViewModel,
@@ -122,6 +124,14 @@ fun VehicleDetailScreen(
     val agentPhone by authVm.userMobile.collectAsState(initial = "")
     val isAdmin    by authVm.isAdmin.collectAsState(initial = false)
     val context    = LocalContext.current
+
+    val imeVisible = WindowInsets.isImeVisible
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val focusManager = LocalFocusManager.current
+    BackHandler(enabled = imeVisible) {
+        focusManager.clearFocus()
+        keyboardController?.hide()
+    }
 
     var waAgencyName by remember { mutableStateOf(BuildConfig.AGENCY_NAME) }
     LaunchedEffect(Unit) {

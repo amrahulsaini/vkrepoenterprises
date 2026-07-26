@@ -3,6 +3,7 @@ package com.vkenterprises.crmrs.ui.screens
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
@@ -19,6 +20,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.*
@@ -40,7 +43,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class, ExperimentalComposeUiApi::class)
 @Composable
 fun ConfirmScreen(
     searchVm: SearchViewModel,
@@ -48,6 +51,14 @@ fun ConfirmScreen(
     nav: NavController
 ) {
     val context    = LocalContext.current
+
+    val imeVisible = WindowInsets.isImeVisible
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val focusManager = LocalFocusManager.current
+    BackHandler(enabled = imeVisible) {
+        focusManager.clearFocus()
+        keyboardController?.hide()
+    }
     val ui         by searchVm.ui.collectAsState()
     val skinny     = ui.selectedResult
     val full       = ui.fullRecord
