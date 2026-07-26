@@ -185,6 +185,9 @@ internal static class DesktopApiClient
         => (await Send(HttpMethod.Post, $"api/mgr/billing/submissions/{id}/billed",
             new { MemberId = memberId, InvoiceNo = invoiceNo, BillBase64 = billBase64, BillExt = billExt, TotalGross = totalGross })).Dispose();
 
+    internal static async Task UpdateSubmissionFieldsAsync(long id, object dto)
+        => (await Send(HttpMethod.Post, $"api/mgr/billing/submissions/{id}/fields", dto)).Dispose();
+
     internal static async Task<int> CreateFinanceAsync(string name, string? description)
     {
         var resp = await Send(HttpMethod.Post, "api/mgr/finances",

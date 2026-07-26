@@ -2545,6 +2545,41 @@ app.MapPost("/api/mgr/billing/submissions/{id:long}/billed", async (HttpContext 
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
 
+// Edit the app-filled fields of a submission from the billing "View all details".
+app.MapPost("/api/mgr/billing/submissions/{id:long}/fields", async (HttpContext ctx, long id, MgrEditFieldsDto dto) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        var sets = new List<string>();
+        var ps   = new List<(string, object)> { ("@id", id) };
+        void M(string col, object? val) { sets.Add($"{col}=@{col}"); ps.Add(($"@{col}", val ?? DBNull.Value)); }
+
+        if (dto.CustomerName      != null) M("customer_name", dto.CustomerName);
+        if (dto.FinanceName       != null) M("finance_name", dto.FinanceName);
+        if (dto.BranchName        != null) M("branch_name", dto.BranchName);
+        if (dto.LoanNo            != null) M("loan_no", dto.LoanNo);
+        if (dto.AgentName         != null) M("agent_name", dto.AgentName);
+        if (dto.ParkingYardName   != null) M("parking_yard_name", dto.ParkingYardName);
+        if (dto.VehicleNo         != null) M("vehicle_no", dto.VehicleNo);
+        if (dto.ChassisNo         != null) M("chassis_no", dto.ChassisNo);
+        if (dto.Model             != null) M("model", dto.Model);
+        if (dto.EngineNo          != null) M("engine_no", dto.EngineNo);
+        if (dto.CollectionUpdate  != null) M("collection_update", dto.CollectionUpdate);
+        if (dto.Remark            != null) M("remark", dto.Remark);
+        if (dto.AddlChargesAmount.HasValue) M("addl_charges_amount", dto.AddlChargesAmount.Value);
+
+        if (sets.Count == 0) return Results.Ok(new { success = true });
+
+        await using var conn = new MySqlConnection(TenantContext.Conn);
+        await conn.OpenAsync();
+        await MgrExec($"UPDATE repo_submissions SET {string.Join(", ", sets)} WHERE id=@id",
+            conn, 20, ps.ToArray());
+        return Results.Ok(new { success = true });
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
 
 app.MapGet("/api/mgr/search", async (HttpContext ctx, string? q, string? mode) =>
 {
@@ -4316,6 +4351,11 @@ record MgrBillingMemberDto(
 record MgrMemberLoginDto(string Username, string Password);
 record MgrSetMemberFinancesDto(List<int> FinanceIds);
 record MgrMarkBilledDto(long MemberId, string? InvoiceNo = null, string? BillBase64 = null, string? BillExt = null, decimal? TotalGross = null);
+record MgrEditFieldsDto(
+    string? CustomerName = null, string? FinanceName = null, string? BranchName = null,
+    string? LoanNo = null, string? AgentName = null, string? ParkingYardName = null,
+    string? VehicleNo = null, string? ChassisNo = null, string? Model = null, string? EngineNo = null,
+    string? CollectionUpdate = null, string? Remark = null, decimal? AddlChargesAmount = null);
 
 record MgrCourierUpdateDto(decimal? RepoCharges, decimal? Advance, string? CourierYn,
     string? BankerAddress, string? PodNumber, string? BillingAction, decimal? CourierPercent = null);

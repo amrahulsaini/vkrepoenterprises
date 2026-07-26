@@ -19,17 +19,21 @@ public partial class ViewAllDetailsWindow : Window
         public DesktopApiClient.RepoSubmissionDto Src { get; set; } = null!;
         public long Id => Src.Id;
         public string CreatedAt => Src.CreatedAt;
-        public string VehicleNo => Src.VehicleNo;
-        public string VehicleOrChassis => !string.IsNullOrWhiteSpace(Src.VehicleNo) ? Src.VehicleNo : Src.ChassisNo;
-        public string CustomerName => Src.CustomerName;
-        public string FinanceName => Src.FinanceName;
-        public string BranchName => Src.BranchName;
-        public string LoanNo => Src.LoanNo;
-        public string AgentName => Src.AgentName;
-        public string ParkingYardName => Src.ParkingYardName;
-        public string AddlChargesAmount => Src.AddlChargesAmount?.ToString("0.##") ?? "";
-        public string CollectionUpdate => Src.CollectionUpdate;
-        public string Remark => Src.Remark;
+        public string VehicleOrChassis => !string.IsNullOrWhiteSpace(VehicleNo) ? VehicleNo : ChassisNo;
+
+        // Editable (app-filled) fields — edited inline in the grid, saved to the server.
+        public string VehicleNo { get; set; } = "";
+        public string ChassisNo { get; set; } = "";
+        public string CustomerName { get; set; } = "";
+        public string FinanceName { get; set; } = "";
+        public string BranchName { get; set; } = "";
+        public string LoanNo { get; set; } = "";
+        public string AgentName { get; set; } = "";
+        public string ParkingYardName { get; set; } = "";
+        public string AddlChargesAmount { get; set; } = "";
+        public string CollectionUpdate { get; set; } = "";
+        public string Remark { get; set; } = "";
+
         public string ActionText => Src.BillingAction switch
         {
             "immediate"       => "OK for billing",
@@ -39,6 +43,16 @@ public partial class ViewAllDetailsWindow : Window
             _                 => Src.BillingAction
         };
         public string StatusText => Src.BillStatus == "billed" ? "Billed" : "Pending";
+
+        public static Row From(DesktopApiClient.RepoSubmissionDto d) => new()
+        {
+            Src = d,
+            VehicleNo = d.VehicleNo, ChassisNo = d.ChassisNo,
+            CustomerName = d.CustomerName, FinanceName = d.FinanceName, BranchName = d.BranchName,
+            LoanNo = d.LoanNo, AgentName = d.AgentName, ParkingYardName = d.ParkingYardName,
+            AddlChargesAmount = d.AddlChargesAmount?.ToString("0.##") ?? "",
+            CollectionUpdate = d.CollectionUpdate, Remark = d.Remark
+        };
     }
 
     public ViewAllDetailsWindow(BillingPage parent, BillingSession? session, List<int> financeIds)
@@ -74,7 +88,7 @@ public partial class ViewAllDetailsWindow : Window
             };
             if (actionFilter != null) data = data.Where(d => d.BillingAction == actionFilter).ToList();
 
-            _rows = data.Select(d => new Row { Src = d }).ToList();
+            _rows = data.Select(Row.From).ToList();
             grid.ItemsSource = _rows;
             txtStatus.Text = $"{_rows.Count} record(s).";
         }
@@ -116,6 +130,30 @@ public partial class ViewAllDetailsWindow : Window
             $"{veh}  •  {row.Src.CustomerName}") { Owner = this };
 
         if (w.ShowDialog() == true) await LoadAsync();
+    }
+
+    // Inline editing of the app-filled fields; saves the edited row to the server.
+    private async void grid_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
+    {
+        if (e.EditAction != DataGridEditAction.Commit) return;
+        if (e.Row.Item is not Row r) return;
+        await Dispatcher.BeginInvoke(new Action(async () =>
+        {
+            try
+            {
+                decimal? addl = decimal.TryParse((r.AddlChargesAmount ?? "").Trim(),
+                    System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var a)
+                    ? a : (decimal?)null;
+                await DesktopApiClient.UpdateSubmissionFieldsAsync(r.Id, new
+                {
+                    r.CustomerName, r.FinanceName, r.BranchName, r.LoanNo, r.AgentName,
+                    r.ParkingYardName, r.VehicleNo, r.ChassisNo, r.CollectionUpdate, r.Remark,
+                    AddlChargesAmount = addl
+                });
+                txtStatus.Text = "Saved.";
+            }
+            catch (Exception ex) { txtStatus.Text = "Save failed: " + ex.Message; }
+        }), System.Windows.Threading.DispatcherPriority.Background);
     }
 
     private readonly VehicleSearchRepository _search = new();
