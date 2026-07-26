@@ -328,8 +328,8 @@ public partial class MainWindow : Window
             var u = App.SignedAppUser;
             if (u == null || !u.IsAgency) return;
 
-            // Refresh the logo/name from the server so a change made elsewhere
-            // (portal or Server Settings) shows here without re-logging in.
+            // Refresh name/mobile/address/logo from the server so a change made
+            // elsewhere (portal or Server Settings) shows here without re-login.
             var logoPath = u.LogoPath;
             try
             {
@@ -338,6 +338,9 @@ public partial class MainWindow : Window
                 {
                     if (!string.IsNullOrWhiteSpace(p.LogoPath)) { logoPath = p.LogoPath; u.LogoPath = p.LogoPath; }
                     if (!string.IsNullOrWhiteSpace(p.Name)) u.AgencyName = p.Name;
+                    if (p.Mobile1 != null) u.Mobile1 = p.Mobile1;
+                    if (p.Address != null) u.Address = p.Address;
+                    RefreshFirmLabels();
                 }
             }
             catch { }
