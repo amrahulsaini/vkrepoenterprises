@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using Microsoft.Win32;
 using CRMRSDesktopApp.Data;
 
@@ -57,12 +58,20 @@ public partial class CouriersPage : Page
             => string.Join(", ", parts.Where(p => !string.IsNullOrWhiteSpace(p)).Select(p => p!.Trim()));
     }
 
+    private bool _ready;
+
     public CouriersPage()
     {
         InitializeComponent();
         dpFrom.SelectedDate = DateTime.Today.AddDays(-30);
         dpTo.SelectedDate = DateTime.Today;
-        Loaded += async (_, __) => await LoadAsync();
+        Loaded += async (_, __) => { _ready = true; await LoadAsync(); };
+    }
+
+    // Instant filtering — no Load button; any filter/date change reloads.
+    private async void Filter_Changed(object sender, SelectionChangedEventArgs e)
+    {
+        if (_ready) await LoadAsync();
     }
 
     private async System.Threading.Tasks.Task LoadAsync()
@@ -127,16 +136,106 @@ public partial class CouriersPage : Page
             btnDownloadBill.IsEnabled = !string.IsNullOrWhiteSpace(r.Src.BillUrl);
         }
         else pnlBilled.Visibility = System.Windows.Visibility.Collapsed;
+
+        _suppressCalc = true;
+        txtBillingStatus.Text = "Status: " + r.ActionText;
+        txtGross.Text = r.Src.TotalGross?.ToString("0.##") ?? "";
+        txtPercent.Text = r.Src.CourierPercent?.ToString("0.##") ?? "";
         txtRepoCharges.Text = r.Src.RepoCharges?.ToString("0.##") ?? "";
         txtAdvance.Text = r.Src.Advance?.ToString("0.##") ?? "";
         cmbCourier.SelectedIndex = string.Equals(r.Src.CourierYn, "Yes", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
         txtBankerAddress.Text = r.Src.BankerAddress;
         txtPod.Text = r.Src.PodNumber;
+        _suppressCalc = false;
+
+        ConfigureForStatus(r.Src.BillingAction);
+        UpdateFinal();
+        LoadScreenshot(r.Src.ScreenshotUrl);
 
         pnlForm.IsEnabled = true;
         btnSubmit.IsEnabled = true;
         btnClear.IsEnabled = true;
         txtFormStatus.Text = "";
+    }
+
+    private bool _suppressCalc;
+
+    /// Percentage only applies to "OK for billing" (gross × %). Hold-for-collection
+    /// disables charge entry entirely; Collection-done allows manual repo charges.
+    private void ConfigureForStatus(string action)
+    {
+        bool ok   = action == "immediate";
+        bool done = action == "collection_done";
+        bool chargesEditable = ok || done;
+
+        lblPercent.Visibility = ok ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
+        txtPercent.Visibility = ok ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
+
+        txtPercent.IsReadOnly     = !ok;
+        txtRepoCharges.IsReadOnly = !chargesEditable;
+        txtAdvance.IsReadOnly     = !chargesEditable;
+
+        var disabled = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFrom("#F0F0F0")!;
+        txtRepoCharges.Background = chargesEditable ? System.Windows.Media.Brushes.White : disabled;
+        txtAdvance.Background     = chargesEditable ? System.Windows.Media.Brushes.White : disabled;
+    }
+
+    private void Calc_Changed(object sender, TextChangedEventArgs e)
+    {
+        if (_suppressCalc) return;
+        if (ReferenceEquals(sender, txtPercent))
+        {
+            var gross = ParseAmt(txtGross.Text);
+            var pct   = ParseAmt(txtPercent.Text);
+            if (gross.HasValue && pct.HasValue)
+            {
+                _suppressCalc = true;
+                txtRepoCharges.Text = (gross.Value * pct.Value / 100m).ToString("0.##");
+                _suppressCalc = false;
+            }
+        }
+        UpdateFinal();
+    }
+
+    private void UpdateFinal()
+    {
+        var repo = ParseAmt(txtRepoCharges.Text) ?? 0m;
+        var adv  = ParseAmt(txtAdvance.Text) ?? 0m;
+        txtFinal.Text = (repo - adv).ToString("0.##");
+    }
+
+    private string? _screenshotUrl;
+    private async void LoadScreenshot(string? url)
+    {
+        _screenshotUrl = url;
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            lblScreenshot.Visibility = System.Windows.Visibility.Collapsed;
+            pnlScreenshot.Visibility = System.Windows.Visibility.Collapsed;
+            imgScreenshot.Source = null;
+            return;
+        }
+        lblScreenshot.Visibility = System.Windows.Visibility.Visible;
+        pnlScreenshot.Visibility = System.Windows.Visibility.Visible;
+        try
+        {
+            var bytes = await App.HttpClient.GetByteArrayAsync(url);
+            using var ms = new MemoryStream(bytes);
+            var bmp = new System.Windows.Media.Imaging.BitmapImage();
+            bmp.BeginInit();
+            bmp.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
+            bmp.StreamSource = ms;
+            bmp.EndInit();
+            bmp.Freeze();
+            imgScreenshot.Source = bmp;
+        }
+        catch { imgScreenshot.Source = null; }
+    }
+
+    private void imgScreenshot_Click(object sender, MouseButtonEventArgs e)
+    {
+        if (string.IsNullOrWhiteSpace(_screenshotUrl)) return;
+        try { Process.Start(new ProcessStartInfo(_screenshotUrl) { UseShellExecute = true }); } catch { }
     }
 
     private void btnDetails_Click(object sender, RoutedEventArgs e)
@@ -241,7 +340,8 @@ public partial class CouriersPage : Page
             Advance = ParseAmt(txtAdvance.Text),
             CourierYn = courier,
             BankerAddress = txtBankerAddress.Text.Trim(),
-            PodNumber = txtPod.Text.Trim()
+            PodNumber = txtPod.Text.Trim(),
+            CourierPercent = ParseAmt(txtPercent.Text)
         }, "Saved.");
     }
 

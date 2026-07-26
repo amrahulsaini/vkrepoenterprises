@@ -38,11 +38,11 @@
 
             <WrapPanel DockPanel.Dock="Top" Margin="0,0,0,10">
                 <TextBlock Text="From" VerticalAlignment="Center" Foreground="#666" Margin="0,0,6,0" />
-                <DatePicker Name="dpFrom" Width="130" Margin="0,0,14,0" />
+                <DatePicker Name="dpFrom" Width="130" Margin="0,0,14,0" SelectedDateChanged="Filter_Changed" />
                 <TextBlock Text="To" VerticalAlignment="Center" Foreground="#666" Margin="0,0,6,0" />
-                <DatePicker Name="dpTo" Width="130" Margin="0,0,14,0" />
+                <DatePicker Name="dpTo" Width="130" Margin="0,0,14,0" SelectedDateChanged="Filter_Changed" />
                 <TextBlock Text="Billing" VerticalAlignment="Center" Foreground="#666" Margin="0,0,6,0" />
-                <ComboBox Name="cmbAction" Width="150" Margin="0,0,14,0" SelectedIndex="0">
+                <ComboBox Name="cmbAction" Width="150" Margin="0,0,14,0" SelectedIndex="0" SelectionChanged="Filter_Changed">
                     <ComboBoxItem Content="All" />
                     <ComboBoxItem Content="OK for billing" />
                     <ComboBoxItem Content="Hold for collection" />
@@ -50,8 +50,6 @@
                     <ComboBoxItem Content="Cancel" />
                     <ComboBoxItem Content="Billing Done" />
                 </ComboBox>
-                <Button Name="btnLoad" Content="Load" Width="90" Height="30" FontWeight="Bold"
-                        Background="#1565C0" Foreground="White" BorderThickness="0" Cursor="Hand" Click="btnLoad_Click" />
                 <TextBlock Name="txtStatus" VerticalAlignment="Center" Foreground="#888" FontSize="12" Margin="14,0,0,0" />
             </WrapPanel>
 
@@ -126,11 +124,25 @@
 
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Name="pnlForm" IsEnabled="False">
+                        <Border Name="pnlStatus" Background="#EEF3FB" CornerRadius="6" Padding="10,6" Margin="0,0,0,10">
+                            <TextBlock Name="txtBillingStatus" Text="" FontSize="13" FontWeight="Bold"
+                                       Foreground="{StaticResource Accent}" TextWrapping="Wrap" />
+                        </Border>
+
+                        <TextBlock Text="Total Gross (from billing)" Foreground="#666" FontSize="12" Margin="0,0,0,3" />
+                        <TextBox Name="txtGross" Style="{StaticResource Fld}" IsReadOnly="True" Background="#F5F5F5" />
+
+                        <TextBlock Name="lblPercent" Text="Percentage (%) of gross" Foreground="#666" FontSize="12" Margin="0,0,0,3" />
+                        <TextBox Name="txtPercent" Style="{StaticResource Fld}" TextChanged="Calc_Changed" />
+
                         <TextBlock Text="Repo Charges" Foreground="#666" FontSize="12" Margin="0,0,0,3" />
-                        <TextBox Name="txtRepoCharges" Style="{StaticResource Fld}" />
+                        <TextBox Name="txtRepoCharges" Style="{StaticResource Fld}" TextChanged="Calc_Changed" />
 
                         <TextBlock Text="Advance" Foreground="#666" FontSize="12" Margin="0,0,0,3" />
-                        <TextBox Name="txtAdvance" Style="{StaticResource Fld}" />
+                        <TextBox Name="txtAdvance" Style="{StaticResource Fld}" TextChanged="Calc_Changed" />
+
+                        <TextBlock Text="Final Amount (Repo Charges − Advance)" Foreground="#666" FontSize="12" Margin="0,0,0,3" />
+                        <TextBox Name="txtFinal" Style="{StaticResource Fld}" IsReadOnly="True" Background="#F5F5F5" FontWeight="Bold" />
 
                         <TextBlock Text="Courier" Foreground="#666" FontSize="12" Margin="0,0,0,3" />
                         <ComboBox Name="cmbCourier" Height="32" Margin="0,0,0,10" SelectedIndex="0">
@@ -145,6 +157,11 @@
 
                         <TextBlock Text="POD Number" Foreground="#666" FontSize="12" Margin="0,0,0,3" />
                         <TextBox Name="txtPod" Style="{StaticResource Fld}" />
+
+                        <TextBlock Name="lblScreenshot" Text="Payment Screenshot" Foreground="#666" FontSize="12" Margin="0,8,0,3" Visibility="Collapsed" />
+                        <Border Name="pnlScreenshot" Visibility="Collapsed" BorderBrush="#E0E0E0" BorderThickness="1" CornerRadius="6" Padding="4" Margin="0,0,0,10">
+                            <Image Name="imgScreenshot" MaxHeight="180" Stretch="Uniform" Cursor="Hand" MouseLeftButtonUp="imgScreenshot_Click" />
+                        </Border>
                     </StackPanel>
                 </ScrollViewer>
             </DockPanel>
