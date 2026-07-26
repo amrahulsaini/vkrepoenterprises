@@ -256,7 +256,8 @@ public record RepoSubmitRequest(
     string?  BillingAction,
     string?  HoldUntil,
     int?     HoldDays,
-    string?  SubmittedByName);
+    string?  SubmittedByName,
+    string?  PaymentScreenshotB64 = null);
 
 public record RepoTaskItem(
     long     Id,

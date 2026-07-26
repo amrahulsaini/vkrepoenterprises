@@ -2,7 +2,10 @@ package com.vkenterprises.crmrs.ui.screens
 
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -14,6 +17,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
@@ -28,8 +32,11 @@ import com.vkenterprises.crmrs.BuildConfig
 import com.vkenterprises.crmrs.data.api.ApiClient
 import com.vkenterprises.crmrs.data.models.RepoSubmitRequest
 import com.vkenterprises.crmrs.data.models.SearchResult
+import com.vkenterprises.crmrs.utils.compressImageToBase64
+import com.vkenterprises.crmrs.utils.createCameraImageUri
 import com.vkenterprises.crmrs.viewmodel.AuthViewModel
 import com.vkenterprises.crmrs.viewmodel.SearchViewModel
+import coil.compose.AsyncImage
 import kotlinx.coroutines.launch
 
 @OptIn(
@@ -89,6 +96,26 @@ fun OkForRepoScreen(
     var holdDate      by remember { mutableStateOf("") }
     var showHoldDatePicker by remember { mutableStateOf(false) }
 
+    // Payment screenshot — mandatory for Collection done.
+    var paymentUri by remember { mutableStateOf<Uri?>(null) }
+    var paymentB64 by remember { mutableStateOf<String?>(null) }
+    var showPaymentSource by remember { mutableStateOf(false) }
+    var paymentCameraUri  by remember { mutableStateOf<Uri?>(null) }
+    val paymentGallery = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri != null) { paymentUri = uri; paymentB64 = runCatching { compressImageToBase64(context, uri) }.getOrNull() }
+    }
+    val paymentCamera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { ok ->
+        if (ok) paymentCameraUri?.let { u -> paymentUri = u; paymentB64 = runCatching { compressImageToBase64(context, u) }.getOrNull() }
+    }
+    if (showPaymentSource) {
+        ImageSourceDialog(
+            title = "Attach payment screenshot",
+            onCamera = { showPaymentSource = false; val u = createCameraImageUri(context); paymentCameraUri = u; paymentCamera.launch(u) },
+            onGallery = { showPaymentSource = false; paymentGallery.launch("image/*") },
+            onDismiss = { showPaymentSource = false }
+        )
+    }
+
     var submitting by remember { mutableStateOf(false) }
     var errorMsg   by remember { mutableStateOf<String?>(null) }
 
@@ -131,6 +158,10 @@ fun OkForRepoScreen(
     fun submit() {
         if (submitting) return
         val rec = item ?: return
+        if (billingAction == "collection_done" && paymentB64.isNullOrBlank()) {
+            errorMsg = "Attach the payment screenshot for Collection done."
+            return
+        }
         submitting = true
         errorMsg = null
         scope.launch {
@@ -160,7 +191,8 @@ fun OkForRepoScreen(
                         billingAction     = billingAction,
                         holdUntil         = holdDate.trim().ifBlank { null },
                         holdDays          = holdDays.trim().toIntOrNull(),
-                        submittedByName   = agentNameAuth.trim().ifBlank { null }
+                        submittedByName   = agentNameAuth.trim().ifBlank { null },
+                        paymentScreenshotB64 = paymentB64
                     )
                 )
                 resp.isSuccessful
@@ -209,26 +241,6 @@ fun OkForRepoScreen(
                 }
             }
 
-            Text("Repo details", style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
-            Text("All fields are optional.", style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
-
-            Field("Agent Name", agentName, Icons.Default.Person) { agentName = it }
-            Field("Parking Yard Name", parkingYardName, Icons.Default.LocalParking) { parkingYardName = it }
-            Field("Parking Yard Mobile", parkingYardMobile, Icons.Default.Call, KeyboardType.Phone) { parkingYardMobile = it }
-            Field("Load Details", loadDetails, Icons.Default.LocalShipping) { loadDetails = it }
-            Field("Additional Charges Notes", addlNotes, Icons.Default.Notes) { addlNotes = it }
-            Field("Additional Charges Amount", addlAmount, Icons.Default.CurrencyRupee, KeyboardType.Number) { addlAmount = it }
-            Field("Confirmation By (Name)", confirmByName, Icons.Default.HowToReg) { confirmByName = it }
-            Field("Confirmation By (Mobile)", confirmByMobile, Icons.Default.Call, KeyboardType.Phone) { confirmByMobile = it }
-            Field("Executive Name", executiveName, Icons.Default.Badge) { executiveName = it }
-            Field("Collection Update", collectionUpdate, Icons.Default.Update) { collectionUpdate = it }
-            Field("Remark", remark, Icons.Default.Comment) { remark = it }
-            Field("Vehicle Location (for message)", vehicleLocation, Icons.Default.Place) { vehicleLocation = it }
-
-            HorizontalDivider(Modifier.padding(vertical = 4.dp))
-
             Text("Billing decision", style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
 
@@ -264,6 +276,49 @@ fun OkForRepoScreen(
                     }
                 }
             }
+
+            if (billingAction == "collection_done") {
+                Text("Payment screenshot *", style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                if (paymentUri != null) {
+                    AsyncImage(
+                        model = paymentUri, contentDescription = "Payment screenshot",
+                        modifier = Modifier.fillMaxWidth().height(200.dp)
+                            .clip(RoundedCornerShape(10.dp)).clickable { showPaymentSource = true }
+                    )
+                    TextButton(onClick = { showPaymentSource = true }) { Text("Change screenshot") }
+                } else {
+                    OutlinedButton(
+                        onClick = { showPaymentSource = true },
+                        modifier = Modifier.fillMaxWidth().height(52.dp),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Icon(Icons.Default.AttachFile, null, Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Attach payment screenshot")
+                    }
+                }
+            }
+
+            HorizontalDivider(Modifier.padding(vertical = 4.dp))
+
+            Text("Repo details", style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+            Text("All fields are optional.", style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+            Field("Agent Name", agentName, Icons.Default.Person) { agentName = it }
+            Field("Parking Yard Name", parkingYardName, Icons.Default.LocalParking) { parkingYardName = it }
+            Field("Parking Yard Mobile", parkingYardMobile, Icons.Default.Call, KeyboardType.Phone) { parkingYardMobile = it }
+            Field("Load Details", loadDetails, Icons.Default.LocalShipping) { loadDetails = it }
+            Field("Additional Charges Notes", addlNotes, Icons.Default.Notes) { addlNotes = it }
+            Field("Additional Charges Amount", addlAmount, Icons.Default.CurrencyRupee, KeyboardType.Number) { addlAmount = it }
+            Field("Confirmation By (Name)", confirmByName, Icons.Default.HowToReg) { confirmByName = it }
+            Field("Confirmation By (Mobile)", confirmByMobile, Icons.Default.Call, KeyboardType.Phone) { confirmByMobile = it }
+            Field("Executive Name", executiveName, Icons.Default.Badge) { executiveName = it }
+            Field("Collection Update", collectionUpdate, Icons.Default.Update) { collectionUpdate = it }
+            Field("Remark", remark, Icons.Default.Comment) { remark = it }
+            Field("Vehicle Location (for message)", vehicleLocation, Icons.Default.Place) { vehicleLocation = it }
 
             if (showHoldDatePicker) {
                 val fmt = remember { java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd") }

@@ -1471,6 +1471,10 @@ public class MobileRepository
         if (!string.IsNullOrWhiteSpace(req.HoldUntil) &&
             DateTime.TryParse(req.HoldUntil, out var hu)) holdUntil = hu.Date;
 
+        string? screenshotRel = await SaveBase64ImageAsync(
+            req.PaymentScreenshotB64, "payments",
+            $"sub_{DateTime.UtcNow:yyyyMMddHHmmssfff}.jpg");
+
         await using var cmd = new MySqlCommand(@"
             INSERT INTO repo_submissions
                 (record_id, finance_id, finance_name, branch_name,
@@ -1480,7 +1484,7 @@ public class MobileRepository
                  confirmation_by_name, confirmation_by_mobile, executive_name,
                  collection_update, remark,
                  billing_action, hold_until, hold_days, submitted_by_name, submitted_by_user_id,
-                 bill_status, billed_at)
+                 bill_status, billed_at, payment_screenshot)
             VALUES
                 (@rid, @fid, @fname, @branch,
                  @loan, @cust, @veh, @model, @chassis, @engine,
@@ -1489,7 +1493,7 @@ public class MobileRepository
                  @cbn, @cbm, @exec,
                  @colup, @rmk,
                  @action, @holdu, @holdd, @subby, @subuid,
-                 @bstatus, @battime)", conn) { CommandTimeout = 15 };
+                 @bstatus, @battime, @pscreen)", conn) { CommandTimeout = 15 };
 
         void P(string n, object? v) => cmd.Parameters.AddWithValue(n, v ?? DBNull.Value);
         P("@rid",   req.RecordId is > 0 ? req.RecordId : (object?)null);
@@ -1524,6 +1528,7 @@ public class MobileRepository
         bool autoBilled = action is "hold" or "collection_done";
         P("@bstatus", autoBilled ? "billed" : "pending");
         P("@battime", autoBilled ? (object)DateTime.Now : DBNull.Value);
+        P("@pscreen", screenshotRel);
         await cmd.ExecuteNonQueryAsync();
         return cmd.LastInsertedId;
     }
