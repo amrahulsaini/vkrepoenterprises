@@ -88,6 +88,19 @@ public partial class ViewAllDetailsWindow : Window
         if (sender is not Button b || b.Tag is not long id) return;
         var row = _rows.FirstOrDefault(r => r.Id == id);
         if (row == null) return;
+
+        // Only "OK for billing" records may be billed. Hold-for-collection and
+        // Collection-done must be switched to OK for billing first.
+        if (row.Src.BillingAction is "hold" or "collection_done")
+        {
+            MessageBox.Show(
+                "This record is \"" + row.ActionText + "\".\n\n" +
+                "Change the billing status to \"OK for billing\" first (use \"Change status\" on this row), " +
+                "then you can generate the bill.",
+                "Billing", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
         await _parent.LoadSubmission(row.Src);
         Close();
     }

@@ -1540,10 +1540,16 @@ public class MobileRepository
         }
 
         int billed = 0;
+        // Counts toward the agent's monthly demand: billed submissions (by the
+        // month billed) plus any Hold-for-collection / Collection-done ones (by
+        // the month submitted) — those two statuses also fulfil demand.
         await using (var bc = new MySqlCommand(@"
             SELECT COUNT(*) FROM repo_submissions
-             WHERE submitted_by_user_id=@id AND bill_status='billed'
-               AND billed_at IS NOT NULL AND YEAR(billed_at)=@y AND MONTH(billed_at)=@m", conn))
+             WHERE submitted_by_user_id=@id
+               AND (
+                    (bill_status='billed' AND billed_at IS NOT NULL AND YEAR(billed_at)=@y AND MONTH(billed_at)=@m)
+                 OR (billing_action IN ('hold','collection_done') AND YEAR(created_at)=@y AND MONTH(created_at)=@m)
+               )", conn))
         {
             bc.Parameters.AddWithValue("@id", userId);
             bc.Parameters.AddWithValue("@y", year);
