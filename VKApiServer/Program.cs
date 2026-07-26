@@ -2491,12 +2491,14 @@ app.MapPost("/api/mgr/billing/submissions/{id:long}/billed", async (HttpContext 
             @"UPDATE repo_submissions
                  SET bill_status='billed', billed_at=NOW(), billed_by_member_id=@mid,
                      invoice_no=COALESCE(@inv, invoice_no),
-                     bill_file=COALESCE(@bf, bill_file)
+                     bill_file=COALESCE(@bf, bill_file),
+                     total_gross=COALESCE(@tg, total_gross)
                WHERE id=@id",
             conn, 20,
             ("@mid", dto.MemberId),
             ("@inv", (object?)dto.InvoiceNo ?? DBNull.Value),
             ("@bf", (object?)billRel ?? DBNull.Value),
+            ("@tg", (object?)dto.TotalGross ?? DBNull.Value),
             ("@id", id));
         return Results.Ok(new { success = true });
     }
@@ -4273,7 +4275,7 @@ record MgrBillingMemberDto(
     string Username, string? Password, bool IsActive, List<int>? FinanceIds);
 record MgrMemberLoginDto(string Username, string Password);
 record MgrSetMemberFinancesDto(List<int> FinanceIds);
-record MgrMarkBilledDto(long MemberId, string? InvoiceNo = null, string? BillBase64 = null, string? BillExt = null);
+record MgrMarkBilledDto(long MemberId, string? InvoiceNo = null, string? BillBase64 = null, string? BillExt = null, decimal? TotalGross = null);
 
 record MgrCourierUpdateDto(decimal? RepoCharges, decimal? Advance, string? CourierYn,
     string? BankerAddress, string? PodNumber, string? BillingAction);

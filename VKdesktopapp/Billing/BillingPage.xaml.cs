@@ -433,7 +433,7 @@ public partial class BillingPage : Page
                     catch { }
                     await DesktopApiClient.MarkSubmissionBilledAsync(
                         _currentSubmissionId, _session?.MemberId ?? 0,
-                        txtInvoiceNo.Text.Trim(), billB64, ext);
+                        txtInvoiceNo.Text.Trim(), billB64, ext, ParseAmt(txtTotalAmount.Text));
                 }
                 catch { }
                 _currentSubmissionId = 0;
