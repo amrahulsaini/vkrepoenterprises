@@ -104,12 +104,21 @@
                                        HorizontalAlignment="Center" />
                         </StackPanel>
                     </Button>
-                    <Button Name="btnCourier" Style="{StaticResource ModeTile}" Click="btnCourier_Click">
+                    <Button Name="btnCourier" Style="{StaticResource ModeTile}" Margin="0,0,16,0" Click="btnCourier_Click">
                         <StackPanel>
                             <TextBlock Text="&#x1F4E6;" FontSize="34" HorizontalAlignment="Center" />
                             <TextBlock Text="Couriers" FontSize="16" FontWeight="Bold" Foreground="{StaticResource Gray900}"
                                        HorizontalAlignment="Center" Margin="0,8,0,2" />
                             <TextBlock Text="Courier updates" FontSize="11" Foreground="{StaticResource Gray600}"
+                                       HorizontalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+                    <Button Name="btnAccounts" Style="{StaticResource ModeTile}" Click="btnAccounts_Click">
+                        <StackPanel>
+                            <TextBlock Text="&#x1F4B0;" FontSize="34" HorizontalAlignment="Center" />
+                            <TextBlock Text="Accounts" FontSize="16" FontWeight="Bold" Foreground="{StaticResource Gray900}"
+                                       HorizontalAlignment="Center" Margin="0,8,0,2" />
+                            <TextBlock Text="Charges &amp; totals" FontSize="11" Foreground="{StaticResource Gray600}"
                                        HorizontalAlignment="Center" />
                         </StackPanel>
                     </Button>

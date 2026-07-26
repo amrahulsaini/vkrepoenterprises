@@ -2349,6 +2349,7 @@ app.MapPost("/api/mgr/settings/verify-gate", async (HttpContext ctx, MgrVerifyGa
             "superadmin" => "superadmin_desktop_password",
             "courier"    => "courier_desktop_password",
             "allocation" => "allocation_password",
+            "accounts"   => "accounts_desktop_password",
             _            => null
         };
         if (key == null) return Results.BadRequest(new { message = "Unknown gate." });
@@ -2401,6 +2402,7 @@ app.MapGet("/api/mgr/settings/gate-stamp", async (HttpContext ctx, string? gate)
             "superadmin" => "superadmin_desktop_password",
             "courier"    => "courier_desktop_password",
             "allocation" => "allocation_password",
+            "accounts"   => "accounts_desktop_password",
             _            => null
         };
         if (key == null) return Results.BadRequest(new { message = "Unknown gate." });
