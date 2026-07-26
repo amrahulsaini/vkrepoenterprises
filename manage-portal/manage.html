@@ -38,6 +38,9 @@
   .fin-opt .fn { font-weight:600; font-size:14px; }
   .fin-opt .fe { color:var(--text-muted); font-size:12.5px; }
   .fin-opt.dis { opacity:.5; cursor:not-allowed; }
+  .fld-label { display:block; font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--text-muted); font-weight:700; margin-bottom:5px; }
+  .ed-extra-row { display:flex; gap:8px; margin-bottom:8px; }
+  .ed-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px 20px; margin-top:16px; }
 </style>
 </head>
 <body>
@@ -74,6 +77,48 @@
             </div>
           </div>
           <div class="ag-meta" id="ag-meta"></div>
+        </div>
+
+        <div class="card mt-3">
+          <div>
+            <h2 style="margin:0; font-size:20px;">Agency details</h2>
+            <p class="text-muted" style="margin:4px 0 0; font-size:14px;">
+              Edit the name, address, contact numbers and logo. These show on the mobile app's Agency panel and update instantly.
+            </p>
+          </div>
+
+          <div class="ed-grid">
+            <div><label class="fld-label">Agency name</label><input class="input" id="ed-name" maxlength="120"></div>
+            <div><label class="fld-label">Address</label><input class="input" id="ed-address" maxlength="300"></div>
+            <div><label class="fld-label">Primary mobile</label><input class="input" id="ed-mobile1" type="tel" maxlength="15"></div>
+            <div><label class="fld-label">Secondary mobile</label><input class="input" id="ed-mobile2" type="tel" maxlength="15"></div>
+          </div>
+
+          <div style="margin-top:16px;">
+            <div class="flex items-center justify-between">
+              <label class="fld-label" style="margin:0;">Extra contact numbers</label>
+              <button type="button" class="btn btn-outline btn-sm" id="ed-add-extra">+ Add number</button>
+            </div>
+            <div id="ed-extras" style="margin-top:10px;"></div>
+          </div>
+
+          <div style="display:flex; align-items:center; gap:14px; margin-top:18px; flex-wrap:wrap;">
+            <img id="ed-logo-preview" src="/assets/crmrs-logo.webp" alt="logo"
+                 style="width:64px; height:64px; object-fit:contain; border:1px solid var(--border); border-radius:10px; background:#fff; padding:5px;">
+            <div>
+              <label class="fld-label">Agency logo</label>
+              <input type="file" id="ed-logo-file" accept="image/*" style="display:block; font-size:13px; margin-top:2px;">
+              <div style="margin-top:8px;">
+                <button type="button" class="btn btn-outline btn-sm" id="ed-logo-upload">Upload new logo</button>
+                <span id="ed-logo-msg" class="text-muted" style="font-size:12px; margin-left:8px;"></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex items-center" style="gap:12px; margin-top:20px;">
+            <button class="btn btn-primary" id="ed-save">Save details</button>
+            <span id="ed-msg" style="font-size:13px;"></span>
+          </div>
         </div>
 
         <div class="card mt-3">
@@ -219,6 +264,8 @@
       $('#make-integration-btn').disabled = true;
       $('#make-integration-btn').title = 'Approve the agency first — head offices exist only after approval.';
     }
+
+    initEdit();
   }
 
   $('#make-integration-btn').addEventListener('click', openIntegration);
@@ -246,6 +293,74 @@
     } finally {
       btn.disabled = false;
     }
+  });
+
+  // ── Agency details editing (name/address/mobiles/logo) ──────────────────
+  function addEdExtra(val = '') {
+    const row = document.createElement('div');
+    row.className = 'ed-extra-row';
+    row.innerHTML = '<input class="input" type="tel" maxlength="15" placeholder="Extra mobile number" value="'
+      + escapeHtml(val) + '" style="flex:1;">'
+      + '<button type="button" class="btn btn-outline btn-sm" data-rm>✕</button>';
+    row.querySelector('[data-rm]').addEventListener('click', () => row.remove());
+    $('#ed-extras').appendChild(row);
+  }
+
+  $('#ed-add-extra').addEventListener('click', () => {
+    if ($('#ed-extras').querySelectorAll('.ed-extra-row').length >= 20) { toast('Maximum 20 extra numbers', 'info'); return; }
+    addEdExtra();
+  });
+
+  async function initEdit() {
+    try {
+      const a = await api('/manage/agency/' + agency.id);
+      $('#ed-name').value = a.name || '';
+      $('#ed-address').value = a.address || '';
+      $('#ed-mobile1').value = a.mobile1 || '';
+      $('#ed-mobile2').value = a.mobile2 || '';
+      $('#ed-extras').innerHTML = '';
+      (a.extras || []).forEach(e => addEdExtra(e));
+      $('#ed-logo-preview').src = logoSrc(a.logoPath);
+    } catch (_) { /* keep fields blank on failure */ }
+  }
+
+  $('#ed-save').addEventListener('click', async () => {
+    const btn = $('#ed-save'), msg = $('#ed-msg');
+    const name = $('#ed-name').value.trim();
+    const mobile1 = $('#ed-mobile1').value.trim();
+    const bad = t => { msg.style.color = '#c62828'; msg.textContent = t; };
+    if (name.length < 2) return bad('Agency name is required.');
+    if (!mobile1) return bad('Primary mobile is required.');
+    const extras = Array.from($('#ed-extras').querySelectorAll('input')).map(i => i.value.trim()).filter(Boolean);
+    btn.disabled = true; msg.style.color = '#666'; msg.textContent = 'Saving…';
+    try {
+      await api('/manage/agency/' + agency.id, { method: 'POST', body: {
+        name, address: $('#ed-address').value.trim(), mobile1,
+        mobile2: $('#ed-mobile2').value.trim(), extras,
+      }});
+      agency.name = name; $('#ag-name').textContent = name;
+      msg.style.color = '#2e7d32'; msg.textContent = 'Saved. These now show on the mobile app.';
+    } catch (e) {
+      bad(e.message || 'Save failed');
+    } finally { btn.disabled = false; }
+  });
+
+  $('#ed-logo-upload').addEventListener('click', async () => {
+    const file = $('#ed-logo-file').files[0];
+    const msg = $('#ed-logo-msg');
+    if (!file) { msg.textContent = 'Choose an image first.'; return; }
+    const btn = $('#ed-logo-upload'); btn.disabled = true; msg.textContent = 'Uploading…';
+    try {
+      const blob = await compressImage(file, 512, 0.9);
+      const fd = new FormData(); fd.append('logo', blob, 'logo.jpg');
+      const r = await api('/manage/agency/' + agency.id + '/logo', { method: 'POST', body: fd });
+      const src = logoSrc(r.logoPath) + '?t=' + Date.now();
+      $('#ed-logo-preview').src = src; $('#ag-logo').src = src;
+      agency.logoPath = r.logoPath;
+      msg.textContent = 'Logo updated.'; toast('Logo updated', 'success');
+    } catch (e) {
+      msg.textContent = e.message || 'Upload failed';
+    } finally { btn.disabled = false; }
   });
 
   let assignMap = {};
