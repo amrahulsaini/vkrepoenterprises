@@ -353,12 +353,15 @@ CREATE TABLE `vehicle_records` (
   `toss` varchar(100) DEFAULT NULL,
   `remark` text DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT current_timestamp(),
+  `completeness` tinyint(3) unsigned GENERATED ALWAYS AS ((nullif(trim(`vehicle_no`),'') is not null) + (nullif(trim(`chassis_no`),'') is not null) + (nullif(trim(`engine_no`),'') is not null) + (nullif(trim(`model`),'') is not null) + (nullif(trim(`agreement_no`),'') is not null) + (nullif(trim(`customer_name`),'') is not null) + (nullif(trim(`customer_contact`),'') is not null) + (nullif(trim(`customer_address`),'') is not null) + (nullif(trim(`owner_name`),'') is not null) + (nullif(trim(`mobile_no`),'') is not null) + (nullif(trim(`region`),'') is not null) + (nullif(trim(`area`),'') is not null) + (nullif(trim(`bucket`),'') is not null) + (nullif(trim(`gv`),'') is not null) + (nullif(trim(`od`),'') is not null) + (nullif(trim(`seasoning`),'') is not null) + (nullif(trim(`tbr_flag`),'') is not null) + (nullif(trim(`sec9_available`),'') is not null) + (nullif(trim(`sec17_available`),'') is not null) + (nullif(trim(`level1`),'') is not null) + (nullif(trim(`level1_contact`),'') is not null) + (nullif(trim(`level2`),'') is not null) + (nullif(trim(`level2_contact`),'') is not null) + (nullif(trim(`level3`),'') is not null) + (nullif(trim(`level3_contact`),'') is not null) + (nullif(trim(`level4`),'') is not null) + (nullif(trim(`level4_contact`),'') is not null) + (nullif(trim(`sender_mail1`),'') is not null) + (nullif(trim(`sender_mail2`),'') is not null) + (nullif(trim(`executive_name`),'') is not null) + (nullif(trim(`pos`),'') is not null) + (nullif(trim(`toss`),'') is not null) + (nullif(trim(`remark`),'') is not null)) STORED,
   `upload_id` int(10) unsigned DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `idx_branch` (`branch_id`),
   KEY `idx_vehicle_no` (`vehicle_no`),
   KEY `idx_chassis_no` (`chassis_no`),
   KEY `idx_vr_branch_id` (`branch_id`),
+  KEY `idx_vehicle_best` (`vehicle_no`,`completeness`,`id`),
+  KEY `idx_chassis_best` (`chassis_no`,`completeness`,`id`),
   CONSTRAINT `fk_vehicle_branch` FOREIGN KEY (`branch_id`) REFERENCES `branches` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -582,6 +585,7 @@ DROP TABLE IF EXISTS `billing_settings`;
 CREATE TABLE `billing_settings` (
   `finance_id`        INT          NOT NULL DEFAULT 0,
   `agency_name`       VARCHAR(255) NULL,
+  `vendor_code`       VARCHAR(128) NULL,
   `header_address`    VARCHAR(512) NULL,
   `header_contact`    VARCHAR(255) NULL,
   `header_email`      VARCHAR(255) NULL,
@@ -597,6 +601,12 @@ CREATE TABLE `billing_settings` (
   `logo_path`         VARCHAR(512) NULL,
   `letterhead_path`   VARCHAR(512) NULL,
   `background_path`   VARCHAR(512) NULL,
+  `sign_cert_path`     VARCHAR(512) NULL,
+  `sign_cert_password` VARCHAR(255) NULL,
+  `signer_name`        VARCHAR(255) NULL,
+  `signer_reason`      VARCHAR(255) NULL,
+  `signer_location`    VARCHAR(255) NULL,
+  `last_invoice_no`    INT          NOT NULL DEFAULT 0,
   `updated_at`        TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`finance_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
@@ -624,7 +634,15 @@ CREATE TABLE IF NOT EXISTS `repo_submissions` (
   `executive_name`         VARCHAR(255)    NULL,
   `collection_update`      VARCHAR(512)    NULL,
   `remark`                 VARCHAR(512)    NULL,
-  `billing_action`         ENUM('immediate','hold','cancel') NOT NULL DEFAULT 'immediate',
+  `repo_charges`           DECIMAL(12,2)   NULL,
+  `advance`                DECIMAL(12,2)   NULL,
+  `courier_yn`             VARCHAR(3)      NULL,
+  `banker_address`         TEXT            NULL,
+  `pod_number`             VARCHAR(128)    NULL,
+  `invoice_no`             VARCHAR(64)     NULL,
+  `bill_file`              VARCHAR(255)    NULL,
+  `courier_updated_at`     DATETIME        NULL,
+  `billing_action`         ENUM('immediate','hold','collection_done','cancel') NOT NULL DEFAULT 'immediate',
   `hold_until`             DATE            NULL,
   `hold_days`              INT             NULL,
   `bill_status`            ENUM('pending','billed') NOT NULL DEFAULT 'pending',
@@ -637,7 +655,18 @@ CREATE TABLE IF NOT EXISTS `repo_submissions` (
   KEY `idx_repo_finance` (`finance_id`),
   KEY `idx_repo_created` (`created_at`),
   KEY `idx_repo_action`  (`billing_action`),
-  KEY `idx_repo_status`  (`bill_status`)
+  KEY `idx_repo_status`  (`bill_status`),
+  KEY `idx_repo_submitter` (`submitted_by_user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- Per-user monthly demand/target numbers shown in the billing dashboard.
+CREATE TABLE IF NOT EXISTS `user_billing_targets` (
+  `user_id` BIGINT   NOT NULL,
+  `year`    SMALLINT NOT NULL,
+  `month`   TINYINT  NOT NULL,
+  `demand`  INT      NULL,
+  `target`  INT      NULL,
+  PRIMARY KEY (`user_id`,`year`,`month`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 CREATE TABLE IF NOT EXISTS `billing_members` (
