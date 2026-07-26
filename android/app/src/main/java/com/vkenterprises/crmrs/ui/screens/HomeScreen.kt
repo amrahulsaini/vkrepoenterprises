@@ -36,6 +36,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
 import androidx.core.content.ContextCompat
 import androidx.compose.ui.text.font.Font
@@ -62,7 +64,7 @@ private val RobotoFamily = FontFamily(
     Font(R.font.roboto_black, FontWeight.Black)
 )
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class, ExperimentalComposeUiApi::class)
 @Composable
 fun HomeScreen(
     searchVm: SearchViewModel,
@@ -79,8 +81,16 @@ fun HomeScreen(
     val agencyLogo  by authVm.agencyLogo.collectAsState(initial = null)
     val subEnd      by authVm.subscriptionEnd.collectAsState(initial = null)
 
-    BackHandler(enabled = ui.results.isNotEmpty() || ui.inputText.isNotEmpty()) {
-        searchVm.clearResults()
+    val imeVisible = WindowInsets.isImeVisible
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val focusManager = LocalFocusManager.current
+    BackHandler(enabled = imeVisible || ui.results.isNotEmpty() || ui.inputText.isNotEmpty()) {
+        if (imeVisible) {
+            focusManager.clearFocus()
+            keyboardController?.hide()
+        } else {
+            searchVm.clearResults()
+        }
     }
     val agencyLogoUrl = agencyLogo
         ?.takeIf { it.isNotBlank() }
