@@ -214,6 +214,7 @@ public partial class MainWindow : Window
             case "Billing": LoadPage(new Billing.BillingLoginPage()); break;
             case "Allocations": _ = OpenAllocationsAsync(); break;
             case "Couriers": _ = OpenCouriersAsync(); break;
+            case "Accounts": _ = OpenAccountsAsync(); break;
         }
     }
 
@@ -237,6 +238,28 @@ public partial class MainWindow : Window
             return;
         }
         LoadPage(new Couriers.CouriersPage());
+    }
+
+    private async Task OpenAccountsAsync()
+    {
+        var prompt = new Billing.PasswordPromptWindow("Accounts") { Owner = this };
+        if (prompt.ShowDialog() != true) return;
+
+        DesktopApiClient.GateVerifyResult result;
+        try { result = await DesktopApiClient.VerifyGateAsync("accounts", prompt.EnteredPassword); }
+        catch
+        {
+            MessageBox.Show("Cannot reach the server to check the password. Try again.",
+                "Accounts", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        if (!result.Ok)
+        {
+            MessageBox.Show("Wrong password.", "Accounts", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+        LoadPage(new Accounts.AccountsPage());
     }
 
     private async Task OpenAllocationsAsync()
