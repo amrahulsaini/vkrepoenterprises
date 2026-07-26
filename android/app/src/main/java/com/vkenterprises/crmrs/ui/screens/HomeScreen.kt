@@ -288,17 +288,26 @@ fun HomeScreen(
                             ),
                             modifier = Modifier.size(38.dp)
                         ) {
-                            Image(
-                                painter = painterResource(id = R.drawable.agency_logo),
-                                contentDescription = BuildConfig.AGENCY_NAME,
-                                contentScale = ContentScale.Fit,
-                                modifier = Modifier.fillMaxSize().padding(3.dp)
-                            )
+                            if (!agencyLogoUrl.isNullOrBlank()) {
+                                AsyncImage(
+                                    model = agencyLogoUrl,
+                                    contentDescription = dynAgencyName,
+                                    contentScale = ContentScale.Fit,
+                                    modifier = Modifier.fillMaxSize().padding(3.dp)
+                                )
+                            } else {
+                                Image(
+                                    painter = painterResource(id = R.drawable.agency_logo),
+                                    contentDescription = dynAgencyName,
+                                    contentScale = ContentScale.Fit,
+                                    modifier = Modifier.fillMaxSize().padding(3.dp)
+                                )
+                            }
                         }
                         Spacer(Modifier.width(10.dp))
                         Column {
                             Text(
-                                agencyName ?: "Agency",
+                                dynAgencyName,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 15.sp,
                                 maxLines = 1,

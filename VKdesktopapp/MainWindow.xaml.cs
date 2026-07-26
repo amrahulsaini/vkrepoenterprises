@@ -326,10 +326,26 @@ public partial class MainWindow : Window
         try
         {
             var u = App.SignedAppUser;
-            if (u == null || !u.IsAgency || string.IsNullOrWhiteSpace(u.LogoPath)) return;
+            if (u == null || !u.IsAgency) return;
+
+            // Refresh the logo/name from the server so a change made elsewhere
+            // (portal or Server Settings) shows here without re-logging in.
+            var logoPath = u.LogoPath;
+            try
+            {
+                var p = await DesktopApiClient.GetAgencyProfileAsync();
+                if (p != null)
+                {
+                    if (!string.IsNullOrWhiteSpace(p.LogoPath)) { logoPath = p.LogoPath; u.LogoPath = p.LogoPath; }
+                    if (!string.IsNullOrWhiteSpace(p.Name)) u.AgencyName = p.Name;
+                }
+            }
+            catch { }
+
+            if (string.IsNullOrWhiteSpace(logoPath)) return;
             if (FindName("imgAgencyLogo") is not Image img) return;
 
-            var url = App.ApiBaseUrl.TrimEnd('/') + "/" + u.LogoPath.TrimStart('/');
+            var url = App.ApiBaseUrl.TrimEnd('/') + "/" + logoPath.TrimStart('/');
             var bytes = await App.HttpClient.GetByteArrayAsync(url);
 
             using var ms = new MemoryStream(bytes);
