@@ -654,6 +654,49 @@ internal static class AgencyPortal
             return Results.Ok(new { ok = true });
         });
 
+        app.MapPost("/api/agency/manage/agency/{id:int}/logo", async (HttpContext ctx, int id, HttpRequest req) =>
+        {
+            if (!await IsManageTokenValid(masterConn, ctx))
+                return Results.Json(new { message = "Unauthorized" }, statusCode: 401);
+            if (!req.HasFormContentType)
+                return Results.BadRequest(new { message = "Expected a multipart form with a logo file." });
+
+            var form = await req.ReadFormAsync();
+            var logoFile = form.Files["logo"];
+            if (logoFile == null || logoFile.Length == 0)
+                return Results.BadRequest(new { message = "No logo file provided." });
+            if (logoFile.Length >= 5 * 1024 * 1024)
+                return Results.BadRequest(new { message = "Logo must be under 5 MB." });
+
+            await using var conn = new MySqlConnection(masterConn);
+            await conn.OpenAsync();
+
+            string? slug = null;
+            await using (var q = new MySqlCommand("SELECT slug FROM agencies WHERE id=@id LIMIT 1", conn))
+            {
+                q.Parameters.AddWithValue("@id", id);
+                slug = (await q.ExecuteScalarAsync()) as string;
+            }
+            if (string.IsNullOrEmpty(slug)) return Results.NotFound(new { message = "Agency not found" });
+
+            var ext = (Path.GetExtension(logoFile.FileName) ?? ".jpg").ToLowerInvariant();
+            if (ext.Length > 5 || !Regex.IsMatch(ext, @"^\.[a-z]+$")) ext = ".jpg";
+            Directory.CreateDirectory(LOGO_DIR);
+            var fname = $"{slug}{ext}";
+            var fpath = Path.Combine(LOGO_DIR, fname);
+            await using (var fs = File.Create(fpath))
+                await logoFile.CopyToAsync(fs);
+            var logoRel = "/agency-uploads/" + fname;
+
+            await using (var up = new MySqlCommand("UPDATE agencies SET logo_path=@l WHERE id=@id", conn))
+            {
+                up.Parameters.AddWithValue("@l", logoRel);
+                up.Parameters.AddWithValue("@id", id);
+                await up.ExecuteNonQueryAsync();
+            }
+            return Results.Ok(new { ok = true, logoPath = logoRel });
+        });
+
         app.MapPost("/api/agency/manage/agency/{id:int}/password", async (HttpContext ctx, int id, HttpRequest req) =>
         {
             if (!await IsManageTokenValid(masterConn, ctx))

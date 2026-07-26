@@ -281,6 +281,17 @@
         </div>
         <div id="manage-extras" style="margin-top:6px; max-height:240px; overflow-y:auto;"></div>
 
+        <label style="display:block; font-size:11px; font-weight:600; margin-top:14px;">AGENCY LOGO</label>
+        <div style="display:flex; align-items:center; gap:12px; margin-top:6px;">
+            <img id="manage-logo-preview" src="assets/crmrs-logo.webp" alt="logo"
+                 style="width:56px; height:56px; object-fit:contain; border:1px solid #ddd; border-radius:8px; background:#fff; padding:4px;">
+            <div style="flex:1;">
+                <input type="file" id="manage-logo-file" accept="image/*" style="font-size:12px; width:100%;">
+                <button type="button" class="btn btn-outline btn-sm" id="manage-logo-upload" style="margin-top:6px;">Upload new logo</button>
+                <div id="manage-logo-msg" class="text-muted" style="font-size:11px; margin-top:4px;"></div>
+            </div>
+        </div>
+
         <div class="otp-actions mt-2" style="margin-top:16px;">
             <span></span>
             <div style="display:flex; gap:8px;">

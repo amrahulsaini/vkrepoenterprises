@@ -324,7 +324,40 @@ const manageExtras     = document.getElementById('manage-extras');
 const manageAddExtra   = document.getElementById('manage-add-extra');
 const manageCancel     = document.getElementById('manage-cancel');
 const manageSave       = document.getElementById('manage-save');
+const manageLogoPreview = document.getElementById('manage-logo-preview');
+const manageLogoFile   = document.getElementById('manage-logo-file');
+const manageLogoUpload = document.getElementById('manage-logo-upload');
+const manageLogoMsg    = document.getElementById('manage-logo-msg');
 let managingAgencyId   = null;
+
+function logoUrlFrom(logoPath) {
+    if (!logoPath) return 'assets/crmrs-logo.webp';
+    if (/^https?:\/\//i.test(logoPath)) return logoPath;
+    return 'https://api.crmrecoverysoftware.com' + (logoPath.startsWith('/') ? '' : '/') + logoPath;
+}
+
+manageLogoUpload?.addEventListener('click', async () => {
+    if (managingAgencyId == null) return;
+    const file = manageLogoFile?.files?.[0];
+    if (!file) { manageLogoMsg.textContent = 'Choose an image first.'; return; }
+    manageLogoUpload.disabled = true;
+    manageLogoMsg.textContent = 'Uploading…';
+    try {
+        const blob = await compressImage(file, 512, 0.9);
+        const fd = new FormData();
+        fd.append('logo', blob, 'logo.jpg');
+        const r = await api(`/manage/agency/${managingAgencyId}/logo`, { method: 'POST', body: fd });
+        manageLogoPreview.src = logoUrlFrom(r.logoPath) + '?t=' + Date.now();
+        manageLogoMsg.textContent = 'Logo updated.';
+        toast('Logo updated', 'success');
+        loadList();
+    } catch (e) {
+        manageLogoMsg.textContent = e.message || 'Upload failed';
+        toast(e.message || 'Logo upload failed', 'error', 5000);
+    } finally {
+        manageLogoUpload.disabled = false;
+    }
+});
 
 function addExtraRow(value = '') {
     const row = document.createElement('div');
@@ -374,6 +407,9 @@ async function openManageModal(id) {
     manageName.value = ''; manageAddress.value = '';
     manageMobile1.value = ''; manageMobile2.value = '';
     manageExtras.innerHTML = '';
+    if (manageLogoFile) manageLogoFile.value = '';
+    if (manageLogoMsg) manageLogoMsg.textContent = '';
+    if (manageLogoPreview) manageLogoPreview.src = 'assets/crmrs-logo.webp';
     manageModal.classList.add('is-open');
     try {
         const a = await api(`/manage/agency/${id}`);
@@ -381,6 +417,7 @@ async function openManageModal(id) {
         manageAddress.value = a.address || '';
         manageMobile1.value = a.mobile1 || '';
         manageMobile2.value = a.mobile2 || '';
+        if (manageLogoPreview) manageLogoPreview.src = logoUrlFrom(a.logoPath);
         (a.extras || []).forEach(e => addExtraRow(e));
     } catch (e) {
         toast(e.message || 'Failed to load agency', 'error');

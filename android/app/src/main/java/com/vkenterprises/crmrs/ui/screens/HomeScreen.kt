@@ -92,7 +92,18 @@ fun HomeScreen(
             searchVm.clearResults()
         }
     }
-    val agencyLogoUrl = agencyLogo
+    var agencyInfo by remember { mutableStateOf<com.vkenterprises.crmrs.data.models.AgencyInfo?>(null) }
+    LaunchedEffect(Unit) {
+        runCatching { com.vkenterprises.crmrs.data.api.ApiClient.api.getAgencyInfo() }
+            .getOrNull()?.takeIf { it.isSuccessful }?.body()?.let { agencyInfo = it }
+    }
+
+    val dynAgencyName    = agencyInfo?.name?.takeIf { it.isNotBlank() } ?: BuildConfig.AGENCY_NAME
+    val dynAgencyMobile  = agencyInfo?.mobiles?.filter { it.isNotBlank() }?.takeIf { it.isNotEmpty() }
+        ?.joinToString("  •  ") ?: BuildConfig.AGENCY_MOBILE
+    val dynAgencyAddress = agencyInfo?.address?.takeIf { it.isNotBlank() } ?: BuildConfig.AGENCY_ADDRESS
+
+    val agencyLogoUrl = (agencyInfo?.logoPath?.takeIf { it.isNotBlank() } ?: agencyLogo)
         ?.takeIf { it.isNotBlank() }
         ?.let { BuildConfig.BASE_URL.trimEnd('/') + "/" + it.trimStart('/') }
     val context    = LocalContext.current
@@ -546,9 +557,9 @@ fun HomeScreen(
                 }
             } else if (ui.errorMsg == null) {
                 AgencyLandingPanel(
-                    agencyName    = BuildConfig.AGENCY_NAME,
-                    agencyMobile  = BuildConfig.AGENCY_MOBILE,
-                    agencyAddress = BuildConfig.AGENCY_ADDRESS,
+                    agencyName    = dynAgencyName,
+                    agencyMobile  = dynAgencyMobile,
+                    agencyAddress = dynAgencyAddress,
                     agencyLogoUrl = agencyLogoUrl,
                     subEndDate    = subEnd,
                     offlineCount  = ui.offlineCount,
@@ -598,12 +609,21 @@ private fun AgencyLandingPanel(
             ),
             modifier = Modifier.size(100.dp)
         ) {
-            Image(
-                painter = painterResource(id = R.drawable.agency_logo),
-                contentDescription = agencyName,
-                contentScale = ContentScale.Fit,
-                modifier = Modifier.fillMaxSize().padding(8.dp)
-            )
+            if (!agencyLogoUrl.isNullOrBlank()) {
+                AsyncImage(
+                    model = agencyLogoUrl,
+                    contentDescription = agencyName,
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier.fillMaxSize().padding(8.dp)
+                )
+            } else {
+                Image(
+                    painter = painterResource(id = R.drawable.agency_logo),
+                    contentDescription = agencyName,
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier.fillMaxSize().padding(8.dp)
+                )
+            }
         }
         Spacer(Modifier.height(14.dp))
         Text(agencyName,
