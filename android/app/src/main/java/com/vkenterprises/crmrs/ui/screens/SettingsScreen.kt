@@ -66,36 +66,6 @@ fun SettingsScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
 
-            item {
-                val bgColor    = if (isAdmin) Color(0xFF1A237E) else MaterialTheme.colorScheme.primaryContainer
-                val textColor  = if (isAdmin) Color.White else MaterialTheme.colorScheme.onPrimaryContainer
-                val roleLabel  = if (isAdmin) "Administrator" else "Agent"
-                val roleDesc   = if (isAdmin) "You are Admin" else "You are an agency user of CRMRS"
-                val roleIcon   = if (isAdmin) Icons.Default.AdminPanelSettings else Icons.Default.Person
-                Surface(
-                    color  = bgColor,
-                    shape  = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Row(
-                        Modifier.padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(14.dp)
-                    ) {
-                        Icon(roleIcon, null, tint = textColor, modifier = Modifier.size(36.dp))
-                        Column {
-                            Text(roleDesc,
-                                color = textColor,
-                                fontWeight = FontWeight.Bold,
-                                style = MaterialTheme.typography.titleSmall)
-                            Text(roleLabel,
-                                color = textColor.copy(alpha = 0.75f),
-                                style = MaterialTheme.typography.bodySmall)
-                        }
-                    }
-                }
-            }
-
             if (isAdmin) {
                 item {
                     SectionCard(title = "Admin Tools") {
@@ -323,11 +293,12 @@ fun SettingsScreen(
                                 modifier = Modifier.fillMaxSize().padding(6.dp)
                             )
                         } else {
-                            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                Text("CRMRS", fontWeight = FontWeight.Black,
-                                    fontSize = 16.sp,
-                                    color = MaterialTheme.colorScheme.primary)
-                            }
+                            Image(
+                                painter = painterResource(id = R.drawable.agency_logo),
+                                contentDescription = agencyName,
+                                contentScale = ContentScale.Fit,
+                                modifier = Modifier.fillMaxSize().padding(6.dp)
+                            )
                         }
                     }
                     if (!agencyName.isNullOrBlank())

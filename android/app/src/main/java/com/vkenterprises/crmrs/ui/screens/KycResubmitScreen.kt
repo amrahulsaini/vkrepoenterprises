@@ -42,6 +42,7 @@ import com.vkenterprises.crmrs.data.api.ApiClient
 import com.vkenterprises.crmrs.data.models.ResubmitKycRequest
 import com.vkenterprises.crmrs.navigation.Screen
 import com.vkenterprises.crmrs.utils.compressImageToBase64
+import com.vkenterprises.crmrs.utils.createCameraImageUri
 import com.vkenterprises.crmrs.utils.extractAadhaarNumber
 import com.vkenterprises.crmrs.viewmodel.AuthViewModel
 import kotlinx.coroutines.Dispatchers
@@ -52,6 +53,8 @@ import java.util.Locale
 import kotlin.coroutines.resume
 
 private val OK = Color(0xFF16A34A)
+
+private enum class KycPick { AADHAAR_FRONT, AADHAAR_BACK, PAN, SELFIE }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -154,18 +157,51 @@ fun KycResubmitScreen(vm: AuthViewModel, nav: NavController) {
     }
     LaunchedEffect(Unit) { requestLocation() }
 
-    val aadhaarFrontPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        aadhaarFrontUri = uri
-        if (uri != null) scope.launch {
-            aadhaarFrontB64 = b64(uri); ocrRunning = true
-            val num = runCatching { extractAadhaarNumber(context, uri) }.getOrNull()
-            if (!num.isNullOrBlank()) { aadhaarNumber = num; verified = false; otpRefId = null; otp = "" }
-            ocrRunning = false
+    fun applyPicked(target: KycPick, uri: Uri?) {
+        when (target) {
+            KycPick.AADHAAR_FRONT -> {
+                aadhaarFrontUri = uri
+                if (uri != null) scope.launch {
+                    aadhaarFrontB64 = b64(uri); ocrRunning = true
+                    val num = runCatching { extractAadhaarNumber(context, uri) }.getOrNull()
+                    if (!num.isNullOrBlank()) { aadhaarNumber = num; verified = false; otpRefId = null; otp = "" }
+                    ocrRunning = false
+                }
+            }
+            KycPick.AADHAAR_BACK -> { aadhaarBackUri = uri; aadhaarBackB64 = uri?.let { b64(it) } }
+            KycPick.PAN -> { panFrontUri = uri; panFrontB64 = uri?.let { b64(it) } }
+            KycPick.SELFIE -> { selfieUri = uri; selfieB64 = uri?.let { b64(it) } }
         }
     }
-    val aadhaarBackPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri -> aadhaarBackUri = uri; aadhaarBackB64 = uri?.let { b64(it) } }
-    val panFrontPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri -> panFrontUri = uri; panFrontB64 = uri?.let { b64(it) } }
-    val selfiePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri -> selfieUri = uri; selfieB64 = uri?.let { b64(it) } }
+
+    var pickTarget       by remember { mutableStateOf<KycPick?>(null) }
+    var showSourceDialog by remember { mutableStateOf(false) }
+    var cameraTargetUri  by remember { mutableStateOf<Uri?>(null) }
+
+    val galleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        pickTarget?.let { applyPicked(it, uri) }
+    }
+    val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { ok ->
+        if (ok) pickTarget?.let { applyPicked(it, cameraTargetUri) }
+    }
+
+    fun startPick(target: KycPick) { pickTarget = target; showSourceDialog = true }
+
+    if (showSourceDialog) {
+        ImageSourceDialog(
+            onCamera = {
+                showSourceDialog = false
+                val u = createCameraImageUri(context)
+                cameraTargetUri = u
+                cameraLauncher.launch(u)
+            },
+            onGallery = {
+                showSourceDialog = false
+                galleryLauncher.launch("image/*")
+            },
+            onDismiss = { showSourceDialog = false }
+        )
+    }
 
     if (done) {
         AlertDialog(
@@ -192,8 +228,8 @@ fun KycResubmitScreen(vm: AuthViewModel, nav: NavController) {
 
             RHeader("Aadhaar Verification")
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                RImageCard("Aadhaar Front", aadhaarFrontUri, Modifier.weight(1f)) { aadhaarFrontPicker.launch("image/*") }
-                RImageCard("Aadhaar Back", aadhaarBackUri, Modifier.weight(1f)) { aadhaarBackPicker.launch("image/*") }
+                RImageCard("Aadhaar Front", aadhaarFrontUri, Modifier.weight(1f)) { startPick(KycPick.AADHAAR_FRONT) }
+                RImageCard("Aadhaar Back", aadhaarBackUri, Modifier.weight(1f)) { startPick(KycPick.AADHAAR_BACK) }
             }
             OutlinedTextField(
                 value = aadhaarNumber,
@@ -263,10 +299,10 @@ fun KycResubmitScreen(vm: AuthViewModel, nav: NavController) {
             }
 
             RHeader("PAN Card")
-            RImageCard("PAN Card Front", panFrontUri, Modifier.fillMaxWidth().height(120.dp)) { panFrontPicker.launch("image/*") }
+            RImageCard("PAN Card Front", panFrontUri, Modifier.fillMaxWidth().height(120.dp)) { startPick(KycPick.PAN) }
 
             RHeader("Selfie with Aadhaar")
-            RImageCard("Selfie holding Aadhaar", selfieUri, Modifier.fillMaxWidth().height(160.dp)) { selfiePicker.launch("image/*") }
+            RImageCard("Selfie holding Aadhaar", selfieUri, Modifier.fillMaxWidth().height(160.dp)) { startPick(KycPick.SELFIE) }
 
             RHeader("Current Location")
             Surface(shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f), modifier = Modifier.fillMaxWidth()) {

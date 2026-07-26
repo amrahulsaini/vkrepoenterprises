@@ -12,6 +12,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.compose.ui.graphics.asImageBitmap
 import com.vkenterprises.crmrs.utils.compressImageToBase64
+import com.vkenterprises.crmrs.utils.createCameraImageUri
 import com.vkenterprises.crmrs.utils.extractAadhaarNumber
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
@@ -32,6 +33,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.*
 import androidx.navigation.NavController
@@ -59,6 +61,8 @@ import kotlin.coroutines.resume
 
 private val OK_GREEN = Color(0xFF16A34A)
 private val ERR_RED  = Color(0xFFDC2626)
+
+private enum class PickTarget { PFP, AADHAAR_FRONT, AADHAAR_BACK, PAN }
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -209,27 +213,54 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
         )
     }
 
-    val pfpPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        pfpUri = uri; pfpB64 = uri?.let { uriToBase64(it) }
-    }
-    val aadhaarFrontPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        aadhaarFrontUri = uri
-        if (uri != null) scope.launch {
-            aadhaarFrontB64 = uriToBase64(uri)
-            ocrRunning = true
-            val num = runCatching { extractAadhaarNumber(context, uri) }.getOrNull()
-            if (!num.isNullOrBlank()) {
-                aadhaarNumber = num
-                aadhaarVerified = false; otpRefId = null; otp = ""
+    fun applyPicked(target: PickTarget, uri: Uri?) {
+        when (target) {
+            PickTarget.PFP -> { pfpUri = uri; pfpB64 = uri?.let { uriToBase64(it) } }
+            PickTarget.AADHAAR_FRONT -> {
+                aadhaarFrontUri = uri
+                if (uri != null) scope.launch {
+                    aadhaarFrontB64 = uriToBase64(uri)
+                    ocrRunning = true
+                    val num = runCatching { extractAadhaarNumber(context, uri) }.getOrNull()
+                    if (!num.isNullOrBlank()) {
+                        aadhaarNumber = num
+                        aadhaarVerified = false; otpRefId = null; otp = ""
+                    }
+                    ocrRunning = false
+                }
             }
-            ocrRunning = false
+            PickTarget.AADHAAR_BACK -> { aadhaarBackUri = uri; aadhaarBackB64 = uri?.let { uriToBase64(it) } }
+            PickTarget.PAN -> { panFrontUri = uri; panFrontB64 = uri?.let { uriToBase64(it) } }
         }
     }
-    val aadhaarBackPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        aadhaarBackUri = uri; aadhaarBackB64 = uri?.let { uriToBase64(it) }
+
+    var pickTarget       by remember { mutableStateOf<PickTarget?>(null) }
+    var showSourceDialog by remember { mutableStateOf(false) }
+    var cameraTargetUri  by remember { mutableStateOf<Uri?>(null) }
+
+    val galleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        pickTarget?.let { applyPicked(it, uri) }
     }
-    val panFrontPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        panFrontUri = uri; panFrontB64 = uri?.let { uriToBase64(it) }
+    val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { ok ->
+        if (ok) pickTarget?.let { applyPicked(it, cameraTargetUri) }
+    }
+
+    fun startPick(target: PickTarget) { pickTarget = target; showSourceDialog = true }
+
+    if (showSourceDialog) {
+        ImageSourceDialog(
+            onCamera = {
+                showSourceDialog = false
+                val u = createCameraImageUri(context)
+                cameraTargetUri = u
+                cameraLauncher.launch(u)
+            },
+            onGallery = {
+                showSourceDialog = false
+                galleryLauncher.launch("image/*")
+            },
+            onDismiss = { showSourceDialog = false }
+        )
     }
 
     LaunchedEffect(Unit) { requestLocation() }
@@ -282,13 +313,13 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.size(88.dp).clip(CircleShape)
                             .border(2.dp, MaterialTheme.colorScheme.primary, CircleShape)
-                            .clickable { pfpPicker.launch("image/*") }
+                            .clickable { startPick(PickTarget.PFP) }
                     )
                 } else {
                     Box(
                         Modifier.size(88.dp).clip(CircleShape)
                             .background(MaterialTheme.colorScheme.primaryContainer)
-                            .clickable { pfpPicker.launch("image/*") },
+                            .clickable { startPick(PickTarget.PFP) },
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(Icons.Default.Person, null, Modifier.size(44.dp),
@@ -296,7 +327,7 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
                     }
                 }
                 SmallFloatingActionButton(
-                    onClick = { pfpPicker.launch("image/*") },
+                    onClick = { startPick(PickTarget.PFP) },
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor   = MaterialTheme.colorScheme.onPrimary,
                     modifier = Modifier.size(26.dp)
@@ -417,7 +448,7 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
                     value = name, onValueChange = { name = it },
                     label = { Text("Full Name *") },
                     leadingIcon = { Icon(Icons.Default.Person, null) },
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Next),
                     singleLine = true, modifier = Modifier.fillMaxWidth().then(it)
                 )
             }
@@ -426,7 +457,7 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
                     value = address, onValueChange = { address = it },
                     label = { Text("Address *") },
                     leadingIcon = { Icon(Icons.Default.Home, null) },
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Next),
                     maxLines = 3, modifier = Modifier.fillMaxWidth().then(it)
                 )
             }
@@ -458,13 +489,13 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
                     label = "Aadhaar Front",
                     uri = aadhaarFrontUri,
                     modifier = Modifier.weight(1f),
-                    onClick = { aadhaarFrontPicker.launch("image/*") }
+                    onClick = { startPick(PickTarget.AADHAAR_FRONT) }
                 )
                 KycImageCard(
                     label = "Aadhaar Back",
                     uri = aadhaarBackUri,
                     modifier = Modifier.weight(1f),
-                    onClick = { aadhaarBackPicker.launch("image/*") }
+                    onClick = { startPick(PickTarget.AADHAAR_BACK) }
                 )
             }
 
@@ -636,7 +667,7 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
                 label = "PAN Card Front",
                 uri = panFrontUri,
                 modifier = Modifier.fillMaxWidth().height(120.dp),
-                onClick = { panFrontPicker.launch("image/*") }
+                onClick = { startPick(PickTarget.PAN) }
             )
 
             }
