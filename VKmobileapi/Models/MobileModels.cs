@@ -316,7 +316,8 @@ public record RepoTaskEditRequest(
     string?  Remark,
     string?  BillingAction,
     string?  HoldUntil,
-    int?     HoldDays);
+    int?     HoldDays,
+    string?  PaymentScreenshotB64 = null);
 
 public record BillingSettings(
     string? AgencyName,

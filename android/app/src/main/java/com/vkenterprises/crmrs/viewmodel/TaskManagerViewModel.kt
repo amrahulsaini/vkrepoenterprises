@@ -111,7 +111,7 @@ class TaskManagerViewModel @Inject constructor(
     fun cancelEdit() = _ui.update { it.copy(editing = null) }
     fun dismissMessages() = _ui.update { it.copy(errorMsg = null, savedMsg = null) }
 
-    fun saveEdit(edited: RepoTaskItem) {
+    fun saveEdit(edited: RepoTaskItem, paymentB64: String? = null) {
         if (userId <= 0) return
         viewModelScope.launch {
             _ui.update { it.copy(saving = true, errorMsg = null) }
@@ -139,7 +139,8 @@ class TaskManagerViewModel @Inject constructor(
                         remark               = edited.remark,
                         billingAction        = edited.billingAction,
                         holdUntil            = edited.holdUntil.ifBlank { null },
-                        holdDays             = edited.holdDays.takeIf { d -> d > 0 }
+                        holdDays             = edited.holdDays.takeIf { d -> d > 0 },
+                        paymentScreenshotB64 = paymentB64
                     )
                 )
                 if (resp.isSuccessful) {
