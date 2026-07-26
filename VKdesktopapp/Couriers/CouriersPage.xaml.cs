@@ -375,6 +375,14 @@ public partial class CouriersPage : Page
             txtFormStatus.Foreground = System.Windows.Media.Brushes.Green;
             txtFormStatus.Text = okText;
             await LoadAsync();
+
+            // Keep the same record selected so it can be edited again right away.
+            var again = _rows.FirstOrDefault(x => x.Id == id);
+            if (again != null)
+            {
+                grid.SelectedItem = again;
+                grid.ScrollIntoView(again);
+            }
         }
         catch (Exception ex)
         {

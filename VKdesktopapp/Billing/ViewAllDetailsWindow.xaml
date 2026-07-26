@@ -60,7 +60,8 @@
             <TextBlock Name="txtStatus" VerticalAlignment="Center" Foreground="#888" FontSize="12" Margin="14,0,0,0" />
         </WrapPanel>
 
-        <DataGrid Grid.Row="2" Name="grid" AutoGenerateColumns="False" IsReadOnly="True"
+        <DataGrid Grid.Row="2" Name="grid" AutoGenerateColumns="False" IsReadOnly="False"
+                  CellEditEnding="grid_CellEditEnding"
                   CanUserAddRows="False" HeadersVisibility="Column" GridLinesVisibility="All"
                   RowHeaderWidth="0" SelectionMode="Single" SelectionUnit="CellOrRowHeader"
                   Background="White" BorderBrush="#E0E0E0" BorderThickness="1"
@@ -73,7 +74,7 @@
                   ScrollViewer.VerticalScrollBarVisibility="Auto"
                   ScrollViewer.CanContentScroll="True" EnableRowVirtualization="True">
             <DataGrid.Columns>
-                <DataGridTextColumn Header="Date" Binding="{Binding CreatedAt}" Width="120" MinWidth="90" ElementStyle="{StaticResource CellText}" />
+                <DataGridTextColumn Header="Date" Binding="{Binding CreatedAt}" Width="120" MinWidth="90" IsReadOnly="True" ElementStyle="{StaticResource CellText}" />
                 <DataGridTemplateColumn Header="Vehicle / VIN" Width="130" MinWidth="90">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
@@ -99,8 +100,8 @@
                 <DataGridTextColumn Header="Addl Amt" Binding="{Binding AddlChargesAmount}" Width="90" MinWidth="70" ElementStyle="{StaticResource CellText}" />
                 <DataGridTextColumn Header="Collection Update" Binding="{Binding CollectionUpdate}" Width="160" MinWidth="100" ElementStyle="{StaticResource CellText}" />
                 <DataGridTextColumn Header="Remark" Binding="{Binding Remark}" Width="160" MinWidth="100" ElementStyle="{StaticResource CellText}" />
-                <DataGridTextColumn Header="Billing" Binding="{Binding ActionText}" Width="130" MinWidth="90" ElementStyle="{StaticResource CellText}" />
-                <DataGridTextColumn Header="Status" Binding="{Binding StatusText}" Width="90" MinWidth="70" ElementStyle="{StaticResource CellText}" />
+                <DataGridTextColumn Header="Billing" Binding="{Binding ActionText}" Width="130" MinWidth="90" IsReadOnly="True" ElementStyle="{StaticResource CellText}" />
+                <DataGridTextColumn Header="Status" Binding="{Binding StatusText}" Width="90" MinWidth="70" IsReadOnly="True" ElementStyle="{StaticResource CellText}" />
                 <DataGridTemplateColumn Header="Change Billing" Width="120" MinWidth="110" CanUserResize="False">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
