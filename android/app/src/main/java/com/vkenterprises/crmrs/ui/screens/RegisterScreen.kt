@@ -64,11 +64,6 @@ private val ERR_RED  = Color(0xFFDC2626)
 
 private enum class PickTarget { PFP, AADHAAR_FRONT, AADHAAR_BACK, PAN }
 
-/** Capitalises the first letter of every word without changing length, so the
- *  displayed text is title-cased even when the keyboard ignores the
- *  KeyboardCapitalization hint. */
-private fun String.titlecaseWords(): String =
-    split(" ").joinToString(" ") { w -> w.replaceFirstChar { c -> c.uppercaseChar() } }
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -451,19 +446,19 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
 
             FocusedField(scrollState) {
                 OutlinedTextField(
-                    value = name, onValueChange = { name = it.titlecaseWords() },
+                    value = name, onValueChange = { name = it.uppercase() },
                     label = { Text("Full Name *") },
                     leadingIcon = { Icon(Icons.Default.Person, null) },
-                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Next),
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters, imeAction = ImeAction.Next),
                     singleLine = true, modifier = Modifier.fillMaxWidth().then(it)
                 )
             }
             FocusedField(scrollState) {
                 OutlinedTextField(
-                    value = address, onValueChange = { address = it.titlecaseWords() },
+                    value = address, onValueChange = { address = it.uppercase() },
                     label = { Text("Address *") },
                     leadingIcon = { Icon(Icons.Default.Home, null) },
-                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Next),
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters, imeAction = ImeAction.Next),
                     maxLines = 3, modifier = Modifier.fillMaxWidth().then(it)
                 )
             }

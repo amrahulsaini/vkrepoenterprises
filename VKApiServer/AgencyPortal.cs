@@ -671,18 +671,21 @@ internal static class AgencyPortal
             await using var conn = new MySqlConnection(masterConn);
             await conn.OpenAsync();
 
-            string? slug = null;
-            await using (var q = new MySqlCommand("SELECT slug FROM agencies WHERE id=@id LIMIT 1", conn))
+            string? slug = null, oldPath = null;
+            await using (var q = new MySqlCommand("SELECT slug, COALESCE(logo_path,'') FROM agencies WHERE id=@id LIMIT 1", conn))
             {
                 q.Parameters.AddWithValue("@id", id);
-                slug = (await q.ExecuteScalarAsync()) as string;
+                await using var rdr = await q.ExecuteReaderAsync();
+                if (await rdr.ReadAsync()) { slug = rdr.GetString(0); oldPath = rdr.GetString(1); }
             }
             if (string.IsNullOrEmpty(slug)) return Results.NotFound(new { message = "Agency not found" });
 
             var ext = (Path.GetExtension(logoFile.FileName) ?? ".jpg").ToLowerInvariant();
             if (ext.Length > 5 || !Regex.IsMatch(ext, @"^\.[a-z]+$")) ext = ".jpg";
             Directory.CreateDirectory(LOGO_DIR);
-            var fname = $"{slug}{ext}";
+            // Unique filename per upload so the URL changes — otherwise clients
+            // (and the app's Coil image cache) keep serving the old same-URL logo.
+            var fname = $"{slug}_{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}{ext}";
             var fpath = Path.Combine(LOGO_DIR, fname);
             await using (var fs = File.Create(fpath))
                 await logoFile.CopyToAsync(fs);
@@ -693,6 +696,14 @@ internal static class AgencyPortal
                 up.Parameters.AddWithValue("@l", logoRel);
                 up.Parameters.AddWithValue("@id", id);
                 await up.ExecuteNonQueryAsync();
+            }
+
+            // Best-effort removal of the previous logo file so uploads don't accumulate.
+            if (!string.IsNullOrEmpty(oldPath))
+            {
+                var oldFull = Path.Combine(LOGO_DIR, Path.GetFileName(oldPath));
+                if (oldFull != fpath && File.Exists(oldFull))
+                    try { File.Delete(oldFull); } catch { }
             }
             return Results.Ok(new { ok = true, logoPath = logoRel });
         });
