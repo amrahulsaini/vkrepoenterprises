@@ -155,13 +155,13 @@
                                         </ContextMenu>
                                     </Border.ContextMenu>
                                     <StackPanel>
-                                        <TextBlock Text="{Binding Financer}" FontWeight="Medium" FontSize="14" TextWrapping="Wrap" />
+                                        <TextBlock Text="{Binding BranchName}" FontWeight="Medium" FontSize="14" TextWrapping="Wrap" />
                                         <Grid Margin="0,4,0,0">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="*" />
                                                 <ColumnDefinition Width="Auto" />
                                             </Grid.ColumnDefinitions>
-                                            <TextBlock Grid.Column="0" Text="{Binding BranchName}" Style="{StaticResource Caption}" FontWeight="Bold" TextWrapping="Wrap" />
+                                            <TextBlock Grid.Column="0" Text="{Binding Financer}" Style="{StaticResource Caption}" FontWeight="Bold" TextWrapping="Wrap" />
                                             <TextBlock Grid.Column="1" Text="{Binding UpdatedOn}" Style="{StaticResource Caption}" />
                                         </Grid>
                                     </StackPanel>
