@@ -235,7 +235,8 @@ data class RepoSubmitRequest(
     val billingAction: String?,
     val holdUntil: String?,
     val holdDays: Int?,
-    val submittedByName: String?
+    val submittedByName: String?,
+    val paymentScreenshotB64: String? = null
 )
 
 data class BillingSettings(
