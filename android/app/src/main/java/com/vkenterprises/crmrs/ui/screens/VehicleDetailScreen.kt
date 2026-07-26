@@ -267,7 +267,7 @@ fun VehicleDetailScreen(
                 Spacer(Modifier.height(2.dp))
                 WaOptionButton("Banker for Confirmation", Color(0xFF1565C0)) {
                     openWhatsApp(context, buildBankerWaMessage(detailRecord ?: item,
-                        agentName, agentPhone, vehicleLocation, loadDetails))
+                        agentName, agentPhone, waAgencyName, vehicleLocation, loadDetails))
                     showWaSheet = false
                 }
                 WaOptionButton("OK for Repo", Color(0xFF2E7D32)) {
@@ -891,6 +891,7 @@ private fun buildLevelStr(name: String?, contact: String?): String {
 private fun buildBankerWaMessage(
     item: SearchResult,
     agentName: String, agentPhone: String,
+    agencyName: String,
     vehicleLocation: String = "",
     loadDetails: String = ""
 ): String = buildString {
@@ -921,9 +922,11 @@ private fun buildBankerWaMessage(
     levelLine("Level3", item.level3, item.level3Contact)
     appendLine()
     append("We urgently need you to confirm the status of this vehicle, whether it is to be Repo released.")
+    appendLine()
     val person = listOf(agentName.trim().uppercase(), agentPhone.trim())
         .filter { it.isNotBlank() }.joinToString(" - ")
-    if (person.isNotBlank()) append(" Repo Agency $person")
+    if (person.isNotBlank()) appendLine(person)
+    append("Agency Name: *${agencyName}*")
 }
 
 private fun buildOkRepoWaMessage(
