@@ -22,8 +22,10 @@ private object CachingDns : Dns {
     private val cache    = ConcurrentHashMap<String, Entry>()
     private val lastGood = ConcurrentHashMap<String, List<InetAddress>>()
 
-    private val seed = mapOf("api.crmrecoverysoftware.com" to "103.67.239.102")
-
+    // No hardcoded IP fallback: the domain is the single source of truth, so a
+    // server IP change is picked up automatically via DNS. If a lookup fails we
+    // reuse the last IP the domain actually resolved to (or the short cache),
+    // never a baked-in address that could point at a stale/old server.
     override fun lookup(hostname: String): List<InetAddress> {
         val now = System.currentTimeMillis()
         cache[hostname]?.let { if (it.expiry > now) return it.addrs }
@@ -35,7 +37,6 @@ private object CachingDns : Dns {
         } catch (e: java.net.UnknownHostException) {
             lastGood[hostname]?.let { return it }
             cache[hostname]?.addrs?.let { return it }
-            seed[hostname]?.let { ip -> return listOf(InetAddress.getByName(ip)) }
             throw e
         }
     }

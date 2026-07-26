@@ -49,8 +49,8 @@ android {
         applicationId = "com.crmrecoverysoftware.crmrs"
         minSdk        = 26
         targetSdk     = 36
-        versionCode   = 100
-        versionName   = "1.0.99"
+        versionCode   = 101
+        versionName   = "1.0.100"
 
         buildConfigField("String", "BASE_URL", "\"https://api.crmrecoverysoftware.com/\"")
     }
