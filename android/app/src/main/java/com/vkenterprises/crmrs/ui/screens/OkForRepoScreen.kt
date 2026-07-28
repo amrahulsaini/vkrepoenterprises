@@ -130,7 +130,13 @@ fun OkForRepoScreen(
         appendLine("Chassis No: *${up(item?.chassisNo)}*")
         appendLine("Engine No: *${up(item?.engineNo).ifBlank { "-" }}*")
         if (vehicleLocation.isNotBlank()) appendLine("Vehicle location: *${vehicleLocation.uppercase()}*")
-        appendLine("Status: *Ok for repo.*")
+        val statusLabel = when (billingAction) {
+            "hold"            -> "HOLD FOR COLLECTION"
+            "collection_done" -> "COLLECTION DONE"
+            "cancel"          -> "CANCEL"
+            else              -> "OK FOR BILLING"
+        }
+        appendLine("Status: *$statusLabel*")
         appendLine()
         val person = listOf(agentNameAuth.trim().uppercase(), agentPhoneAuth.trim())
             .filter { it.isNotBlank() }.joinToString(" - ")
@@ -390,10 +396,17 @@ private fun Field(
 ) {
     OutlinedTextField(
         value = value,
-        onValueChange = { onChange(it.uppercase()) },
+        onValueChange = onChange,
         label = { Text(label) },
         leadingIcon = { Icon(icon, null) },
-        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = keyboard),
+        // Caps via the keyboard's own mode (not a text transform) so word
+        // suggestions/predictions keep working. Number fields stay as-is.
+        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+            keyboardType = keyboard,
+            capitalization = if (keyboard == KeyboardType.Text)
+                androidx.compose.ui.text.input.KeyboardCapitalization.Characters
+            else androidx.compose.ui.text.input.KeyboardCapitalization.None
+        ),
         singleLine = true,
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(10.dp)
