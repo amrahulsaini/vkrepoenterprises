@@ -23,7 +23,7 @@
     <Grid Margin="14">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*" />
-            <ColumnDefinition Width="300" />
+            <ColumnDefinition Width="360" />
         </Grid.ColumnDefinitions>
 
         <DockPanel Grid.Column="0" Margin="0,0,14,0">
@@ -64,7 +64,6 @@
                       FontSize="12.5" RowHeight="32"
                       ScrollViewer.HorizontalScrollBarVisibility="Auto"
                       CellEditEnding="grid_CellEditEnding"
-                      MouseDoubleClick="grid_RowDoubleClick"
                       SelectionChanged="grid_SelectionChanged">
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="Repo Date" Binding="{Binding RepoDate}" Width="120" IsReadOnly="True" ElementStyle="{StaticResource CellText}" />
@@ -94,46 +93,76 @@
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>
-                    <DataGridTemplateColumn Header="Payment" Width="90">
-                        <DataGridTemplateColumn.CellTemplate>
-                            <DataTemplate>
-                                <Button Content="Enter" Padding="8,2" Margin="4" Cursor="Hand"
-                                        Tag="{Binding}" Click="Payment_Click"
-                                        ToolTip="Enter UTR / bank / payment details" />
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellTemplate>
-                    </DataGridTemplateColumn>
                 </DataGrid.Columns>
             </DataGrid>
         </DockPanel>
 
         <Border Grid.Column="1" Background="White" CornerRadius="8" BorderBrush="#E0E0E0" BorderThickness="1" Padding="14">
-            <DockPanel>
-                <TextBlock DockPanel.Dock="Top" Text="Repo Charges — per-agent summary" FontSize="15" FontWeight="Bold"
-                           Foreground="{StaticResource Accent}" Margin="0,0,0,8" />
-                <Button DockPanel.Dock="Bottom" Name="btnAgentBill" Content="Generate Agent Bill"
-                        Height="38" FontWeight="Bold" Margin="0,10,0,0" Cursor="Hand"
-                        Background="{StaticResource Accent}" Foreground="White" BorderThickness="0"
-                        Click="btnAgentBill_Click"
-                        ToolTip="Filter by an agent name, then generate a combined bill for all that agent's vehicles" />
-                <Border DockPanel.Dock="Bottom" Background="#EAF4EA" CornerRadius="6" Padding="10,8" Margin="0,10,0,0">
+            <Border.Resources>
+                <Style x:Key="PFld" TargetType="TextBox">
+                    <Setter Property="Height" Value="28" />
+                    <Setter Property="VerticalContentAlignment" Value="Center" />
+                    <Setter Property="Padding" Value="6,0" />
+                    <Setter Property="Margin" Value="0,0,0,7" />
+                </Style>
+                <Style x:Key="PLbl" TargetType="TextBlock">
+                    <Setter Property="Foreground" Value="#666" />
+                    <Setter Property="FontSize" Value="11.5" />
+                    <Setter Property="Margin" Value="0,0,0,2" />
+                </Style>
+            </Border.Resources>
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <StackPanel Grid.Row="0">
+                    <TextBlock Text="Payment / Bank Details" FontSize="15" FontWeight="Bold"
+                               Foreground="{StaticResource Accent}" />
+                    <TextBlock Name="txtPaySel" Text="Click a vehicle row to enter its payment details."
+                               FontSize="11.5" Foreground="#888" TextWrapping="Wrap" Margin="0,2,0,8" />
+                </StackPanel>
+
+                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                    <StackPanel Name="pnlPay" IsEnabled="False">
+                        <TextBlock Text="UTR No" Style="{StaticResource PLbl}" />
+                        <TextBox Name="txtUtr" Style="{StaticResource PFld}" />
+                        <TextBlock Text="Bank Name" Style="{StaticResource PLbl}" />
+                        <TextBox Name="txtBank" Style="{StaticResource PFld}" />
+                        <TextBlock Text="Account Holder Name" Style="{StaticResource PLbl}" />
+                        <TextBox Name="txtHolder" Style="{StaticResource PFld}" />
+                        <TextBlock Text="Bank Account Number" Style="{StaticResource PLbl}" />
+                        <TextBox Name="txtAccountNo" Style="{StaticResource PFld}" />
+                        <TextBlock Text="IFSC Code" Style="{StaticResource PLbl}" />
+                        <TextBox Name="txtIfsc" Style="{StaticResource PFld}" />
+                        <TextBlock Text="Date of Payment" Style="{StaticResource PLbl}" />
+                        <DatePicker Name="dpPayDate" Height="28" Margin="0,0,0,7" />
+                        <TextBlock Text="Application Charges" Style="{StaticResource PLbl}" />
+                        <TextBox Name="txtAppCharges" Style="{StaticResource PFld}" />
+                        <Button Name="btnSavePay" Content="Save Payment Details" Height="32" FontWeight="Bold"
+                                Background="{StaticResource Accent}" Foreground="White" BorderThickness="0"
+                                Cursor="Hand" Click="btnSavePay_Click" Margin="0,2,0,0" />
+                        <TextBlock Name="txtPayMsg" FontSize="11.5" Foreground="#2E7D32" Margin="0,6,0,0" TextWrapping="Wrap" />
+                    </StackPanel>
+                </ScrollViewer>
+
+                <Border Grid.Row="2" Background="#EAF4EA" CornerRadius="6" Padding="10,8" Margin="0,10,0,0">
                     <StackPanel>
                         <TextBlock Name="txtGrandVehicles" Text="Vehicles: 0" FontWeight="Bold" FontSize="13" />
                         <TextBlock Name="txtGrandRepo" Text="Total Repo: 0" FontSize="12.5" Foreground="#2E7D32" />
                         <TextBlock Name="txtGrandFinal" Text="Total Final: 0" FontSize="12.5" Foreground="#1565C0" FontWeight="Bold" />
                     </StackPanel>
                 </Border>
-                <DataGrid Name="gridSummary" AutoGenerateColumns="False" IsReadOnly="True"
-                          CanUserAddRows="False" HeadersVisibility="Column" GridLinesVisibility="Horizontal"
-                          RowHeaderWidth="0" Background="White" BorderThickness="0"
-                          ColumnHeaderStyle="{StaticResource GridHeader}" FontSize="12" RowHeight="28">
-                    <DataGrid.Columns>
-                        <DataGridTextColumn Header="Agent" Binding="{Binding Agent}" Width="*" ElementStyle="{StaticResource CellText}" />
-                        <DataGridTextColumn Header="Veh" Binding="{Binding Count}" Width="46" ElementStyle="{StaticResource CellText}" />
-                        <DataGridTextColumn Header="Repo" Binding="{Binding RepoText}" Width="80" ElementStyle="{StaticResource CellText}" />
-                    </DataGrid.Columns>
-                </DataGrid>
-            </DockPanel>
+
+                <Button Grid.Row="3" Name="btnAgentBill" Content="Generate Agent Bill"
+                        Height="38" FontWeight="Bold" Margin="0,10,0,0" Cursor="Hand"
+                        Background="{StaticResource Accent}" Foreground="White" BorderThickness="0"
+                        Click="btnAgentBill_Click"
+                        ToolTip="Search a single agent above, then generate a combined bill for all that agent's vehicles" />
+            </Grid>
         </Border>
     </Grid>
 </Page>

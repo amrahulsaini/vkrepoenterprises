@@ -122,9 +122,20 @@ public partial class AccountsPage : Page
     private void ApplyFilter()
     {
         var term = (cmbAgent.Text ?? "").Trim();
-        var rows = string.IsNullOrEmpty(term)
-            ? _all
-            : _all.Where(r => (r.AgentName ?? "").Contains(term, StringComparison.OrdinalIgnoreCase)).ToList();
+        List<AcctRow> rows;
+        if (term.Length == 0)
+        {
+            rows = _all;
+        }
+        else
+        {
+            // Prefer an exact agent match (so "J" doesn't also pull in "RAJA RAM");
+            // fall back to contains for free-text discovery.
+            var exact = _all.Where(r => string.Equals((r.AgentName ?? "").Trim(), term, StringComparison.OrdinalIgnoreCase)).ToList();
+            rows = exact.Count > 0
+                ? exact
+                : _all.Where(r => (r.AgentName ?? "").Contains(term, StringComparison.OrdinalIgnoreCase)).ToList();
+        }
 
         _shown.Clear();
         foreach (var r in rows) _shown.Add(r);
@@ -136,28 +147,9 @@ public partial class AccountsPage : Page
     private void Agent_Key(object sender, System.Windows.Input.KeyEventArgs e) { if (_ready) ApplyFilter(); }
     private void btnClearAgent_Click(object sender, RoutedEventArgs e) { cmbAgent.Text = ""; if (_ready) ApplyFilter(); }
 
-    private void grid_RowDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
-    {
-        // Let the editable amount cells edit on double-click; open payment elsewhere.
-        var col = grid.CurrentColumn?.Header?.ToString();
-        if (col is "Repo Charges" or "Advance") return;
-        if (grid.SelectedItem is AcctRow r) OpenPayment(r);
-    }
 
     private void BuildSummary(List<AcctRow> rows)
     {
-        var groups = rows
-            .GroupBy(r => string.IsNullOrWhiteSpace(r.AgentName) ? "(no agent)" : r.AgentName)
-            .Select(g => new
-            {
-                Agent = g.Key,
-                Count = g.Count(),
-                RepoText = g.Sum(x => x.RepoCharges ?? 0m).ToString("0.##")
-            })
-            .OrderByDescending(x => x.Count)
-            .ToList();
-        gridSummary.ItemsSource = groups;
-
         txtGrandVehicles.Text = $"Vehicles: {rows.Count}";
         txtGrandRepo.Text  = "Total Repo: " + rows.Sum(x => x.RepoCharges ?? 0m).ToString("0.##");
         txtGrandFinal.Text = "Total Final: " + rows.Sum(x => (x.RepoCharges ?? 0m) - (x.Advance ?? 0m)).ToString("0.##");
@@ -201,24 +193,67 @@ public partial class AccountsPage : Page
         catch (Exception ex) { txtStatus.Text = "Save failed: " + ex.Message; }
     }
 
-    private void grid_SelectionChanged(object sender, SelectionChangedEventArgs e) { }
+    private AcctRow? _selected;
+
+    private void grid_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        _selected = grid.SelectedItem as AcctRow;
+        txtPayMsg.Text = "";
+        if (_selected is not { } r)
+        {
+            pnlPay.IsEnabled = false;
+            txtPaySel.Text = "Click a vehicle row to enter its payment details.";
+            return;
+        }
+        var veh = string.IsNullOrWhiteSpace(r.VehicleNo) ? r.Src.ChassisNo : r.VehicleNo;
+        txtPaySel.Text = $"{veh}  •  {r.CustomerName}  •  Agent: {r.AgentName}";
+        txtUtr.Text        = r.Src.UtrNo;
+        txtBank.Text       = r.Src.BankName;
+        txtHolder.Text     = r.Src.AcctHolderName;
+        txtAccountNo.Text  = r.Src.BankAccountNo;
+        txtIfsc.Text       = r.Src.IfscCode;
+        txtAppCharges.Text = r.Src.ApplicationCharges?.ToString("0.##") ?? "";
+        dpPayDate.SelectedDate = DateTime.TryParse(r.Src.PaymentDate, out var d) ? d : (DateTime?)null;
+        pnlPay.IsEnabled = true;
+    }
+
+    private async void btnSavePay_Click(object sender, RoutedEventArgs e)
+    {
+        if (_selected is not { } r) return;
+        btnSavePay.IsEnabled = false;
+        txtPayMsg.Foreground = System.Windows.Media.Brushes.Gray;
+        txtPayMsg.Text = "Saving…";
+        try
+        {
+            await DesktopApiClient.UpdateAccountsPaymentAsync(r.Id, new
+            {
+                AcctHolderName = txtHolder.Text.Trim(),
+                BankName = txtBank.Text.Trim(),
+                BankAccountNo = txtAccountNo.Text.Trim(),
+                IfscCode = txtIfsc.Text.Trim(),
+                UtrNo = txtUtr.Text.Trim(),
+                PaymentDate = dpPayDate.SelectedDate?.ToString("yyyy-MM-dd"),
+                ApplicationCharges = ParseAmt(txtAppCharges.Text)
+            });
+            long keepId = r.Id;
+            await LoadAsync();
+            var again = _shown.FirstOrDefault(x => x.Id == keepId);
+            if (again != null) { grid.SelectedItem = again; grid.ScrollIntoView(again); }
+            txtPayMsg.Foreground = System.Windows.Media.Brushes.Green;
+            txtPayMsg.Text = "Saved.";
+        }
+        catch (Exception ex)
+        {
+            txtPayMsg.Foreground = System.Windows.Media.Brushes.Firebrick;
+            txtPayMsg.Text = "Save failed: " + ex.Message;
+        }
+        finally { btnSavePay.IsEnabled = true; }
+    }
 
     private void ViewScreenshot_Click(object sender, RoutedEventArgs e)
     {
         if (sender is FrameworkElement fe && fe.Tag is AcctRow r && !string.IsNullOrWhiteSpace(r.ScreenshotUrl))
             try { Process.Start(new ProcessStartInfo(r.ScreenshotUrl) { UseShellExecute = true }); } catch { }
-    }
-
-    private void Payment_Click(object sender, RoutedEventArgs e)
-    {
-        if (sender is FrameworkElement fe && fe.Tag is AcctRow r) OpenPayment(r);
-    }
-
-    private async void OpenPayment(AcctRow r)
-    {
-        var w = new PaymentDetailsWindow(r.Src) { Owner = Window.GetWindow(this) };
-        w.ShowDialog();
-        if (w.Saved) await LoadAsync();
     }
 
     private void btnAgentBill_Click(object sender, RoutedEventArgs e)
