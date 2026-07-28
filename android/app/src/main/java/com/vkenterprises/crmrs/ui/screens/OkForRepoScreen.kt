@@ -183,17 +183,17 @@ fun OkForRepoScreen(
                         chassisNo         = rec.chassisNo,
                         engineNo          = rec.engineNo,
                         branch            = rec.branchFromExcel.ifBlank { rec.branchName },
-                        agentName         = agentName.trim().ifBlank { null },
-                        parkingYardName   = parkingYardName.trim().ifBlank { null },
+                        agentName         = agentName.trim().uppercase().ifBlank { null },
+                        parkingYardName   = parkingYardName.trim().uppercase().ifBlank { null },
                         parkingYardMobile = parkingYardMobile.trim().ifBlank { null },
-                        loadDetails       = loadDetails.trim().ifBlank { null },
-                        addlChargesNotes  = addlNotes.trim().ifBlank { null },
+                        loadDetails       = loadDetails.trim().uppercase().ifBlank { null },
+                        addlChargesNotes  = addlNotes.trim().uppercase().ifBlank { null },
                         addlChargesAmount = addlAmount.trim().toDoubleOrNull(),
-                        confirmationByName   = confirmByName.trim().ifBlank { null },
+                        confirmationByName   = confirmByName.trim().uppercase().ifBlank { null },
                         confirmationByMobile = confirmByMobile.trim().ifBlank { null },
-                        executiveName     = executiveName.trim().ifBlank { null },
-                        collectionUpdate  = collectionUpdate.trim().ifBlank { null },
-                        remark            = remark.trim().ifBlank { null },
+                        executiveName     = executiveName.trim().uppercase().ifBlank { null },
+                        collectionUpdate  = collectionUpdate.trim().uppercase().ifBlank { null },
+                        remark            = remark.trim().uppercase().ifBlank { null },
                         billingAction     = billingAction,
                         holdUntil         = holdDate.trim().ifBlank { null },
                         holdDays          = holdDays.trim().toIntOrNull(),
@@ -407,6 +407,16 @@ private fun Field(
                 androidx.compose.ui.text.input.KeyboardCapitalization.Characters
             else androidx.compose.ui.text.input.KeyboardCapitalization.None
         ),
+        // Always render uppercase on screen (display only — the raw value keeps
+        // its composing region, so keyboard suggestions still show).
+        visualTransformation = if (keyboard == KeyboardType.Text)
+            androidx.compose.ui.text.input.VisualTransformation { t ->
+                androidx.compose.ui.text.input.TransformedText(
+                    androidx.compose.ui.text.AnnotatedString(t.text.uppercase()),
+                    androidx.compose.ui.text.input.OffsetMapping.Identity
+                )
+            }
+        else androidx.compose.ui.text.input.VisualTransformation.None,
         singleLine = true,
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(10.dp)
