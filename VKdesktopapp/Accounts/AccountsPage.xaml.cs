@@ -99,14 +99,29 @@ public partial class AccountsPage : Page
             }
 
             _all = data.Select(AcctRow.From).ToList();
+            RefreshAgentList();
             ApplyFilter();
         }
         catch (Exception ex) { txtStatus.Text = "Failed: " + ex.Message; }
     }
 
+    // Populate the agent dropdown with the distinct agent names, preserving what
+    // the user has typed so the search box isn't disturbed on reload.
+    private void RefreshAgentList()
+    {
+        var keep = cmbAgent.Text;
+        var names = _all.Select(r => (r.AgentName ?? "").Trim())
+            .Where(a => a.Length > 0)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(a => a, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        cmbAgent.ItemsSource = names;
+        cmbAgent.Text = keep;
+    }
+
     private void ApplyFilter()
     {
-        var term = (txtAgent.Text ?? "").Trim();
+        var term = (cmbAgent.Text ?? "").Trim();
         var rows = string.IsNullOrEmpty(term)
             ? _all
             : _all.Where(r => (r.AgentName ?? "").Contains(term, StringComparison.OrdinalIgnoreCase)).ToList();
@@ -115,6 +130,18 @@ public partial class AccountsPage : Page
         foreach (var r in rows) _shown.Add(r);
         txtStatus.Text = $"{rows.Count} record(s).";
         BuildSummary(rows);
+    }
+
+    private void Agent_Changed(object sender, SelectionChangedEventArgs e) { if (_ready) ApplyFilter(); }
+    private void Agent_Key(object sender, System.Windows.Input.KeyEventArgs e) { if (_ready) ApplyFilter(); }
+    private void btnClearAgent_Click(object sender, RoutedEventArgs e) { cmbAgent.Text = ""; if (_ready) ApplyFilter(); }
+
+    private void grid_RowDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        // Let the editable amount cells edit on double-click; open payment elsewhere.
+        var col = grid.CurrentColumn?.Header?.ToString();
+        if (col is "Repo Charges" or "Advance") return;
+        if (grid.SelectedItem is AcctRow r) OpenPayment(r);
     }
 
     private void BuildSummary(List<AcctRow> rows)
@@ -182,9 +209,13 @@ public partial class AccountsPage : Page
             try { Process.Start(new ProcessStartInfo(r.ScreenshotUrl) { UseShellExecute = true }); } catch { }
     }
 
-    private async void Payment_Click(object sender, RoutedEventArgs e)
+    private void Payment_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is not FrameworkElement fe || fe.Tag is not AcctRow r) return;
+        if (sender is FrameworkElement fe && fe.Tag is AcctRow r) OpenPayment(r);
+    }
+
+    private async void OpenPayment(AcctRow r)
+    {
         var w = new PaymentDetailsWindow(r.Src) { Owner = Window.GetWindow(this) };
         w.ShowDialog();
         if (w.Saved) await LoadAsync();

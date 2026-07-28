@@ -45,8 +45,12 @@
                     <ComboBoxItem Content="Billing Done" />
                 </ComboBox>
                 <TextBlock Text="Agent" VerticalAlignment="Center" Foreground="#666" Margin="0,0,6,0" />
-                <TextBox Name="txtAgent" Width="160" Height="26" VerticalContentAlignment="Center"
-                         Padding="6,0" TextChanged="Filter_Changed" />
+                <ComboBox Name="cmbAgent" Width="220" Height="26" IsEditable="True" IsTextSearchEnabled="True"
+                          StaysOpenOnEdit="True" VerticalContentAlignment="Center"
+                          SelectionChanged="Agent_Changed" KeyUp="Agent_Key"
+                          ToolTip="Type to search an agent, or pick from the list, then Generate Agent Bill" />
+                <Button Name="btnClearAgent" Content="✕" Width="26" Height="26" Margin="4,0,0,0"
+                        Cursor="Hand" ToolTip="Clear agent filter" Click="btnClearAgent_Click" />
                 <TextBlock Name="txtStatus" VerticalAlignment="Center" Foreground="#888" FontSize="12" Margin="14,0,0,0" />
             </WrapPanel>
 
@@ -60,6 +64,7 @@
                       FontSize="12.5" RowHeight="32"
                       ScrollViewer.HorizontalScrollBarVisibility="Auto"
                       CellEditEnding="grid_CellEditEnding"
+                      MouseDoubleClick="grid_RowDoubleClick"
                       SelectionChanged="grid_SelectionChanged">
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="Repo Date" Binding="{Binding RepoDate}" Width="120" IsReadOnly="True" ElementStyle="{StaticResource CellText}" />
