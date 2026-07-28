@@ -2242,7 +2242,9 @@ app.MapGet("/api/mgr/billing/submissions", async (HttpContext ctx, string? from,
                    billing_action, hold_until, hold_days, bill_status, billed_at,
                    submitted_by_name, created_at,
                    repo_charges, advance, courier_yn, banker_address, pod_number,
-                   invoice_no, bill_file, total_gross, courier_percent, payment_screenshot
+                   invoice_no, bill_file, total_gross, courier_percent, payment_screenshot,
+                   acct_holder_name, bank_name, bank_account_no, ifsc_code, utr_no,
+                   payment_date, application_charges
               FROM repo_submissions {whereSql}
              ORDER BY created_at DESC LIMIT 2000", conn) { CommandTimeout = 30 };
         if (DateTime.TryParse(from, out var f2)) cmd.Parameters.AddWithValue("@from", f2.Date);
@@ -2284,7 +2286,14 @@ app.MapGet("/api/mgr/billing/submissions", async (HttpContext ctx, string? from,
                 billUrl = string.IsNullOrEmpty(S(35)) ? "" : $"{billBaseUrl}/agency-uploads/{S(35)!.TrimStart('/')}",
                 totalGross = rdr.IsDBNull(36) ? (decimal?)null : rdr.GetDecimal(36),
                 courierPercent = rdr.IsDBNull(37) ? (decimal?)null : rdr.GetDecimal(37),
-                screenshotUrl = string.IsNullOrEmpty(S(38)) ? "" : $"{billBaseUrl}/uploads/{S(38)!.TrimStart('/')}"
+                screenshotUrl = string.IsNullOrEmpty(S(38)) ? "" : $"{billBaseUrl}/uploads/{S(38)!.TrimStart('/')}",
+                acctHolderName = S(39) ?? "",
+                bankName = S(40) ?? "",
+                bankAccountNo = S(41) ?? "",
+                ifscCode = S(42) ?? "",
+                utrNo = S(43) ?? "",
+                paymentDate = rdr.IsDBNull(44) ? "" : rdr.GetDateTime(44).ToString("yyyy-MM-dd"),
+                applicationCharges = rdr.IsDBNull(45) ? (decimal?)null : rdr.GetDecimal(45)
             });
         }
         return Results.Ok(list);
@@ -2575,6 +2584,37 @@ app.MapPost("/api/mgr/billing/submissions/{id:long}/fields", async (HttpContext 
         await conn.OpenAsync();
         await MgrExec($"UPDATE repo_submissions SET {string.Join(", ", sets)} WHERE id=@id",
             conn, 20, ps.ToArray());
+        return Results.Ok(new { success = true });
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+// Accounts: save the per-vehicle payment / bank details.
+app.MapPost("/api/mgr/accounts/submissions/{id:long}/payment", async (HttpContext ctx, long id, MgrPaymentDto dto) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        DateTime? pdate = null;
+        if (!string.IsNullOrWhiteSpace(dto.PaymentDate) && DateTime.TryParse(dto.PaymentDate, out var d)) pdate = d.Date;
+
+        await using var conn = new MySqlConnection(TenantContext.Conn);
+        await conn.OpenAsync();
+        await MgrExec(
+            @"UPDATE repo_submissions SET
+                 acct_holder_name=@ahn, bank_name=@bn, bank_account_no=@ban,
+                 ifsc_code=@ifsc, utr_no=@utr, payment_date=@pdate,
+                 application_charges=@appc
+               WHERE id=@id",
+            conn, 20,
+            ("@ahn", (object?)dto.AcctHolderName ?? DBNull.Value),
+            ("@bn",  (object?)dto.BankName ?? DBNull.Value),
+            ("@ban", (object?)dto.BankAccountNo ?? DBNull.Value),
+            ("@ifsc",(object?)dto.IfscCode ?? DBNull.Value),
+            ("@utr", (object?)dto.UtrNo ?? DBNull.Value),
+            ("@pdate",(object?)pdate ?? DBNull.Value),
+            ("@appc",(object?)dto.ApplicationCharges ?? DBNull.Value),
+            ("@id", id));
         return Results.Ok(new { success = true });
     }
     catch (Exception ex) { return Results.Problem(ex.Message); }
@@ -4356,6 +4396,10 @@ record MgrEditFieldsDto(
     string? LoanNo = null, string? AgentName = null, string? ParkingYardName = null,
     string? VehicleNo = null, string? ChassisNo = null, string? Model = null, string? EngineNo = null,
     string? CollectionUpdate = null, string? Remark = null, decimal? AddlChargesAmount = null);
+record MgrPaymentDto(
+    string? AcctHolderName = null, string? BankName = null, string? BankAccountNo = null,
+    string? IfscCode = null, string? UtrNo = null, string? PaymentDate = null,
+    decimal? ApplicationCharges = null);
 
 record MgrCourierUpdateDto(decimal? RepoCharges, decimal? Advance, string? CourierYn,
     string? BankerAddress, string? PodNumber, string? BillingAction, decimal? CourierPercent = null);

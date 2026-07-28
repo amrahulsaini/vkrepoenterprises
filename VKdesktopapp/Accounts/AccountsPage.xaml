@@ -89,14 +89,28 @@
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>
+                    <DataGridTemplateColumn Header="Payment" Width="90">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <Button Content="Enter" Padding="8,2" Margin="4" Cursor="Hand"
+                                        Tag="{Binding}" Click="Payment_Click"
+                                        ToolTip="Enter UTR / bank / payment details" />
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
                 </DataGrid.Columns>
             </DataGrid>
         </DockPanel>
 
         <Border Grid.Column="1" Background="White" CornerRadius="8" BorderBrush="#E0E0E0" BorderThickness="1" Padding="14">
             <DockPanel>
-                <TextBlock DockPanel.Dock="Top" Text="Per-agent summary" FontSize="15" FontWeight="Bold"
+                <TextBlock DockPanel.Dock="Top" Text="Repo Charges — per-agent summary" FontSize="15" FontWeight="Bold"
                            Foreground="{StaticResource Accent}" Margin="0,0,0,8" />
+                <Button DockPanel.Dock="Bottom" Name="btnAgentBill" Content="Generate Agent Bill"
+                        Height="38" FontWeight="Bold" Margin="0,10,0,0" Cursor="Hand"
+                        Background="{StaticResource Accent}" Foreground="White" BorderThickness="0"
+                        Click="btnAgentBill_Click"
+                        ToolTip="Filter by an agent name, then generate a combined bill for all that agent's vehicles" />
                 <Border DockPanel.Dock="Bottom" Background="#EAF4EA" CornerRadius="6" Padding="10,8" Margin="0,10,0,0">
                     <StackPanel>
                         <TextBlock Name="txtGrandVehicles" Text="Vehicles: 0" FontWeight="Bold" FontSize="13" />
