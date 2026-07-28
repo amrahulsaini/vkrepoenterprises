@@ -181,4 +181,33 @@ public partial class AccountsPage : Page
         if (sender is FrameworkElement fe && fe.Tag is AcctRow r && !string.IsNullOrWhiteSpace(r.ScreenshotUrl))
             try { Process.Start(new ProcessStartInfo(r.ScreenshotUrl) { UseShellExecute = true }); } catch { }
     }
+
+    private async void Payment_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement fe || fe.Tag is not AcctRow r) return;
+        var w = new PaymentDetailsWindow(r.Src) { Owner = Window.GetWindow(this) };
+        w.ShowDialog();
+        if (w.Saved) await LoadAsync();
+    }
+
+    private void btnAgentBill_Click(object sender, RoutedEventArgs e)
+    {
+        var rows = _shown.ToList();
+        if (rows.Count == 0) { txtStatus.Text = "No records to bill."; return; }
+
+        var agents = rows.Select(r => (r.AgentName ?? "").Trim())
+            .Where(a => a.Length > 0).Distinct().ToList();
+        if (agents.Count != 1)
+        {
+            MessageBox.Show(
+                "Filter to a single agent first (type the agent's name in the Agent box), " +
+                "then generate the bill for all that agent's vehicles.",
+                "Agent Bill", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        var w = new AgentBillWindow(agents[0], rows.Select(r => r.Src).ToList())
+        { Owner = Window.GetWindow(this) };
+        w.ShowDialog();
+    }
 }
