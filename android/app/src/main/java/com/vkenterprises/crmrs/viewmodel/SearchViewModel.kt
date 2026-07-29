@@ -18,6 +18,7 @@ enum class SearchMode { RC, CHASSIS }
 
 data class SearchUiState(
     val inputText: String             = "",
+    val prefixInput: String           = "",
     val lastQuery: String             = "",
     val mode: SearchMode              = SearchMode.RC,
     val results: List<SearchResult>   = emptyList(),
@@ -122,26 +123,28 @@ class SearchViewModel @Inject constructor(
 
     fun onInputChange(text: String, userId: Long) {
         val mode = _ui.value.mode
-        if (mode == SearchMode.CHASSIS) {
-            val capped = text.filter { it.isDigit() }.take(5)
-            _ui.update { it.copy(inputText = capped, errorMsg = null) }
-            if (capped.length == 5) {
-                searchJob?.cancel()
-                _ui.update { it.copy(inputText = "", isSearching = true, errorMsg = null) }
-                searchJob = viewModelScope.launch { delay(90); executeSearch(capped, mode, userId, "") }
-            }
-            return
-        }
-        // RC: optional leading state letters (e.g. MH) + last 4 digits.
-        val cleaned = text.uppercase().filter { it.isLetterOrDigit() }.take(12)
-        _ui.update { it.copy(inputText = cleaned, errorMsg = null) }
-        val prefix = cleaned.takeWhile { it.isLetter() }
-        val digits = cleaned.dropWhile { it.isLetter() }.filter { it.isDigit() }
-        if (digits.length == 4) {
+        val len  = if (mode == SearchMode.RC) 4 else 5
+        val capped = text.filter { it.isDigit() }.take(len)
+        _ui.update { it.copy(inputText = capped, errorMsg = null) }
+        if (capped.length == len) {
+            val prefix = if (mode == SearchMode.RC) _ui.value.prefixInput else ""
             searchJob?.cancel()
             _ui.update { it.copy(inputText = "", isSearching = true, errorMsg = null) }
-            searchJob = viewModelScope.launch { delay(90); executeSearch(digits, mode, userId, prefix) }
+            searchJob = viewModelScope.launch { delay(90); executeSearch(capped, mode, userId, prefix) }
         }
+    }
+
+    fun onPrefixChange(text: String) {
+        val p = text.uppercase().filter { it.isLetter() }.take(3)
+        _ui.update { it.copy(prefixInput = p) }
+        reFilterByPrefix(p)
+    }
+
+    private fun reFilterByPrefix(prefix: String) {
+        val s = _ui.value
+        if (s.mode != SearchMode.RC) return
+        val filtered = s.allResults.filter { it.vehicleNo.isValidRc() && matchesPrefix(it.vehicleNo, prefix) }
+        _ui.update { it.copy(results = filtered.bestPerVehicle(SearchMode.RC)) }
     }
 
     private fun matchesPrefix(vehicleNo: String, prefix: String): Boolean {
@@ -151,7 +154,7 @@ class SearchViewModel @Inject constructor(
 
     fun setMode(mode: SearchMode) {
         searchJob?.cancel()
-        _ui.update { it.copy(mode = mode, inputText = "", results = emptyList(), allResults = emptyList(), errorMsg = null) }
+        _ui.update { it.copy(mode = mode, inputText = "", prefixInput = "", results = emptyList(), allResults = emptyList(), errorMsg = null) }
     }
 
     fun selectResult(result: SearchResult) {
@@ -235,11 +238,13 @@ class SearchViewModel @Inject constructor(
                 else vehicleDao.searchByLast5(q)
             }
             val all = if (mode == SearchMode.RC)
-                local.filter { it.vehicleNo.isValidRc() && matchesPrefix(it.vehicleNo, statePrefix) }
+                local.filter { it.vehicleNo.isValidRc() }
             else
                 local
-            val full   = all.map { it.toSearchResult() }
-            val unique = full.bestPerVehicle(mode)
+            val full     = all.map { it.toSearchResult() }
+            val filtered = if (mode == SearchMode.RC)
+                full.filter { matchesPrefix(it.vehicleNo, statePrefix) } else full
+            val unique = filtered.bestPerVehicle(mode)
             _ui.update { it.copy(results = unique, allResults = full, lastQuery = q, errorMsg = null, isSearching = false) }
             return
         }
@@ -258,13 +263,15 @@ class SearchViewModel @Inject constructor(
             when (result) {
                 is SearchResult2.Success -> {
                     val full = if (mode == SearchMode.RC)
-                        result.data.filter { it.vehicleNo.isValidRc() && matchesPrefix(it.vehicleNo, statePrefix) }.sortedBy { it.vehicleNo }
+                        result.data.filter { it.vehicleNo.isValidRc() }.sortedBy { it.vehicleNo }
                     else
                         result.data.sortedBy { it.chassisNo }
+                    val filtered = if (mode == SearchMode.RC)
+                        full.filter { matchesPrefix(it.vehicleNo, statePrefix) } else full
                     val unique = if (mode == SearchMode.RC)
-                        full.distinctBy { it.vehicleNo }
+                        filtered.bestPerVehicle(mode)
                     else
-                        full.distinctBy { it.chassisNo }
+                        filtered.distinctBy { it.chassisNo }
                     it.copy(results = unique, allResults = full, lastQuery = q, errorMsg = null, isSearching = false)
                 }
                 is SearchResult2.SubscriptionExpired -> it.copy(subscriptionExpired = true, isSearching = false)
@@ -278,7 +285,7 @@ class SearchViewModel @Inject constructor(
 
     fun clearResults() {
         searchJob?.cancel()
-        _ui.update { it.copy(results = emptyList(), allResults = emptyList(), lastQuery = "", inputText = "", errorMsg = null, isSearching = false) }
+        _ui.update { it.copy(results = emptyList(), allResults = emptyList(), lastQuery = "", inputText = "", prefixInput = "", errorMsg = null, isSearching = false) }
     }
 }
 
