@@ -159,6 +159,8 @@ public partial class AgentBillWindow : Window
     {
         using var doc = new WordDocument();
         var sec = doc.AddSection();
+        // Landscape so the wider per-vehicle table (with make/model + parking yard) fits.
+        sec.PageSetup.Orientation = PageOrientation.Landscape;
         sec.PageSetup.Margins.All = 36;
         float pageW = sec.PageSetup.PageSize.Width - 72;
 
@@ -202,13 +204,13 @@ public partial class AgentBillWindow : Window
         // Vehicle table
         var t = sec.AddTable();
         int rowsN = _rows.Count + 1;
-        t.ResetCells(rowsN, 7);
+        t.ResetCells(rowsN, 9);
         t.TableFormat.Borders.BorderType = BorderStyle.Single;
         t.TableFormat.Borders.LineWidth = 0.5f;
         t.TableFormat.Borders.Color = SFColor.Black;
 
-        string[] heads = { "#", "VEHICLE NO", "REPO DATE", "PAYMENT DATE", "UTR NO", "REPO", "ADVANCE" };
-        for (int c = 0; c < 7; c++) Cell(t, 0, c, heads[c], bold: true);
+        string[] heads = { "#", "VEHICLE NO", "MAKE/MODEL", "PARKING YARD", "REPO DATE", "PAYMENT DATE", "UTR NO", "REPO", "ADVANCE" };
+        for (int c = 0; c < 9; c++) Cell(t, 0, c, heads[c], bold: true);
 
         decimal repoTot = 0m, advTot = 0m;
         for (int i = 0; i < _rows.Count; i++)
@@ -220,11 +222,13 @@ public partial class AgentBillWindow : Window
             repoTot += repo; advTot += adv;
             Cell(t, i + 1, 0, (i + 1).ToString());
             Cell(t, i + 1, 1, veh);
-            Cell(t, i + 1, 2, repoDate);
-            Cell(t, i + 1, 3, s.PaymentDate);
-            Cell(t, i + 1, 4, s.UtrNo);
-            Cell(t, i + 1, 5, repo.ToString("0.##"));
-            Cell(t, i + 1, 6, adv.ToString("0.##"));
+            Cell(t, i + 1, 2, s.Model);
+            Cell(t, i + 1, 3, s.ParkingYardName);
+            Cell(t, i + 1, 4, repoDate);
+            Cell(t, i + 1, 5, s.PaymentDate);
+            Cell(t, i + 1, 6, s.UtrNo);
+            Cell(t, i + 1, 7, repo.ToString("0.##"));
+            Cell(t, i + 1, 8, adv.ToString("0.##"));
         }
 
         sec.AddParagraph();
