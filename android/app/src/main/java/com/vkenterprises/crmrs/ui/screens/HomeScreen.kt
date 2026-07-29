@@ -423,6 +423,15 @@ fun HomeScreen(
                         focusedContainerColor   = MaterialTheme.colorScheme.surface,
                         unfocusedContainerColor = MaterialTheme.colorScheme.surface
                     )
+                    @Composable
+                    fun fadedHint(text: String) = Text(
+                        text,
+                        fontFamily = RobotoFamily,
+                        fontWeight = FontWeight.Normal,
+                        fontSize = 16.sp,
+                        letterSpacing = 1.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
+                    )
                     Row(
                         Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
@@ -431,14 +440,7 @@ fun HomeScreen(
                         OutlinedTextField(
                             value = ui.inputText,
                             onValueChange = { searchVm.onInputChange(it, userId) },
-                            placeholder = {
-                                Text(
-                                    if (ui.mode == SearchMode.RC) "1234" else "Last 5 digits",
-                                    fontFamily = RobotoFamily,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 16.sp
-                                )
-                            },
+                            placeholder = { fadedHint(if (ui.mode == SearchMode.RC) "1234" else "Last 5 digits") },
                             leadingIcon = { Icon(Icons.Default.Search, null, Modifier.size(18.dp)) },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                             singleLine = true,
@@ -451,20 +453,13 @@ fun HomeScreen(
                             OutlinedTextField(
                                 value = ui.prefixInput,
                                 onValueChange = { searchVm.onPrefixChange(it) },
-                                placeholder = {
-                                    Text(
-                                        "ABCD",
-                                        fontFamily = RobotoFamily,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 16.sp
-                                    )
-                                },
+                                placeholder = { fadedHint("ABCD") },
                                 keyboardOptions = KeyboardOptions(
                                     keyboardType = KeyboardType.Text,
                                     capitalization = KeyboardCapitalization.Characters
                                 ),
                                 singleLine = true,
-                                modifier = Modifier.width(116.dp),
+                                modifier = Modifier.width(118.dp),
                                 shape = RoundedCornerShape(8.dp),
                                 textStyle = fieldStyle,
                                 colors = fieldColors
@@ -896,9 +891,9 @@ private fun VehicleGridCell(item: SearchResult, mode: SearchMode, showHyphens: B
             fontFamily = RobotoFamily,
             fontSize = 16.sp,
             lineHeight = 18.sp,
-            maxLines = 1,
-            softWrap = false,
-            overflow = TextOverflow.Clip,
+            maxLines = if (mode == SearchMode.CHASSIS) 2 else 1,
+            softWrap = mode == SearchMode.CHASSIS,
+            overflow = if (mode == SearchMode.CHASSIS) TextOverflow.Visible else TextOverflow.Clip,
             modifier = Modifier.weight(1f),
             color = if (isInvalidRc) MaterialTheme.colorScheme.error
                     else MaterialTheme.colorScheme.onSurface
@@ -999,8 +994,9 @@ private fun VehicleListRow(item: SearchResult, mode: SearchMode, showHyphens: Bo
             style = MaterialTheme.typography.bodyLarge,
             fontWeight = FontWeight.Black,
             fontFamily = FontFamily.Default,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
+            maxLines = if (mode == SearchMode.CHASSIS) 2 else 1,
+            softWrap = mode == SearchMode.CHASSIS,
+            overflow = if (mode == SearchMode.CHASSIS) TextOverflow.Visible else TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f)
         )
         Text(

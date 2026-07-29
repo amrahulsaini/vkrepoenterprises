@@ -99,8 +99,8 @@ fun OkForRepoScreen(
 
     // Statuses already submitted for this vehicle — cannot be chosen again.
     var usedStatuses by remember(item?.id) { mutableStateOf<Set<String>>(emptySet()) }
-    LaunchedEffect(item?.id, item?.vehicleNo, item?.chassisNo) {
-        val rec = item ?: return@LaunchedEffect
+    suspend fun reloadUsedStatuses() {
+        val rec = item ?: return
         val used = runCatching {
             val r = ApiClient.api.getRepoStatuses(
                 recordId  = rec.id.takeIf { it > 0 },
@@ -115,6 +115,7 @@ fun OkForRepoScreen(
                 .firstOrNull { it !in used } ?: billingAction
         }
     }
+    LaunchedEffect(item?.id, item?.vehicleNo, item?.chassisNo) { reloadUsedStatuses() }
 
     // Payment screenshot — mandatory for Collection done.
     var paymentUri by remember { mutableStateOf<Uri?>(null) }
@@ -138,13 +139,14 @@ fun OkForRepoScreen(
 
     var submitting by remember { mutableStateOf(false) }
     var errorMsg   by remember { mutableStateOf<String?>(null) }
+    var successMsg by remember { mutableStateOf<String?>(null) }
 
     fun buildMessage(): String = buildString {
         fun up(s: String?) = s?.trim().orEmpty().uppercase()
         appendLine("*Respected sir,*")
         appendLine("Loan No: *${up(item?.agreementNo).ifBlank { "-" }}*")
         appendLine("Customer Name: *${up(item?.customerName).ifBlank { "-" }}*")
-        appendLine("Branch: *${up(item?.branchFromExcel).ifBlank { up(item?.branchName).ifBlank { "-" } }}*")
+        appendLine("Branch: *${up(item?.branchFromExcel).ifBlank { "null" }}*")
         appendLine("Vehicle No: *${up(item?.vehicleNo)}*")
         appendLine("Model/Maker: *${up(item?.model).ifBlank { "-" }}*")
         appendLine("Chassis No: *${up(item?.chassisNo)}*")
@@ -190,6 +192,7 @@ fun OkForRepoScreen(
         }
         submitting = true
         errorMsg = null
+        successMsg = null
         scope.launch {
             val ok = runCatching {
                 val resp = ApiClient.api.submitRepo(
@@ -226,7 +229,8 @@ fun OkForRepoScreen(
             submitting = false
             if (ok) {
                 sendWhatsApp()
-                nav.popBackStack()
+                successMsg = "Saved & sent to WhatsApp."
+                reloadUsedStatuses()
             } else {
                 errorMsg = "Could not save. Check your connection and try again."
             }
@@ -391,6 +395,10 @@ fun OkForRepoScreen(
 
             errorMsg?.let {
                 Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+            }
+            successMsg?.let {
+                Text(it, color = Color(0xFF2E7D32), style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold)
             }
 
             Button(
