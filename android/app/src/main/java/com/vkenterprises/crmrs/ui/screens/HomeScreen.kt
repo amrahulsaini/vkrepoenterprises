@@ -43,6 +43,7 @@ import androidx.core.content.ContextCompat
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -408,7 +409,6 @@ fun HomeScreen(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(Modifier.padding(horizontal = 10.dp, vertical = 6.dp)) {
-                    val maxLen = if (ui.mode == SearchMode.RC) 4 else 5
                     val focusRequester = remember { FocusRequester() }
                     LaunchedEffect(Unit) {
                         focusRequester.requestFocus()
@@ -418,7 +418,7 @@ fun HomeScreen(
                         onValueChange = { searchVm.onInputChange(it, userId) },
                         placeholder = {
                             Text(
-                                if (ui.mode == SearchMode.RC) "Enter last 4 digits of RC"
+                                if (ui.mode == SearchMode.RC) "State + last 4  e.g. MH2345"
                                 else "Enter last 5 digits of Chassis",
                                 fontFamily = RobotoFamily,
                                 fontWeight = FontWeight.Bold,
@@ -459,7 +459,10 @@ fun HomeScreen(
                                 }
                             }
                         },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        keyboardOptions = if (ui.mode == SearchMode.RC)
+                            KeyboardOptions(keyboardType = KeyboardType.Text, capitalization = KeyboardCapitalization.Characters)
+                        else
+                            KeyboardOptions(keyboardType = KeyboardType.Number),
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
                         shape = RoundedCornerShape(8.dp),
@@ -534,7 +537,7 @@ fun HomeScreen(
                         contentPadding = PaddingValues(0.dp)
                     ) {
                         items(reordered, key = { it.id }) { item ->
-                            VehicleGridCell(item, ui.mode) {
+                            VehicleGridCell(item, ui.mode, ui.showHyphens) {
                                 searchVm.selectResult(item)
                                 nav.navigate(Screen.VehicleDetail.route)
                             }
@@ -543,7 +546,7 @@ fun HomeScreen(
                 } else {
                     LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
                         items(ui.results, key = { it.id }) { item ->
-                            VehicleListRow(item, ui.mode) {
+                            VehicleListRow(item, ui.mode, ui.showHyphens) {
                                 searchVm.selectResult(item)
                                 nav.navigate(Screen.VehicleDetail.route)
                             }
@@ -850,9 +853,9 @@ private fun LandingTile(
 }
 
 @Composable
-private fun VehicleGridCell(item: SearchResult, mode: SearchMode, onClick: () -> Unit) {
+private fun VehicleGridCell(item: SearchResult, mode: SearchMode, showHyphens: Boolean, onClick: () -> Unit) {
     val display = when (mode) {
-        SearchMode.RC      -> item.vehicleNo.ifBlank { "—" }
+        SearchMode.RC      -> item.vehicleNo.ifBlank { "—" }.displayRc(showHyphens)
         SearchMode.CHASSIS -> item.chassisNo.ifBlank { "—" }
     }
     val isInvalidRc = mode == SearchMode.RC && item.vehicleNo.isNotBlank() && !item.vehicleNo.isValidRc()
@@ -955,9 +958,9 @@ private fun ModeTab(label: String, selected: Boolean, onClick: () -> Unit, modif
 }
 
 @Composable
-private fun VehicleListRow(item: SearchResult, mode: SearchMode, onClick: () -> Unit) {
+private fun VehicleListRow(item: SearchResult, mode: SearchMode, showHyphens: Boolean, onClick: () -> Unit) {
     val rcOrChassis = when (mode) {
-        SearchMode.RC      -> item.vehicleNo.ifBlank { "—" }
+        SearchMode.RC      -> item.vehicleNo.ifBlank { "—" }.displayRc(showHyphens)
         SearchMode.CHASSIS -> item.chassisNo.ifBlank { "—" }
     }
     val model = item.model.ifBlank { "—" }
@@ -1010,3 +1013,6 @@ private val RC_REGEX = Regex(
 )
 private fun String.isValidRc(): Boolean =
     replace(Regex("[^A-Z0-9]"), "").uppercase().matches(RC_REGEX)
+
+private fun String.displayRc(showHyphens: Boolean): String =
+    if (showHyphens) this else replace("-", "")

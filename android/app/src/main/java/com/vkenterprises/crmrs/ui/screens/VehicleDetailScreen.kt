@@ -61,6 +61,9 @@ private val RC_REGEX = Regex(
 private fun String.isValidRc(): Boolean =
     replace(Regex("[^A-Z0-9]"), "").uppercase().matches(RC_REGEX)
 
+private fun String?.displayRc(showHyphens: Boolean): String =
+    if (showHyphens) this.orEmpty() else this.orEmpty().replace("-", "")
+
 private data class BranchEntry(
     val branch: String,
     val financer: String,
@@ -358,7 +361,7 @@ fun VehicleDetailScreen(
         topBar = {
             TopAppBar(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = pageBg),
-                title = { Text(item?.vehicleNo ?: "Vehicle Detail", fontWeight = FontWeight.Bold) },
+                title = { Text(item?.vehicleNo?.displayRc(ui.showHyphens)?.ifBlank { null } ?: "Vehicle Detail", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = { nav.popBackStack() }) {
                         Icon(Icons.Default.ArrowBack, null)
@@ -500,10 +503,11 @@ fun VehicleDetailScreen(
                         showSelection     = showSelection,
                         onToggleSelection = { showSelection = !showSelection },
                         selChecked        = selChecked,
-                        onShowBranchSheet = { showBranchSheet = true }
+                        onShowBranchSheet = { showBranchSheet = true },
+                        showHyphens       = ui.showHyphens
                     )
                 } else {
-                    BasicDetailView(item = detailRecord ?: item, agentName = agentName, agentPhone = agentPhone)
+                    BasicDetailView(item = detailRecord ?: item, agentName = agentName, agentPhone = agentPhone, showHyphens = ui.showHyphens)
                 }
                 Spacer(Modifier.height(8.dp))
             }
@@ -588,7 +592,8 @@ private fun AdminDetailView(
     showSelection: Boolean,
     onToggleSelection: () -> Unit,
     selChecked: SnapshotStateMap<String, Boolean>,
-    onShowBranchSheet: () -> Unit
+    onShowBranchSheet: () -> Unit,
+    showHyphens: Boolean
 ) {
     Row(
         Modifier.fillMaxWidth().padding(bottom = 2.dp),
@@ -631,7 +636,7 @@ private fun AdminDetailView(
     Column(Modifier.fillMaxWidth()) {
         Column(Modifier.fillMaxWidth()) {
 
-            SRow("Vehicle No",   item.vehicleNo,   mono = true,
+            SRow("Vehicle No",   item.vehicleNo.displayRc(showHyphens),   mono = true,
                 invalid = !item.vehicleNo.isNullOrBlank() && !item.vehicleNo.isValidRc(),
                 sel = showSelection, chk = selChecked["Vehicle No"] == true
             ) { selChecked["Vehicle No"] = it }
@@ -732,7 +737,7 @@ private fun AdminDetailView(
 
 
 @Composable
-private fun BasicDetailView(item: SearchResult, agentName: String, agentPhone: String) {
+private fun BasicDetailView(item: SearchResult, agentName: String, agentPhone: String, showHyphens: Boolean) {
     var agencyInfo by remember { mutableStateOf<AgencyInfo?>(null) }
     LaunchedEffect(Unit) {
         runCatching {
@@ -758,7 +763,7 @@ private fun BasicDetailView(item: SearchResult, agentName: String, agentPhone: S
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary)
             HorizontalDivider(color = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f))
-            DetailRow("Vehicle No",    item.vehicleNo, alwaysShow = true, upper = true,
+            DetailRow("Vehicle No",    item.vehicleNo.displayRc(showHyphens), alwaysShow = true, upper = true,
                 invalid = item.vehicleNo.isNotBlank() && !item.vehicleNo.isValidRc())
             DetailRow("Chassis No",    item.chassisNo,    alwaysShow = true, upper = true)
             DetailRow("Engine No",     item.engineNo,     alwaysShow = true, upper = true)

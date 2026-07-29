@@ -23,6 +23,14 @@ class PreferencesManager(private val context: Context) {
         val KEY_AGENCY_SLUG    = stringPreferencesKey("agency_slug")
         val KEY_AGENCY_NAME    = stringPreferencesKey("agency_name")
         val KEY_AGENCY_LOGO    = stringPreferencesKey("agency_logo")
+        val KEY_SHOW_HYPHENS   = booleanPreferencesKey("show_hyphens")
+    }
+
+    val showHyphens: Flow<Boolean> = context.dataStore.data
+        .map { it[KEY_SHOW_HYPHENS] ?: true }
+
+    suspend fun setShowHyphens(v: Boolean) {
+        context.dataStore.edit { prefs -> prefs[KEY_SHOW_HYPHENS] = v }
     }
 
     val isLoggedIn: Flow<Boolean> = context.dataStore.data

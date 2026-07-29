@@ -8,6 +8,7 @@ import com.vkenterprises.crmrs.data.models.SearchResult
 import com.vkenterprises.crmrs.data.repository.SearchRepository
 import com.vkenterprises.crmrs.data.repository.SearchResult2
 import com.vkenterprises.crmrs.data.repository.SyncRepository
+import com.vkenterprises.crmrs.utils.PreferencesManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
@@ -39,6 +40,7 @@ data class SearchUiState(
     val syncHasUpdates: Boolean       = false,
     val syncCompleted: Boolean        = false,
     val onlineOnly: Boolean           = true,
+    val showHyphens: Boolean          = true,
     val twoColumnView: Boolean        = true,
     val actionType: String            = "confirm",
     val offlineCount: Long            = 0L
@@ -47,7 +49,8 @@ data class SearchUiState(
 @HiltViewModel
 class SearchViewModel @Inject constructor(
     private val db: TenantDb,
-    private val syncRepo: SyncRepository
+    private val syncRepo: SyncRepository,
+    private val prefs: PreferencesManager
 ) : ViewModel() {
 
     private val vehicleDao get() = db.vehicleCacheDao()
@@ -63,6 +66,9 @@ class SearchViewModel @Inject constructor(
     val requiredLen get() = if (_ui.value.mode == SearchMode.RC) 4 else 5
 
     init {
+        viewModelScope.launch {
+            prefs.showHyphens.collect { v -> _ui.update { it.copy(showHyphens = v) } }
+        }
         viewModelScope.launch(Dispatchers.IO) {
             val hasUpdates = runCatching { syncRepo.hasUpdates() }.getOrDefault(false)
             _ui.update { it.copy(syncHasUpdates = hasUpdates) }
@@ -115,18 +121,32 @@ class SearchViewModel @Inject constructor(
     }
 
     fun onInputChange(text: String, userId: Long) {
-        val capped = text.take(requiredLen)
-        _ui.update { it.copy(inputText = capped, errorMsg = null) }
-        if (capped.length == requiredLen) {
-            val q    = capped.uppercase()
-            val mode = _ui.value.mode
+        val mode = _ui.value.mode
+        if (mode == SearchMode.CHASSIS) {
+            val capped = text.filter { it.isDigit() }.take(5)
+            _ui.update { it.copy(inputText = capped, errorMsg = null) }
+            if (capped.length == 5) {
+                searchJob?.cancel()
+                _ui.update { it.copy(inputText = "", isSearching = true, errorMsg = null) }
+                searchJob = viewModelScope.launch { delay(90); executeSearch(capped, mode, userId, "") }
+            }
+            return
+        }
+        // RC: optional leading state letters (e.g. MH) + last 4 digits.
+        val cleaned = text.uppercase().filter { it.isLetterOrDigit() }.take(12)
+        _ui.update { it.copy(inputText = cleaned, errorMsg = null) }
+        val prefix = cleaned.takeWhile { it.isLetter() }
+        val digits = cleaned.dropWhile { it.isLetter() }.filter { it.isDigit() }
+        if (digits.length == 4) {
             searchJob?.cancel()
             _ui.update { it.copy(inputText = "", isSearching = true, errorMsg = null) }
-            searchJob = viewModelScope.launch {
-                delay(90)
-                executeSearch(q, mode, userId)
-            }
+            searchJob = viewModelScope.launch { delay(90); executeSearch(digits, mode, userId, prefix) }
         }
+    }
+
+    private fun matchesPrefix(vehicleNo: String, prefix: String): Boolean {
+        if (prefix.isBlank()) return true
+        return vehicleNo.filter { it.isLetterOrDigit() }.uppercase().startsWith(prefix.uppercase())
     }
 
     fun setMode(mode: SearchMode) {
@@ -161,6 +181,11 @@ class SearchViewModel @Inject constructor(
 
     fun setTwoColumnView(v: Boolean) {
         _ui.update { it.copy(twoColumnView = v) }
+    }
+
+    fun setShowHyphens(v: Boolean) {
+        _ui.update { it.copy(showHyphens = v) }
+        viewModelScope.launch { prefs.setShowHyphens(v) }
     }
 
     fun setActionType(type: String) {
@@ -201,7 +226,7 @@ class SearchViewModel @Inject constructor(
         }
     }
 
-    private suspend fun executeSearch(q: String, mode: SearchMode, userId: Long) {
+    private suspend fun executeSearch(q: String, mode: SearchMode, userId: Long, statePrefix: String = "") {
         _ui.update { it.copy(isSearching = true, errorMsg = null) }
 
         if (!_ui.value.onlineOnly) {
@@ -210,7 +235,7 @@ class SearchViewModel @Inject constructor(
                 else vehicleDao.searchByLast5(q)
             }
             val all = if (mode == SearchMode.RC)
-                local.filter { it.vehicleNo.isValidRc() }
+                local.filter { it.vehicleNo.isValidRc() && matchesPrefix(it.vehicleNo, statePrefix) }
             else
                 local
             val full   = all.map { it.toSearchResult() }
@@ -233,7 +258,7 @@ class SearchViewModel @Inject constructor(
             when (result) {
                 is SearchResult2.Success -> {
                     val full = if (mode == SearchMode.RC)
-                        result.data.filter { it.vehicleNo.isValidRc() }.sortedBy { it.vehicleNo }
+                        result.data.filter { it.vehicleNo.isValidRc() && matchesPrefix(it.vehicleNo, statePrefix) }.sortedBy { it.vehicleNo }
                     else
                         result.data.sortedBy { it.chassisNo }
                     val unique = if (mode == SearchMode.RC)
