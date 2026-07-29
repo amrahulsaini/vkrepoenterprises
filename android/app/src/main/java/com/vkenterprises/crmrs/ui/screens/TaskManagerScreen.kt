@@ -223,10 +223,11 @@ private fun TaskRow(item: RepoTaskItem, onClick: () -> Unit) {
 @Composable
 private fun StatusChip(billed: Boolean, action: String) {
     val (label, color) = when {
-        billed -> "BILLED" to Color(0xFF2E7D32)
-        action.equals("hold", true)   -> "HOLD FOR COLLECTION" to Color(0xFFF57F17)
-        action.equals("cancel", true) -> "CANCEL" to Color(0xFFC62828)
-        else -> "OK FOR BILLING" to Color(0xFF1565C0)
+        action.equals("cancel", true)          -> "CANCEL" to Color(0xFFC62828)
+        action.equals("hold", true)            -> "PENDING" to Color(0xFFF57F17)
+        action.equals("collection_done", true) -> "DONE" to Color(0xFF2E7D32)
+        billed                                  -> "DONE" to Color(0xFF2E7D32)
+        else                                    -> "PENDING" to Color(0xFFF57F17)
     }
     Surface(shape = RoundedCornerShape(6.dp), color = color.copy(alpha = 0.12f)) {
         Text(
@@ -302,7 +303,7 @@ private fun TaskEditSheet(
             Text("Edit entry", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             if (item.billStatus.equals("billed", true)) {
                 Text(
-                    "This entry is already billed. Edits will show in the billing module.",
+                    "This entry is already counted. Edits will show in the billing module.",
                     style = MaterialTheme.typography.labelSmall,
                     color = Color(0xFFF57F17)
                 )
