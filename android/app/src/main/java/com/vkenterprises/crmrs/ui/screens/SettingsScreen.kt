@@ -188,6 +188,24 @@ fun SettingsScreen(
                             onCheckedChange = { searchVm.setOnlineOnly(it) }
                         )
                     }
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                    Row(
+                        Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Text("Hyphen Vehicles", style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Medium)
+                            Text("Show RC numbers with hyphens; turn off to hide them",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Switch(
+                            checked = searchUi.showHyphens,
+                            onCheckedChange = { searchVm.setShowHyphens(it) }
+                        )
+                    }
                 }
             }
 
