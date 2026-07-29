@@ -75,7 +75,26 @@ SSH_PORT = "2719"
 SERVER_LOGOS = "/opt/vkapi/agency-uploads"
 SERVER_APPS  = "/opt/vkapi/agency-apps"
 
-ISCC = r"C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+def _find_iscc() -> str:
+    env = os.environ.get("ISCC")
+    candidates = [env] if env else []
+    candidates += [
+        r"C:\Program Files (x86)\Inno Setup 6\ISCC.exe",
+        r"C:\Program Files\Inno Setup 6\ISCC.exe",
+        str(Path(os.environ.get("LOCALAPPDATA", "")) / "Programs" / "Inno Setup 6" / "ISCC.exe"),
+        str(Path.home() / "AppData" / "Local" / "Programs" / "Inno Setup 6" / "ISCC.exe"),
+    ]
+    for c in candidates:
+        if c and Path(c).exists():
+            return c
+    found = shutil.which("ISCC")
+    if found:
+        return found
+    sys.exit("[build_wpf_all] ISCC.exe not found — install Inno Setup 6 "
+             "or set the ISCC env var to its full path.")
+
+
+ISCC = _find_iscc()
 # NOTE: max frame is 128, NOT 256. WPF's WIC .ico decoder throws
 # "The image decoder cannot decode the image" on a 256x256 PNG-compressed
 # frame, so a Window with Icon="favicon.ico" crashes at startup. Capping at
