@@ -89,6 +89,9 @@ public partial class AccountsPage : Page
             string? to   = dpTo.SelectedDate?.ToString("yyyy-MM-dd");
             var data = await DesktopApiClient.GetRepoSubmissionsAsync(from, to, new List<int>(), null);
 
+            // Only couriered records (Courier = Yes) reach Accounts.
+            data = data.Where(d => string.Equals(d.CourierYn, "Yes", StringComparison.OrdinalIgnoreCase)).ToList();
+
             if (cmbAction.SelectedIndex == 5)
                 data = data.Where(d => d.BillStatus == "billed").ToList();
             else

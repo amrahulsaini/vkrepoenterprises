@@ -139,6 +139,7 @@ public partial class CouriersPage : Page
 
         _suppressCalc = true;
         txtBillingStatus.Text = "Status: " + r.ActionText;
+        txtRemark.Text = r.Src.Remark;
         txtGross.Text = r.Src.TotalGross?.ToString("0.##") ?? "";
         txtPercent.Text = r.Src.CourierPercent?.ToString("0.##") ?? "";
         txtRepoCharges.Text = r.Src.RepoCharges?.ToString("0.##") ?? "";
