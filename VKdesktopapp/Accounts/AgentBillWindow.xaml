@@ -38,22 +38,6 @@
                     </StackPanel>
                 </Border>
 
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="12" />
-                        <ColumnDefinition Width="*" />
-                    </Grid.ColumnDefinitions>
-                    <StackPanel Grid.Column="0">
-                        <TextBlock Text="Invoice No" Style="{StaticResource Lbl}" />
-                        <TextBox Name="txtInvoiceNo" Style="{StaticResource Fld}" />
-                    </StackPanel>
-                    <StackPanel Grid.Column="2">
-                        <TextBlock Text="Invoice Date" Style="{StaticResource Lbl}" />
-                        <DatePicker Name="dpDate" Height="32" Margin="0,0,0,10" />
-                    </StackPanel>
-                </Grid>
-
                 <TextBlock Text="Application Charges (collective for this agent)" Style="{StaticResource Lbl}" />
                 <TextBox Name="txtAppCharges" Style="{StaticResource Fld}" />
 
