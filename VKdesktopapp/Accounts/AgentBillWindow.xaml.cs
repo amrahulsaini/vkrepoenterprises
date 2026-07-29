@@ -35,7 +35,6 @@ public partial class AgentBillWindow : Window
 
         txtHead.Text = "Agent Bill — " + agent.ToUpperInvariant();
         txtSub.Text = $"{rows.Count} vehicle(s) for this agent";
-        dpDate.SelectedDate = DateTime.Today;
 
         decimal repo = rows.Sum(r => r.RepoCharges ?? 0m);
         decimal adv  = rows.Sum(r => r.Advance ?? 0m);
@@ -60,8 +59,6 @@ public partial class AgentBillWindow : Window
             txtAccountNo.Text = ab.BankAccountNo;
             txtIfsc.Text      = ab.IfscCode;
             if (ab.ApplicationCharges.HasValue) txtAppCharges.Text = ab.ApplicationCharges.Value.ToString("0.##");
-            if (ab.LastInvoiceNo > 0 && string.IsNullOrWhiteSpace(txtInvoiceNo.Text))
-                txtInvoiceNo.Text = (ab.LastInvoiceNo + 1).ToString();
         }
         catch { }
     }
@@ -128,7 +125,7 @@ public partial class AgentBillWindow : Window
                 BankAccountNo = txtAccountNo.Text.Trim(),
                 IfscCode = txtIfsc.Text.Trim(),
                 ApplicationCharges = ParseAmt(txtAppCharges.Text),
-                LastInvoiceNo = int.TryParse(txtInvoiceNo.Text.Trim(), out var iv) ? iv : 0
+                LastInvoiceNo = 0
             });
         }
         catch { }
@@ -200,35 +197,34 @@ public partial class AgentBillWindow : Window
         var tr = title.AppendText($"REPOSSESSION BILL — AGENT: {_agent.ToUpperInvariant()}");
         tr.CharacterFormat.Bold = true; tr.CharacterFormat.FontSize = 13;
 
-        var infoP = sec.AddParagraph();
-        infoP.AppendText($"Invoice No: {txtInvoiceNo.Text.Trim()}      " +
-                         $"Invoice Date: {(dpDate.SelectedDate?.ToString("dd/MM/yyyy") ?? "")}");
         sec.AddParagraph();
 
         // Vehicle table
         var t = sec.AddTable();
         int rowsN = _rows.Count + 1;
-        t.ResetCells(rowsN, 6);
+        t.ResetCells(rowsN, 7);
         t.TableFormat.Borders.BorderType = BorderStyle.Single;
         t.TableFormat.Borders.LineWidth = 0.5f;
         t.TableFormat.Borders.Color = SFColor.Black;
 
-        string[] heads = { "#", "VEHICLE NO", "CUSTOMER", "UTR NO", "REPO", "ADVANCE" };
-        for (int c = 0; c < 6; c++) Cell(t, 0, c, heads[c], bold: true);
+        string[] heads = { "#", "VEHICLE NO", "REPO DATE", "PAYMENT DATE", "UTR NO", "REPO", "ADVANCE" };
+        for (int c = 0; c < 7; c++) Cell(t, 0, c, heads[c], bold: true);
 
         decimal repoTot = 0m, advTot = 0m;
         for (int i = 0; i < _rows.Count; i++)
         {
             var s = _rows[i];
             var veh = string.IsNullOrWhiteSpace(s.VehicleNo) ? s.ChassisNo : s.VehicleNo;
+            var repoDate = (s.CreatedAt ?? "").Length >= 10 ? s.CreatedAt.Substring(0, 10) : (s.CreatedAt ?? "");
             decimal repo = s.RepoCharges ?? 0m, adv = s.Advance ?? 0m;
             repoTot += repo; advTot += adv;
             Cell(t, i + 1, 0, (i + 1).ToString());
             Cell(t, i + 1, 1, veh);
-            Cell(t, i + 1, 2, s.CustomerName);
-            Cell(t, i + 1, 3, s.UtrNo);
-            Cell(t, i + 1, 4, repo.ToString("0.##"));
-            Cell(t, i + 1, 5, adv.ToString("0.##"));
+            Cell(t, i + 1, 2, repoDate);
+            Cell(t, i + 1, 3, s.PaymentDate);
+            Cell(t, i + 1, 4, s.UtrNo);
+            Cell(t, i + 1, 5, repo.ToString("0.##"));
+            Cell(t, i + 1, 6, adv.ToString("0.##"));
         }
 
         sec.AddParagraph();
