@@ -802,6 +802,21 @@ public class MobileController : ControllerBase
     {
         try
         {
+            // Single-device binding: if this request comes from a device other
+            // than the one currently bound to the user (a newer device logged
+            // in / was reset), kick this old device — report it as not found so
+            // the app treats it as a stale session and logs out.
+            var reqDevice   = Request.Headers["X-Device-Id"].ToString();
+            var boundDevice = await _repo.GetBoundDeviceIdAsync(req.UserId);
+            if (!string.IsNullOrWhiteSpace(reqDevice) && !string.IsNullOrWhiteSpace(boundDevice) &&
+                !string.Equals(reqDevice, boundDevice, StringComparison.OrdinalIgnoreCase))
+            {
+                return Ok(new {
+                    success = true, isStopped = false, isBlacklisted = false,
+                    isActive = true, found = false
+                });
+            }
+
             await _repo.HeartbeatAsync(req.UserId, req.Lat, req.Lng);
             var status = await _repo.GetUserStatusAsync(req.UserId);
             return Ok(new {
