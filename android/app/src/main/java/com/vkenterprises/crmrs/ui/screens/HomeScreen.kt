@@ -413,70 +413,93 @@ fun HomeScreen(
                     LaunchedEffect(Unit) {
                         focusRequester.requestFocus()
                     }
-                    OutlinedTextField(
-                        value = ui.inputText,
-                        onValueChange = { searchVm.onInputChange(it, userId) },
-                        placeholder = {
-                            Text(
-                                if (ui.mode == SearchMode.RC) "State + last 4  e.g. MH2345"
-                                else "Enter last 5 digits of Chassis",
-                                fontFamily = RobotoFamily,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 16.sp
-                            )
-                        },
-                        leadingIcon = { Icon(Icons.Default.Search, null, Modifier.size(18.dp)) },
-                        trailingIcon = {
-                            Surface(
-                                shape = RoundedCornerShape(50),
-                                color = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier
-                                    .padding(end = 6.dp)
-                                    .clickable {
-                                        searchVm.setMode(
-                                            if (ui.mode == SearchMode.RC) SearchMode.CHASSIS
-                                            else SearchMode.RC
-                                        )
-                                    }
-                            ) {
-                                Row(
-                                    Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(5.dp)
-                                ) {
-                                    Text(
-                                        if (ui.mode == SearchMode.RC) "RC" else "CH",
-                                        color = MaterialTheme.colorScheme.onPrimary,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 12.sp,
-                                        letterSpacing = 0.5.sp
-                                    )
-                                    Icon(
-                                        Icons.Default.SwapHoriz, "Switch mode",
-                                        tint = MaterialTheme.colorScheme.onPrimary,
-                                        modifier = Modifier.size(14.dp)
-                                    )
-                                }
-                            }
-                        },
-                        keyboardOptions = if (ui.mode == SearchMode.RC)
-                            KeyboardOptions(keyboardType = KeyboardType.Text, capitalization = KeyboardCapitalization.Characters)
-                        else
-                            KeyboardOptions(keyboardType = KeyboardType.Number),
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
-                        shape = RoundedCornerShape(8.dp),
-                        textStyle = MaterialTheme.typography.bodyLarge.copy(
-                            fontFamily = RobotoFamily,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 18.sp,
-                            letterSpacing = 3.sp
-                        ),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor   = MaterialTheme.colorScheme.surface,
-                            unfocusedContainerColor = MaterialTheme.colorScheme.surface
-                        )
+                    val fieldStyle = MaterialTheme.typography.bodyLarge.copy(
+                        fontFamily = RobotoFamily,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp,
+                        letterSpacing = 3.sp
                     )
+                    val fieldColors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor   = MaterialTheme.colorScheme.surface,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surface
+                    )
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedTextField(
+                            value = ui.inputText,
+                            onValueChange = { searchVm.onInputChange(it, userId) },
+                            placeholder = {
+                                Text(
+                                    if (ui.mode == SearchMode.RC) "1234" else "Last 5 digits",
+                                    fontFamily = RobotoFamily,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 16.sp
+                                )
+                            },
+                            leadingIcon = { Icon(Icons.Default.Search, null, Modifier.size(18.dp)) },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            singleLine = true,
+                            modifier = Modifier.weight(1f).focusRequester(focusRequester),
+                            shape = RoundedCornerShape(8.dp),
+                            textStyle = fieldStyle,
+                            colors = fieldColors
+                        )
+                        if (ui.mode == SearchMode.RC) {
+                            OutlinedTextField(
+                                value = ui.prefixInput,
+                                onValueChange = { searchVm.onPrefixChange(it) },
+                                placeholder = {
+                                    Text(
+                                        "ABCD",
+                                        fontFamily = RobotoFamily,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 16.sp
+                                    )
+                                },
+                                keyboardOptions = KeyboardOptions(
+                                    keyboardType = KeyboardType.Text,
+                                    capitalization = KeyboardCapitalization.Characters
+                                ),
+                                singleLine = true,
+                                modifier = Modifier.width(116.dp),
+                                shape = RoundedCornerShape(8.dp),
+                                textStyle = fieldStyle,
+                                colors = fieldColors
+                            )
+                        }
+                        Surface(
+                            shape = RoundedCornerShape(50),
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.clickable {
+                                searchVm.setMode(
+                                    if (ui.mode == SearchMode.RC) SearchMode.CHASSIS
+                                    else SearchMode.RC
+                                )
+                            }
+                        ) {
+                            Row(
+                                Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(5.dp)
+                            ) {
+                                Text(
+                                    if (ui.mode == SearchMode.RC) "RC" else "CH",
+                                    color = MaterialTheme.colorScheme.onPrimary,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 12.sp,
+                                    letterSpacing = 0.5.sp
+                                )
+                                Icon(
+                                    Icons.Default.SwapHoriz, "Switch mode",
+                                    tint = MaterialTheme.colorScheme.onPrimary,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                            }
+                        }
+                    }
                 }
             }
 
