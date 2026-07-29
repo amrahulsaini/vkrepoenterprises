@@ -61,6 +61,8 @@ public partial class ViewAllDetailsWindow : Window
         _parent = parent;
         _session = session;
         _financeIds = financeIds;
+        dpFrom.DisplayDateEnd = DateTime.Today;
+        dpTo.DisplayDateEnd = DateTime.Today;
         dpFrom.SelectedDate = DateTime.Today.AddDays(-30);
         dpTo.SelectedDate = DateTime.Today;
         Loaded += async (_, __) => { _ready = true; await LoadAsync(); };

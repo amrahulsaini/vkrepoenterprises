@@ -13,6 +13,7 @@ public partial class PaymentDetailsWindow : Window
     internal PaymentDetailsWindow(DesktopApiClient.RepoSubmissionDto s)
     {
         InitializeComponent();
+        dpDate.DisplayDateEnd = DateTime.Today;
         _id = s.Id;
         var veh = string.IsNullOrWhiteSpace(s.VehicleNo) ? s.ChassisNo : s.VehicleNo;
         txtSub.Text = $"{veh}  •  {s.CustomerName}  •  Agent: {s.AgentName}";

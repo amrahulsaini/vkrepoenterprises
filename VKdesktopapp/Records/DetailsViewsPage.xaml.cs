@@ -25,6 +25,8 @@ public partial class DetailsViewsPage : Page
     public DetailsViewsPage()
     {
         InitializeComponent();
+        dpFrom.DisplayDateEnd = DateTime.Today;
+        dpTo.DisplayDateEnd = DateTime.Today;
         dgLogs.ItemsSource = _displayed;
     }
 

@@ -29,6 +29,8 @@ public partial class ConfirmationsManagerPage : Page
     public ConfirmationsManagerPage()
     {
         InitializeComponent();
+        dpFrom.DisplayDateEnd = System.DateTime.Today;
+        dpTo.DisplayDateEnd = System.DateTime.Today;
         dgConfirmations.ItemsSource = _items;
         Loaded += async (s, e) =>
         {

@@ -22,6 +22,9 @@ public partial class AccountsPage : Page
     {
         InitializeComponent();
         grid.ItemsSource = _shown;
+        dpFrom.DisplayDateEnd = DateTime.Today;
+        dpTo.DisplayDateEnd = DateTime.Today;
+        dpPayDate.DisplayDateEnd = DateTime.Today;
         dpFrom.SelectedDate = DateTime.Today.AddDays(-30);
         dpTo.SelectedDate = DateTime.Today;
         Loaded += async (_, __) => { _ready = true; await LoadAsync(); };
@@ -89,8 +92,7 @@ public partial class AccountsPage : Page
             string? to   = dpTo.SelectedDate?.ToString("yyyy-MM-dd");
             var data = await DesktopApiClient.GetRepoSubmissionsAsync(from, to, new List<int>(), null);
 
-            // Only couriered records (Courier = Yes) reach Accounts.
-            data = data.Where(d => string.Equals(d.CourierYn, "Yes", StringComparison.OrdinalIgnoreCase)).ToList();
+            data = data.Where(d => d.BillingAction is "hold" or "collection_done").ToList();
 
             if (cmbAction.SelectedIndex == 5)
                 data = data.Where(d => d.BillStatus == "billed").ToList();
@@ -146,7 +148,11 @@ public partial class AccountsPage : Page
         BuildSummary(rows);
     }
 
-    private void Agent_Changed(object sender, SelectionChangedEventArgs e) { if (_ready) ApplyFilter(); }
+    private void Agent_Changed(object sender, SelectionChangedEventArgs e)
+    {
+        if (!_ready) return;
+        Dispatcher.BeginInvoke(new Action(ApplyFilter), System.Windows.Threading.DispatcherPriority.Input);
+    }
     private void Agent_Key(object sender, System.Windows.Input.KeyEventArgs e) { if (_ready) ApplyFilter(); }
     private void btnClearAgent_Click(object sender, RoutedEventArgs e) { cmbAgent.Text = ""; if (_ready) ApplyFilter(); }
 
@@ -251,21 +257,29 @@ public partial class AccountsPage : Page
 
     private void btnAgentBill_Click(object sender, RoutedEventArgs e)
     {
-        var rows = _shown.ToList();
-        if (rows.Count == 0) { txtStatus.Text = "No records to bill."; return; }
-
-        var agents = rows.Select(r => (r.AgentName ?? "").Trim())
-            .Where(a => a.Length > 0).Distinct().ToList();
-        if (agents.Count != 1)
+        string agent = (_selected?.AgentName ?? "").Trim();
+        if (agent.Length == 0)
+        {
+            var agents = _shown.Select(r => (r.AgentName ?? "").Trim())
+                .Where(a => a.Length > 0)
+                .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            if (agents.Count == 1) agent = agents[0];
+        }
+        if (agent.Length == 0)
         {
             MessageBox.Show(
-                "Filter to a single agent first (type the agent's name in the Agent box), " +
-                "then generate the bill for all that agent's vehicles.",
+                "Click any vehicle row (or type an agent name) to choose the agent, " +
+                "then Generate Agent Bill — it bills all that agent's vehicles for the selected dates.",
                 "Agent Bill", MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
 
-        var w = new AgentBillWindow(agents[0], rows.Select(r => r.Src).ToList())
+        var rows = _all
+            .Where(r => string.Equals((r.AgentName ?? "").Trim(), agent, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        if (rows.Count == 0) { txtStatus.Text = "No records to bill for " + agent + "."; return; }
+
+        var w = new AgentBillWindow(agent, rows.Select(r => r.Src).ToList())
         { Owner = Window.GetWindow(this) };
         w.ShowDialog();
     }
