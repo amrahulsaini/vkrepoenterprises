@@ -129,6 +129,11 @@
                                        Foreground="{StaticResource Accent}" TextWrapping="Wrap" />
                         </Border>
 
+                        <TextBlock Text="Remark (from Ok for Repo)" Foreground="#666" FontSize="12" Margin="0,0,0,3" />
+                        <TextBox Name="txtRemark" IsReadOnly="True" Background="#F5F5F5" Height="52"
+                                 TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto"
+                                 VerticalContentAlignment="Top" Padding="8,4" Margin="0,0,0,10" />
+
                         <TextBlock Text="Total Gross (from billing)" Foreground="#666" FontSize="12" Margin="0,0,0,3" />
                         <TextBox Name="txtGross" Style="{StaticResource Fld}" IsReadOnly="True" Background="#F5F5F5" />
 
