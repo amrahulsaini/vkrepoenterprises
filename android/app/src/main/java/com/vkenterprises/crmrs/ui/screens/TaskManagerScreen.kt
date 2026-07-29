@@ -366,22 +366,35 @@ private fun TaskEditSheet(
             if (action == "collection_done") {
                 Text("Payment screenshot *", style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
-                if (payUri != null) {
-                    AsyncImage(
-                        model = payUri, contentDescription = "Payment screenshot",
-                        modifier = Modifier.fillMaxWidth().height(180.dp)
-                            .clip(RoundedCornerShape(10.dp)).clickable { showPaySrc = true }
-                    )
-                    TextButton(onClick = { showPaySrc = true }) { Text("Change screenshot") }
-                } else {
-                    OutlinedButton(
-                        onClick = { showPaySrc = true },
-                        modifier = Modifier.fillMaxWidth().height(48.dp),
-                        shape = RoundedCornerShape(10.dp)
-                    ) {
-                        Icon(Icons.Default.AttachFile, null, Modifier.size(18.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text("Attach payment screenshot")
+                val existingUrl = item.paymentScreenshotUrl.takeIf { it.isNotBlank() }
+                    ?.let { com.vkenterprises.crmrs.BuildConfig.BASE_URL.trimEnd('/') + "/" + it.trimStart('/') }
+                when {
+                    payUri != null -> {
+                        AsyncImage(
+                            model = payUri, contentDescription = "Payment screenshot",
+                            modifier = Modifier.fillMaxWidth().height(180.dp)
+                                .clip(RoundedCornerShape(10.dp)).clickable { showPaySrc = true }
+                        )
+                        TextButton(onClick = { showPaySrc = true }) { Text("Change screenshot") }
+                    }
+                    existingUrl != null -> {
+                        AsyncImage(
+                            model = existingUrl, contentDescription = "Payment screenshot",
+                            modifier = Modifier.fillMaxWidth().height(180.dp)
+                                .clip(RoundedCornerShape(10.dp)).clickable { showPaySrc = true }
+                        )
+                        TextButton(onClick = { showPaySrc = true }) { Text("Replace screenshot") }
+                    }
+                    else -> {
+                        OutlinedButton(
+                            onClick = { showPaySrc = true },
+                            modifier = Modifier.fillMaxWidth().height(48.dp),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Icon(Icons.Default.AttachFile, null, Modifier.size(18.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text("Attach payment screenshot")
+                        }
                     }
                 }
             }
@@ -398,7 +411,7 @@ private fun TaskEditSheet(
                 ) { Text("Cancel") }
                 Button(
                     onClick = save@ {
-                        if (action == "collection_done" && payB64 == null) {
+                        if (action == "collection_done" && payB64 == null && item.paymentScreenshotUrl.isBlank()) {
                             editErr = "Attach the payment screenshot for Collection done."
                             return@save
                         }

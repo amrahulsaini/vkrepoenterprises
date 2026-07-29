@@ -155,7 +155,8 @@ data class RepoTaskItem(
     val billStatus: String = "pending",
     val holdUntil: String = "",
     val holdDays: Int = 0,
-    val createdOn: String = ""
+    val createdOn: String = "",
+    val paymentScreenshotUrl: String = ""
 )
 
 data class RepoTasksResponse(
@@ -238,6 +239,11 @@ data class RepoSubmitRequest(
     val holdDays: Int?,
     val submittedByName: String?,
     val paymentScreenshotB64: String? = null
+)
+
+data class RepoStatusesResponse(
+    val success: Boolean = false,
+    val statuses: List<String> = emptyList()
 )
 
 data class BillingSettings(

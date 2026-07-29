@@ -17,6 +17,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -95,6 +96,25 @@ fun OkForRepoScreen(
     var holdDays      by remember { mutableStateOf("") }
     var holdDate      by remember { mutableStateOf("") }
     var showHoldDatePicker by remember { mutableStateOf(false) }
+
+    // Statuses already submitted for this vehicle — cannot be chosen again.
+    var usedStatuses by remember(item?.id) { mutableStateOf<Set<String>>(emptySet()) }
+    LaunchedEffect(item?.id, item?.vehicleNo, item?.chassisNo) {
+        val rec = item ?: return@LaunchedEffect
+        val used = runCatching {
+            val r = ApiClient.api.getRepoStatuses(
+                recordId  = rec.id.takeIf { it > 0 },
+                vehicleNo = rec.vehicleNo.ifBlank { null },
+                chassisNo = rec.chassisNo.ifBlank { null }
+            )
+            if (r.isSuccessful) r.body()?.statuses?.map { it.lowercase() }?.toSet() else null
+        }.getOrNull() ?: emptySet()
+        usedStatuses = used
+        if (billingAction in used) {
+            billingAction = listOf("immediate", "hold", "collection_done", "cancel")
+                .firstOrNull { it !in used } ?: billingAction
+        }
+    }
 
     // Payment screenshot — mandatory for Collection done.
     var paymentUri by remember { mutableStateOf<Uri?>(null) }
@@ -250,10 +270,17 @@ fun OkForRepoScreen(
             Text("Billing decision", style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
 
-            BillingChoiceRow("OK for billing", "immediate", billingAction) { billingAction = it }
-            BillingChoiceRow("Hold for collection", "hold", billingAction) { billingAction = it }
-            BillingChoiceRow("Collection done", "collection_done", billingAction) { billingAction = it }
-            BillingChoiceRow("Cancel", "cancel", billingAction) { billingAction = it }
+            BillingChoiceRow("OK for billing", "immediate", billingAction, "immediate" !in usedStatuses) { billingAction = it }
+            BillingChoiceRow("Hold for collection", "hold", billingAction, "hold" !in usedStatuses) { billingAction = it }
+            BillingChoiceRow("Collection done", "collection_done", billingAction, "collection_done" !in usedStatuses) { billingAction = it }
+            BillingChoiceRow("Cancel", "cancel", billingAction, "cancel" !in usedStatuses) { billingAction = it }
+            if (usedStatuses.isNotEmpty()) {
+                Text(
+                    "Some statuses are disabled — already submitted for this vehicle.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
 
             if (billingAction == "hold") {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -424,12 +451,12 @@ private fun Field(
 }
 
 @Composable
-private fun BillingChoiceRow(label: String, value: String, selected: String, onSelect: (String) -> Unit) {
+private fun BillingChoiceRow(label: String, value: String, selected: String, enabled: Boolean = true, onSelect: (String) -> Unit) {
     Row(
-        Modifier.fillMaxWidth(),
+        Modifier.fillMaxWidth().then(if (enabled) Modifier else Modifier.alpha(0.4f)),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        RadioButton(selected = selected == value, onClick = { onSelect(value) })
+        RadioButton(selected = selected == value, enabled = enabled, onClick = { if (enabled) onSelect(value) })
         Text(label, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
     }
 }
