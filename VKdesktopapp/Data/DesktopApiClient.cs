@@ -194,6 +194,19 @@ internal static class DesktopApiClient
     internal static async Task UpdateAccountsPaymentAsync(long id, object dto)
         => (await Send(HttpMethod.Post, $"api/mgr/accounts/submissions/{id}/payment", dto)).Dispose();
 
+    internal record AgentBillingDto(string AcctHolderName, string BankName, string BankAccountNo,
+        string IfscCode, decimal? ApplicationCharges, int LastInvoiceNo);
+
+    internal static async Task<AgentBillingDto?> GetAgentBillingAsync(string agent)
+    {
+        var resp = await Send(HttpMethod.Get, $"api/mgr/accounts/agent-billing?agent={Uri.EscapeDataString(agent)}");
+        resp.EnsureSuccessStatusCode();
+        return await resp.Content.ReadFromJsonAsync<AgentBillingDto>(_json);
+    }
+
+    internal static async Task SaveAgentBillingAsync(object dto)
+        => (await Send(HttpMethod.Post, "api/mgr/accounts/agent-billing", dto)).Dispose();
+
     internal static async Task<int> CreateFinanceAsync(string name, string? description)
     {
         var resp = await Send(HttpMethod.Post, "api/mgr/finances",

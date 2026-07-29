@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Media.Imaging;
 using Microsoft.Win32;
@@ -44,6 +45,25 @@ public partial class AgentBillWindow : Window
 
         LoadPreview(imgLetter, LetterPath);
         LoadPreview(imgBg, BgPath);
+
+        Loaded += async (_, __) => await LoadAgentBillingAsync();
+    }
+
+    private async Task LoadAgentBillingAsync()
+    {
+        try
+        {
+            var ab = await DesktopApiClient.GetAgentBillingAsync(_agent);
+            if (ab == null) return;
+            txtHolder.Text    = ab.AcctHolderName;
+            txtBank.Text      = ab.BankName;
+            txtAccountNo.Text = ab.BankAccountNo;
+            txtIfsc.Text      = ab.IfscCode;
+            if (ab.ApplicationCharges.HasValue) txtAppCharges.Text = ab.ApplicationCharges.Value.ToString("0.##");
+            if (ab.LastInvoiceNo > 0 && string.IsNullOrWhiteSpace(txtInvoiceNo.Text))
+                txtInvoiceNo.Text = (ab.LastInvoiceNo + 1).ToString();
+        }
+        catch { }
     }
 
     private static void LoadPreview(System.Windows.Controls.Image img, string path)
@@ -85,7 +105,7 @@ public partial class AgentBillWindow : Window
     private static decimal? ParseAmt(string s)
         => decimal.TryParse(s?.Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out var v) ? v : (decimal?)null;
 
-    private void btnGen_Click(object sender, RoutedEventArgs e)
+    private async void btnGen_Click(object sender, RoutedEventArgs e)
     {
         txtErr.Text = "";
         var safe = new string(_agent.Where(char.IsLetterOrDigit).ToArray());
@@ -96,6 +116,22 @@ public partial class AgentBillWindow : Window
             FileName = $"AgentBill_{safe}_{DateTime.Now:yyyyMMdd_HHmmss}.docx"
         };
         if (dlg.ShowDialog() != true) return;
+
+        // Persist the collective bank details + application charges for this agent.
+        try
+        {
+            await DesktopApiClient.SaveAgentBillingAsync(new
+            {
+                AgentName = _agent,
+                AcctHolderName = txtHolder.Text.Trim(),
+                BankName = txtBank.Text.Trim(),
+                BankAccountNo = txtAccountNo.Text.Trim(),
+                IfscCode = txtIfsc.Text.Trim(),
+                ApplicationCharges = ParseAmt(txtAppCharges.Text),
+                LastInvoiceNo = int.TryParse(txtInvoiceNo.Text.Trim(), out var iv) ? iv : 0
+            });
+        }
+        catch { }
 
         try
         {
@@ -177,7 +213,7 @@ public partial class AgentBillWindow : Window
         t.TableFormat.Borders.LineWidth = 0.5f;
         t.TableFormat.Borders.Color = SFColor.Black;
 
-        string[] heads = { "#", "VEHICLE NO", "CUSTOMER", "FINANCE", "REPO", "ADVANCE" };
+        string[] heads = { "#", "VEHICLE NO", "CUSTOMER", "UTR NO", "REPO", "ADVANCE" };
         for (int c = 0; c < 6; c++) Cell(t, 0, c, heads[c], bold: true);
 
         decimal repoTot = 0m, advTot = 0m;
@@ -190,7 +226,7 @@ public partial class AgentBillWindow : Window
             Cell(t, i + 1, 0, (i + 1).ToString());
             Cell(t, i + 1, 1, veh);
             Cell(t, i + 1, 2, s.CustomerName);
-            Cell(t, i + 1, 3, s.FinanceName);
+            Cell(t, i + 1, 3, s.UtrNo);
             Cell(t, i + 1, 4, repo.ToString("0.##"));
             Cell(t, i + 1, 5, adv.ToString("0.##"));
         }
@@ -209,8 +245,31 @@ public partial class AgentBillWindow : Window
         TotRow(tot, 2, "APPLICATION CHARGES", appc.ToString("0.##"));
         TotRow(tot, 3, "NET PAYABLE", net.ToString("0.##"), bold: true);
 
+        sec.AddParagraph();
+        var bankHead = sec.AddParagraph();
+        var bh = bankHead.AppendText("RELEASE PAYMENT TO:");
+        bh.CharacterFormat.Bold = true; bh.CharacterFormat.FontSize = 11;
+
+        var bank = sec.AddTable();
+        bank.ResetCells(4, 2);
+        bank.TableFormat.Borders.BorderType = BorderStyle.Single;
+        bank.TableFormat.Borders.LineWidth = 0.5f;
+        bank.TableFormat.Borders.Color = SFColor.Black;
+        BankRow(bank, 0, "ACCOUNT HOLDER NAME", txtHolder.Text.Trim());
+        BankRow(bank, 1, "BANK NAME", txtBank.Text.Trim());
+        BankRow(bank, 2, "ACCOUNT NUMBER", txtAccountNo.Text.Trim());
+        BankRow(bank, 3, "IFSC CODE", txtIfsc.Text.Trim());
+
         using var fs = new FileStream(filePath, FileMode.Create, FileAccess.Write);
         doc.Save(fs, FormatType.Docx);
+    }
+
+    private static void BankRow(IWTable t, int r, string label, string val)
+    {
+        var p0 = t[r, 0].AddParagraph();
+        var l = p0.AppendText(label); l.CharacterFormat.Bold = true; l.CharacterFormat.FontSize = 10;
+        var p1 = t[r, 1].AddParagraph();
+        var a = p1.AppendText(val ?? ""); a.CharacterFormat.FontSize = 10;
     }
 
     private static void Cell(IWTable t, int r, int c, string text, bool bold = false)
