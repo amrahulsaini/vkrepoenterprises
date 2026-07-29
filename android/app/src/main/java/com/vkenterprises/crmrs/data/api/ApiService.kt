@@ -100,6 +100,13 @@ interface ApiService {
         @Body body: RepoSubmitRequest
     ): Response<Map<String, Any>>
 
+    @GET("api/mobile/repo/statuses")
+    suspend fun getRepoStatuses(
+        @Query("recordId") recordId: Long?,
+        @Query("vehicleNo") vehicleNo: String?,
+        @Query("chassisNo") chassisNo: String?
+    ): Response<RepoStatusesResponse>
+
     @GET("api/mobile/tasks")
     suspend fun getTasks(
         @Header("X-User-Id") userId: Long,

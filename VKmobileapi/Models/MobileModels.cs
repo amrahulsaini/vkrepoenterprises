@@ -284,7 +284,8 @@ public record RepoTaskItem(
     string   BillStatus,
     string   HoldUntil,
     int      HoldDays,
-    string   CreatedOn);
+    string   CreatedOn,
+    string   PaymentScreenshotUrl = "");
 
 public record RepoTasksResponse(
     bool success,

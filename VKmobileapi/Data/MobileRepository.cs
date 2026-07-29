@@ -1438,6 +1438,25 @@ public class MobileRepository
         return (r.GetInt64(0), r.GetInt64(1), r.GetInt64(2));
     }
 
+    public async Task<List<string>> GetExistingRepoStatusesAsync(long? recordId, string? vehicleNo, string? chassisNo)
+    {
+        await using var conn = DbFactory.Create();
+        await conn.OpenAsync();
+        var sql = @"SELECT DISTINCT billing_action FROM repo_submissions
+                     WHERE (@rid IS NOT NULL AND record_id = @rid)
+                        OR (@veh IS NOT NULL AND @veh <> '' AND vehicle_no = @veh)
+                        OR (@chs IS NOT NULL AND @chs <> '' AND chassis_no = @chs)";
+        await using var cmd = new MySqlCommand(sql, conn) { CommandTimeout = 10 };
+        cmd.Parameters.AddWithValue("@rid", recordId is > 0 ? recordId : (object?)DBNull.Value);
+        cmd.Parameters.AddWithValue("@veh", (object?)vehicleNo ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@chs", (object?)chassisNo ?? DBNull.Value);
+        var list = new List<string>();
+        await using var rdr = await cmd.ExecuteReaderAsync();
+        while (await rdr.ReadAsync())
+            if (!rdr.IsDBNull(0)) list.Add(rdr.GetString(0));
+        return list;
+    }
+
     public async Task<long> SubmitRepoAsync(VKmobileapi.Models.RepoSubmitRequest req, long submittedByUserId)
     {
         await using var conn = DbFactory.Create();
@@ -1579,7 +1598,8 @@ public class MobileRepository
                    COALESCE(executive_name,''), COALESCE(collection_update,''), COALESCE(remark,''),
                    billing_action, bill_status,
                    COALESCE(DATE_FORMAT(hold_until,'%Y-%m-%d'),''), COALESCE(hold_days,0),
-                   COALESCE(DATE_FORMAT(created_at,'%d %b %Y, %h:%i %p'),'')
+                   COALESCE(DATE_FORMAT(created_at,'%d %b %Y, %h:%i %p'),''),
+                   COALESCE(payment_screenshot,'')
               FROM repo_submissions
              WHERE submitted_by_user_id=@id AND YEAR(created_at)=@y AND MONTH(created_at)=@m
              ORDER BY created_at DESC", conn))
@@ -1590,11 +1610,15 @@ public class MobileRepository
             await using var r = await lc.ExecuteReaderAsync();
             string S(int i) => r.IsDBNull(i) ? "" : r.GetString(i);
             while (await r.ReadAsync())
+            {
+                var shot = S(25);
                 items.Add(new VKmobileapi.Models.RepoTaskItem(
                     r.GetInt64(0), S(1), S(2), S(3), S(4), S(5), S(6), S(7), S(8),
                     S(9), S(10), S(11), S(12), S(13), r.GetDecimal(14),
                     S(15), S(16), S(17), S(18), S(19), S(20), S(21), S(22),
-                    r.IsDBNull(23) ? 0 : r.GetInt32(23), S(24)));
+                    r.IsDBNull(23) ? 0 : r.GetInt32(23), S(24),
+                    shot.Length == 0 ? "" : "uploads/" + shot.TrimStart('/')));
+            }
         }
 
         return (demand, target, billed, items);

@@ -385,6 +385,25 @@ public class MobileController : ControllerBase
         }
     }
 
+    // Billing statuses already submitted for this vehicle (so the app can stop
+    // the agent choosing the same status twice).
+    [HttpGet("repo/statuses")]
+    public async Task<IActionResult> GetRepoStatuses(
+        [FromQuery] long? recordId,
+        [FromQuery] string? vehicleNo,
+        [FromQuery] string? chassisNo)
+    {
+        try
+        {
+            var used = await _repo.GetExistingRepoStatusesAsync(recordId, vehicleNo, chassisNo);
+            return Ok(new { success = true, statuses = used });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new ApiError(false, ex.Message));
+        }
+    }
+
     [HttpGet("tasks")]
     public async Task<IActionResult> GetTasks(
         [FromHeader(Name = "X-User-Id")] long userId,
