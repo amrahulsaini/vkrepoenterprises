@@ -38,11 +38,11 @@
 
         <WrapPanel Grid.Row="1" Margin="0,0,0,10">
             <TextBlock Text="From" VerticalAlignment="Center" Foreground="#666" Margin="0,0,6,0" />
-            <DatePicker Name="dpFrom" Width="130" Margin="0,0,14,0" />
+            <DatePicker Name="dpFrom" Width="130" Margin="0,0,14,0" SelectedDateChanged="Filter_Changed" />
             <TextBlock Text="To" VerticalAlignment="Center" Foreground="#666" Margin="0,0,6,0" />
-            <DatePicker Name="dpTo" Width="130" Margin="0,0,14,0" />
+            <DatePicker Name="dpTo" Width="130" Margin="0,0,14,0" SelectedDateChanged="Filter_Changed" />
             <TextBlock Text="Billing" VerticalAlignment="Center" Foreground="#666" Margin="0,0,6,0" />
-            <ComboBox Name="cmbAction" Width="150" Margin="0,0,14,0" SelectedIndex="0">
+            <ComboBox Name="cmbAction" Width="150" Margin="0,0,14,0" SelectedIndex="0" SelectionChanged="Filter_Changed">
                 <ComboBoxItem Content="All" />
                 <ComboBoxItem Content="OK for billing" />
                 <ComboBoxItem Content="Hold for collection" />
@@ -50,13 +50,13 @@
                 <ComboBoxItem Content="Cancel" />
             </ComboBox>
             <TextBlock Text="Status" VerticalAlignment="Center" Foreground="#666" Margin="0,0,6,0" />
-            <ComboBox Name="cmbStatus" Width="120" Margin="0,0,14,0" SelectedIndex="0">
+            <ComboBox Name="cmbStatus" Width="120" Margin="0,0,14,0" SelectedIndex="0" SelectionChanged="Filter_Changed">
                 <ComboBoxItem Content="All" />
                 <ComboBoxItem Content="Pending" />
                 <ComboBoxItem Content="Billed" />
             </ComboBox>
-            <Button Name="btnLoad" Content="Load" Width="90" Height="30" FontWeight="Bold"
-                    Background="#1565C0" Foreground="White" BorderThickness="0" Cursor="Hand" Click="btnLoad_Click" />
+            <Button Name="btnRefresh" Content="↻ Refresh" Width="100" Height="30" FontWeight="Bold"
+                    Background="#1565C0" Foreground="White" BorderThickness="0" Cursor="Hand" Click="btnRefresh_Click" />
             <TextBlock Name="txtStatus" VerticalAlignment="Center" Foreground="#888" FontSize="12" Margin="14,0,0,0" />
         </WrapPanel>
 
@@ -65,7 +65,7 @@
                   CanUserAddRows="False" HeadersVisibility="Column" GridLinesVisibility="All"
                   RowHeaderWidth="0" SelectionMode="Single" SelectionUnit="CellOrRowHeader"
                   Background="White" BorderBrush="#E0E0E0" BorderThickness="1"
-                  CanUserResizeColumns="True" CanUserReorderColumns="True" CanUserSortColumns="True"
+                  CanUserResizeColumns="True" CanUserReorderColumns="False" CanUserSortColumns="False"
                   ColumnHeaderStyle="{StaticResource GridHeader}"
                   RowBackground="White" AlternatingRowBackground="#F3F7FB"
                   HorizontalGridLinesBrush="#ECECEC" VerticalGridLinesBrush="#ECECEC"
@@ -74,7 +74,7 @@
                   ScrollViewer.VerticalScrollBarVisibility="Auto"
                   ScrollViewer.CanContentScroll="True" EnableRowVirtualization="True">
             <DataGrid.Columns>
-                <DataGridTextColumn Header="Date" Binding="{Binding CreatedAt}" Width="120" MinWidth="90" IsReadOnly="True" ElementStyle="{StaticResource CellText}" />
+                <DataGridTextColumn Header="Repo Date" Binding="{Binding CreatedAt}" Width="120" MinWidth="90" IsReadOnly="True" ElementStyle="{StaticResource CellText}" />
                 <DataGridTemplateColumn Header="Vehicle / VIN" Width="130" MinWidth="90">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>

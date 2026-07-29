@@ -63,8 +63,18 @@ public partial class ViewAllDetailsWindow : Window
         _financeIds = financeIds;
         dpFrom.SelectedDate = DateTime.Today.AddDays(-30);
         dpTo.SelectedDate = DateTime.Today;
-        Loaded += async (_, __) => await LoadAsync();
+        Loaded += async (_, __) => { _ready = true; await LoadAsync(); };
     }
+
+    private bool _ready;
+
+    // Instant filtering — no Load button; any filter/date change reloads.
+    private async void Filter_Changed(object sender, SelectionChangedEventArgs e)
+    {
+        if (_ready) await LoadAsync();
+    }
+
+    private async void btnRefresh_Click(object sender, RoutedEventArgs e) => await LoadAsync();
 
     private async System.Threading.Tasks.Task LoadAsync()
     {
@@ -94,8 +104,6 @@ public partial class ViewAllDetailsWindow : Window
         }
         catch (Exception ex) { txtStatus.Text = "Failed: " + ex.Message; }
     }
-
-    private async void btnLoad_Click(object sender, RoutedEventArgs e) => await LoadAsync();
 
     private async void btnGenerate_Click(object sender, RoutedEventArgs e)
     {

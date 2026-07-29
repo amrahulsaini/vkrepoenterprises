@@ -246,7 +246,7 @@
 
                 <ScrollViewer Grid.Row="1" Margin="12" VerticalScrollBarVisibility="Auto">
                     <UniformGrid Margin="8" HorizontalAlignment="Stretch" VerticalAlignment="Top"
-                                 Columns="{Binding ActualWidth, ElementName=MenuContainer, Converter={StaticResource W2C}}">
+                                 Columns="2">
                         <Button Tag="Home" Click="TileButton_Click" MinHeight="80" Margin="8" HorizontalAlignment="Stretch" Style="{StaticResource DashboardTileButton}">
                             <Grid>
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="56" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
@@ -255,7 +255,6 @@
                                 </Border>
                                 <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
                                     <TextBlock Text="Home" FontWeight="SemiBold" Foreground="{StaticResource Gray900}" FontSize="14" />
-                                    <TextBlock Text="Dashboard" FontSize="11" Foreground="{StaticResource Gray600}" />
                                 </StackPanel>
                             </Grid>
                         </Button>
@@ -267,7 +266,6 @@
                                 </Border>
                                 <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
                                     <TextBlock Text="Find Vehicles" FontWeight="SemiBold" Foreground="{StaticResource Gray900}" FontSize="14" />
-                                    <TextBlock Text="Search by RC / VIN" FontSize="11" Foreground="{StaticResource Gray600}" />
                                 </StackPanel>
                             </Grid>
                         </Button>
@@ -279,7 +277,6 @@
                                 </Border>
                                 <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
                                     <TextBlock Text="Users" FontWeight="SemiBold" Foreground="{StaticResource Gray900}" FontSize="14" />
-                                    <TextBlock Text="Manage accounts" FontSize="11" Foreground="{StaticResource Gray600}" />
                                 </StackPanel>
                             </Grid>
                         </Button>
@@ -291,7 +288,6 @@
                                 </Border>
                                 <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
                                     <TextBlock Text="ID Cards" FontWeight="SemiBold" Foreground="{StaticResource Gray900}" FontSize="14" />
-                                    <TextBlock Text="Approve agent IDs" FontSize="11" Foreground="{StaticResource Gray600}" />
                                 </StackPanel>
                             </Grid>
                         </Button>
@@ -303,7 +299,6 @@
                                 </Border>
                                 <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
                                     <TextBlock Text="Repo Kits" FontWeight="SemiBold" Foreground="{StaticResource Gray900}" FontSize="14" />
-                                    <TextBlock Text="Upload PDF per head office" FontSize="11" Foreground="{StaticResource Gray600}" />
                                 </StackPanel>
                             </Grid>
                         </Button>
@@ -315,7 +310,6 @@
                                 </Border>
                                 <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
                                     <TextBlock Text="Finances" FontWeight="SemiBold" Foreground="{StaticResource Gray900}" FontSize="14" />
-                                    <TextBlock Text="Payments &amp; reports" FontSize="11" Foreground="{StaticResource Gray600}" />
                                 </StackPanel>
                             </Grid>
                         </Button>
@@ -327,7 +321,6 @@
                                 </Border>
                                 <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
                                     <TextBlock Text="Upload Records" FontWeight="SemiBold" Foreground="{StaticResource Gray900}" FontSize="14" />
-                                    <TextBlock Text="Excel / Manual" FontSize="11" Foreground="{StaticResource Gray600}" />
                                 </StackPanel>
                             </Grid>
                         </Button>
@@ -339,7 +332,6 @@
                                 </Border>
                                 <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
                                     <TextBlock Text="Details Views" FontWeight="SemiBold" Foreground="{StaticResource Gray900}" FontSize="14" />
-                                    <TextBlock Text="Lookup logs" FontSize="11" Foreground="{StaticResource Gray600}" />
                                 </StackPanel>
                             </Grid>
                         </Button>
@@ -351,7 +343,6 @@
                                 </Border>
                                 <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
                                     <TextBlock Text="Confirmations" FontWeight="SemiBold" Foreground="{StaticResource Gray900}" FontSize="14" />
-                                    <TextBlock Text="Pending &amp; approved" FontSize="11" Foreground="{StaticResource Gray600}" />
                                 </StackPanel>
                             </Grid>
                         </Button>
@@ -363,7 +354,6 @@
                                 </Border>
                                 <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
                                     <TextBlock Text="Reports" FontWeight="SemiBold" Foreground="{StaticResource Gray900}" FontSize="14" />
-                                    <TextBlock Text="Analytics" FontSize="11" Foreground="{StaticResource Gray600}" />
                                 </StackPanel>
                             </Grid>
                         </Button>
@@ -375,7 +365,6 @@
                                 </Border>
                                 <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
                                     <TextBlock Text="Blacklist" FontWeight="SemiBold" Foreground="{StaticResource Gray900}" FontSize="14" />
-                                    <TextBlock Text="Restricted users" FontSize="11" Foreground="{StaticResource Gray600}" />
                                 </StackPanel>
                             </Grid>
                         </Button>
@@ -387,7 +376,6 @@
                                 </Border>
                                 <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
                                     <TextBlock Text="Direct Data" FontWeight="SemiBold" Foreground="{StaticResource Gray900}" FontSize="14" />
-                                    <TextBlock Text="Webhook files" FontSize="11" Foreground="{StaticResource Gray600}" />
                                 </StackPanel>
                             </Grid>
                         </Button>
@@ -399,7 +387,6 @@
                                 </Border>
                                 <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
                                     <TextBlock Text="Billing" FontWeight="SemiBold" Foreground="{StaticResource Gray900}" FontSize="14" />
-                                    <TextBlock Text="Repossession bill" FontSize="11" Foreground="{StaticResource Gray600}" />
                                 </StackPanel>
                             </Grid>
                         </Button>
@@ -411,7 +398,6 @@
                                 </Border>
                                 <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
                                     <TextBlock Text="Allocations" FontWeight="SemiBold" Foreground="{StaticResource Gray900}" FontSize="14" />
-                                    <TextBlock Text="Billing members and finances" FontSize="11" Foreground="{StaticResource Gray600}" />
                                 </StackPanel>
                             </Grid>
                         </Button>
@@ -423,7 +409,6 @@
                                 </Border>
                                 <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
                                     <TextBlock Text="Couriers" FontWeight="SemiBold" Foreground="{StaticResource Gray900}" FontSize="14" />
-                                    <TextBlock Text="Courier updates" FontSize="11" Foreground="{StaticResource Gray600}" />
                                 </StackPanel>
                             </Grid>
                         </Button>
@@ -435,7 +420,6 @@
                                 </Border>
                                 <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
                                     <TextBlock Text="Accounts" FontWeight="SemiBold" Foreground="{StaticResource Gray900}" FontSize="14" />
-                                    <TextBlock Text="Charges &amp; totals" FontSize="11" Foreground="{StaticResource Gray600}" />
                                 </StackPanel>
                             </Grid>
                         </Button>
