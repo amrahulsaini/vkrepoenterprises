@@ -842,6 +842,18 @@ public class MobileRepository
         return new UserStatusDto(rdr.GetInt32(0)==1, rdr.GetInt32(1)==1, rdr.GetInt32(2)==1);
     }
 
+    // The device currently bound to the user. If a request comes from a
+    // different device, that device is stale and must be logged out.
+    public async Task<string?> GetBoundDeviceIdAsync(long userId)
+    {
+        await using var conn = DbFactory.Create();
+        await conn.OpenAsync();
+        await using var cmd = new MySqlCommand(
+            "SELECT device_id FROM app_users WHERE id=@id LIMIT 1", conn) { CommandTimeout = 5 };
+        cmd.Parameters.AddWithValue("@id", userId);
+        return (await cmd.ExecuteScalarAsync()) as string;
+    }
+
     private async Task<List<int>> GetFinanceRestrictionsAsync(long userId)
     {
         await using var conn = DbFactory.Create();
