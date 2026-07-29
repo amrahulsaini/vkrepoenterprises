@@ -1454,10 +1454,13 @@ public class MobileRepository
     {
         await using var conn = DbFactory.Create();
         await conn.OpenAsync();
+        // Only this calendar month counts — the status-guard resets each month,
+        // so a vehicle can be OK-for-billing once again in the new month.
         var sql = @"SELECT DISTINCT billing_action FROM repo_submissions
-                     WHERE (@rid IS NOT NULL AND record_id = @rid)
+                     WHERE ((@rid IS NOT NULL AND record_id = @rid)
                         OR (@veh IS NOT NULL AND @veh <> '' AND vehicle_no = @veh)
-                        OR (@chs IS NOT NULL AND @chs <> '' AND chassis_no = @chs)";
+                        OR (@chs IS NOT NULL AND @chs <> '' AND chassis_no = @chs))
+                       AND YEAR(created_at)=YEAR(CURDATE()) AND MONTH(created_at)=MONTH(CURDATE())";
         await using var cmd = new MySqlCommand(sql, conn) { CommandTimeout = 10 };
         cmd.Parameters.AddWithValue("@rid", recordId is > 0 ? recordId : (object?)DBNull.Value);
         cmd.Parameters.AddWithValue("@veh", (object?)vehicleNo ?? DBNull.Value);
