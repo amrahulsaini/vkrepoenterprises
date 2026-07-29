@@ -41,7 +41,14 @@ public partial class AccountsPage : Page
 
         public long Id => Src.Id;
         public string RepoDate => Src.CreatedAt;
-        public string AgentName => Src.AgentName;
+        public string AgentName
+        {
+            get
+            {
+                var a = (Src.AgentName ?? "").Trim();
+                return a.Length > 0 ? a : (Src.SubmittedByName ?? "").Trim();
+            }
+        }
         public string VehicleNo => string.IsNullOrWhiteSpace(Src.VehicleNo) ? Src.ChassisNo : Src.VehicleNo;
         public string CustomerName => Src.CustomerName;
         public string FinanceName => Src.FinanceName;
@@ -257,7 +264,8 @@ public partial class AccountsPage : Page
 
     private void btnAgentBill_Click(object sender, RoutedEventArgs e)
     {
-        string agent = (_selected?.AgentName ?? "").Trim();
+        var sel = grid.SelectedItem as AcctRow ?? _selected;
+        string agent = (sel?.AgentName ?? "").Trim();
         if (agent.Length == 0)
         {
             var agents = _shown.Select(r => (r.AgentName ?? "").Trim())
