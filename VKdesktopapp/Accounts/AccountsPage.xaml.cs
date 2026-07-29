@@ -207,12 +207,7 @@ public partial class AccountsPage : Page
         }
         var veh = string.IsNullOrWhiteSpace(r.VehicleNo) ? r.Src.ChassisNo : r.VehicleNo;
         txtPaySel.Text = $"{veh}  •  {r.CustomerName}  •  Agent: {r.AgentName}";
-        txtUtr.Text        = r.Src.UtrNo;
-        txtBank.Text       = r.Src.BankName;
-        txtHolder.Text     = r.Src.AcctHolderName;
-        txtAccountNo.Text  = r.Src.BankAccountNo;
-        txtIfsc.Text       = r.Src.IfscCode;
-        txtAppCharges.Text = r.Src.ApplicationCharges?.ToString("0.##") ?? "";
+        txtUtr.Text = r.Src.UtrNo;
         dpPayDate.SelectedDate = DateTime.TryParse(r.Src.PaymentDate, out var d) ? d : (DateTime?)null;
         pnlPay.IsEnabled = true;
     }
@@ -227,13 +222,8 @@ public partial class AccountsPage : Page
         {
             await DesktopApiClient.UpdateAccountsPaymentAsync(r.Id, new
             {
-                AcctHolderName = txtHolder.Text.Trim(),
-                BankName = txtBank.Text.Trim(),
-                BankAccountNo = txtAccountNo.Text.Trim(),
-                IfscCode = txtIfsc.Text.Trim(),
                 UtrNo = txtUtr.Text.Trim(),
-                PaymentDate = dpPayDate.SelectedDate?.ToString("yyyy-MM-dd"),
-                ApplicationCharges = ParseAmt(txtAppCharges.Text)
+                PaymentDate = dpPayDate.SelectedDate?.ToString("yyyy-MM-dd")
             });
             long keepId = r.Id;
             await LoadAsync();

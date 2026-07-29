@@ -54,10 +54,31 @@
                     </StackPanel>
                 </Grid>
 
-                <TextBlock Text="Application Charges (universal for this agent)" Style="{StaticResource Lbl}" />
+                <TextBlock Text="Application Charges (collective for this agent)" Style="{StaticResource Lbl}" />
                 <TextBox Name="txtAppCharges" Style="{StaticResource Fld}" />
 
                 <TextBlock Text="Net Payable = Total Repo − Total Advance − Application Charges" FontSize="11" Foreground="#888" Margin="0,0,0,12" />
+
+                <TextBlock Text="Bank details — where to send the agent's payment (collective)" FontWeight="Bold" FontSize="12.5" Foreground="{StaticResource Accent}" Margin="0,0,0,6" />
+                <TextBlock Text="Account Holder Name" Style="{StaticResource Lbl}" />
+                <TextBox Name="txtHolder" Style="{StaticResource Fld}" />
+                <TextBlock Text="Bank Name" Style="{StaticResource Lbl}" />
+                <TextBox Name="txtBank" Style="{StaticResource Fld}" />
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="12" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="Account Number" Style="{StaticResource Lbl}" />
+                        <TextBox Name="txtAccountNo" Style="{StaticResource Fld}" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="2">
+                        <TextBlock Text="IFSC Code" Style="{StaticResource Lbl}" />
+                        <TextBox Name="txtIfsc" Style="{StaticResource Fld}" />
+                    </StackPanel>
+                </Grid>
 
                 <TextBlock Text="Letterhead (universal, optional)" Style="{StaticResource Lbl}" />
                 <StackPanel Orientation="Horizontal" Margin="0,0,0,10">

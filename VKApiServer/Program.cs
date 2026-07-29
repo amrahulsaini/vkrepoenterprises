@@ -2589,7 +2589,8 @@ app.MapPost("/api/mgr/billing/submissions/{id:long}/fields", async (HttpContext 
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
 
-// Accounts: save the per-vehicle payment / bank details.
+// Accounts: save the per-vehicle payment details (UTR + date). Bank details and
+// application charges are collective per agent (see agent-billing below).
 app.MapPost("/api/mgr/accounts/submissions/{id:long}/payment", async (HttpContext ctx, long id, MgrPaymentDto dto) =>
 {
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
@@ -2601,20 +2602,71 @@ app.MapPost("/api/mgr/accounts/submissions/{id:long}/payment", async (HttpContex
         await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
         await MgrExec(
-            @"UPDATE repo_submissions SET
-                 acct_holder_name=@ahn, bank_name=@bn, bank_account_no=@ban,
-                 ifsc_code=@ifsc, utr_no=@utr, payment_date=@pdate,
-                 application_charges=@appc
-               WHERE id=@id",
+            "UPDATE repo_submissions SET utr_no=@utr, payment_date=@pdate WHERE id=@id",
             conn, 20,
+            ("@utr", (object?)dto.UtrNo ?? DBNull.Value),
+            ("@pdate", (object?)pdate ?? DBNull.Value),
+            ("@id", id));
+        return Results.Ok(new { success = true });
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+// Accounts: collective per-agent bank details + application charges.
+app.MapGet("/api/mgr/accounts/agent-billing", async (HttpContext ctx, string? agent) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    if (string.IsNullOrWhiteSpace(agent)) return Results.BadRequest(new { message = "agent required" });
+    try
+    {
+        await using var conn = new MySqlConnection(TenantContext.Conn);
+        await conn.OpenAsync();
+        await using var cmd = new MySqlCommand(
+            @"SELECT COALESCE(acct_holder_name,''), COALESCE(bank_name,''),
+                     COALESCE(bank_account_no,''), COALESCE(ifsc_code,''),
+                     application_charges, last_invoice_no
+                FROM agent_billing WHERE agent_name=@a LIMIT 1", conn);
+        cmd.Parameters.AddWithValue("@a", agent.Trim());
+        await using var rdr = await cmd.ExecuteReaderAsync();
+        if (!await rdr.ReadAsync())
+            return Results.Ok(new { acctHolderName = "", bankName = "", bankAccountNo = "", ifscCode = "", applicationCharges = (decimal?)null, lastInvoiceNo = 0 });
+        return Results.Ok(new
+        {
+            acctHolderName = rdr.GetString(0),
+            bankName = rdr.GetString(1),
+            bankAccountNo = rdr.GetString(2),
+            ifscCode = rdr.GetString(3),
+            applicationCharges = rdr.IsDBNull(4) ? (decimal?)null : rdr.GetDecimal(4),
+            lastInvoiceNo = rdr.GetInt32(5)
+        });
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+app.MapPost("/api/mgr/accounts/agent-billing", async (HttpContext ctx, MgrAgentBillingDto dto) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    if (string.IsNullOrWhiteSpace(dto.AgentName)) return Results.BadRequest(new { message = "agent required" });
+    try
+    {
+        await using var conn = new MySqlConnection(TenantContext.Conn);
+        await conn.OpenAsync();
+        await MgrExec(
+            @"INSERT INTO agent_billing
+                 (agent_name, acct_holder_name, bank_name, bank_account_no, ifsc_code, application_charges, last_invoice_no)
+              VALUES (@a, @ahn, @bn, @ban, @ifsc, @appc, @inv)
+              ON DUPLICATE KEY UPDATE
+                 acct_holder_name=@ahn, bank_name=@bn, bank_account_no=@ban,
+                 ifsc_code=@ifsc, application_charges=@appc,
+                 last_invoice_no=GREATEST(last_invoice_no, @inv)",
+            conn, 20,
+            ("@a", dto.AgentName.Trim()),
             ("@ahn", (object?)dto.AcctHolderName ?? DBNull.Value),
             ("@bn",  (object?)dto.BankName ?? DBNull.Value),
             ("@ban", (object?)dto.BankAccountNo ?? DBNull.Value),
             ("@ifsc",(object?)dto.IfscCode ?? DBNull.Value),
-            ("@utr", (object?)dto.UtrNo ?? DBNull.Value),
-            ("@pdate",(object?)pdate ?? DBNull.Value),
             ("@appc",(object?)dto.ApplicationCharges ?? DBNull.Value),
-            ("@id", id));
+            ("@inv", dto.LastInvoiceNo));
         return Results.Ok(new { success = true });
     }
     catch (Exception ex) { return Results.Problem(ex.Message); }
@@ -4400,6 +4452,10 @@ record MgrPaymentDto(
     string? AcctHolderName = null, string? BankName = null, string? BankAccountNo = null,
     string? IfscCode = null, string? UtrNo = null, string? PaymentDate = null,
     decimal? ApplicationCharges = null);
+record MgrAgentBillingDto(
+    string AgentName, string? AcctHolderName = null, string? BankName = null,
+    string? BankAccountNo = null, string? IfscCode = null,
+    decimal? ApplicationCharges = null, int LastInvoiceNo = 0);
 
 record MgrCourierUpdateDto(decimal? RepoCharges, decimal? Advance, string? CourierYn,
     string? BankerAddress, string? PodNumber, string? BillingAction, decimal? CourierPercent = null);

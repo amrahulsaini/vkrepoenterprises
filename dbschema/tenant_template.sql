@@ -669,6 +669,20 @@ CREATE TABLE IF NOT EXISTS `repo_submissions` (
   KEY `idx_repo_submitter` (`submitted_by_user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+-- Collective per-agent billing details (the money goes to one agent account,
+-- so bank details + application charges are stored once per agent, not per vehicle).
+CREATE TABLE IF NOT EXISTS `agent_billing` (
+  `agent_name`          VARCHAR(255)  NOT NULL,
+  `acct_holder_name`    VARCHAR(255)  NULL,
+  `bank_name`           VARCHAR(255)  NULL,
+  `bank_account_no`     VARCHAR(64)   NULL,
+  `ifsc_code`           VARCHAR(32)   NULL,
+  `application_charges` DECIMAL(12,2) NULL,
+  `last_invoice_no`     INT           NOT NULL DEFAULT 0,
+  `updated_at`          TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`agent_name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
 -- Per-user monthly demand/target numbers shown in the billing dashboard.
 CREATE TABLE IF NOT EXISTS `user_billing_targets` (
   `user_id` BIGINT   NOT NULL,

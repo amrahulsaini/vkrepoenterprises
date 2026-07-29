@@ -130,22 +130,14 @@
                     <StackPanel Name="pnlPay" IsEnabled="False">
                         <TextBlock Text="UTR No" Style="{StaticResource PLbl}" />
                         <TextBox Name="txtUtr" Style="{StaticResource PFld}" />
-                        <TextBlock Text="Bank Name" Style="{StaticResource PLbl}" />
-                        <TextBox Name="txtBank" Style="{StaticResource PFld}" />
-                        <TextBlock Text="Account Holder Name" Style="{StaticResource PLbl}" />
-                        <TextBox Name="txtHolder" Style="{StaticResource PFld}" />
-                        <TextBlock Text="Bank Account Number" Style="{StaticResource PLbl}" />
-                        <TextBox Name="txtAccountNo" Style="{StaticResource PFld}" />
-                        <TextBlock Text="IFSC Code" Style="{StaticResource PLbl}" />
-                        <TextBox Name="txtIfsc" Style="{StaticResource PFld}" />
                         <TextBlock Text="Date of Payment" Style="{StaticResource PLbl}" />
                         <DatePicker Name="dpPayDate" Height="28" Margin="0,0,0,7" />
-                        <TextBlock Text="Application Charges" Style="{StaticResource PLbl}" />
-                        <TextBox Name="txtAppCharges" Style="{StaticResource PFld}" />
                         <Button Name="btnSavePay" Content="Save Payment Details" Height="32" FontWeight="Bold"
                                 Background="{StaticResource Accent}" Foreground="White" BorderThickness="0"
                                 Cursor="Hand" Click="btnSavePay_Click" Margin="0,2,0,0" />
                         <TextBlock Name="txtPayMsg" FontSize="11.5" Foreground="#2E7D32" Margin="0,6,0,0" TextWrapping="Wrap" />
+                        <TextBlock Text="Bank details &amp; application charges are set on the agent bill (collective)."
+                                   FontSize="11" Foreground="#999" TextWrapping="Wrap" Margin="0,8,0,0" />
                     </StackPanel>
                 </ScrollViewer>
 
