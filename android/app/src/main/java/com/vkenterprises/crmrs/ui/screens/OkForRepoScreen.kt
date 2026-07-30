@@ -186,10 +186,6 @@ fun OkForRepoScreen(
     fun submit() {
         if (submitting) return
         val rec = item ?: return
-        if (billingAction == "collection_done" && paymentB64.isNullOrBlank()) {
-            errorMsg = "Attach the payment screenshot for Collection done."
-            return
-        }
         submitting = true
         errorMsg = null
         successMsg = null
@@ -315,7 +311,7 @@ fun OkForRepoScreen(
             }
 
             if (billingAction == "collection_done") {
-                Text("Payment screenshot *", style = MaterialTheme.typography.labelMedium,
+                Text("Payment screenshot (optional)", style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                 if (paymentUri != null) {
                     AsyncImage(
