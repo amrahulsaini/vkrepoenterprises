@@ -183,9 +183,8 @@ public partial class CouriersPage : Page
     /// disables charge entry entirely; Collection-done allows manual repo charges.
     private void ConfigureForStatus(string action)
     {
-        bool ok   = action == "immediate";
-        bool done = action == "collection_done";
-        bool chargesEditable = ok || done;
+        bool ok = action == "immediate";
+        bool chargesEditable = action is "immediate" or "hold" or "collection_done";
 
         lblPercent.Visibility = ok ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
         txtPercent.Visibility = ok ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
