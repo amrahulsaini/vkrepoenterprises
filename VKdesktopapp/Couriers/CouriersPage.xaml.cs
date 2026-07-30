@@ -71,6 +71,22 @@ public partial class CouriersPage : Page
     }
 
     // Instant filtering — no Load button; any filter/date change reloads.
+    private async void btnRefresh_Click(object sender, RoutedEventArgs e)
+    {
+        long keepId = (grid.SelectedItem as Row)?.Id ?? 0L;
+        btnRefresh.IsEnabled = false;
+        try
+        {
+            await LoadAsync();
+            if (keepId > 0)
+            {
+                var again = _rows.FirstOrDefault(x => x.Id == keepId);
+                if (again != null) { grid.SelectedItem = again; grid.ScrollIntoView(again); }
+            }
+        }
+        finally { btnRefresh.IsEnabled = true; }
+    }
+
     private async void Filter_Changed(object sender, SelectionChangedEventArgs e)
     {
         if (_ready) await LoadAsync();

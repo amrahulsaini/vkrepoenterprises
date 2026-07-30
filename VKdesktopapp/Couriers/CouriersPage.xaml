@@ -50,6 +50,9 @@
                     <ComboBoxItem Content="Cancel" />
                     <ComboBoxItem Content="Billing Done" />
                 </ComboBox>
+                <Button Name="btnRefresh" Content="↻ Refresh" Width="100" Height="26" FontWeight="Bold"
+                        Background="#1565C0" Foreground="White" BorderThickness="0" Cursor="Hand"
+                        ToolTip="Reload records from the server" Click="btnRefresh_Click" />
                 <TextBlock Name="txtStatus" VerticalAlignment="Center" Foreground="#888" FontSize="12" Margin="14,0,0,0" />
             </WrapPanel>
 
