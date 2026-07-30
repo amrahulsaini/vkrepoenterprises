@@ -99,14 +99,18 @@ public partial class AccountsPage : Page
             string? to   = dpTo.SelectedDate?.ToString("yyyy-MM-dd");
             var data = await DesktopApiClient.GetRepoSubmissionsAsync(from, to, new List<int>(), null);
 
-            data = data.Where(d => d.BillingAction is "hold" or "collection_done").ToList();
+            data = data.Where(d =>
+                d.BillingAction is "hold" or "collection_done"
+                || (d.BillingAction == "immediate"
+                    && string.Equals(d.CourierYn, "Yes", StringComparison.OrdinalIgnoreCase))
+            ).ToList();
 
-            if (cmbAction.SelectedIndex == 5)
+            if (cmbAction.SelectedIndex == 4)
                 data = data.Where(d => d.BillStatus == "billed").ToList();
             else
             {
                 string? f = cmbAction.SelectedIndex switch
-                { 1 => "immediate", 2 => "hold", 3 => "collection_done", 4 => "cancel", _ => null };
+                { 1 => "immediate", 2 => "hold", 3 => "collection_done", _ => null };
                 if (f != null) data = data.Where(d => d.BillingAction == f).ToList();
             }
 

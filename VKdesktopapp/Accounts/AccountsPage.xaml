@@ -41,7 +41,6 @@
                     <ComboBoxItem Content="OK for billing" />
                     <ComboBoxItem Content="Hold for collection" />
                     <ComboBoxItem Content="Collection done" />
-                    <ComboBoxItem Content="Cancel" />
                     <ComboBoxItem Content="Billing Done" />
                 </ComboBox>
                 <TextBlock Text="Agent" VerticalAlignment="Center" Foreground="#666" Margin="0,0,6,0" />
