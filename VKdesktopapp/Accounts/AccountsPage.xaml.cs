@@ -163,6 +163,22 @@ public partial class AccountsPage : Page
     private void Agent_Key(object sender, System.Windows.Input.KeyEventArgs e) { if (_ready) ApplyFilter(); }
     private void btnClearAgent_Click(object sender, RoutedEventArgs e) { cmbAgent.Text = ""; if (_ready) ApplyFilter(); }
 
+    private async void btnRefresh_Click(object sender, RoutedEventArgs e)
+    {
+        long keepId = _selected?.Id ?? 0L;
+        btnRefresh.IsEnabled = false;
+        try
+        {
+            await LoadAsync();
+            if (keepId > 0)
+            {
+                var again = _shown.FirstOrDefault(x => x.Id == keepId);
+                if (again != null) { grid.SelectedItem = again; grid.ScrollIntoView(again); }
+            }
+        }
+        finally { btnRefresh.IsEnabled = true; }
+    }
+
 
     private void BuildSummary(List<AcctRow> rows)
     {
