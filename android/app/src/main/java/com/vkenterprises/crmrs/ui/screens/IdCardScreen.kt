@@ -1,6 +1,10 @@
 package com.vkenterprises.crmrs.ui.screens
 
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
 import android.net.Uri
+import android.view.WindowManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
@@ -43,6 +47,15 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 private val BLOOD_GROUPS = listOf("A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-")
+
+private fun Context.findActivity(): Activity? {
+    var c: Context? = this
+    while (c is ContextWrapper) {
+        if (c is Activity) return c
+        c = c.baseContext
+    }
+    return null
+}
 private val BRAND = Color(0xFF1565C0)
 private val OK_GREEN = Color(0xFF16A34A)
 private val ERR_RED = Color(0xFFDC2626)
@@ -52,6 +65,13 @@ private val ERR_RED = Color(0xFFDC2626)
 fun IdCardScreen(vm: AuthViewModel, nav: NavController) {
     val context = LocalContext.current
     val scope   = rememberCoroutineScope()
+
+    DisposableEffect(Unit) {
+        val window = context.findActivity()?.window
+        window?.setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE)
+        onDispose { window?.clearFlags(WindowManager.LayoutParams.FLAG_SECURE) }
+    }
+
     val userName by vm.userName.collectAsState(initial = "")
     val userMobile by vm.userMobile.collectAsState(initial = "")
     val userId by vm.userId.collectAsState(initial = -1L)

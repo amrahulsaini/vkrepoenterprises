@@ -62,7 +62,7 @@ private fun String.isValidRc(): Boolean =
     replace(Regex("[^A-Z0-9]"), "").uppercase().matches(RC_REGEX)
 
 private fun String?.displayRc(showHyphens: Boolean): String =
-    if (showHyphens) this.orEmpty() else this.orEmpty().replace("-", "")
+    if (showHyphens) this.orEmpty().replace(Regex("-{2,}"), "-") else this.orEmpty().replace("-", "")
 
 private data class BranchEntry(
     val branch: String,
@@ -1065,11 +1065,22 @@ private fun SRow(
                             }?.value
                             (tapped ?: firstNumber)?.let { dial(it) }
                         },
-                        onLongPress = {
+                        onLongPress = { pos ->
                             if (display.isNotBlank()) {
+                                val offset = textLayout?.getOffsetForPosition(pos)
+                                val tappedNumber = if (dialable && phoneMatches.isNotEmpty())
+                                    offset?.let { o ->
+                                        phoneMatches.firstOrNull { o >= it.range.first && o <= it.range.last + 1 }
+                                    }?.value?.filter { it.isDigit() || it == '+' }
+                                else null
+                                val toCopy = tappedNumber?.takeIf { it.isNotBlank() } ?: display
                                 val cb = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                cb.setPrimaryClip(ClipData.newPlainText(label, display))
-                                android.widget.Toast.makeText(context, "Copied", android.widget.Toast.LENGTH_SHORT).show()
+                                cb.setPrimaryClip(ClipData.newPlainText(label, toCopy))
+                                android.widget.Toast.makeText(
+                                    context,
+                                    if (tappedNumber != null) "Number copied" else "Copied",
+                                    android.widget.Toast.LENGTH_SHORT
+                                ).show()
                             }
                         }
                     )

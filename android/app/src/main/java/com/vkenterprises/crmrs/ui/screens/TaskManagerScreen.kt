@@ -365,7 +365,7 @@ private fun TaskEditSheet(
             }
 
             if (action == "collection_done") {
-                Text("Payment screenshot *", style = MaterialTheme.typography.labelMedium,
+                Text("Payment screenshot (optional)", style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                 val existingUrl = item.paymentScreenshotUrl.takeIf { it.isNotBlank() }
                     ?.let { com.vkenterprises.crmrs.BuildConfig.BASE_URL.trimEnd('/') + "/" + it.trimStart('/') }
@@ -411,11 +411,7 @@ private fun TaskEditSheet(
                     shape = RoundedCornerShape(10.dp)
                 ) { Text("Cancel") }
                 Button(
-                    onClick = save@ {
-                        if (action == "collection_done" && payB64 == null && item.paymentScreenshotUrl.isBlank()) {
-                            editErr = "Attach the payment screenshot for Collection done."
-                            return@save
-                        }
+                    onClick = {
                         editErr = null
                         onSave(
                             item.copy(
