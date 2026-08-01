@@ -662,7 +662,14 @@ CREATE TABLE IF NOT EXISTS `repo_submissions` (
   `submitted_by_user_id`   BIGINT          NULL,
   `submitted_by_name`      VARCHAR(255)    NULL,
   `created_at`             TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `dedup_key`              VARCHAR(190)
+      AS (CASE WHEN vehicle_no IS NULL OR vehicle_no = '' THEN NULL
+               ELSE CONCAT(UPPER(REPLACE(REPLACE(vehicle_no,'-',''),' ','')), '|',
+                           billing_action, '|',
+                           YEAR(created_at)*100 + MONTH(created_at))
+          END) STORED,
   PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_repo_dedup` (`dedup_key`),
   KEY `idx_repo_finance` (`finance_id`),
   KEY `idx_repo_created` (`created_at`),
   KEY `idx_repo_action`  (`billing_action`),

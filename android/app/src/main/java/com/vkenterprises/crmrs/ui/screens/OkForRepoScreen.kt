@@ -100,16 +100,19 @@ fun OkForRepoScreen(
 
     // Statuses already submitted for this vehicle — cannot be chosen again.
     var usedStatuses by remember(item?.id) { mutableStateOf<Set<String>>(emptySet()) }
+    var statusesVerified by remember(item?.id) { mutableStateOf(false) }
     suspend fun reloadUsedStatuses() {
         val rec = item ?: return
-        val used = runCatching {
+        val fetched = runCatching {
             val r = ApiClient.api.getRepoStatuses(
                 recordId  = rec.id.takeIf { it > 0 },
                 vehicleNo = rec.vehicleNo.ifBlank { null },
                 chassisNo = rec.chassisNo.ifBlank { null }
             )
             if (r.isSuccessful) r.body()?.statuses?.map { it.lowercase() }?.toSet() else null
-        }.getOrNull() ?: emptySet()
+        }.getOrNull()
+        statusesVerified = fetched != null
+        val used = fetched ?: emptySet()
         usedStatuses = used
         if (billingAction in used) {
             billingAction = listOf("immediate", "hold", "collection_done", "cancel")
@@ -138,9 +141,10 @@ fun OkForRepoScreen(
         )
     }
 
-    var submitting by remember { mutableStateOf(false) }
-    var errorMsg   by remember { mutableStateOf<String?>(null) }
-    var successMsg by remember { mutableStateOf<String?>(null) }
+    var submitting  by remember { mutableStateOf(false) }
+    var errorMsg    by remember { mutableStateOf<String?>(null) }
+    var successMsg  by remember { mutableStateOf<String?>(null) }
+    var submittedOk by remember(item?.id) { mutableStateOf(false) }
 
     fun buildMessage(): String = buildString {
         fun up(s: String?) = s?.trim().orEmpty().uppercase()
@@ -188,6 +192,15 @@ fun OkForRepoScreen(
     fun submit() {
         if (submitting) return
         val rec = item ?: return
+        if (!statusesVerified) {
+            errorMsg = "Could not verify this vehicle's existing statuses. Check your connection and try again."
+            scope.launch { reloadUsedStatuses() }
+            return
+        }
+        if (billingAction in usedStatuses) {
+            errorMsg = "This vehicle already has \"$billingAction\" for this month."
+            return
+        }
         val cashVal = cashAmount.trim().toDoubleOrNull() ?: 0.0
         if (billingAction == "collection_done" && cashVal <= 0.0 && paymentB64.isNullOrBlank()) {
             errorMsg = "For Collection done, enter the cash amount or attach the payment screenshot."
@@ -197,6 +210,7 @@ fun OkForRepoScreen(
         errorMsg = null
         successMsg = null
         scope.launch {
+            var duplicate = false
             val ok = runCatching {
                 val resp = ApiClient.api.submitRepo(
                     userId = userId,
@@ -228,15 +242,20 @@ fun OkForRepoScreen(
                         cashAmount        = cashVal.takeIf { it > 0.0 }
                     )
                 )
+                if (resp.code() == 409) duplicate = true
                 resp.isSuccessful
             }.getOrDefault(false)
             submitting = false
             if (ok) {
                 sendWhatsApp()
                 successMsg = "Saved & sent to WhatsApp."
+                submittedOk = true
                 reloadUsedStatuses()
             } else {
-                errorMsg = "Could not save. Check your connection and try again."
+                errorMsg = if (duplicate)
+                    "This vehicle already has that status for this month."
+                else
+                    "Could not save. Check your connection and try again."
             }
         }
     }
@@ -417,17 +436,30 @@ fun OkForRepoScreen(
 
             Button(
                 onClick = { submit() },
-                enabled = !submitting,
+                enabled = !submitting && !submittedOk,
                 modifier = Modifier.fillMaxWidth().height(52.dp),
                 shape = RoundedCornerShape(10.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32), contentColor = Color.White)
             ) {
-                if (submitting) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp, color = Color.White)
-                else {
-                    Icon(Icons.Default.Send, null, Modifier.size(18.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text("Submit & Send WhatsApp", fontWeight = FontWeight.Bold)
+                when {
+                    submitting -> CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp, color = Color.White)
+                    submittedOk -> {
+                        Icon(Icons.Default.CheckCircle, null, Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Submitted", fontWeight = FontWeight.Bold)
+                    }
+                    else -> {
+                        Icon(Icons.Default.Send, null, Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Submit & Send WhatsApp", fontWeight = FontWeight.Bold)
+                    }
                 }
+            }
+            if (submittedOk) {
+                TextButton(
+                    onClick = { nav.popBackStack() },
+                    modifier = Modifier.fillMaxWidth()
+                ) { Text("Done — go back") }
             }
             Spacer(Modifier.height(16.dp))
         }

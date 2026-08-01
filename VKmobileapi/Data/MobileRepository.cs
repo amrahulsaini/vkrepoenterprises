@@ -1564,7 +1564,14 @@ public class MobileRepository
         P("@battime", autoBilled ? (object)DateTime.Now : DBNull.Value);
         P("@pscreen", screenshotRel);
         P("@cash", req.CashAmount is > 0 ? req.CashAmount : (object?)null);
-        await cmd.ExecuteNonQueryAsync();
+        try
+        {
+            await cmd.ExecuteNonQueryAsync();
+        }
+        catch (MySqlException dup) when (dup.Number == 1062)
+        {
+            return -1;
+        }
         return cmd.LastInsertedId;
     }
 
