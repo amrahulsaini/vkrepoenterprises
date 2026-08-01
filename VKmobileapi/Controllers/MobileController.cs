@@ -377,6 +377,9 @@ public class MobileController : ControllerBase
             if (status.IsStopped)     return StatusCode(403, new ApiError(false, "app_stopped"));
 
             var id = await _repo.SubmitRepoAsync(req, userId);
+            if (id == -1)
+                return Conflict(new ApiError(false,
+                    "This vehicle already has that status for this month."));
             return Ok(new { success = true, id });
         }
         catch (Exception ex)
