@@ -38,9 +38,11 @@ public partial class AgentBillWindow : Window
 
         decimal repo = rows.Sum(r => r.RepoCharges ?? 0m);
         decimal adv  = rows.Sum(r => r.Advance ?? 0m);
+        decimal cash = rows.Sum(r => r.CashAmount ?? 0m);
         txtCount.Text   = $"Vehicles: {rows.Count}";
         txtRepoTot.Text = "Total Repo: " + repo.ToString("0.##");
-        txtAdvTot.Text  = "Total Advance: " + adv.ToString("0.##");
+        txtAdvTot.Text  = "Total Advance: " + adv.ToString("0.##")
+                        + (cash > 0m ? "    •    Cash collected: " + cash.ToString("0.##") : "");
 
         LoadPreview(imgLetter, LetterPath);
         LoadPreview(imgBg, BgPath);
@@ -204,22 +206,22 @@ public partial class AgentBillWindow : Window
         // Vehicle table
         var t = sec.AddTable();
         int rowsN = _rows.Count + 1;
-        t.ResetCells(rowsN, 10);
+        t.ResetCells(rowsN, 11);
         t.TableFormat.Borders.BorderType = BorderStyle.Single;
         t.TableFormat.Borders.LineWidth = 0.5f;
         t.TableFormat.Borders.Color = SFColor.Black;
 
-        string[] heads = { "#", "VEHICLE NO", "MAKE/MODEL", "FINANCE", "PARKING YARD", "REPO DATE", "PAYMENT DATE", "UTR NO", "REPO", "ADVANCE" };
-        for (int c = 0; c < 10; c++) Cell(t, 0, c, heads[c], bold: true);
+        string[] heads = { "#", "VEHICLE NO", "MAKE/MODEL", "FINANCE", "PARKING YARD", "REPO DATE", "PAYMENT DATE", "UTR NO", "REPO", "ADVANCE", "CASH COLLECTED" };
+        for (int c = 0; c < 11; c++) Cell(t, 0, c, heads[c], bold: true);
 
-        decimal repoTot = 0m, advTot = 0m;
+        decimal repoTot = 0m, advTot = 0m, cashTot = 0m;
         for (int i = 0; i < _rows.Count; i++)
         {
             var s = _rows[i];
             var veh = string.IsNullOrWhiteSpace(s.VehicleNo) ? s.ChassisNo : s.VehicleNo;
             var repoDate = (s.CreatedAt ?? "").Length >= 10 ? s.CreatedAt.Substring(0, 10) : (s.CreatedAt ?? "");
-            decimal repo = s.RepoCharges ?? 0m, adv = s.Advance ?? 0m;
-            repoTot += repo; advTot += adv;
+            decimal repo = s.RepoCharges ?? 0m, adv = s.Advance ?? 0m, cash = s.CashAmount ?? 0m;
+            repoTot += repo; advTot += adv; cashTot += cash;
             Cell(t, i + 1, 0, (i + 1).ToString());
             Cell(t, i + 1, 1, veh);
             Cell(t, i + 1, 2, s.Model);
@@ -230,21 +232,36 @@ public partial class AgentBillWindow : Window
             Cell(t, i + 1, 7, s.UtrNo);
             Cell(t, i + 1, 8, repo.ToString("0.##"));
             Cell(t, i + 1, 9, adv.ToString("0.##"));
+            Cell(t, i + 1, 10, cash == 0m ? "" : cash.ToString("0.##"));
         }
 
         sec.AddParagraph();
         decimal appc = ParseAmt(txtAppCharges.Text) ?? 0m;
-        decimal net = repoTot - advTot - appc;
+        decimal net = repoTot - advTot - appc - cashTot;
 
         var tot = sec.AddTable();
-        tot.ResetCells(4, 2);
+        tot.ResetCells(5, 2);
         tot.TableFormat.Borders.BorderType = BorderStyle.Single;
         tot.TableFormat.Borders.LineWidth = 0.5f;
         tot.TableFormat.Borders.Color = SFColor.Black;
         TotRow(tot, 0, "TOTAL REPO CHARGES", repoTot.ToString("0.##"));
-        TotRow(tot, 1, "TOTAL ADVANCE", advTot.ToString("0.##"));
-        TotRow(tot, 2, "APPLICATION CHARGES", appc.ToString("0.##"));
-        TotRow(tot, 3, "NET PAYABLE", net.ToString("0.##"), bold: true);
+        TotRow(tot, 1, "LESS: TOTAL ADVANCE", advTot.ToString("0.##"));
+        TotRow(tot, 2, "LESS: APPLICATION CHARGES", appc.ToString("0.##"));
+        TotRow(tot, 3, "LESS: CASH COLLECTED BY AGENT", cashTot.ToString("0.##"));
+        TotRow(tot, 4,
+            net < 0m ? "NET RECOVERABLE FROM AGENT" : "NET PAYABLE TO AGENT",
+            Math.Abs(net).ToString("0.##"), bold: true);
+
+        if (net < 0m)
+        {
+            var warn = sec.AddParagraph();
+            var wr = warn.AppendText(
+                $"The agent collected RS. {cashTot:0.##}/- in cash, which exceeds the amount due to him. " +
+                $"RS. {Math.Abs(net):0.##}/- is recoverable FROM the agent.");
+            wr.CharacterFormat.Bold = true;
+            wr.CharacterFormat.FontSize = 10;
+            wr.CharacterFormat.TextColor = SFColor.FromArgb(198, 40, 40);
+        }
 
         sec.AddParagraph();
         var bankHead = sec.AddParagraph();

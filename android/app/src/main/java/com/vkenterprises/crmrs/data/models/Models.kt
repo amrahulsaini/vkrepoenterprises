@@ -156,7 +156,8 @@ data class RepoTaskItem(
     val holdUntil: String = "",
     val holdDays: Int = 0,
     val createdOn: String = "",
-    val paymentScreenshotUrl: String = ""
+    val paymentScreenshotUrl: String = "",
+    val cashAmount: Double = 0.0
 )
 
 data class RepoTasksResponse(
@@ -191,7 +192,8 @@ data class RepoTaskEditRequest(
     val billingAction: String?,
     val holdUntil: String?,
     val holdDays: Int?,
-    val paymentScreenshotB64: String? = null
+    val paymentScreenshotB64: String? = null,
+    val cashAmount: Double? = null
 )
 
 data class RepoLetterSettings(
@@ -238,7 +240,8 @@ data class RepoSubmitRequest(
     val holdUntil: String?,
     val holdDays: Int?,
     val submittedByName: String?,
-    val paymentScreenshotB64: String? = null
+    val paymentScreenshotB64: String? = null,
+    val cashAmount: Double? = null
 )
 
 data class RepoStatusesResponse(

@@ -69,6 +69,8 @@ public partial class AccountsPage : Page
 
         public decimal? RepoCharges => _repo;
         public decimal? Advance => _adv;
+        public decimal CashAmount => Src.CashAmount ?? 0m;
+        public string CashText => (Src.CashAmount ?? 0m) == 0m ? "" : (Src.CashAmount ?? 0m).ToString("0.##");
 
         public string RepoChargesText
         {
@@ -80,7 +82,7 @@ public partial class AccountsPage : Page
             get => _adv?.ToString("0.##") ?? "";
             set { _adv = ParseAmt(value); Changed(nameof(AdvanceText)); Changed(nameof(FinalText)); }
         }
-        public string FinalText => ((_repo ?? 0m) - (_adv ?? 0m)).ToString("0.##");
+        public string FinalText => ((_repo ?? 0m) - (_adv ?? 0m) - CashAmount).ToString("0.##");
 
         public event PropertyChangedEventHandler? PropertyChanged;
         private void Changed([CallerMemberName] string? n = null)
@@ -188,7 +190,13 @@ public partial class AccountsPage : Page
     {
         txtGrandVehicles.Text = $"Vehicles: {rows.Count}";
         txtGrandRepo.Text  = "Total Repo: " + rows.Sum(x => x.RepoCharges ?? 0m).ToString("0.##");
-        txtGrandFinal.Text = "Total Final: " + rows.Sum(x => (x.RepoCharges ?? 0m) - (x.Advance ?? 0m)).ToString("0.##");
+        decimal cashTot = rows.Sum(x => x.CashAmount);
+        decimal finalTot = rows.Sum(x => (x.RepoCharges ?? 0m) - (x.Advance ?? 0m) - x.CashAmount);
+        txtGrandCash.Text = "Total Cash Collected: " + cashTot.ToString("0.##");
+        txtGrandFinal.Text = (finalTot < 0m ? "Recoverable from agent: " : "Total Final: ") + finalTot.ToString("0.##");
+        txtGrandFinal.Foreground = finalTot < 0m
+            ? System.Windows.Media.Brushes.Firebrick
+            : (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFrom("#1565C0")!;
     }
 
     private async void Reload_Changed(object sender, SelectionChangedEventArgs e)

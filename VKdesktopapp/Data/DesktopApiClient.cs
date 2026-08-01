@@ -138,7 +138,7 @@ internal static class DesktopApiClient
         decimal? TotalGross = null, decimal? CourierPercent = null, string ScreenshotUrl = "",
         string AcctHolderName = "", string BankName = "", string BankAccountNo = "",
         string IfscCode = "", string UtrNo = "", string PaymentDate = "",
-        decimal? ApplicationCharges = null);
+        decimal? ApplicationCharges = null, decimal? CashAmount = null);
 
     internal static async Task<List<BillingMemberDto>> GetBillingMembersAsync()
     {

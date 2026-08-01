@@ -137,6 +137,19 @@
                                  TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto"
                                  VerticalContentAlignment="Top" Padding="8,4" Margin="0,0,0,10" />
 
+                        <TextBlock Name="lblCollectionUpdate" Text="Collection Update (from app)" Foreground="#666" FontSize="12" Margin="0,0,0,3" Visibility="Collapsed" />
+                        <TextBox Name="txtCollectionUpdate" IsReadOnly="True" Background="#F5F5F5" Height="52"
+                                 TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto"
+                                 VerticalContentAlignment="Top" Padding="8,4" Margin="0,0,0,10" Visibility="Collapsed" />
+
+                        <Border Name="pnlCash" Background="#FFF6E5" CornerRadius="6" Padding="10,8" Margin="0,0,0,10" Visibility="Collapsed">
+                            <StackPanel>
+                                <TextBlock Text="Total Cash Paid by Customer" Foreground="#8A6D00" FontSize="12" />
+                                <TextBlock Name="txtCashPaid" Text="0" FontSize="18" FontWeight="Bold" Foreground="#B26A00" />
+                                <TextBlock Name="txtCashNote" Text="" FontSize="11" Foreground="#8A6D00" TextWrapping="Wrap" Margin="0,4,0,0" />
+                            </StackPanel>
+                        </Border>
+
                         <TextBlock Text="Total Gross (from billing)" Foreground="#666" FontSize="12" Margin="0,0,0,3" />
                         <TextBox Name="txtGross" Style="{StaticResource Fld}" IsReadOnly="True" Background="#F5F5F5" />
 

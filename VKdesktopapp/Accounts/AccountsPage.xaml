@@ -79,6 +79,14 @@
                     <DataGridTextColumn Header="%" Binding="{Binding PercentText}" Width="60" IsReadOnly="True" ElementStyle="{StaticResource CellText}" />
                     <DataGridTextColumn Header="Repo Charges" Binding="{Binding RepoChargesText, UpdateSourceTrigger=PropertyChanged}" Width="110" ElementStyle="{StaticResource CellText}" />
                     <DataGridTextColumn Header="Advance" Binding="{Binding AdvanceText, UpdateSourceTrigger=PropertyChanged}" Width="90" ElementStyle="{StaticResource CellText}" />
+                    <DataGridTextColumn Header="Cash Collected" Binding="{Binding CashText}" Width="110" IsReadOnly="True">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock" BasedOn="{StaticResource CellText}">
+                                <Setter Property="Foreground" Value="#B26A00" />
+                                <Setter Property="FontWeight" Value="SemiBold" />
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
                     <DataGridTextColumn Header="Final" Binding="{Binding FinalText}" Width="100" IsReadOnly="True">
                         <DataGridTextColumn.ElementStyle>
                             <Style TargetType="TextBlock" BasedOn="{StaticResource CellText}">
@@ -147,6 +155,7 @@
                     <StackPanel>
                         <TextBlock Name="txtGrandVehicles" Text="Vehicles: 0" FontWeight="Bold" FontSize="13" />
                         <TextBlock Name="txtGrandRepo" Text="Total Repo: 0" FontSize="12.5" Foreground="#2E7D32" />
+                        <TextBlock Name="txtGrandCash" Text="Total Cash Collected: 0" FontSize="12.5" Foreground="#B26A00" />
                         <TextBlock Name="txtGrandFinal" Text="Total Final: 0" FontSize="12.5" Foreground="#1565C0" FontWeight="Bold" />
                     </StackPanel>
                 </Border>
