@@ -1034,4 +1034,4 @@ private fun String.isValidRc(): Boolean =
     replace(Regex("[^A-Z0-9]"), "").uppercase().matches(RC_REGEX)
 
 private fun String.displayRc(showHyphens: Boolean): String =
-    if (showHyphens) this else replace("-", "")
+    if (showHyphens) replace(Regex("-{2,}"), "-") else replace("-", "")

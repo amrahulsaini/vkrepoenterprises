@@ -1518,7 +1518,7 @@ public class MobileRepository
                  confirmation_by_name, confirmation_by_mobile, executive_name,
                  collection_update, remark,
                  billing_action, hold_until, hold_days, submitted_by_name, submitted_by_user_id,
-                 bill_status, billed_at, payment_screenshot)
+                 bill_status, billed_at, payment_screenshot, cash_amount)
             VALUES
                 (@rid, @fid, @fname, @branch,
                  @loan, @cust, @veh, @model, @chassis, @engine,
@@ -1527,7 +1527,7 @@ public class MobileRepository
                  @cbn, @cbm, @exec,
                  @colup, @rmk,
                  @action, @holdu, @holdd, @subby, @subuid,
-                 @bstatus, @battime, @pscreen)", conn) { CommandTimeout = 15 };
+                 @bstatus, @battime, @pscreen, @cash)", conn) { CommandTimeout = 15 };
 
         void P(string n, object? v) => cmd.Parameters.AddWithValue(n, v ?? DBNull.Value);
         P("@rid",   req.RecordId is > 0 ? req.RecordId : (object?)null);
@@ -1563,6 +1563,7 @@ public class MobileRepository
         P("@bstatus", autoBilled ? "billed" : "pending");
         P("@battime", autoBilled ? (object)DateTime.Now : DBNull.Value);
         P("@pscreen", screenshotRel);
+        P("@cash", req.CashAmount is > 0 ? req.CashAmount : (object?)null);
         await cmd.ExecuteNonQueryAsync();
         return cmd.LastInsertedId;
     }
@@ -1614,7 +1615,7 @@ public class MobileRepository
                    billing_action, bill_status,
                    COALESCE(DATE_FORMAT(hold_until,'%Y-%m-%d'),''), COALESCE(hold_days,0),
                    COALESCE(DATE_FORMAT(created_at,'%d %b %Y, %h:%i %p'),''),
-                   COALESCE(payment_screenshot,'')
+                   COALESCE(payment_screenshot,''), COALESCE(cash_amount,0)
               FROM repo_submissions
              WHERE submitted_by_user_id=@id AND YEAR(created_at)=@y AND MONTH(created_at)=@m
              ORDER BY created_at DESC", conn))
@@ -1632,7 +1633,8 @@ public class MobileRepository
                     S(9), S(10), S(11), S(12), S(13), r.GetDecimal(14),
                     S(15), S(16), S(17), S(18), S(19), S(20), S(21), S(22),
                     r.IsDBNull(23) ? 0 : r.GetInt32(23), S(24),
-                    shot.Length == 0 ? "" : "uploads/" + shot.TrimStart('/')));
+                    shot.Length == 0 ? "" : "uploads/" + shot.TrimStart('/'),
+                    r.IsDBNull(26) ? 0m : r.GetDecimal(26)));
             }
         }
 
@@ -1664,6 +1666,7 @@ public class MobileRepository
                 collection_update=@colup, remark=@rmk,
                 billing_action=@action, hold_until=@holdu, hold_days=@holdd,
                 payment_screenshot=COALESCE(@pscreen, payment_screenshot),
+                cash_amount=@cash,
                 bill_status = CASE WHEN @autobill=1 THEN 'billed'
                                    WHEN invoice_no IS NOT NULL OR bill_file IS NOT NULL THEN bill_status
                                    ELSE 'pending' END,
@@ -1680,6 +1683,7 @@ public class MobileRepository
         P("@colup", req.CollectionUpdate); P("@rmk", req.Remark);
         P("@action", action); P("@holdu", holdUntil); P("@holdd", req.HoldDays);
         P("@pscreen", screenshotRel); P("@autobill", autoBill ? 1 : 0);
+        P("@cash", req.CashAmount is > 0 ? req.CashAmount : (object?)null);
         P("@id", id); P("@uid", userId);
         return await cmd.ExecuteNonQueryAsync() > 0;
     }

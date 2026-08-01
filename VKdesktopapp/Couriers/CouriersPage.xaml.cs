@@ -167,6 +167,7 @@ public partial class CouriersPage : Page
         txtPod.Text = r.Src.PodNumber;
         _suppressCalc = false;
 
+        ShowAppInfo(r);
         ConfigureForStatus(r.Src.BillingAction);
         UpdateFinal();
         LoadScreenshot(r.Src.ScreenshotUrl);
@@ -175,6 +176,28 @@ public partial class CouriersPage : Page
         btnSubmit.IsEnabled = true;
         btnClear.IsEnabled = true;
         txtFormStatus.Text = "";
+    }
+
+    private void ShowAppInfo(Row r)
+    {
+        var vis = System.Windows.Visibility.Visible;
+        var gone = System.Windows.Visibility.Collapsed;
+        bool showUpdate = r.Src.BillingAction is "hold" or "collection_done";
+        lblCollectionUpdate.Visibility = showUpdate ? vis : gone;
+        txtCollectionUpdate.Visibility = showUpdate ? vis : gone;
+        txtCollectionUpdate.Text = r.Src.CollectionUpdate;
+
+        decimal cash = r.Src.CashAmount ?? 0m;
+        bool showCash = r.Src.BillingAction == "collection_done" && cash > 0m;
+        pnlCash.Visibility = showCash ? vis : gone;
+        if (!showCash) return;
+
+        txtCashPaid.Text = cash.ToString("0.##");
+        decimal repo = ParseAmt(txtRepoCharges.Text) ?? 0m;
+        decimal net = repo - cash;
+        txtCashNote.Text = net < 0m
+            ? $"Agent holds this cash. Against repo charges {repo:0.##}, the agent owes the agency {(-net):0.##}."
+            : $"Agent holds this cash. Against repo charges {repo:0.##}, agency still owes {net:0.##}.";
     }
 
     private bool _suppressCalc;
@@ -220,6 +243,15 @@ public partial class CouriersPage : Page
         var repo = ParseAmt(txtRepoCharges.Text) ?? 0m;
         var adv  = ParseAmt(txtAdvance.Text) ?? 0m;
         txtFinal.Text = (repo - adv).ToString("0.##");
+        if (pnlCash.Visibility == System.Windows.Visibility.Visible &&
+            grid.SelectedItem is Row sel)
+        {
+            decimal cash = sel.Src.CashAmount ?? 0m;
+            decimal net = repo - cash;
+            txtCashNote.Text = net < 0m
+                ? $"Agent holds this cash. Against repo charges {repo:0.##}, the agent owes the agency {(-net):0.##}."
+                : $"Agent holds this cash. Against repo charges {repo:0.##}, agency still owes {net:0.##}.";
+        }
     }
 
     private string? _screenshotUrl;

@@ -257,7 +257,8 @@ public record RepoSubmitRequest(
     string?  HoldUntil,
     int?     HoldDays,
     string?  SubmittedByName,
-    string?  PaymentScreenshotB64 = null);
+    string?  PaymentScreenshotB64 = null,
+    decimal? CashAmount = null);
 
 public record RepoTaskItem(
     long     Id,
@@ -285,7 +286,8 @@ public record RepoTaskItem(
     string   HoldUntil,
     int      HoldDays,
     string   CreatedOn,
-    string   PaymentScreenshotUrl = "");
+    string   PaymentScreenshotUrl = "",
+    decimal  CashAmount = 0m);
 
 public record RepoTasksResponse(
     bool success,
@@ -318,7 +320,8 @@ public record RepoTaskEditRequest(
     string?  BillingAction,
     string?  HoldUntil,
     int?     HoldDays,
-    string?  PaymentScreenshotB64 = null);
+    string?  PaymentScreenshotB64 = null,
+    decimal? CashAmount = null);
 
 public record BillingSettings(
     string? AgencyName,

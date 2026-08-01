@@ -270,6 +270,7 @@ private fun TaskEditSheet(
     var action      by remember(item.id) { mutableStateOf(item.billingAction) }
     var holdDays    by remember(item.id) { mutableStateOf(if (item.holdDays > 0) item.holdDays.toString() else "") }
     var holdUntil   by remember(item.id) { mutableStateOf(item.holdUntil) }
+    var cashAmt     by remember(item.id) { mutableStateOf(if (item.cashAmount > 0) item.cashAmount.toString() else "") }
 
     // Payment screenshot — required when moving to Collection done.
     var payUri by remember(item.id) { mutableStateOf<Uri?>(null) }
@@ -365,7 +366,12 @@ private fun TaskEditSheet(
             }
 
             if (action == "collection_done") {
-                Text("Payment screenshot (optional)", style = MaterialTheme.typography.labelMedium,
+                Text("How did the customer pay? *", style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                EditField("Cash Amount Received", cashAmt, KeyboardType.Number) {
+                    cashAmt = it.filter { c -> c.isDigit() || c == '.' }
+                }
+                Text("Online payment screenshot", style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                 val existingUrl = item.paymentScreenshotUrl.takeIf { it.isNotBlank() }
                     ?.let { com.vkenterprises.crmrs.BuildConfig.BASE_URL.trimEnd('/') + "/" + it.trimStart('/') }
@@ -411,7 +417,13 @@ private fun TaskEditSheet(
                     shape = RoundedCornerShape(10.dp)
                 ) { Text("Cancel") }
                 Button(
-                    onClick = {
+                    onClick = save@ {
+                        val cashVal = cashAmt.trim().toDoubleOrNull() ?: 0.0
+                        if (action == "collection_done" && cashVal <= 0.0 &&
+                            payB64 == null && item.paymentScreenshotUrl.isBlank()) {
+                            editErr = "Enter the cash amount or attach the payment screenshot."
+                            return@save
+                        }
                         editErr = null
                         onSave(
                             item.copy(
@@ -435,7 +447,8 @@ private fun TaskEditSheet(
                                 remark               = remark,
                                 billingAction        = action,
                                 holdUntil            = if (action == "hold") holdUntil else "",
-                                holdDays             = if (action == "hold") (holdDays.toIntOrNull() ?: 0) else 0
+                                holdDays             = if (action == "hold") (holdDays.toIntOrNull() ?: 0) else 0,
+                                cashAmount           = cashVal
                             ),
                             payB64
                         )

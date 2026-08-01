@@ -637,6 +637,7 @@ CREATE TABLE IF NOT EXISTS `repo_submissions` (
   `total_gross`            DECIMAL(12,2)   NULL,
   `courier_percent`        DECIMAL(6,2)    NULL,
   `payment_screenshot`     VARCHAR(255)    NULL,
+  `cash_amount`            DECIMAL(12,2)   NULL,
   `acct_holder_name`       VARCHAR(255)    NULL,
   `bank_name`              VARCHAR(255)    NULL,
   `bank_account_no`        VARCHAR(64)     NULL,

@@ -91,6 +91,7 @@ fun OkForRepoScreen(
     var executiveName     by remember(item?.id) { mutableStateOf(item?.executiveName.orEmpty().uppercase()) }
     var collectionUpdate  by remember { mutableStateOf("") }
     var remark            by remember { mutableStateOf("") }
+    var cashAmount        by remember { mutableStateOf("") }
 
     var billingAction by remember { mutableStateOf("immediate") }
     var holdDays      by remember { mutableStateOf("") }
@@ -176,6 +177,7 @@ fun OkForRepoScreen(
             "Confirmation By (Name,Mobile)" to comma(confirmByName, confirmByMobile),
             "Executive Name" to executiveName,
             "Collection Update" to collectionUpdate,
+            "Cash Received" to (if (billingAction == "collection_done") cashAmount.trim() else ""),
             "Remark" to remark
         ).filter { it.second.isNotBlank() }
         if (extras.isNotEmpty()) { appendLine(); extras.forEach { f(it.first, it.second) } }
@@ -186,6 +188,11 @@ fun OkForRepoScreen(
     fun submit() {
         if (submitting) return
         val rec = item ?: return
+        val cashVal = cashAmount.trim().toDoubleOrNull() ?: 0.0
+        if (billingAction == "collection_done" && cashVal <= 0.0 && paymentB64.isNullOrBlank()) {
+            errorMsg = "For Collection done, enter the cash amount or attach the payment screenshot."
+            return
+        }
         submitting = true
         errorMsg = null
         successMsg = null
@@ -217,7 +224,8 @@ fun OkForRepoScreen(
                         holdUntil         = holdDate.trim().ifBlank { null },
                         holdDays          = holdDays.trim().toIntOrNull(),
                         submittedByName   = agentNameAuth.trim().ifBlank { null },
-                        paymentScreenshotB64 = paymentB64
+                        paymentScreenshotB64 = paymentB64,
+                        cashAmount        = cashVal.takeIf { it > 0.0 }
                     )
                 )
                 resp.isSuccessful
@@ -311,7 +319,17 @@ fun OkForRepoScreen(
             }
 
             if (billingAction == "collection_done") {
-                Text("Payment screenshot (optional)", style = MaterialTheme.typography.labelMedium,
+                Text("How did the customer pay? *", style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                Text("Enter the cash amount, attach the online payment screenshot, or both.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+                Field("Cash Amount Received", cashAmount, Icons.Default.Payments, KeyboardType.Number) {
+                    cashAmount = it.filter { c -> c.isDigit() || c == '.' }
+                }
+
+                Text("Online payment screenshot", style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                 if (paymentUri != null) {
                     AsyncImage(

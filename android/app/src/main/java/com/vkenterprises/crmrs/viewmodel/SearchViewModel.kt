@@ -268,10 +268,7 @@ class SearchViewModel @Inject constructor(
                         result.data.sortedBy { it.chassisNo }
                     val filtered = if (mode == SearchMode.RC)
                         full.filter { matchesPrefix(it.vehicleNo, statePrefix) } else full
-                    val unique = if (mode == SearchMode.RC)
-                        filtered.bestPerVehicle(mode)
-                    else
-                        filtered.distinctBy { it.chassisNo }
+                    val unique = filtered.bestPerVehicle(mode)
                     it.copy(results = unique, allResults = full, lastQuery = q, errorMsg = null, isSearching = false)
                 }
                 is SearchResult2.SubscriptionExpired -> it.copy(subscriptionExpired = true, isSearching = false)
@@ -303,8 +300,11 @@ private fun SearchResult.completenessScore(): Int = listOf(
     senderMail1, senderMail2, executiveName, pos, toss, remark
 ).count { isFilled(it) }
 
+private fun String.dedupKey() = replace(Regex("[^A-Za-z0-9]"), "").uppercase()
+
 private fun List<SearchResult>.bestPerVehicle(mode: SearchMode): List<SearchResult> {
-    val keyOf: (SearchResult) -> String = if (mode == SearchMode.RC) { r -> r.vehicleNo } else { r -> r.chassisNo }
+    val keyOf: (SearchResult) -> String =
+        if (mode == SearchMode.RC) { r -> r.vehicleNo.dedupKey() } else { r -> r.chassisNo.dedupKey() }
     return groupBy(keyOf).values.map { group -> group.maxByOrNull { it.completenessScore() } ?: group.first() }
 }
 

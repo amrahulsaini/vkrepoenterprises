@@ -2244,7 +2244,7 @@ app.MapGet("/api/mgr/billing/submissions", async (HttpContext ctx, string? from,
                    repo_charges, advance, courier_yn, banker_address, pod_number,
                    invoice_no, bill_file, total_gross, courier_percent, payment_screenshot,
                    acct_holder_name, bank_name, bank_account_no, ifsc_code, utr_no,
-                   payment_date, application_charges
+                   payment_date, application_charges, cash_amount
               FROM repo_submissions {whereSql}
              ORDER BY created_at DESC LIMIT 2000", conn) { CommandTimeout = 30 };
         if (DateTime.TryParse(from, out var f2)) cmd.Parameters.AddWithValue("@from", f2.Date);
@@ -2293,7 +2293,8 @@ app.MapGet("/api/mgr/billing/submissions", async (HttpContext ctx, string? from,
                 ifscCode = S(42) ?? "",
                 utrNo = S(43) ?? "",
                 paymentDate = rdr.IsDBNull(44) ? "" : rdr.GetDateTime(44).ToString("yyyy-MM-dd"),
-                applicationCharges = rdr.IsDBNull(45) ? (decimal?)null : rdr.GetDecimal(45)
+                applicationCharges = rdr.IsDBNull(45) ? (decimal?)null : rdr.GetDecimal(45),
+                cashAmount = rdr.IsDBNull(46) ? (decimal?)null : rdr.GetDecimal(46)
             });
         }
         return Results.Ok(list);
