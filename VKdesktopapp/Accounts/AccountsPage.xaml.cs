@@ -261,7 +261,153 @@ public partial class AccountsPage : Page
         txtPaySel.Text = $"{veh}  •  {r.CustomerName}  •  Agent: {r.AgentName}";
         txtUtr.Text = r.Src.UtrNo;
         dpPayDate.SelectedDate = DateTime.TryParse(r.Src.PaymentDate, out var d) ? d : (DateTime?)null;
+        LoadCharges(r);
         pnlPay.IsEnabled = true;
+    }
+
+    private bool _suppressAcCalc;
+
+    private void LoadCharges(AcctRow r)
+    {
+        var vis  = Visibility.Visible;
+        var gone = Visibility.Collapsed;
+        bool isOk   = r.Src.BillingAction == "immediate";
+        bool isHold = r.Src.BillingAction is "hold" or "collection_done";
+
+        txtChargesHead.Text = "CHARGES — " + r.ActionText.ToUpperInvariant();
+        txtChargesMsg.Text = "";
+
+        lblGross.Visibility    = isOk ? vis : gone;
+        txtAcGross.Visibility  = isOk ? vis : gone;
+        lblAcPercent.Visibility   = isOk ? vis : gone;
+        txtAcPercent.Visibility   = isOk ? vis : gone;
+
+        var addl = JoinAddl(r.Src.AddlChargesNotes, r.Src.AddlChargesAmount);
+        bool showAddl = isHold && addl.Length > 0;
+        lblAcAddl.Visibility   = showAddl ? vis : gone;
+        txtAcAddl.Visibility   = showAddl ? vis : gone;
+
+        _suppressAcCalc = true;
+        txtAcGross.Text   = r.Src.TotalGross?.ToString("0.##") ?? "";
+        txtAcAddl.Text    = addl;
+        txtAcPercent.Text = r.Src.CourierPercent?.ToString("0.##") ?? "";
+        txtAcRepo.Text    = r.RepoCharges?.ToString("0.##") ?? "";
+        txtAcAdvance.Text = r.Advance?.ToString("0.##") ?? "";
+        txtAcCash.Text    = r.CashAmount == 0m ? "" : r.CashAmount.ToString("0.##");
+        _suppressAcCalc = false;
+
+        bool showCash = r.CashAmount > 0m;
+        lblAcCash.Visibility = showCash ? vis : gone;
+        txtAcCash.Visibility = showCash ? vis : gone;
+
+        UpdateAcFinal();
+        LoadAcScreenshot(r.Src.ScreenshotUrl);
+    }
+
+    private string? _acShotUrl;
+
+    private async void LoadAcScreenshot(string? url)
+    {
+        _acShotUrl = url;
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            lblAcShot.Visibility = Visibility.Collapsed;
+            pnlAcShot.Visibility = Visibility.Collapsed;
+            imgAcShot.Source = null;
+            return;
+        }
+        lblAcShot.Visibility = Visibility.Visible;
+        pnlAcShot.Visibility = Visibility.Visible;
+        try
+        {
+            var bytes = await App.HttpClient.GetByteArrayAsync(url);
+            using var ms = new System.IO.MemoryStream(bytes);
+            var bmp = new System.Windows.Media.Imaging.BitmapImage();
+            bmp.BeginInit();
+            bmp.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
+            bmp.StreamSource = ms;
+            bmp.EndInit();
+            bmp.Freeze();
+            imgAcShot.Source = bmp;
+        }
+        catch { imgAcShot.Source = null; }
+    }
+
+    private void imgAcShot_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        if (!string.IsNullOrWhiteSpace(_acShotUrl))
+            try { Process.Start(new ProcessStartInfo(_acShotUrl) { UseShellExecute = true }); } catch { }
+    }
+
+    private static string JoinAddl(string? notes, decimal? amount)
+    {
+        var parts = new List<string>();
+        if (!string.IsNullOrWhiteSpace(notes)) parts.Add(notes!.Trim());
+        if (amount.HasValue && amount.Value != 0m) parts.Add(amount.Value.ToString("0.##"));
+        return string.Join(", ", parts);
+    }
+
+    private void AcCalc_Changed(object sender, TextChangedEventArgs e)
+    {
+        if (_suppressAcCalc) return;
+        if (ReferenceEquals(sender, txtAcPercent))
+        {
+            var gross = ParseAmt(txtAcGross.Text);
+            var pct   = ParseAmt(txtAcPercent.Text);
+            if (gross.HasValue && pct.HasValue)
+            {
+                _suppressAcCalc = true;
+                txtAcRepo.Text = (gross.Value * pct.Value / 100m).ToString("0.##");
+                _suppressAcCalc = false;
+            }
+        }
+        UpdateAcFinal();
+    }
+
+    private void UpdateAcFinal()
+    {
+        decimal repo = ParseAmt(txtAcRepo.Text) ?? 0m;
+        decimal adv  = ParseAmt(txtAcAdvance.Text) ?? 0m;
+        decimal cash = _selected?.CashAmount ?? 0m;
+        decimal net  = repo - adv - cash;
+        txtAcFinal.Text = cash > 0m
+            ? $"Final: {repo:0.##} − {adv:0.##} − {cash:0.##} cash = {net:0.##}"
+            : $"Final: {repo:0.##} − {adv:0.##} = {net:0.##}";
+        txtAcFinal.Foreground = net < 0m
+            ? System.Windows.Media.Brushes.Firebrick
+            : (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFrom("#1565C0")!;
+    }
+
+    private async void btnSaveCharges_Click(object sender, RoutedEventArgs e)
+    {
+        if (_selected is not { } r) return;
+        btnSaveCharges.IsEnabled = false;
+        txtChargesMsg.Foreground = System.Windows.Media.Brushes.Gray;
+        txtChargesMsg.Text = "Saving…";
+        try
+        {
+            await DesktopApiClient.UpdateCourierSubmissionAsync(r.Id, new
+            {
+                RepoCharges = ParseAmt(txtAcRepo.Text),
+                Advance = ParseAmt(txtAcAdvance.Text),
+                CourierYn = r.Src.CourierYn,
+                BankerAddress = r.Src.BankerAddress,
+                PodNumber = r.Src.PodNumber,
+                CourierPercent = ParseAmt(txtAcPercent.Text)
+            });
+            long keepId = r.Id;
+            await LoadAsync();
+            var again = _shown.FirstOrDefault(x => x.Id == keepId);
+            if (again != null) { grid.SelectedItem = again; grid.ScrollIntoView(again); }
+            txtChargesMsg.Foreground = System.Windows.Media.Brushes.Green;
+            txtChargesMsg.Text = "Charges saved.";
+        }
+        catch (Exception ex)
+        {
+            txtChargesMsg.Foreground = System.Windows.Media.Brushes.Firebrick;
+            txtChargesMsg.Text = "Save failed: " + ex.Message;
+        }
+        finally { btnSaveCharges.IsEnabled = true; }
     }
 
     private async void btnSavePay_Click(object sender, RoutedEventArgs e)
