@@ -69,6 +69,14 @@ public partial class AccountsPage : Page
 
         public decimal? RepoCharges => _repo;
         public decimal? Advance => _adv;
+        public string ChassisNo => Src.ChassisNo;
+        public string LoanNo => Src.LoanNo;
+        public string Model => Src.Model;
+        public string ParkingYardName => Src.ParkingYardName;
+        public string CollectionUpdate => Src.CollectionUpdate;
+        public string Remark => Src.Remark;
+        public string UtrNo => Src.UtrNo;
+        public string PaymentDate => Src.PaymentDate;
         public decimal CashAmount => Src.CashAmount ?? 0m;
         public string CashText => (Src.CashAmount ?? 0m) == 0m ? "" : (Src.CashAmount ?? 0m).ToString("0.##");
 
