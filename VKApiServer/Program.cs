@@ -2244,7 +2244,7 @@ app.MapGet("/api/mgr/billing/submissions", async (HttpContext ctx, string? from,
                    rs.banker_address, rs.pod_number, rs.invoice_no, rs.bill_file,
                    rs.total_gross, rs.courier_percent, rs.payment_screenshot, rs.acct_holder_name,
                    rs.bank_name, rs.bank_account_no, rs.ifsc_code, rs.utr_no,
-                   rs.payment_date, rs.application_charges, rs.cash_amount
+                   rs.payment_date, rs.application_charges, rs.cash_amount, rs.payment_status
               FROM repo_submissions rs
          LEFT JOIN finances f ON f.id = rs.finance_id {whereSql}
              ORDER BY rs.created_at DESC LIMIT 2000", conn) { CommandTimeout = 30 };
@@ -2295,7 +2295,8 @@ app.MapGet("/api/mgr/billing/submissions", async (HttpContext ctx, string? from,
                 utrNo = S(43) ?? "",
                 paymentDate = rdr.IsDBNull(44) ? "" : rdr.GetDateTime(44).ToString("yyyy-MM-dd"),
                 applicationCharges = rdr.IsDBNull(45) ? (decimal?)null : rdr.GetDecimal(45),
-                cashAmount = rdr.IsDBNull(46) ? (decimal?)null : rdr.GetDecimal(46)
+                cashAmount = rdr.IsDBNull(46) ? (decimal?)null : rdr.GetDecimal(46),
+                paymentStatus = rdr.IsDBNull(47) ? "" : rdr.GetString(47)
             });
         }
         return Results.Ok(list);
@@ -2603,11 +2604,14 @@ app.MapPost("/api/mgr/accounts/submissions/{id:long}/payment", async (HttpContex
 
         await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
+        var pstatus = (dto.PaymentStatus ?? "").Trim().ToLowerInvariant();
+        if (pstatus != "paid" && pstatus != "unpaid") pstatus = "";
         await MgrExec(
-            "UPDATE repo_submissions SET utr_no=@utr, payment_date=@pdate WHERE id=@id",
+            "UPDATE repo_submissions SET utr_no=@utr, payment_date=@pdate, payment_status=@pstat WHERE id=@id",
             conn, 20,
             ("@utr", (object?)dto.UtrNo ?? DBNull.Value),
             ("@pdate", (object?)pdate ?? DBNull.Value),
+            ("@pstat", pstatus.Length == 0 ? DBNull.Value : (object)pstatus),
             ("@id", id));
         return Results.Ok(new { success = true });
     }
@@ -4453,7 +4457,7 @@ record MgrEditFieldsDto(
 record MgrPaymentDto(
     string? AcctHolderName = null, string? BankName = null, string? BankAccountNo = null,
     string? IfscCode = null, string? UtrNo = null, string? PaymentDate = null,
-    decimal? ApplicationCharges = null);
+    decimal? ApplicationCharges = null, string? PaymentStatus = null);
 record MgrAgentBillingDto(
     string AgentName, string? AcctHolderName = null, string? BankName = null,
     string? BankAccountNo = null, string? IfscCode = null,

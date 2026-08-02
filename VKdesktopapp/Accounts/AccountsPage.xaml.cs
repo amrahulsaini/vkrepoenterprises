@@ -77,6 +77,12 @@ public partial class AccountsPage : Page
         public string Remark => Src.Remark;
         public string UtrNo => Src.UtrNo;
         public string PaymentDate => Src.PaymentDate;
+        public string PaymentStatusText => (Src.PaymentStatus ?? "").Trim().ToLowerInvariant() switch
+        {
+            "paid"   => "PAID",
+            "unpaid" => "UNPAID",
+            _        => ""
+        };
         public decimal CashAmount => Src.CashAmount ?? 0m;
         public string CashText => (Src.CashAmount ?? 0m) == 0m ? "" : (Src.CashAmount ?? 0m).ToString("0.##");
 
@@ -261,6 +267,12 @@ public partial class AccountsPage : Page
         txtPaySel.Text = $"{veh}  •  {r.CustomerName}  •  Agent: {r.AgentName}";
         txtUtr.Text = r.Src.UtrNo;
         dpPayDate.SelectedDate = DateTime.TryParse(r.Src.PaymentDate, out var d) ? d : (DateTime?)null;
+        cmbPayStatus.SelectedIndex = (r.Src.PaymentStatus ?? "").Trim().ToLowerInvariant() switch
+        {
+            "paid"   => 1,
+            "unpaid" => 2,
+            _        => 0
+        };
         LoadCharges(r);
         pnlPay.IsEnabled = true;
     }
@@ -412,6 +424,13 @@ public partial class AccountsPage : Page
     private async void btnSavePay_Click(object sender, RoutedEventArgs e)
     {
         if (_selected is not { } r) return;
+        if (cmbPayStatus.SelectedIndex <= 0)
+        {
+            txtPayMsg.Foreground = System.Windows.Media.Brushes.Firebrick;
+            txtPayMsg.Text = "Choose Paid or Unpaid before saving.";
+            cmbPayStatus.Focus();
+            return;
+        }
         btnSavePay.IsEnabled = false;
         txtPayMsg.Foreground = System.Windows.Media.Brushes.Gray;
         txtPayMsg.Text = "Saving…";
@@ -420,7 +439,8 @@ public partial class AccountsPage : Page
             await DesktopApiClient.UpdateAccountsPaymentAsync(r.Id, new
             {
                 UtrNo = txtUtr.Text.Trim(),
-                PaymentDate = dpPayDate.SelectedDate?.ToString("yyyy-MM-dd")
+                PaymentDate = dpPayDate.SelectedDate?.ToString("yyyy-MM-dd"),
+                PaymentStatus = cmbPayStatus.SelectedIndex == 1 ? "paid" : "unpaid"
             });
             long keepId = r.Id;
             await LoadAsync();
