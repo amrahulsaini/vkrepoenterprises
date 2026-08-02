@@ -2315,22 +2315,35 @@ app.MapPost("/api/mgr/couriers/submissions/{id:long}/update", async (HttpContext
         await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
 
-        var sets = new List<string>
+        // A field the caller did not send is LEFT ALONE. Wiping a value now
+        // requires ClearEntries, so one screen saving from a stale copy can no
+        // longer silently undo another screen's edit.
+        var sets = new List<string> { "courier_updated_at=NOW()" };
+        var ps = new List<(string, object)> { ("@id", id) };
+        void Set(string column, string param, object? value)
         {
-            "repo_charges=@rc", "advance=@adv", "courier_yn=@cy",
-            "banker_address=@ba", "pod_number=@pod",
-            "courier_percent=@cp", "courier_updated_at=NOW()"
-        };
-        var ps = new List<(string, object)>
+            sets.Add($"{column}={param}");
+            ps.Add((param, value ?? DBNull.Value));
+        }
+
+        if (dto.ClearEntries == true)
         {
-            ("@rc", (object?)dto.RepoCharges ?? DBNull.Value),
-            ("@adv", (object?)dto.Advance ?? DBNull.Value),
-            ("@cy", (object?)dto.CourierYn ?? DBNull.Value),
-            ("@ba", (object?)dto.BankerAddress ?? DBNull.Value),
-            ("@pod", (object?)dto.PodNumber ?? DBNull.Value),
-            ("@cp", (object?)dto.CourierPercent ?? DBNull.Value),
-            ("@id", id)
-        };
+            Set("repo_charges", "@rc", null);
+            Set("advance", "@adv", null);
+            Set("courier_yn", "@cy", null);
+            Set("banker_address", "@ba", null);
+            Set("pod_number", "@pod", null);
+            Set("courier_percent", "@cp", null);
+        }
+        else
+        {
+            if (dto.RepoCharges is not null)    Set("repo_charges", "@rc", dto.RepoCharges);
+            if (dto.Advance is not null)        Set("advance", "@adv", dto.Advance);
+            if (dto.CourierYn is not null)      Set("courier_yn", "@cy", dto.CourierYn);
+            if (dto.BankerAddress is not null)  Set("banker_address", "@ba", dto.BankerAddress);
+            if (dto.PodNumber is not null)      Set("pod_number", "@pod", dto.PodNumber);
+            if (dto.CourierPercent is not null) Set("courier_percent", "@cp", dto.CourierPercent);
+        }
         if (dto.BillingAction is "immediate" or "hold" or "collection_done" or "cancel")
         {
             sets.Add("billing_action=@ba2");
@@ -4475,7 +4488,8 @@ record MgrAgentBillingDto(
     decimal? ApplicationCharges = null, int LastInvoiceNo = 0);
 
 record MgrCourierUpdateDto(decimal? RepoCharges, decimal? Advance, string? CourierYn,
-    string? BankerAddress, string? PodNumber, string? BillingAction, decimal? CourierPercent = null);
+    string? BankerAddress, string? PodNumber, string? BillingAction, decimal? CourierPercent = null,
+    bool? ClearEntries = null);
 record MgrSetFinanceRestrictionsDto(List<int> FinanceIds);
 record MgrSetSubsPasswordDto(string Password);
 

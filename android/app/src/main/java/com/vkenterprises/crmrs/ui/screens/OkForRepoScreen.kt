@@ -210,7 +210,7 @@ fun OkForRepoScreen(
         errorMsg = null
         successMsg = null
         scope.launch {
-            var duplicate = false
+            var failCode = 0
             val ok = runCatching {
                 val resp = ApiClient.api.submitRepo(
                     userId = userId,
@@ -242,7 +242,7 @@ fun OkForRepoScreen(
                         cashAmount        = cashVal.takeIf { it > 0.0 }
                     )
                 )
-                if (resp.code() == 409) duplicate = true
+                if (!resp.isSuccessful) failCode = resp.code()
                 resp.isSuccessful
             }.getOrDefault(false)
             submitting = false
@@ -252,10 +252,16 @@ fun OkForRepoScreen(
                 submittedOk = true
                 reloadUsedStatuses()
             } else {
-                errorMsg = if (duplicate)
-                    "This vehicle already has that status for this month."
-                else
-                    "Could not save. Check your connection and try again."
+                errorMsg = when (failCode) {
+                    409  -> "This vehicle already has that status for this month. Choose a different status."
+                    403  -> "Your account is blocked or inactive. Contact your agency."
+                    404  -> "This vehicle record no longer exists."
+                    400  -> "Some details aren't valid. Check the fields and try again."
+                    401  -> "You've been signed out. Please log in again."
+                    413  -> "The photo is too large. Try a smaller one."
+                    in 500..599 -> "The server couldn't save that right now. Please try again in a moment."
+                    else -> "Couldn't reach the server. Check your internet and try again."
+                }
             }
         }
     }

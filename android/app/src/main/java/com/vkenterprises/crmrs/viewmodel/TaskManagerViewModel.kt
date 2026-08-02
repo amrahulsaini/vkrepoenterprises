@@ -107,6 +107,17 @@ class TaskManagerViewModel @Inject constructor(
         load()
     }
 
+    private fun messageFor(code: Int): String = when (code) {
+        409  -> "This vehicle already has that status for this month. Choose a different status."
+        403  -> "Your account is blocked or inactive. Contact your agency."
+        404  -> "This entry no longer exists. Refresh and try again."
+        400  -> "Some details aren't valid. Check the fields and try again."
+        401  -> "You've been signed out. Please log in again."
+        413  -> "The photo is too large. Try a smaller one."
+        in 500..599 -> "The server couldn't save that right now. Please try again in a moment."
+        else -> "Couldn't save. Please try again."
+    }
+
     fun startEdit(item: RepoTaskItem) = _ui.update { it.copy(editing = item, savedMsg = null) }
     fun cancelEdit() = _ui.update { it.copy(editing = null) }
     fun dismissMessages() = _ui.update { it.copy(errorMsg = null, savedMsg = null) }
@@ -153,10 +164,13 @@ class TaskManagerViewModel @Inject constructor(
                         )
                     }
                 } else {
-                    _ui.update { it.copy(saving = false, errorMsg = "Could not save. Try again.") }
+                    _ui.update { it.copy(saving = false, errorMsg = messageFor(resp.code())) }
                 }
             }.onFailure {
-                _ui.update { it.copy(saving = false, errorMsg = "Network error. Try again.") }
+                _ui.update {
+                    it.copy(saving = false,
+                        errorMsg = "Couldn't reach the server. Check your internet and try again.")
+                }
             }
         }
     }
