@@ -2223,30 +2223,31 @@ app.MapGet("/api/mgr/billing/submissions", async (HttpContext ctx, string? from,
             .Where(v => v >= 0).ToList();
 
         var where = new List<string>();
-        if (ids.Count > 0) where.Add($"finance_id IN ({string.Join(",", ids)})");
+        if (ids.Count > 0) where.Add($"rs.finance_id IN ({string.Join(",", ids)})");
         else if (!string.IsNullOrWhiteSpace(financeIds)) where.Add("1=0");
-        if (DateTime.TryParse(from, out var f)) where.Add("created_at >= @from");
-        if (DateTime.TryParse(to, out var t))   where.Add("created_at < @to");
-        if (status == "pending" || status == "billed") where.Add("bill_status = @st");
+        if (DateTime.TryParse(from, out var f)) where.Add("rs.created_at >= @from");
+        if (DateTime.TryParse(to, out var t))   where.Add("rs.created_at < @to");
+        if (status == "pending" || status == "billed") where.Add("rs.bill_status = @st");
         string whereSql = where.Count > 0 ? "WHERE " + string.Join(" AND ", where) : "";
 
         await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
         await using var cmd = new MySqlCommand($@"
-            SELECT id, record_id, finance_id, finance_name, branch_name,
-                   loan_no, customer_name, vehicle_no, model, chassis_no, engine_no,
-                   agent_name, parking_yard_name, parking_yard_mobile, load_details,
-                   addl_charges_notes, addl_charges_amount,
-                   confirmation_by_name, confirmation_by_mobile, executive_name,
-                   collection_update, remark,
-                   billing_action, hold_until, hold_days, bill_status, billed_at,
-                   submitted_by_name, created_at,
-                   repo_charges, advance, courier_yn, banker_address, pod_number,
-                   invoice_no, bill_file, total_gross, courier_percent, payment_screenshot,
-                   acct_holder_name, bank_name, bank_account_no, ifsc_code, utr_no,
-                   payment_date, application_charges, cash_amount
-              FROM repo_submissions {whereSql}
-             ORDER BY created_at DESC LIMIT 2000", conn) { CommandTimeout = 30 };
+            SELECT rs.id, rs.record_id, rs.finance_id, COALESCE(NULLIF(f.name,''), rs.finance_name) AS finance_name,
+                   rs.branch_name, rs.loan_no, rs.customer_name, rs.vehicle_no,
+                   rs.model, rs.chassis_no, rs.engine_no, rs.agent_name,
+                   rs.parking_yard_name, rs.parking_yard_mobile, rs.load_details, rs.addl_charges_notes,
+                   rs.addl_charges_amount, rs.confirmation_by_name, rs.confirmation_by_mobile, rs.executive_name,
+                   rs.collection_update, rs.remark, rs.billing_action, rs.hold_until,
+                   rs.hold_days, rs.bill_status, rs.billed_at, rs.submitted_by_name,
+                   rs.created_at, rs.repo_charges, rs.advance, rs.courier_yn,
+                   rs.banker_address, rs.pod_number, rs.invoice_no, rs.bill_file,
+                   rs.total_gross, rs.courier_percent, rs.payment_screenshot, rs.acct_holder_name,
+                   rs.bank_name, rs.bank_account_no, rs.ifsc_code, rs.utr_no,
+                   rs.payment_date, rs.application_charges, rs.cash_amount
+              FROM repo_submissions rs
+         LEFT JOIN finances f ON f.id = rs.finance_id {whereSql}
+             ORDER BY rs.created_at DESC LIMIT 2000", conn) { CommandTimeout = 30 };
         if (DateTime.TryParse(from, out var f2)) cmd.Parameters.AddWithValue("@from", f2.Date);
         if (DateTime.TryParse(to, out var t2))   cmd.Parameters.AddWithValue("@to", t2.Date.AddDays(1));
         if (status == "pending" || status == "billed") cmd.Parameters.AddWithValue("@st", status);
