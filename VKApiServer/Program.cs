@@ -2234,7 +2234,9 @@ app.MapGet("/api/mgr/billing/submissions", async (HttpContext ctx, string? from,
         await conn.OpenAsync();
         await using var cmd = new MySqlCommand($@"
             SELECT rs.id, rs.record_id, rs.finance_id, COALESCE(NULLIF(f.name,''), rs.finance_name) AS finance_name,
-                   rs.branch_name, rs.loan_no, rs.customer_name, rs.vehicle_no,
+                   CASE WHEN rs.record_id IS NULL THEN rs.branch_name
+                        ELSE COALESCE(vr.branch_name_raw, '') END AS branch_name,
+                   rs.loan_no, rs.customer_name, rs.vehicle_no,
                    rs.model, rs.chassis_no, rs.engine_no, rs.agent_name,
                    rs.parking_yard_name, rs.parking_yard_mobile, rs.load_details, rs.addl_charges_notes,
                    rs.addl_charges_amount, rs.confirmation_by_name, rs.confirmation_by_mobile, rs.executive_name,
@@ -2246,7 +2248,8 @@ app.MapGet("/api/mgr/billing/submissions", async (HttpContext ctx, string? from,
                    rs.bank_name, rs.bank_account_no, rs.ifsc_code, rs.utr_no,
                    rs.payment_date, rs.application_charges, rs.cash_amount, rs.payment_status
               FROM repo_submissions rs
-         LEFT JOIN finances f ON f.id = rs.finance_id {whereSql}
+         LEFT JOIN finances f ON f.id = rs.finance_id
+         LEFT JOIN vehicle_records vr ON vr.id = rs.record_id {whereSql}
              ORDER BY rs.created_at DESC LIMIT 2000", conn) { CommandTimeout = 30 };
         if (DateTime.TryParse(from, out var f2)) cmd.Parameters.AddWithValue("@from", f2.Date);
         if (DateTime.TryParse(to, out var t2))   cmd.Parameters.AddWithValue("@to", t2.Date.AddDays(1));
