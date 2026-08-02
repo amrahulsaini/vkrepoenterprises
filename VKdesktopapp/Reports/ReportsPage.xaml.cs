@@ -457,9 +457,9 @@ public partial class ReportsPage : Page
             {
                 "Repo Date", "Vehicle No.", "Loan Agreement No.", "Customer Name", "Make & Model",
                 "Chassis No.", "Engine No.", "Agent Name", "Yard Name", "Confirmed By",
-                "Finance Name", "Invoice Number", "Additional Amount", "Collection update",
-                "Invoice Amount (Total)", "Advance Payment", "Repo Charges", "Payment Status",
-                "Executive", "Billing Status", "Remarks", "Feedback", "UTR No."
+                "Finance Name", "Invoice Number", "Additional Amount", "Additional Charges Notes",
+                "Collection update", "Invoice Amount (Total)", "Advance Payment", "Repo Charges",
+                "Payment Status", "Executive", "Billing Status", "Remarks", "Feedback", "UTR No."
             };
 
             using var engine = new ExcelEngine();
@@ -492,20 +492,21 @@ public partial class ReportsPage : Page
 
                 if (d.AddlChargesAmount is decimal ac) ws[r, 13].Value2 = (double)ac;
 
-                ws[r, 14].Text = d.CollectionUpdate ?? "";
+                ws[r, 14].Text = d.AddlChargesNotes ?? "";
+                ws[r, 15].Text = d.CollectionUpdate ?? "";
 
                 if (d.BillingAction == "immediate" && d.TotalGross is decimal tg)
-                    ws[r, 15].Value2 = (double)tg;
+                    ws[r, 16].Value2 = (double)tg;
 
-                if (d.Advance is decimal adv)     ws[r, 16].Value2 = (double)adv;
-                if (d.RepoCharges is decimal rc)  ws[r, 17].Value2 = (double)rc;
+                if (d.Advance is decimal adv)     ws[r, 17].Value2 = (double)adv;
+                if (d.RepoCharges is decimal rc)  ws[r, 18].Value2 = (double)rc;
 
-                ws[r, 18].Text = PaymentStatusLabel(d.PaymentStatus);
-                ws[r, 19].Text = d.ExecutiveName ?? "";
-                ws[r, 20].Text = BillingStatusLabel(d.BillingAction);
-                ws[r, 21].Text = d.Remark ?? "";
-                ws[r, 22].Text = "";
+                ws[r, 19].Text = PaymentStatusLabel(d.PaymentStatus);
+                ws[r, 20].Text = d.ExecutiveName ?? "";
+                ws[r, 21].Text = BillingStatusLabel(d.BillingAction);
+                ws[r, 22].Text = d.Remark ?? "";
                 ws[r, 23].Text = "";
+                ws[r, 24].Text = "";
                 r++;
             }
 
