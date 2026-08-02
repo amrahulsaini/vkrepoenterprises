@@ -32,6 +32,51 @@
 
                     <Border Style="{StaticResource DashboardCard}" Margin="0,0,0,12">
                         <StackPanel>
+                            <TextBlock Text="Billing Report" Style="{StaticResource Heading6}" />
+                            <TextBlock Text="All repossessions with invoice, charges and payment status"
+                                       Style="{StaticResource Caption}" Margin="0,4,0,12" />
+
+                            <TextBlock Text="PERIOD" FontSize="11" FontWeight="SemiBold"
+                                       Foreground="{StaticResource Gray600}" Margin="0,0,0,4" />
+                            <ComboBox x:Name="cmbBillPeriod" Height="32" SelectedIndex="0"
+                                      Margin="0,0,0,10" SelectionChanged="BillPeriod_Changed">
+                                <ComboBoxItem Content="This Month" />
+                                <ComboBoxItem Content="Last 3 Months" />
+                                <ComboBoxItem Content="Last 6 Months" />
+                                <ComboBoxItem Content="This Year" />
+                                <ComboBoxItem Content="Custom dates" />
+                            </ComboBox>
+
+                            <Grid x:Name="pnlBillDates" Margin="0,0,0,10" IsEnabled="False">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="10" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="From" FontSize="11" Foreground="{StaticResource Gray600}" />
+                                    <DatePicker x:Name="dpBillFrom" Height="30" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Text="To" FontSize="11" Foreground="{StaticResource Gray600}" />
+                                    <DatePicker x:Name="dpBillTo" Height="30" />
+                                </StackPanel>
+                            </Grid>
+
+                            <TextBlock x:Name="lblBillRange" FontSize="11"
+                                       Foreground="{StaticResource Gray600}" Margin="0,0,0,10" />
+
+                            <Button Content="Export Excel"
+                                    Tag="BillingReport_Excel"
+                                    Click="btnExport_Click"
+                                    Style="{StaticResource PrimaryButton}"
+                                    x:Name="btnBillingExcel"
+                                    MinWidth="110" />
+                        </StackPanel>
+                    </Border>
+
+                    <Border Style="{StaticResource DashboardCard}" Margin="0,0,0,12">
+                        <StackPanel>
                             <TextBlock Text="Users" Style="{StaticResource Heading6}" />
                             <TextBlock Text="All app users and their account details"
                                        Style="{StaticResource Caption}" Margin="0,4,0,12" />
