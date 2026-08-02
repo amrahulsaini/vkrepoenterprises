@@ -108,7 +108,7 @@
                                 Foreground="{StaticResource Gray700}" />
                         </Grid>
                     </HeaderedItemsControl.Header>
-                    <MenuItem x:Name="miInvalid" Header="Invalid RC" Click="miInvalid_Click" />
+                    <MenuItem x:Name="miInvalid" Header="Invalid" Click="miInvalid_Click" />
                     <MenuItem x:Name="miSkipped" Header="Won't upload (RC + chassis both bad)" Click="miSkipped_Click" />
                     <MenuItem x:Name="miValid" Header="Valid" Click="miValid_Click" />
                     <MenuItem x:Name="miAll" Header="All" Click="miAll_Click" />

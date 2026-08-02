@@ -162,11 +162,20 @@ public partial class RecordValidatorAndUploaderWindow : Window
         return plain.Length >= 5 && plain.Any(char.IsDigit);
     }
 
+    private static bool HasRc(UploadRecord r) =>
+        AlphaNumOnly.Replace(r.VehicleNo ?? string.Empty, "").Length > 0 ||
+        AlphaNumOnly.Replace(r.FormatedVehicleNo ?? string.Empty, "").Length > 0;
+
+    /// An RC that is present must match the pattern — a chassis cannot rescue a
+    /// malformed one. Only a genuinely empty RC falls back to the chassis.
+    private static bool IsRowValid(UploadRecord r) =>
+        HasRc(r) ? IsValidRc(r) : IsValidChassis(r);
+
     private List<UploadRecord> FilterRecords(RecordFilters filter) => filter switch
     {
-        RecordFilters.Invalid => _records.Where(r => !IsValidRc(r)).ToList(),
+        RecordFilters.Invalid => _records.Where(r => !IsRowValid(r)).ToList(),
         RecordFilters.Skipped => _records.Where(r => !IsValidRc(r) && !IsValidChassis(r)).ToList(),
-        RecordFilters.Valid   => _records.Where(r =>  IsValidRc(r) ||  IsValidChassis(r)).ToList(),
+        RecordFilters.Valid   => _records.Where(IsRowValid).ToList(),
         _                     => _records.ToList()
     };
 
@@ -175,11 +184,11 @@ public partial class RecordValidatorAndUploaderWindow : Window
     /// is the stricter view of what the upload actually drops.
     private string InvalidHeaderText()
     {
-        int badRc   = FilterRecords(RecordFilters.Invalid).Count;
+        int invalid = FilterRecords(RecordFilters.Invalid).Count;
         int skipped = FilterRecords(RecordFilters.Skipped).Count;
         return skipped > 0
-            ? $"Invalid RC: {badRc}/{_records.Count}  ({skipped} won't upload)"
-            : $"Invalid RC: {badRc}/{_records.Count}";
+            ? $"Invalid: {invalid}/{_records.Count}  ({skipped} won't upload)"
+            : $"Invalid: {invalid}/{_records.Count}";
     }
 
     private void miInvalid_Click(object sender, RoutedEventArgs e)
