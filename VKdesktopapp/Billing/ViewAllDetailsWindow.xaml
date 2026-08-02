@@ -15,29 +15,44 @@
         <TextBlock Grid.Row="0" Text="Vehicles submitted OK-for-Repo from the app (your allocated finances only)"
                    FontSize="15" FontWeight="Bold" Foreground="{StaticResource Accent}" Margin="0,0,0,10" />
 
-        <WrapPanel Grid.Row="1" Margin="0,0,0,10">
-            <TextBlock Text="From" VerticalAlignment="Center" Foreground="#666" Margin="0,0,6,0" />
-            <DatePicker Name="dpFrom" Width="130" Margin="0,0,14,0" SelectedDateChanged="Filter_Changed" />
-            <TextBlock Text="To" VerticalAlignment="Center" Foreground="#666" Margin="0,0,6,0" />
-            <DatePicker Name="dpTo" Width="130" Margin="0,0,14,0" SelectedDateChanged="Filter_Changed" />
-            <TextBlock Text="Billing" VerticalAlignment="Center" Foreground="#666" Margin="0,0,6,0" />
-            <ComboBox Name="cmbAction" Width="150" Margin="0,0,14,0" SelectedIndex="0" SelectionChanged="Filter_Changed">
-                <ComboBoxItem Content="All" />
-                <ComboBoxItem Content="OK for billing" />
-                <ComboBoxItem Content="Hold for collection" />
-                <ComboBoxItem Content="Collection done" />
-                <ComboBoxItem Content="Cancel" />
-            </ComboBox>
-            <TextBlock Text="Status" VerticalAlignment="Center" Foreground="#666" Margin="0,0,6,0" />
-            <ComboBox Name="cmbStatus" Width="120" Margin="0,0,14,0" SelectedIndex="0" SelectionChanged="Filter_Changed">
-                <ComboBoxItem Content="All" />
-                <ComboBoxItem Content="Pending" />
-                <ComboBoxItem Content="Billed" />
-            </ComboBox>
-            <Button Name="btnRefresh" Content="↻ Refresh" Width="100" Height="30" FontWeight="Bold"
-                    Background="#1565C0" Foreground="White" BorderThickness="0" Cursor="Hand" Click="btnRefresh_Click" />
-            <TextBlock Name="txtStatus" VerticalAlignment="Center" Foreground="#888" FontSize="12" Margin="14,0,0,0" />
-        </WrapPanel>
+        <DockPanel Grid.Row="1" Margin="0,0,0,10" LastChildFill="True">
+            <Button Name="btnRefresh" DockPanel.Dock="Right" Content="&#8635;  Refresh"
+                    Width="104" Height="28" FontWeight="Bold" Margin="12,0,0,0"
+                    Background="#1565C0" Foreground="White" BorderThickness="0"
+                    Cursor="Hand" VerticalAlignment="Center"
+                    ToolTip="Reload records from the server" Click="btnRefresh_Click" />
+            <TextBlock Name="txtStatus" DockPanel.Dock="Right" VerticalAlignment="Center"
+                       Foreground="#888" FontSize="12" Margin="12,0,0,0" />
+            <WrapPanel>
+                <TextBlock Text="From" VerticalAlignment="Center" Foreground="#666" Margin="0,0,6,0" />
+                <DatePicker Name="dpFrom" Width="126" Height="28" Margin="0,0,14,0" VerticalContentAlignment="Center" SelectedDateChanged="Filter_Changed" />
+                <TextBlock Text="To" VerticalAlignment="Center" Foreground="#666" Margin="0,0,6,0" />
+                <DatePicker Name="dpTo" Width="126" Height="28" Margin="0,0,14,0" VerticalContentAlignment="Center" SelectedDateChanged="Filter_Changed" />
+                <TextBlock Text="Billing" VerticalAlignment="Center" Foreground="#666" Margin="0,0,6,0" />
+                <ComboBox Name="cmbAction" Width="146" Height="28" Margin="0,0,14,0" VerticalContentAlignment="Center" SelectedIndex="0" SelectionChanged="Filter_Changed">
+                    <ComboBoxItem Content="All" />
+                    <ComboBoxItem Content="OK for billing" />
+                    <ComboBoxItem Content="Hold for collection" />
+                    <ComboBoxItem Content="Collection done" />
+                    <ComboBoxItem Content="Cancel" />
+                </ComboBox>
+                <TextBlock Text="Status" VerticalAlignment="Center" Foreground="#666" Margin="0,0,6,0" />
+                <ComboBox Name="cmbStatus" Width="116" Height="28" Margin="0,0,14,0" VerticalContentAlignment="Center" SelectedIndex="0" SelectionChanged="Filter_Changed">
+                    <ComboBoxItem Content="All" />
+                    <ComboBoxItem Content="Pending" />
+                    <ComboBoxItem Content="Billed" />
+                </ComboBox>
+                <TextBlock Text="Finance" VerticalAlignment="Center" Foreground="#666" Margin="0,0,6,0" />
+                <ComboBox Name="cmbFinance" Width="210" Height="28" Margin="0,0,4,0" IsEditable="True"
+                          IsTextSearchEnabled="False" StaysOpenOnEdit="True" VerticalContentAlignment="Center"
+                          ToolTip="Type any part of the finance name, e.g. au matches A U SMALL FINANCE"
+                          SelectionChanged="Finance_Changed" KeyUp="Finance_Key" />
+                <Button Name="btnClearFinance" Content="&#10005;" Width="28" Height="28" Margin="0,0,8,0"
+                        Cursor="Hand" ToolTip="Clear finance filter" Click="btnClearFinance_Click" />
+                <TextBlock Name="txtFinanceCount" VerticalAlignment="Center" Foreground="#EF6C00"
+                           FontSize="12" FontWeight="Bold" />
+            </WrapPanel>
+        </DockPanel>
 
         <DataGrid Grid.Row="2" Name="grid" Style="{StaticResource XlGrid}"
                   IsReadOnly="False" CellEditEnding="grid_CellEditEnding"
@@ -108,6 +123,9 @@
                 <DataGridTextColumn Header="Addl Amt" Binding="{Binding AddlChargesAmount}" Width="90" MinWidth="70" ElementStyle="{StaticResource XlText}" />
                 <DataGridTextColumn Header="Collection Update" Binding="{Binding CollectionUpdate}" Width="160" MinWidth="100" ElementStyle="{StaticResource XlText}" />
                 <DataGridTextColumn Header="Remark" Binding="{Binding Remark}" Width="160" MinWidth="100" ElementStyle="{StaticResource XlText}" />
+                <DataGridTextColumn Header="Executive Name" Binding="{Binding ExecutiveName}" Width="140" MinWidth="90" IsReadOnly="True" ElementStyle="{StaticResource XlText}" />
+                <DataGridTextColumn Header="Confirmed By (Name)" Binding="{Binding ConfirmationByName}" Width="150" MinWidth="90" IsReadOnly="True" ElementStyle="{StaticResource XlText}" />
+                <DataGridTextColumn Header="Confirmed By (Mobile)" Binding="{Binding ConfirmationByMobile}" Width="140" MinWidth="90" IsReadOnly="True" ElementStyle="{StaticResource XlText}" />
                 <DataGridTextColumn Header="Billing" Binding="{Binding ActionText}" Width="130" MinWidth="90" IsReadOnly="True" ElementStyle="{StaticResource XlText}" />
                 <DataGridTextColumn Header="Status" Binding="{Binding StatusText}" Width="90" MinWidth="70" IsReadOnly="True" ElementStyle="{StaticResource XlText}" />
                 <DataGridTemplateColumn Header="Change Billing" Width="120" MinWidth="110" CanUserResize="False">
