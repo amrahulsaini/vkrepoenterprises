@@ -283,9 +283,8 @@ public partial class AccountsPage : Page
         txtAcPercent.Visibility   = isOk ? vis : gone;
 
         var addl = JoinAddl(r.Src.AddlChargesNotes, r.Src.AddlChargesAmount);
-        bool showAddl = isHold && addl.Length > 0;
-        lblAcAddl.Visibility   = showAddl ? vis : gone;
-        txtAcAddl.Visibility   = showAddl ? vis : gone;
+        lblAcAddl.Visibility   = isHold ? vis : gone;
+        txtAcAddl.Visibility   = isHold ? vis : gone;
 
         _suppressAcCalc = true;
         txtAcGross.Text   = r.Src.TotalGross?.ToString("0.##") ?? "";
@@ -296,7 +295,7 @@ public partial class AccountsPage : Page
         txtAcCash.Text    = r.CashAmount == 0m ? "" : r.CashAmount.ToString("0.##");
         _suppressAcCalc = false;
 
-        bool showCash = r.CashAmount > 0m;
+        bool showCash = r.Src.BillingAction == "collection_done" || r.CashAmount > 0m;
         lblAcCash.Visibility = showCash ? vis : gone;
         txtAcCash.Visibility = showCash ? vis : gone;
 
