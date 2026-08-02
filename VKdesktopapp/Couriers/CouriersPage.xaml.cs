@@ -187,6 +187,12 @@ public partial class CouriersPage : Page
         txtCollectionUpdate.Visibility = showUpdate ? vis : gone;
         txtCollectionUpdate.Text = r.Src.CollectionUpdate;
 
+        var addl = r.AddlCharges;
+        bool showAddl = showUpdate && !string.IsNullOrWhiteSpace(addl);
+        lblAddlCharges.Visibility = showAddl ? vis : gone;
+        txtAddlChargesInfo.Visibility = showAddl ? vis : gone;
+        txtAddlChargesInfo.Text = addl;
+
         decimal cash = r.Src.CashAmount ?? 0m;
         bool showCash = r.Src.BillingAction == "collection_done" && cash > 0m;
         pnlCash.Visibility = showCash ? vis : gone;
