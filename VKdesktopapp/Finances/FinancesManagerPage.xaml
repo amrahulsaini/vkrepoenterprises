@@ -484,7 +484,7 @@
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="Finance Name"
                                                     Binding="{Binding BranchName}"
-                                                    Width="*">
+                                                    Width="*" CanUserSort="False">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock" BasedOn="{StaticResource CellText}">
                                             <Setter Property="FontWeight" Value="Bold" />
@@ -495,12 +495,15 @@
                                 </DataGridTextColumn>
                                 <DataGridTextColumn Header="Uploaded"
                                                     Binding="{Binding UpdatedOn}"
+                                                    SortMemberPath="UpdatedOnSort"
+                                                    CanUserSort="True"
                                                     Width="160">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock" BasedOn="{StaticResource CellTextMuted}" />
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
                                 <DataGridTextColumn Header="Records"
+                                                    CanUserSort="False"
                                                     Binding="{Binding Records}"
                                                     Width="80">
                                     <DataGridTextColumn.ElementStyle>

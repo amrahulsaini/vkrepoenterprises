@@ -303,7 +303,8 @@ public partial class FinancesManagerPage : Page
                 BranchName    = (it.Name ?? string.Empty).ToUpperInvariant(),
                 ContactMobile = it.Contact1,
                 Records       = it.TotalRecords,
-                UpdatedOn     = it.UploadedAt
+                UpdatedOn     = it.UploadedAt,
+                UpdatedOnSort = ParseUploaded(it.UploadedAt)
             });
         }
         return list;
@@ -320,6 +321,25 @@ public partial class FinancesManagerPage : Page
             return;
         }
         await LoadViewAllAsync();
+    }
+
+    private static readonly string[] UploadedFormats =
+    {
+        "dd MMM yy hh:mm tt", "dd MMM yyyy hh:mm tt",
+        "dd MMM yy HH:mm", "dd MMM yyyy HH:mm",
+        "yyyy-MM-dd HH:mm:ss", "yyyy-MM-dd HH:mm", "yyyy-MM-dd"
+    };
+
+    private static DateTime ParseUploaded(string? s)
+    {
+        if (string.IsNullOrWhiteSpace(s)) return DateTime.MinValue;
+        var t = s.Trim();
+        if (DateTime.TryParseExact(t, UploadedFormats,
+                System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.None, out var d))
+            return d;
+        return DateTime.TryParse(t, System.Globalization.CultureInfo.InvariantCulture,
+            System.Globalization.DateTimeStyles.None, out var d2) ? d2 : DateTime.MinValue;
     }
 
     private async Task LoadViewAllAsync()
@@ -343,7 +363,8 @@ public partial class FinancesManagerPage : Page
                 HeadOfficeName = (it.FinanceName ?? string.Empty).ToUpperInvariant(),
                 FinanceId      = it.FinanceId,
                 Records        = it.TotalRecords,
-                UpdatedOn      = it.UploadedAt
+                UpdatedOn      = it.UploadedAt,
+                UpdatedOnSort  = ParseUploaded(it.UploadedAt)
             }).ToList();
             SetBranchItemsSource(list);
         }
