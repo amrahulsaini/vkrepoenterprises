@@ -12,7 +12,7 @@
     <SolidColorBrush x:Key="XlSelectBg"     Color="#FFEBD2" />
     <SolidColorBrush x:Key="XlSelectHover"  Color="#FFE0BA" />
     <SolidColorBrush x:Key="XlSelectBar"    Color="#EF6C00" />
-    <SolidColorBrush x:Key="XlText"         Color="#1F2937" />
+    <SolidColorBrush x:Key="XlInk"          Color="#1F2937" />
     <SolidColorBrush x:Key="XlTextStrong"   Color="#111827" />
     <SolidColorBrush x:Key="XlTextMuted"    Color="#6B7280" />
     <SolidColorBrush x:Key="XlPositive"     Color="#1B7F3B" />
@@ -88,7 +88,7 @@
     </Style>
 
     <Style x:Key="XlCell" TargetType="DataGridCell">
-        <Setter Property="Foreground" Value="{StaticResource XlText}" />
+        <Setter Property="Foreground" Value="{StaticResource XlInk}" />
         <Setter Property="BorderThickness" Value="0" />
         <Setter Property="FocusVisualStyle" Value="{x:Null}" />
         <Setter Property="VerticalContentAlignment" Value="Center" />

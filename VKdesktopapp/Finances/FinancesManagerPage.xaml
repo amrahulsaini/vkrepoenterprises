@@ -172,7 +172,7 @@
 
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="0.75*" />
+                <ColumnDefinition Width="1.15*" />
                 <ColumnDefinition Width="16" />
                 <ColumnDefinition Width="1.4*" />
             </Grid.ColumnDefinitions>
@@ -210,7 +210,7 @@
                                     Margin="0,0,8,0"
                                     Content="View All"
                                     Style="{StaticResource OutlineButton}"
-                                    ToolTip="Show all branches across all finances"
+                                    ToolTip="Show every finance of the selected head office (or all head offices when none is selected)"
                                     Click="btnViewAll_Click" />
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                 <TextBlock Text="HEAD OFFICES"
