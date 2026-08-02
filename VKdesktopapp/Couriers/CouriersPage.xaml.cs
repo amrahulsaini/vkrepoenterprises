@@ -146,7 +146,9 @@ public partial class CouriersPage : Page
         var veh = string.IsNullOrWhiteSpace(r.VehicleNo) ? r.Src.ChassisNo : r.VehicleNo;
         txtSel.Text = $"{veh}  •  {r.CustomerName}  •  {r.FinanceName}";
 
-        if (r.Src.BillStatus == "billed")
+        bool hasRealBill = !string.IsNullOrWhiteSpace(r.Src.InvoiceNo)
+                        || !string.IsNullOrWhiteSpace(r.Src.BillUrl);
+        if (hasRealBill)
         {
             pnlBilled.Visibility = System.Windows.Visibility.Visible;
             txtInvoice.Text = string.IsNullOrWhiteSpace(r.Src.InvoiceNo)
@@ -213,8 +215,11 @@ public partial class CouriersPage : Page
         bool ok = action == "immediate";
         bool chargesEditable = action is "immediate" or "hold" or "collection_done";
 
-        lblPercent.Visibility = ok ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
-        txtPercent.Visibility = ok ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
+        var showIfOk = ok ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
+        lblPercent.Visibility = showIfOk;
+        txtPercent.Visibility = showIfOk;
+        lblGross.Visibility   = showIfOk;
+        txtGross.Visibility   = showIfOk;
 
         txtPercent.IsReadOnly     = !ok;
         txtRepoCharges.IsReadOnly = !chargesEditable;

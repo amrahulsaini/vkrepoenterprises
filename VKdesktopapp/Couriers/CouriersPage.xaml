@@ -174,7 +174,7 @@
                             </StackPanel>
                         </Border>
 
-                        <TextBlock Text="Total Gross (from billing)" Foreground="#666" FontSize="12" Margin="0,0,0,3" />
+                        <TextBlock Name="lblGross" Text="Total Gross (from billing)" Foreground="#666" FontSize="12" Margin="0,0,0,3" />
                         <TextBox Name="txtGross" Style="{StaticResource Fld}" IsReadOnly="True" Background="#F5F5F5" />
 
                         <TextBlock Name="lblPercent" Text="Percentage (%) of gross" Foreground="#666" FontSize="12" Margin="0,0,0,3" />
