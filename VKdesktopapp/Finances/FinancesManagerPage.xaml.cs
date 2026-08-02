@@ -311,10 +311,23 @@ public partial class FinancesManagerPage : Page
 
 
     private async void btnViewAll_Click(object sender, RoutedEventArgs e)
-        => await LoadViewAllAsync();
+    {
+        if (dgFinances.SelectedItem is FinanceListItem fi)
+        {
+            _isViewAll = false;
+            if (txtBranchSearch != null) txtBranchSearch.Text = string.Empty;
+            await LoadBranchesForFinanceAsync(fi.Id, fi.Name);
+            return;
+        }
+        await LoadViewAllAsync();
+    }
 
     private async Task LoadViewAllAsync()
     {
+        _suppressSelectionChange = true;
+        dgFinances.SelectedIndex = -1;
+        _suppressSelectionChange = false;
+
         _isViewAll             = true;
         _loadingForFinanceId   = -1;
         txtBranchSubtitle.Text = "All Finances";

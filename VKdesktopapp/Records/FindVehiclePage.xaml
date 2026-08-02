@@ -69,9 +69,9 @@
 
         <Grid Grid.Row="1" Margin="0,14,0,0">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="420" />
-                <ColumnDefinition Width="1.4*" />
+                <ColumnDefinition Width="1.5*" />
+                <ColumnDefinition Width="290" />
+                <ColumnDefinition Width="1.15*" />
             </Grid.ColumnDefinitions>
 
             <Border Grid.Column="0" Style="{StaticResource DashboardCard}" Margin="0,0,12,0">
