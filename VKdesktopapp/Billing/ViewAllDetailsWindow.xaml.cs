@@ -49,6 +49,8 @@ public partial class ViewAllDetailsWindow : Window
         public string Model => Src.Model;
         public string ParkingYardMobile => Src.ParkingYardMobile;
         public string ExecutiveName => Src.ExecutiveName;
+        public string ConfirmationByName => Src.ConfirmationByName;
+        public string ConfirmationByMobile => Src.ConfirmationByMobile;
         public string LoadDetails => Src.LoadDetails;
         public string InvoiceNo => Src.InvoiceNo;
         public string AddlCharges =>
@@ -115,10 +117,78 @@ public partial class ViewAllDetailsWindow : Window
             if (actionFilter != null) data = data.Where(d => d.BillingAction == actionFilter).ToList();
 
             _rows = data.Select(Row.From).ToList();
-            grid.ItemsSource = _rows;
-            txtStatus.Text = $"{_rows.Count} record(s).";
+            RefreshFinanceList();
+            ApplyFinanceFilter();
         }
         catch (Exception ex) { txtStatus.Text = "Failed: " + ex.Message; }
+    }
+
+    private void RefreshFinanceList()
+    {
+        var keep = cmbFinance.Text;
+        var names = _rows.Select(r => (r.FinanceName ?? "").Trim())
+            .Where(f => f.Length > 0)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(f => f, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        cmbFinance.ItemsSource = names;
+        cmbFinance.Text = keep;
+        txtFinanceCount.Text = names.Count == 1 ? "1 finance" : names.Count + " finances";
+    }
+
+    private static string Squash(string? s) =>
+        new string((s ?? "").Where(char.IsLetterOrDigit).ToArray()).ToUpperInvariant();
+
+    internal static bool NameMatches(string? name, string term)
+    {
+        var n = (name ?? "").Trim();
+        if (n.Length == 0) return false;
+        if (n.Contains(term, StringComparison.OrdinalIgnoreCase)) return true;
+
+        var squashedName = Squash(n);
+        if (squashedName.Contains(Squash(term))) return true;
+
+        var words = term.Split(new[] { ' ', ',', '-', '.', '/' }, StringSplitOptions.RemoveEmptyEntries);
+        return words.Length > 0 && words.All(w => n.Contains(w, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private void ApplyFinanceFilter()
+    {
+        var term = (cmbFinance.Text ?? "").Trim();
+        List<Row> shown;
+        if (term.Length == 0)
+        {
+            shown = _rows;
+        }
+        else
+        {
+            var exact = _rows.Where(r => string.Equals((r.FinanceName ?? "").Trim(), term,
+                StringComparison.OrdinalIgnoreCase)).ToList();
+            shown = exact.Count > 0
+                ? exact
+                : _rows.Where(r => NameMatches(r.FinanceName, term)).ToList();
+        }
+        grid.ItemsSource = shown;
+        txtStatus.Text = term.Length == 0
+            ? shown.Count + " record(s)."
+            : shown.Count + " of " + _rows.Count + " record(s).";
+    }
+
+    private void Finance_Changed(object sender, SelectionChangedEventArgs e)
+    {
+        if (!_ready) return;
+        Dispatcher.BeginInvoke(new Action(ApplyFinanceFilter), System.Windows.Threading.DispatcherPriority.Input);
+    }
+
+    private void Finance_Key(object sender, System.Windows.Input.KeyEventArgs e)
+    {
+        if (_ready) ApplyFinanceFilter();
+    }
+
+    private void btnClearFinance_Click(object sender, RoutedEventArgs e)
+    {
+        cmbFinance.Text = "";
+        if (_ready) ApplyFinanceFilter();
     }
 
     private async void btnGenerate_Click(object sender, RoutedEventArgs e)

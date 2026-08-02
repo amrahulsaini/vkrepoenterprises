@@ -523,8 +523,22 @@ public partial class BillingPage : Page
         CellLines(t, ri, 0, new[] { $"To,  {txtBankTo.Text.Trim()},", "SUBJECT–SUBMISSION OF REPOSSESSION BILL." }, align: DocAlign.Center);
         t.ApplyHorizontalMerge(ri, 0, 2); ri++;
 
-        CellLines(t, ri, 0, new[] { "INVOICE DATE -", "INVOICE NO-", "BRANCH-", "CONFIRMATION BY-" });
-        CellLines(t, ri, 1, new[] { txtInvoiceDate.Text.Trim(), txtInvoiceNo.Text.Trim(), txtBranch.Text.Trim(), txtConfirmationBy.Text.Trim() });
+        var invLabels = new List<string> { "INVOICE DATE -", "INVOICE NO-", "BRANCH-" };
+        var invValues = new List<string> { txtInvoiceDate.Text.Trim(), txtInvoiceNo.Text.Trim(), txtBranch.Text.Trim() };
+        if (!string.IsNullOrWhiteSpace(txtCompanyAddress.Text))
+        {
+            invLabels.Add("COMPANY ADDRESS-");
+            invValues.Add(txtCompanyAddress.Text.Trim());
+        }
+        if (!string.IsNullOrWhiteSpace(txtCompanyGst.Text))
+        {
+            invLabels.Add("COMPANY GST-");
+            invValues.Add(txtCompanyGst.Text.Trim());
+        }
+        invLabels.Add("CONFIRMATION BY-");
+        invValues.Add(txtConfirmationBy.Text.Trim());
+        CellLines(t, ri, 0, invLabels.ToArray());
+        CellLines(t, ri, 1, invValues.ToArray());
         W(ri); ri++;
 
         CellText(t, ri, 0, "DESCRIPTION EXPENSE"); CellText(t, ri, 1, "ALL DETAILS"); CellText(t, ri, 2, "AMOUNT"); W(ri); ri++;

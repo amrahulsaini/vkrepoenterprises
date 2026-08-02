@@ -160,7 +160,7 @@ public partial class AccountsPage : Page
             var exact = _all.Where(r => string.Equals((r.AgentName ?? "").Trim(), term, StringComparison.OrdinalIgnoreCase)).ToList();
             rows = exact.Count > 0
                 ? exact
-                : _all.Where(r => (r.AgentName ?? "").Contains(term, StringComparison.OrdinalIgnoreCase)).ToList();
+                : _all.Where(r => CRMRSDesktopApp.Billing.ViewAllDetailsWindow.NameMatches(r.AgentName, term)).ToList();
         }
 
         _shown.Clear();

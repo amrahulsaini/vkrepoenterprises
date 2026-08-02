@@ -85,8 +85,9 @@
                             <StackPanel Margin="0,0,0,8"><TextBlock Text="Invoice Date" Foreground="#666" FontSize="12" /><TextBox Name="txtInvoiceDate" Height="30" /></StackPanel>
                             <StackPanel Margin="0,0,8,8"><TextBlock Text="Invoice No (auto)" Foreground="#666" FontSize="12" /><TextBox Name="txtInvoiceNo" Height="30" IsReadOnly="True" Background="#F3F3F3" /></StackPanel>
                             <StackPanel Margin="0,0,0,8"><TextBlock Text="Branch" Foreground="#666" FontSize="12" /><TextBox Name="txtBranch" Height="30" /></StackPanel>
+                            <StackPanel Margin="0,0,8,8"><TextBlock Text="Company Address" Foreground="#666" FontSize="12" /><TextBox Name="txtCompanyAddress" Height="30" /></StackPanel>
+                            <StackPanel Margin="0,0,0,8"><TextBlock Text="Company GST" Foreground="#666" FontSize="12" /><TextBox Name="txtCompanyGst" Height="30" /></StackPanel>
                             <StackPanel Margin="0,0,8,8"><TextBlock Text="Confirmation By" Foreground="#666" FontSize="12" /><TextBox Name="txtConfirmationBy" Height="30" /></StackPanel>
-                            <StackPanel Margin="0,0,0,8" />
                         </UniformGrid>
 
                         <TextBlock Text="VEHICLE (auto-filled)" FontWeight="Bold" Foreground="{StaticResource Accent}" Margin="0,10,0,6" />
