@@ -139,6 +139,48 @@
 
                 <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
                     <StackPanel Name="pnlPay" IsEnabled="False">
+                        <Border Background="#EEF3FB" CornerRadius="6" Padding="10,8" Margin="0,0,0,12">
+                            <StackPanel>
+                                <TextBlock Name="txtChargesHead" Text="CHARGES" FontSize="11" FontWeight="Bold"
+                                           Foreground="{StaticResource Accent}" Margin="0,0,0,8" />
+
+                                <TextBlock Name="lblGross" Text="Invoice Amount" Style="{StaticResource PLbl}" />
+                                <TextBox Name="txtAcGross" Style="{StaticResource PFld}" IsReadOnly="True" Background="#E8EAED" />
+
+                                <TextBlock Name="lblAcAddl" Text="Additional Charges (from app)" Style="{StaticResource PLbl}" />
+                                <TextBox Name="txtAcAddl" Style="{StaticResource PFld}" IsReadOnly="True" Background="#E8EAED" />
+
+                                <TextBlock Name="lblAcPercent" Text="Percentage (%) of invoice amount" Style="{StaticResource PLbl}" />
+                                <TextBox Name="txtAcPercent" Style="{StaticResource PFld}" TextChanged="AcCalc_Changed" />
+
+                                <TextBlock Text="Repo Charges" Style="{StaticResource PLbl}" />
+                                <TextBox Name="txtAcRepo" Style="{StaticResource PFld}" TextChanged="AcCalc_Changed" />
+
+                                <TextBlock Text="Advance" Style="{StaticResource PLbl}" />
+                                <TextBox Name="txtAcAdvance" Style="{StaticResource PFld}" TextChanged="AcCalc_Changed" />
+
+                                <TextBlock Name="lblAcCash" Text="Cash Collected (from app)" Style="{StaticResource PLbl}" />
+                                <TextBox Name="txtAcCash" Style="{StaticResource PFld}" IsReadOnly="True"
+                                         Background="#FFF6E5" Foreground="#B26A00" FontWeight="Bold" />
+
+                                <TextBlock Name="txtAcFinal" FontSize="12" FontWeight="Bold"
+                                           Foreground="#1565C0" Margin="0,0,0,8" />
+
+                                <TextBlock Name="lblAcShot" Text="Payment Screenshot" Style="{StaticResource PLbl}" Visibility="Collapsed" />
+                                <Border Name="pnlAcShot" Visibility="Collapsed" BorderBrush="#E0E0E0" BorderThickness="1"
+                                        CornerRadius="6" Padding="4" Margin="0,0,0,8">
+                                    <Image Name="imgAcShot" MaxHeight="150" Stretch="Uniform" Cursor="Hand"
+                                           MouseLeftButtonUp="imgAcShot_Click" />
+                                </Border>
+
+                                <Button Name="btnSaveCharges" Content="Save Charges" Height="32" FontWeight="Bold"
+                                        Background="#1565C0" Foreground="White" BorderThickness="0"
+                                        Cursor="Hand" Click="btnSaveCharges_Click" />
+                                <TextBlock Name="txtChargesMsg" FontSize="11.5" Foreground="#2E7D32"
+                                           Margin="0,6,0,0" TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Border>
+
                         <TextBlock Text="UTR No" Style="{StaticResource PLbl}" />
                         <TextBox Name="txtUtr" Style="{StaticResource PFld}" />
                         <TextBlock Text="Date of Payment" Style="{StaticResource PLbl}" />
