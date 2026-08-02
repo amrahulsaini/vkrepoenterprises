@@ -124,8 +124,7 @@
                 <DataGridTextColumn Header="Collection Update" Binding="{Binding CollectionUpdate}" Width="160" MinWidth="100" ElementStyle="{StaticResource XlText}" />
                 <DataGridTextColumn Header="Remark" Binding="{Binding Remark}" Width="160" MinWidth="100" ElementStyle="{StaticResource XlText}" />
                 <DataGridTextColumn Header="Executive Name" Binding="{Binding ExecutiveName}" Width="140" MinWidth="90" IsReadOnly="True" ElementStyle="{StaticResource XlText}" />
-                <DataGridTextColumn Header="Confirmed By (Name)" Binding="{Binding ConfirmationByName}" Width="150" MinWidth="90" IsReadOnly="True" ElementStyle="{StaticResource XlText}" />
-                <DataGridTextColumn Header="Confirmed By (Mobile)" Binding="{Binding ConfirmationByMobile}" Width="140" MinWidth="90" IsReadOnly="True" ElementStyle="{StaticResource XlText}" />
+                <DataGridTextColumn Header="Confirmation By (Name, Mobile)" Binding="{Binding ConfirmationBy}" Width="200" MinWidth="110" IsReadOnly="True" ElementStyle="{StaticResource XlText}" />
                 <DataGridTextColumn Header="Billing" Binding="{Binding ActionText}" Width="130" MinWidth="90" IsReadOnly="True" ElementStyle="{StaticResource XlText}" />
                 <DataGridTextColumn Header="Status" Binding="{Binding StatusText}" Width="90" MinWidth="70" IsReadOnly="True" ElementStyle="{StaticResource XlText}" />
                 <DataGridTemplateColumn Header="Change Billing" Width="120" MinWidth="110" CanUserResize="False">
