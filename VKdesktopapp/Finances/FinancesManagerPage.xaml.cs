@@ -313,13 +313,7 @@ public partial class FinancesManagerPage : Page
 
     private async void btnViewAll_Click(object sender, RoutedEventArgs e)
     {
-        if (dgFinances.SelectedItem is FinanceListItem fi)
-        {
-            _isViewAll = false;
-            if (txtBranchSearch != null) txtBranchSearch.Text = string.Empty;
-            await LoadBranchesForFinanceAsync(fi.Id, fi.Name);
-            return;
-        }
+        if (txtBranchSearch != null) txtBranchSearch.Text = string.Empty;
         await LoadViewAllAsync();
     }
 

@@ -210,7 +210,7 @@
                                     Margin="0,0,8,0"
                                     Content="View All"
                                     Style="{StaticResource OutlineButton}"
-                                    ToolTip="Show every finance of the selected head office (or all head offices when none is selected)"
+                                    ToolTip="Clear the selected head office and show every branch across all head offices"
                                     Click="btnViewAll_Click" />
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                 <TextBlock Text="HEAD OFFICES"
