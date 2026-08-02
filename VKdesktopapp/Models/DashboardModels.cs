@@ -64,6 +64,7 @@ public class BranchSummaryItem
     public string ContactPerson { get; set; } = string.Empty;
     public string ContactMobile { get; set; } = string.Empty;
     public string UpdatedOn { get; set; } = string.Empty;
+    public DateTime UpdatedOnSort { get; set; } = DateTime.MinValue;
 }
 
 public class VehicleSearchResponse
