@@ -25,7 +25,7 @@ public partial class CouriersPage : Page
         public string InvoiceNo => Src.InvoiceNo;
         public string VehicleNo => Src.VehicleNo;
         public string CustomerName => Src.CustomerName;
-        public string BranchName => Src.BranchName;
+        public string BranchName => (Src.BranchName ?? "").ToUpperInvariant();
         public string Model => Src.Model;
         public string ChassisNo => Src.ChassisNo;
         public string EngineNo => Src.EngineNo;
@@ -37,7 +37,7 @@ public partial class CouriersPage : Page
         public string ConfirmationBy => JoinParts(Src.ConfirmationByName, Src.ConfirmationByMobile);
         public string ExecutiveName => Src.ExecutiveName;
         public string CollectionUpdate => Src.CollectionUpdate;
-        public string FinanceName => Src.FinanceName;
+        public string FinanceName => (Src.FinanceName ?? "").ToUpperInvariant();
         public string ActionText => Src.BillingAction switch
         {
             "immediate"       => "OK for billing",

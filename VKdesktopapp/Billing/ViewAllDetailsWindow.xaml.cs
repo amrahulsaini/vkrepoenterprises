@@ -64,7 +64,9 @@ public partial class ViewAllDetailsWindow : Window
         {
             Src = d,
             VehicleNo = d.VehicleNo, ChassisNo = d.ChassisNo,
-            CustomerName = d.CustomerName, FinanceName = d.FinanceName, BranchName = d.BranchName,
+            CustomerName = d.CustomerName,
+            FinanceName = (d.FinanceName ?? "").ToUpperInvariant(),
+            BranchName = (d.BranchName ?? "").ToUpperInvariant(),
             LoanNo = d.LoanNo, AgentName = d.AgentName, ParkingYardName = d.ParkingYardName,
             AddlChargesAmount = d.AddlChargesAmount?.ToString("0.##") ?? "",
             CollectionUpdate = d.CollectionUpdate, Remark = d.Remark
