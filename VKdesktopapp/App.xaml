@@ -9,6 +9,7 @@
             <ResourceDictionary.MergedDictionaries>
                 <ResourceDictionary Source="Material/Colors.xaml" />
                 <ResourceDictionary Source="Material/Styles.xaml" />
+                <ResourceDictionary Source="Material/ExcelGrid.xaml" />
             </ResourceDictionary.MergedDictionaries>
 
             <SolidColorBrush x:Key="Accent"      Color="#EF6C00" />

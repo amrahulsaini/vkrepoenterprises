@@ -43,6 +43,20 @@ public partial class ViewAllDetailsWindow : Window
             _                 => Src.BillingAction
         };
         public string StatusText => Src.BillStatus == "billed" ? "Billed" : "Pending";
+        public string BillStatusText => StatusText;
+        public string RepoDate => Src.CreatedAt;
+        public string EngineNo => Src.EngineNo;
+        public string Model => Src.Model;
+        public string ParkingYardMobile => Src.ParkingYardMobile;
+        public string ExecutiveName => Src.ExecutiveName;
+        public string LoadDetails => Src.LoadDetails;
+        public string InvoiceNo => Src.InvoiceNo;
+        public string AddlCharges =>
+            string.Join(", ", new[] { Src.AddlChargesNotes, AddlChargesAmount }
+                .Where(x => !string.IsNullOrWhiteSpace(x)));
+        public string ConfirmationBy =>
+            string.Join(", ", new[] { Src.ConfirmationByName, Src.ConfirmationByMobile }
+                .Where(x => !string.IsNullOrWhiteSpace(x)));
 
         public static Row From(DesktopApiClient.RepoSubmissionDto d) => new()
         {

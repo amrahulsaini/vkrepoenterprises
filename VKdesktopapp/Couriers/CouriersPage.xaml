@@ -3,21 +3,6 @@
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       Background="#F5F5F5">
     <Page.Resources>
-        <Style x:Key="CellText" TargetType="TextBlock">
-            <Setter Property="TextTrimming" Value="CharacterEllipsis" />
-            <Setter Property="VerticalAlignment" Value="Center" />
-            <Setter Property="Margin" Value="8,0,8,0" />
-            <Setter Property="ToolTip" Value="{Binding RelativeSource={RelativeSource Self}, Path=Text}" />
-        </Style>
-        <Style x:Key="GridHeader" TargetType="{x:Type DataGridColumnHeader}">
-            <Setter Property="Background" Value="#1565C0" />
-            <Setter Property="Foreground" Value="White" />
-            <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Padding" Value="8" />
-            <Setter Property="BorderBrush" Value="#0D47A1" />
-            <Setter Property="BorderThickness" Value="0,0,1,0" />
-            <Setter Property="HorizontalContentAlignment" Value="Left" />
-        </Style>
         <Style x:Key="Fld" TargetType="TextBox">
             <Setter Property="Height" Value="32" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
@@ -57,40 +42,74 @@
             </WrapPanel>
 
             <DataGrid Name="grid" AutoGenerateColumns="False" IsReadOnly="True"
-                      CanUserAddRows="False" HeadersVisibility="Column" GridLinesVisibility="All"
-                      RowHeaderWidth="0" SelectionMode="Single"
-                      Background="White" BorderBrush="#E0E0E0" BorderThickness="1"
-                      CanUserResizeColumns="True" CanUserSortColumns="True"
-                      ColumnHeaderStyle="{StaticResource GridHeader}"
-                      RowBackground="White" AlternatingRowBackground="#F3F7FB"
-                      FontSize="12.5" RowHeight="32"
-                      ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                      Style="{StaticResource XlGrid}" CanUserSortColumns="True" FrozenColumnCount="2"
+                      RowDetailsVisibilityMode="VisibleWhenSelected"
                       SelectionChanged="grid_SelectionChanged">
+                <DataGrid.RowDetailsTemplate>
+                    <DataTemplate>
+                        <Border Background="#FFFBF4" BorderBrush="#EF6C00" BorderThickness="3,0,0,1" Padding="14,10">
+                            <StackPanel>
+                                <TextBlock Text="FULL RECORD" FontSize="10.5" FontWeight="Bold"
+                                           Foreground="#EF6C00" Margin="0,0,0,8" />
+                                <WrapPanel>
+                                    <StackPanel><TextBlock Text="Vehicle No" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding VehicleNo}" Style="{StaticResource XlDetailValue}" /></StackPanel>
+                                    <StackPanel><TextBlock Text="Chassis No" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding ChassisNo}" Style="{StaticResource XlDetailValue}" /></StackPanel>
+                                    <StackPanel><TextBlock Text="Engine No" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding EngineNo}" Style="{StaticResource XlDetailValue}" /></StackPanel>
+                                    <StackPanel><TextBlock Text="Customer" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding CustomerName}" Style="{StaticResource XlDetailValue}" /></StackPanel>
+                                    <StackPanel><TextBlock Text="Loan No" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding LoanNo}" Style="{StaticResource XlDetailValue}" /></StackPanel>
+                                    <StackPanel><TextBlock Text="Model/Maker" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding Model}" Style="{StaticResource XlDetailValue}" /></StackPanel>
+                                    <StackPanel><TextBlock Text="Finance" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding FinanceName}" Style="{StaticResource XlDetailValue}" /></StackPanel>
+                                    <StackPanel><TextBlock Text="Branch" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding BranchName}" Style="{StaticResource XlDetailValue}" /></StackPanel>
+                                    <StackPanel><TextBlock Text="Agent" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding AgentName}" Style="{StaticResource XlDetailValue}" /></StackPanel>
+                                    <StackPanel><TextBlock Text="Parking Yard" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding ParkingYardName}" Style="{StaticResource XlDetailValue}" /></StackPanel>
+                                    <StackPanel><TextBlock Text="Yard Mobile" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding ParkingYardMobile}" Style="{StaticResource XlDetailValue}" /></StackPanel>
+                                    <StackPanel><TextBlock Text="Executive" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding ExecutiveName}" Style="{StaticResource XlDetailValue}" /></StackPanel>
+                                    <StackPanel><TextBlock Text="Status" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding ActionText}" Style="{StaticResource XlDetailValue}" /></StackPanel>
+                                    <StackPanel><TextBlock Text="Repo Charges" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding RepoChargesText}" Style="{StaticResource XlDetailValue}" /></StackPanel>
+                                    <StackPanel><TextBlock Text="Advance" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding AdvanceText}" Style="{StaticResource XlDetailValue}" /></StackPanel>
+                                    <StackPanel><TextBlock Text="Courier" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding CourierYn}" Style="{StaticResource XlDetailValue}" /></StackPanel>
+                                    <StackPanel><TextBlock Text="POD Number" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding PodNumber}" Style="{StaticResource XlDetailValue}" /></StackPanel>
+                                    <StackPanel><TextBlock Text="Invoice No" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding InvoiceNo}" Style="{StaticResource XlDetailValue}" /></StackPanel>
+                                </WrapPanel>
+                                <TextBlock Text="Load Details" Style="{StaticResource XlDetailLabel}" />
+                                <TextBlock Text="{Binding LoadDetails}" Style="{StaticResource XlDetailValue}" />
+                                <TextBlock Text="Additional Charges (Notes, Amount)" Style="{StaticResource XlDetailLabel}" />
+                                <TextBlock Text="{Binding AddlCharges}" Style="{StaticResource XlDetailValue}" />
+                                <TextBlock Text="Confirmation By (Name, Mobile)" Style="{StaticResource XlDetailLabel}" />
+                                <TextBlock Text="{Binding ConfirmationBy}" Style="{StaticResource XlDetailValue}" />
+                                <TextBlock Text="Collection Update" Style="{StaticResource XlDetailLabel}" />
+                                <TextBlock Text="{Binding CollectionUpdate}" Style="{StaticResource XlDetailValue}" />
+                                <TextBlock Text="Banker Address" Style="{StaticResource XlDetailLabel}" />
+                                <TextBlock Text="{Binding BankerAddress}" Style="{StaticResource XlDetailValue}" />
+                            </StackPanel>
+                        </Border>
+                    </DataTemplate>
+                </DataGrid.RowDetailsTemplate>
                 <DataGrid.Columns>
-                    <DataGridTextColumn Header="Repo Date" Binding="{Binding RepoDate}" Width="120" MinWidth="90" ElementStyle="{StaticResource CellText}" />
-                    <DataGridTextColumn Header="Loan No" Binding="{Binding LoanNo}" Width="150" MinWidth="90" ElementStyle="{StaticResource CellText}" />
-                    <DataGridTextColumn Header="Invoice No" Binding="{Binding InvoiceNo}" Width="90" MinWidth="70" ElementStyle="{StaticResource CellText}" />
-                    <DataGridTextColumn Header="Customer Name" Binding="{Binding CustomerName}" Width="150" MinWidth="90" ElementStyle="{StaticResource CellText}" />
-                    <DataGridTextColumn Header="Branch" Binding="{Binding BranchName}" Width="120" MinWidth="80" ElementStyle="{StaticResource CellText}" />
-                    <DataGridTextColumn Header="Vehicle No" Binding="{Binding VehicleNo}" Width="110" MinWidth="80" ElementStyle="{StaticResource CellText}" />
-                    <DataGridTextColumn Header="Model/Maker" Binding="{Binding Model}" Width="160" MinWidth="90" ElementStyle="{StaticResource CellText}" />
-                    <DataGridTextColumn Header="Chassis No" Binding="{Binding ChassisNo}" Width="150" MinWidth="90" ElementStyle="{StaticResource CellText}" />
-                    <DataGridTextColumn Header="Engine No" Binding="{Binding EngineNo}" Width="140" MinWidth="90" ElementStyle="{StaticResource CellText}" />
-                    <DataGridTextColumn Header="Agent Name" Binding="{Binding AgentName}" Width="130" MinWidth="80" ElementStyle="{StaticResource CellText}" />
-                    <DataGridTextColumn Header="Parking Yard Name" Binding="{Binding ParkingYardName}" Width="160" MinWidth="90" ElementStyle="{StaticResource CellText}" />
-                    <DataGridTextColumn Header="Parking Yard Mobile" Binding="{Binding ParkingYardMobile}" Width="130" MinWidth="90" ElementStyle="{StaticResource CellText}" />
-                    <DataGridTextColumn Header="Load Details" Binding="{Binding LoadDetails}" Width="120" MinWidth="80" ElementStyle="{StaticResource CellText}" />
-                    <DataGridTextColumn Header="Additional Charges Notes, Amount" Binding="{Binding AddlCharges}" Width="200" MinWidth="110" ElementStyle="{StaticResource CellText}" />
-                    <DataGridTextColumn Header="Confirmation By (Name, Mobile)" Binding="{Binding ConfirmationBy}" Width="190" MinWidth="110" ElementStyle="{StaticResource CellText}" />
-                    <DataGridTextColumn Header="Executive Name" Binding="{Binding ExecutiveName}" Width="130" MinWidth="80" ElementStyle="{StaticResource CellText}" />
-                    <DataGridTextColumn Header="Collection Update" Binding="{Binding CollectionUpdate}" Width="150" MinWidth="90" ElementStyle="{StaticResource CellText}" />
-                    <DataGridTextColumn Header="Finance" Binding="{Binding FinanceName}" Width="130" MinWidth="80" ElementStyle="{StaticResource CellText}" />
-                    <DataGridTextColumn Header="Billing" Binding="{Binding ActionText}" Width="120" MinWidth="80" ElementStyle="{StaticResource CellText}" />
-                    <DataGridTextColumn Header="Repo Charges" Binding="{Binding RepoChargesText}" Width="100" MinWidth="70" ElementStyle="{StaticResource CellText}" />
-                    <DataGridTextColumn Header="Advance" Binding="{Binding AdvanceText}" Width="90" MinWidth="70" ElementStyle="{StaticResource CellText}" />
-                    <DataGridTextColumn Header="Courier" Binding="{Binding CourierYn}" Width="70" MinWidth="60" ElementStyle="{StaticResource CellText}" />
-                    <DataGridTextColumn Header="Banker Address" Binding="{Binding BankerAddress}" Width="150" MinWidth="90" ElementStyle="{StaticResource CellText}" />
-                    <DataGridTextColumn Header="POD Number" Binding="{Binding PodNumber}" Width="110" MinWidth="70" ElementStyle="{StaticResource CellText}" />
+                    <DataGridTextColumn Header="Repo Date" Binding="{Binding RepoDate}" Width="120" MinWidth="90" ElementStyle="{StaticResource XlText}" />
+                    <DataGridTextColumn Header="Loan No" Binding="{Binding LoanNo}" Width="150" MinWidth="90" ElementStyle="{StaticResource XlText}" />
+                    <DataGridTextColumn Header="Invoice No" Binding="{Binding InvoiceNo}" Width="90" MinWidth="70" ElementStyle="{StaticResource XlText}" />
+                    <DataGridTextColumn Header="Customer Name" Binding="{Binding CustomerName}" Width="150" MinWidth="90" ElementStyle="{StaticResource XlText}" />
+                    <DataGridTextColumn Header="Branch" Binding="{Binding BranchName}" Width="120" MinWidth="80" ElementStyle="{StaticResource XlText}" />
+                    <DataGridTextColumn Header="Vehicle No" Binding="{Binding VehicleNo}" Width="110" MinWidth="80" ElementStyle="{StaticResource XlText}" />
+                    <DataGridTextColumn Header="Model/Maker" Binding="{Binding Model}" Width="160" MinWidth="90" ElementStyle="{StaticResource XlText}" />
+                    <DataGridTextColumn Header="Chassis No" Binding="{Binding ChassisNo}" Width="150" MinWidth="90" ElementStyle="{StaticResource XlText}" />
+                    <DataGridTextColumn Header="Engine No" Binding="{Binding EngineNo}" Width="140" MinWidth="90" ElementStyle="{StaticResource XlText}" />
+                    <DataGridTextColumn Header="Agent Name" Binding="{Binding AgentName}" Width="130" MinWidth="80" ElementStyle="{StaticResource XlText}" />
+                    <DataGridTextColumn Header="Parking Yard Name" Binding="{Binding ParkingYardName}" Width="160" MinWidth="90" ElementStyle="{StaticResource XlText}" />
+                    <DataGridTextColumn Header="Parking Yard Mobile" Binding="{Binding ParkingYardMobile}" Width="130" MinWidth="90" ElementStyle="{StaticResource XlText}" />
+                    <DataGridTextColumn Header="Load Details" Binding="{Binding LoadDetails}" Width="120" MinWidth="80" ElementStyle="{StaticResource XlText}" />
+                    <DataGridTextColumn Header="Additional Charges Notes, Amount" Binding="{Binding AddlCharges}" Width="200" MinWidth="110" ElementStyle="{StaticResource XlText}" />
+                    <DataGridTextColumn Header="Confirmation By (Name, Mobile)" Binding="{Binding ConfirmationBy}" Width="190" MinWidth="110" ElementStyle="{StaticResource XlText}" />
+                    <DataGridTextColumn Header="Executive Name" Binding="{Binding ExecutiveName}" Width="130" MinWidth="80" ElementStyle="{StaticResource XlText}" />
+                    <DataGridTextColumn Header="Collection Update" Binding="{Binding CollectionUpdate}" Width="150" MinWidth="90" ElementStyle="{StaticResource XlText}" />
+                    <DataGridTextColumn Header="Finance" Binding="{Binding FinanceName}" Width="130" MinWidth="80" ElementStyle="{StaticResource XlText}" />
+                    <DataGridTextColumn Header="Billing" Binding="{Binding ActionText}" Width="120" MinWidth="80" ElementStyle="{StaticResource XlText}" />
+                    <DataGridTextColumn Header="Repo Charges" Binding="{Binding RepoChargesText}" Width="100" MinWidth="70" ElementStyle="{StaticResource XlMoney}" />
+                    <DataGridTextColumn Header="Advance" Binding="{Binding AdvanceText}" Width="90" MinWidth="70" ElementStyle="{StaticResource XlMoney}" />
+                    <DataGridTextColumn Header="Courier" Binding="{Binding CourierYn}" Width="70" MinWidth="60" ElementStyle="{StaticResource XlText}" />
+                    <DataGridTextColumn Header="Banker Address" Binding="{Binding BankerAddress}" Width="150" MinWidth="90" ElementStyle="{StaticResource XlText}" />
+                    <DataGridTextColumn Header="POD Number" Binding="{Binding PodNumber}" Width="110" MinWidth="70" ElementStyle="{StaticResource XlText}" />
                 </DataGrid.Columns>
             </DataGrid>
         </DockPanel>
