@@ -156,6 +156,11 @@
                                  TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto"
                                  VerticalContentAlignment="Top" Padding="8,4" Margin="0,0,0,10" />
 
+                        <TextBlock Name="lblAddlCharges" Text="Additional Charges (from app)" Foreground="#666" FontSize="12" Margin="0,0,0,3" Visibility="Collapsed" />
+                        <TextBox Name="txtAddlChargesInfo" IsReadOnly="True" Background="#F5F5F5" Height="46"
+                                 TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto"
+                                 VerticalContentAlignment="Top" Padding="8,4" Margin="0,0,0,10" Visibility="Collapsed" />
+
                         <TextBlock Name="lblCollectionUpdate" Text="Collection Update (from app)" Foreground="#666" FontSize="12" Margin="0,0,0,3" Visibility="Collapsed" />
                         <TextBox Name="txtCollectionUpdate" IsReadOnly="True" Background="#F5F5F5" Height="52"
                                  TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto"
