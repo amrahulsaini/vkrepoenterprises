@@ -644,6 +644,7 @@ CREATE TABLE IF NOT EXISTS `repo_submissions` (
   `ifsc_code`              VARCHAR(32)     NULL,
   `utr_no`                 VARCHAR(64)     NULL,
   `payment_date`           DATE            NULL,
+  `payment_status`         ENUM('unpaid','paid') NULL,
   `application_charges`    DECIMAL(12,2)   NULL,
   `repo_charges`           DECIMAL(12,2)   NULL,
   `advance`                DECIMAL(12,2)   NULL,

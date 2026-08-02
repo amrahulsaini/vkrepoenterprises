@@ -95,6 +95,21 @@
                             </Style>
                         </DataGridTextColumn.ElementStyle>
                     </DataGridTextColumn>
+                    <DataGridTextColumn Header="Payment" Binding="{Binding PaymentStatusText}" Width="90" IsReadOnly="True">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock" BasedOn="{StaticResource XlText}">
+                                <Setter Property="FontWeight" Value="Bold" />
+                                <Style.Triggers>
+                                    <Trigger Property="Text" Value="PAID">
+                                        <Setter Property="Foreground" Value="#1B7F3B" />
+                                    </Trigger>
+                                    <Trigger Property="Text" Value="UNPAID">
+                                        <Setter Property="Foreground" Value="#C62828" />
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
                     <DataGridTemplateColumn Header="Screenshot" Width="90">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
@@ -185,6 +200,12 @@
                         <TextBox Name="txtUtr" Style="{StaticResource PFld}" />
                         <TextBlock Text="Date of Payment" Style="{StaticResource PLbl}" />
                         <DatePicker Name="dpPayDate" Height="28" Margin="0,0,0,7" />
+                        <TextBlock Text="Payment Status *" Style="{StaticResource PLbl}" />
+                        <ComboBox Name="cmbPayStatus" Height="28" Margin="0,0,0,7" SelectedIndex="0">
+                            <ComboBoxItem Content="-- select --" />
+                            <ComboBoxItem Content="Paid" />
+                            <ComboBoxItem Content="Unpaid" />
+                        </ComboBox>
                         <Button Name="btnSavePay" Content="Save Payment Details" Height="32" FontWeight="Bold"
                                 Background="{StaticResource Accent}" Foreground="White" BorderThickness="0"
                                 Cursor="Hand" Click="btnSavePay_Click" Margin="0,2,0,0" />
