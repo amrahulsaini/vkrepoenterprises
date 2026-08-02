@@ -612,38 +612,11 @@ internal static class DesktopApiClient
 
     /// Changes only the billing decision, leaving courier entries untouched.
     internal static async Task UpdateBillingActionAsync(long id, string billingAction)
-    {
-        var resp = await Send(HttpMethod.Post, $"api/mgr/billing/submissions/{id}/action",
-            new { BillingAction = billingAction });
-        await ThrowIfFailed(resp);
-    }
+        => (await Send(HttpMethod.Post, $"api/mgr/billing/submissions/{id}/action",
+                new { BillingAction = billingAction })).Dispose();
 
     internal static async Task UpdateCourierSubmissionAsync(long id, object dto)
-    {
-        var resp = await Send(HttpMethod.Post, $"api/mgr/couriers/submissions/{id}/update", dto);
-        await ThrowIfFailed(resp);
-    }
-
-    /// Surfaces the server's own message (e.g. the duplicate-status conflict)
-    /// rather than a bare status line.
-    private static async Task ThrowIfFailed(HttpResponseMessage resp)
-    {
-        if (resp.IsSuccessStatusCode) return;
-        string? msg = null;
-        try
-        {
-            var body = await resp.Content.ReadAsStringAsync();
-            if (!string.IsNullOrWhiteSpace(body))
-            {
-                using var doc = JsonDocument.Parse(body);
-                if (doc.RootElement.TryGetProperty("message", out var m))
-                    msg = m.GetString();
-            }
-        }
-        catch { }
-        throw new InvalidOperationException(
-            string.IsNullOrWhiteSpace(msg) ? resp.ReasonPhrase ?? "Request failed." : msg);
-    }
+        => (await Send(HttpMethod.Post, $"api/mgr/couriers/submissions/{id}/update", dto)).Dispose();
 
     internal static async Task<string> GetCourierPasswordAsync()
     {
@@ -1203,6 +1176,16 @@ internal static class DesktopApiClient
                 await Task.Delay(TimeSpan.FromMilliseconds(400 * attempt));
                 continue;
             }
+            catch (TaskCanceledException)
+            {
+                throw new HttpRequestException(
+                    "The server took too long to respond. Check your connection and try again.");
+            }
+            catch (HttpRequestException)
+            {
+                throw new HttpRequestException(
+                    "Can't reach the server. Check your internet connection and try again.");
+            }
 
             if (resp.IsSuccessStatusCode) return resp;
 
@@ -1215,10 +1198,55 @@ internal static class DesktopApiClient
 
             string body_ = "";
             try { body_ = await resp.Content.ReadAsStringAsync(); } catch { }
-            if (body_.Length > 1500) body_ = body_.Substring(0, 1500) + "…";
-            throw new HttpRequestException(
-                $"{(int)resp.StatusCode} {resp.ReasonPhrase} — {method} {relativeUrl}\n\n{body_}",
-                null, resp.StatusCode);
+            throw new HttpRequestException(FriendlyError(resp.StatusCode, body_), null, resp.StatusCode);
         }
+    }
+
+    /// Turns an API failure into something an operator can act on. A message the
+    /// server wrote for the user always wins; otherwise the status code decides.
+    private static string FriendlyError(System.Net.HttpStatusCode status, string body)
+    {
+        var fromServer = ExtractMessage(body);
+        if (!string.IsNullOrWhiteSpace(fromServer)) return fromServer!;
+
+        return (int)status switch
+        {
+            400 => "That request wasn't valid. Check the values and try again.",
+            401 => "Your session is no longer valid. Please sign in again.",
+            403 => "You don't have permission to do that.",
+            404 => "That record no longer exists. Refresh the list and try again.",
+            408 => "The server took too long to respond. Check your connection and try again.",
+            409 => "That change conflicts with an existing entry.",
+            413 => "That file is too large to upload.",
+            429 => "Too many requests just now. Wait a moment and try again.",
+            >= 500 => "The server couldn't complete that. Please try again in a moment.",
+            _ => "Something went wrong. Please try again."
+        };
+    }
+
+    /// Reads a user-facing "message" (or "title") out of a JSON error body.
+    /// Returns null for HTML, stack traces or anything else not meant for display.
+    private static string? ExtractMessage(string body)
+    {
+        if (string.IsNullOrWhiteSpace(body)) return null;
+        var trimmed = body.TrimStart();
+        if (trimmed.Length == 0 || trimmed[0] != '{') return null;
+        try
+        {
+            using var doc = JsonDocument.Parse(trimmed);
+            if (doc.RootElement.ValueKind != JsonValueKind.Object) return null;
+            foreach (var key in new[] { "message", "title", "detail" })
+            {
+                if (doc.RootElement.TryGetProperty(key, out var el) &&
+                    el.ValueKind == JsonValueKind.String)
+                {
+                    var text = el.GetString();
+                    if (!string.IsNullOrWhiteSpace(text) && !text!.StartsWith("http"))
+                        return text.Trim();
+                }
+            }
+        }
+        catch { }
+        return null;
     }
 }
