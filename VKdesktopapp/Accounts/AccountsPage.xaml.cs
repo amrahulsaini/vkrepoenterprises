@@ -239,11 +239,7 @@ public partial class AccountsPage : Page
             await DesktopApiClient.UpdateCourierSubmissionAsync(r.Id, new
             {
                 RepoCharges = r.RepoCharges,
-                Advance = r.Advance,
-                CourierYn = r.Src.CourierYn,
-                BankerAddress = r.Src.BankerAddress,
-                PodNumber = r.Src.PodNumber,
-                CourierPercent = r.Src.CourierPercent
+                Advance = r.Advance
             });
             txtStatus.Text = "Saved.";
             BuildSummary(_shown.ToList());
@@ -401,9 +397,6 @@ public partial class AccountsPage : Page
             {
                 RepoCharges = ParseAmt(txtAcRepo.Text),
                 Advance = ParseAmt(txtAcAdvance.Text),
-                CourierYn = r.Src.CourierYn,
-                BankerAddress = r.Src.BankerAddress,
-                PodNumber = r.Src.PodNumber,
                 CourierPercent = ParseAmt(txtAcPercent.Text)
             });
             long keepId = r.Id;

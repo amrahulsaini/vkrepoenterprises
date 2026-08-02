@@ -410,14 +410,7 @@ public partial class CouriersPage : Page
         if (MessageBox.Show("Clear this record's courier entries (Repo Charges, Advance, Courier, Banker Address, POD)?",
                 "Couriers", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
 
-        await SaveAsync(r.Id, new
-        {
-            RepoCharges = (decimal?)null,
-            Advance = (decimal?)null,
-            CourierYn = (string?)null,
-            BankerAddress = (string?)null,
-            PodNumber = (string?)null
-        }, "Entries cleared.");
+        await SaveAsync(r.Id, new { ClearEntries = true }, "Entries cleared.");
     }
 
     private async System.Threading.Tasks.Task SaveAsync(long id, object dto, string okText)
