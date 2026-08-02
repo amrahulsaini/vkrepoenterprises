@@ -34,8 +34,10 @@ public partial class ReportsPage : Page
             btnSubsExcel,  btnSubsPdf,
             btnVehicleExcel, btnVehiclePdf,
             btnRcExcel,    btnRcPdf,
-            btnChassisExcel, btnChassisPdf
+            btnChassisExcel, btnChassisPdf,
+            btnBillingExcel
         };
+        UpdateBillRange();
     }
 
 
@@ -202,6 +204,7 @@ public partial class ReportsPage : Page
             case "VehicleRecords":   await ExcelVehicleAsync(filePath, "VehicleRecords", DesktopApiClient.ExportVehicleRecordsPageAsync); break;
             case "RcRecords":        await ExcelVehicleAsync(filePath, "RC Records",     DesktopApiClient.ExportRcRecordsPageAsync);      break;
             case "ChassisRecords":   await ExcelVehicleAsync(filePath, "Chassis Records",DesktopApiClient.ExportChassisRecordsPageAsync); break;
+            case "BillingReport":    await ExcelBillingReportAsync(filePath); break;
         }
     }
 
@@ -387,6 +390,129 @@ public partial class ReportsPage : Page
 
         SetProgress(100, "Done");
         Log("Excel file written successfully.");
+    }
+
+    private (DateTime From, DateTime To) BillRange()
+    {
+        var today = DateTime.Today;
+        return cmbBillPeriod.SelectedIndex switch
+        {
+            0 => (new DateTime(today.Year, today.Month, 1), today),
+            1 => (today.AddMonths(-3), today),
+            2 => (today.AddMonths(-6), today),
+            3 => (new DateTime(today.Year, 1, 1), today),
+            _ => (dpBillFrom.SelectedDate ?? today.AddMonths(-1), dpBillTo.SelectedDate ?? today)
+        };
+    }
+
+    private void UpdateBillRange()
+    {
+        if (cmbBillPeriod == null || lblBillRange == null) return;
+        bool custom = cmbBillPeriod.SelectedIndex == 4;
+        pnlBillDates.IsEnabled = custom;
+        if (custom && dpBillFrom.SelectedDate == null)
+        {
+            dpBillFrom.SelectedDate = DateTime.Today.AddMonths(-1);
+            dpBillTo.SelectedDate   = DateTime.Today;
+        }
+        var (f, t) = BillRange();
+        lblBillRange.Text = $"{f:dd MMM yyyy}  to  {t:dd MMM yyyy}";
+    }
+
+    private void BillPeriod_Changed(object sender, SelectionChangedEventArgs e) => UpdateBillRange();
+
+    private static string BillingStatusLabel(string action) => action switch
+    {
+        "immediate"       => "OK for Billing",
+        "collection_done" => "Collection",
+        "hold"            => "Hold for Collection",
+        "cancel"          => "Cancel",
+        _                 => action ?? ""
+    };
+
+    private static string PaymentStatusLabel(string? status) => (status ?? "").Trim().ToLowerInvariant() switch
+    {
+        "paid"   => "Paid",
+        "unpaid" => "Unpaid",
+        _        => ""
+    };
+
+    private static string JoinNonEmpty(params string?[] parts) =>
+        string.Join(", ", System.Linq.Enumerable.Where(parts, x => !string.IsNullOrWhiteSpace(x)));
+
+    private async Task ExcelBillingReportAsync(string filePath)
+    {
+        var (from, to) = BillRange();
+        Log($"Fetching billing records {from:yyyy-MM-dd} to {to:yyyy-MM-dd}…");
+        SetProgress(5, "Fetching…");
+
+        var rows = await DesktopApiClient.GetRepoSubmissionsAsync(
+            from.ToString("yyyy-MM-dd"), to.ToString("yyyy-MM-dd"), new List<int>(), null);
+        Log($"Fetched {rows.Count:N0} record(s).");
+
+        SetProgress(80, "Writing Excel file…");
+        await Task.Run(() =>
+        {
+            string[] headers =
+            {
+                "Repo Date", "Vehicle No.", "Loan Agreement No.", "Customer Name", "Make & Model",
+                "Chassis No.", "Engine No.", "Agent Name", "Yard Name", "Confirmed By",
+                "Finance Name", "Invoice Number", "Additional Amount", "Collection update",
+                "Invoice Amount (Total)", "Advance Payment", "Repo Charges", "Payment Status",
+                "Executive", "Billing Status", "Remarks", "Feedback", "UTR No."
+            };
+
+            using var engine = new ExcelEngine();
+            var xlApp = engine.Excel;
+            xlApp.DefaultVersion = ExcelVersion.Xlsx;
+            var wb = xlApp.Workbooks.Create(1);
+            var ws = wb.Worksheets[0];
+            ws.Name = "Billing Report";
+
+            WriteExcelHeader(ws, headers);
+
+            int r = 2;
+            foreach (var d in rows)
+            {
+                var agent = string.IsNullOrWhiteSpace(d.AgentName) ? d.SubmittedByName : d.AgentName;
+                var repoDate = (d.CreatedAt ?? "").Length >= 10 ? d.CreatedAt.Substring(0, 10) : (d.CreatedAt ?? "");
+
+                ws[r, 1].Text  = repoDate;
+                ws[r, 2].Text  = d.VehicleNo ?? "";
+                ws[r, 3].Text  = d.LoanNo ?? "";
+                ws[r, 4].Text  = d.CustomerName ?? "";
+                ws[r, 5].Text  = d.Model ?? "";
+                ws[r, 6].Text  = d.ChassisNo ?? "";
+                ws[r, 7].Text  = d.EngineNo ?? "";
+                ws[r, 8].Text  = (agent ?? "").Trim();
+                ws[r, 9].Text  = d.ParkingYardName ?? "";
+                ws[r, 10].Text = JoinNonEmpty(d.ConfirmationByName, d.ConfirmationByMobile);
+                ws[r, 11].Text = (d.FinanceName ?? "").ToUpperInvariant();
+                ws[r, 12].Text = d.InvoiceNo ?? "";
+
+                if (d.AddlChargesAmount is decimal ac) ws[r, 13].Value2 = (double)ac;
+
+                ws[r, 14].Text = d.CollectionUpdate ?? "";
+
+                if (d.BillingAction == "immediate" && d.TotalGross is decimal tg)
+                    ws[r, 15].Value2 = (double)tg;
+
+                if (d.Advance is decimal adv)     ws[r, 16].Value2 = (double)adv;
+                if (d.RepoCharges is decimal rc)  ws[r, 17].Value2 = (double)rc;
+
+                ws[r, 18].Text = PaymentStatusLabel(d.PaymentStatus);
+                ws[r, 19].Text = d.ExecutiveName ?? "";
+                ws[r, 20].Text = BillingStatusLabel(d.BillingAction);
+                ws[r, 21].Text = d.Remark ?? "";
+                ws[r, 22].Text = "";
+                ws[r, 23].Text = "";
+                r++;
+            }
+
+            ws.UsedRange.AutofitColumns();
+            wb.SaveAs(filePath);
+        });
+        Log("Excel file written.");
     }
 
     private static void WriteExcelHeader(IWorksheet ws, string[] headers)
