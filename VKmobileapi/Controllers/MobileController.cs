@@ -449,6 +449,11 @@ public class MobileController : ControllerBase
             if (!ok) return NotFound(new ApiError(false, "Entry not found or not yours."));
             return Ok(new { success = true });
         }
+        catch (InvalidOperationException dup) when (dup.Message == "duplicate_status")
+        {
+            return Conflict(new ApiError(false,
+                "This vehicle already has that status for this month."));
+        }
         catch (Exception ex)
         {
             return StatusCode(500, new ApiError(false, $"Failed to update: {ex.Message}"));

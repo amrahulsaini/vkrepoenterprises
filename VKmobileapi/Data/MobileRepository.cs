@@ -1692,6 +1692,13 @@ public class MobileRepository
         P("@pscreen", screenshotRel); P("@autobill", autoBill ? 1 : 0);
         P("@cash", req.CashAmount is > 0 ? req.CashAmount : (object?)null);
         P("@id", id); P("@uid", userId);
-        return await cmd.ExecuteNonQueryAsync() > 0;
+        try
+        {
+            return await cmd.ExecuteNonQueryAsync() > 0;
+        }
+        catch (MySqlException dup) when (dup.Number == 1062)
+        {
+            throw new InvalidOperationException("duplicate_status");
+        }
     }
 }

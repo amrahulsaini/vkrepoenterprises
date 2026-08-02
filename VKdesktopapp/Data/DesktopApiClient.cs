@@ -615,13 +615,34 @@ internal static class DesktopApiClient
     {
         var resp = await Send(HttpMethod.Post, $"api/mgr/billing/submissions/{id}/action",
             new { BillingAction = billingAction });
-        resp.EnsureSuccessStatusCode();
+        await ThrowIfFailed(resp);
     }
 
     internal static async Task UpdateCourierSubmissionAsync(long id, object dto)
     {
         var resp = await Send(HttpMethod.Post, $"api/mgr/couriers/submissions/{id}/update", dto);
-        resp.EnsureSuccessStatusCode();
+        await ThrowIfFailed(resp);
+    }
+
+    /// Surfaces the server's own message (e.g. the duplicate-status conflict)
+    /// rather than a bare status line.
+    private static async Task ThrowIfFailed(HttpResponseMessage resp)
+    {
+        if (resp.IsSuccessStatusCode) return;
+        string? msg = null;
+        try
+        {
+            var body = await resp.Content.ReadAsStringAsync();
+            if (!string.IsNullOrWhiteSpace(body))
+            {
+                using var doc = JsonDocument.Parse(body);
+                if (doc.RootElement.TryGetProperty("message", out var m))
+                    msg = m.GetString();
+            }
+        }
+        catch { }
+        throw new InvalidOperationException(
+            string.IsNullOrWhiteSpace(msg) ? resp.ReasonPhrase ?? "Request failed." : msg);
     }
 
     internal static async Task<string> GetCourierPasswordAsync()

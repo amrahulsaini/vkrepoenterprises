@@ -2351,6 +2351,10 @@ app.MapPost("/api/mgr/couriers/submissions/{id:long}/update", async (HttpContext
             conn, 20, ps.ToArray());
         return Results.Ok(new { success = true });
     }
+    catch (MySqlException dup) when (dup.Number == 1062)
+    {
+        return Results.Conflict(new { message = "This vehicle already has that billing status for this month. Change or remove the existing entry first." });
+    }
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
 
@@ -2485,6 +2489,10 @@ app.MapPost("/api/mgr/billing/submissions/{id:long}/action", async (HttpContext 
                 conn, 20, ("@a", dto.BillingAction), ("@id", id));
         }
         return Results.Ok(new { success = true });
+    }
+    catch (MySqlException dup) when (dup.Number == 1062)
+    {
+        return Results.Conflict(new { message = "This vehicle already has that billing status for this month. Change or remove the existing entry first." });
     }
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
