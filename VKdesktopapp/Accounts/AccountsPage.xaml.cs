@@ -51,8 +51,8 @@ public partial class AccountsPage : Page
         }
         public string VehicleNo => string.IsNullOrWhiteSpace(Src.VehicleNo) ? Src.ChassisNo : Src.VehicleNo;
         public string CustomerName => Src.CustomerName;
-        public string FinanceName => Src.FinanceName;
-        public string BranchName => Src.BranchName;
+        public string FinanceName => (Src.FinanceName ?? "").ToUpperInvariant();
+        public string BranchName => (Src.BranchName ?? "").ToUpperInvariant();
         public string ActionText => Src.BillingAction switch
         {
             "immediate"       => "OK for billing",
