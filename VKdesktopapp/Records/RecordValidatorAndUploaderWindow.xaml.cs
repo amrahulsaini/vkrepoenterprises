@@ -59,7 +59,7 @@ public partial class RecordValidatorAndUploaderWindow : Window
         ReadRecords();
         foreach (var record in FilterRecords(RecordFilters.Invalid))
             _filteredRecords.Add(record);
-        mnFilterHeader.Text = $"Invalid: {_filteredRecords.Count}/{_records.Count}";
+        mnFilterHeader.Text = InvalidHeaderText();
         IsRecordsLoading = false;
         await LoadBranchesAsync();
     }
@@ -164,17 +164,39 @@ public partial class RecordValidatorAndUploaderWindow : Window
 
     private List<UploadRecord> FilterRecords(RecordFilters filter) => filter switch
     {
-        RecordFilters.Invalid => _records.Where(r => !IsValidRc(r) && !IsValidChassis(r)).ToList(),
+        RecordFilters.Invalid => _records.Where(r => !IsValidRc(r)).ToList(),
+        RecordFilters.Skipped => _records.Where(r => !IsValidRc(r) && !IsValidChassis(r)).ToList(),
         RecordFilters.Valid   => _records.Where(r =>  IsValidRc(r) ||  IsValidChassis(r)).ToList(),
         _                     => _records.ToList()
     };
+
+    /// "Invalid" means the RC itself is unusable — the check operators scan for.
+    /// A row can be invalid here and still upload on its chassis; "Won't upload"
+    /// is the stricter view of what the upload actually drops.
+    private string InvalidHeaderText()
+    {
+        int badRc   = FilterRecords(RecordFilters.Invalid).Count;
+        int skipped = FilterRecords(RecordFilters.Skipped).Count;
+        return skipped > 0
+            ? $"Invalid RC: {badRc}/{_records.Count}  ({skipped} won't upload)"
+            : $"Invalid RC: {badRc}/{_records.Count}";
+    }
 
     private void miInvalid_Click(object sender, RoutedEventArgs e)
     {
         _filteredRecords.Clear();
         IsRecordsLoading = true;
         foreach (var r in FilterRecords(RecordFilters.Invalid)) _filteredRecords.Add(r);
-        mnFilterHeader.Text = $"Invalid: {_filteredRecords.Count}/{_records.Count}";
+        mnFilterHeader.Text = InvalidHeaderText();
+        IsRecordsLoading = false;
+    }
+
+    private void miSkipped_Click(object sender, RoutedEventArgs e)
+    {
+        _filteredRecords.Clear();
+        IsRecordsLoading = true;
+        foreach (var r in FilterRecords(RecordFilters.Skipped)) _filteredRecords.Add(r);
+        mnFilterHeader.Text = $"Won't upload: {_filteredRecords.Count}/{_records.Count}";
         IsRecordsLoading = false;
     }
 

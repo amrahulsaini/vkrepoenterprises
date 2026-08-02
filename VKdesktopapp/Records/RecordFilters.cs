@@ -4,5 +4,6 @@ public enum RecordFilters
 {
     All,
     Invalid,
+    Skipped,
     Valid
 }
