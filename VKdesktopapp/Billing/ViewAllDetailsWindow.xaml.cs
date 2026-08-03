@@ -88,6 +88,30 @@ public partial class ViewAllDetailsWindow : Window
 
     private bool _ready;
 
+    private static long RowIdOf(object? item) => item is Row r ? r.Id : 0;
+
+    private long _lastRowId;
+
+    /// Clicking the already-expanded row collapses it again.
+    private void XlGrid_RowClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        var src = e.OriginalSource as System.Windows.DependencyObject;
+        while (src != null && src is not DataGridRow && src is not System.Windows.Controls.Primitives.DataGridColumnHeader)
+            src = System.Windows.Media.VisualTreeHelper.GetParent(src);
+        if (src is not DataGridRow row) return;
+
+        long id = RowIdOf(row.Item);
+        if (id != 0 && id == _lastRowId && row.IsSelected)
+        {
+            row.IsSelected = false;
+            _lastRowId = 0;
+            e.Handled = true;
+            return;
+        }
+        _lastRowId = id;
+    }
+
+
     // Instant filtering — no Load button; any filter/date change reloads.
     private async void Filter_Changed(object sender, SelectionChangedEventArgs e)
     {
@@ -154,9 +178,18 @@ public partial class ViewAllDetailsWindow : Window
         return words.Length > 0 && words.All(w => n.Contains(w, StringComparison.OrdinalIgnoreCase));
     }
 
+    internal static bool RcLast4Matches(string? vehicleNo, string? chassisNo, string last4)
+    {
+        if (last4.Length == 0) return true;
+        var v = Squash(vehicleNo);
+        var c = Squash(chassisNo);
+        return v.EndsWith(last4) || v.Contains(last4) || c.EndsWith(last4) || c.Contains(last4);
+    }
+
     private void ApplyFinanceFilter()
     {
         var term = (cmbFinance.Text ?? "").Trim();
+        var last4 = Squash(txtRcLast4?.Text);
         List<Row> shown;
         if (term.Length == 0)
         {
@@ -170,8 +203,11 @@ public partial class ViewAllDetailsWindow : Window
                 ? exact
                 : _rows.Where(r => NameMatches(r.FinanceName, term)).ToList();
         }
+        if (last4.Length > 0)
+            shown = shown.Where(r => RcLast4Matches(r.VehicleNo, r.ChassisNo, last4)).ToList();
+
         grid.ItemsSource = shown;
-        txtStatus.Text = term.Length == 0
+        txtStatus.Text = shown.Count == _rows.Count
             ? shown.Count + " record(s)."
             : shown.Count + " of " + _rows.Count + " record(s).";
     }
@@ -183,6 +219,11 @@ public partial class ViewAllDetailsWindow : Window
     }
 
     private void Finance_Key(object sender, System.Windows.Input.KeyEventArgs e)
+    {
+        if (_ready) ApplyFinanceFilter();
+    }
+
+    private void RcLast4_Changed(object sender, TextChangedEventArgs e)
     {
         if (_ready) ApplyFinanceFilter();
     }
@@ -225,7 +266,15 @@ public partial class ViewAllDetailsWindow : Window
         var w = new BillingActionWindow(id, row.Src.BillingAction,
             $"{veh}  •  {row.Src.CustomerName}") { Owner = this };
 
-        if (w.ShowDialog() == true) await LoadAsync();
+        if (w.ShowDialog() != true) return;
+        await LoadAsync();
+        var again = _rows.FirstOrDefault(x => x.Id == id);
+        if (again != null)
+        {
+            grid.SelectedItem = again;
+            grid.ScrollIntoView(again);
+            grid.Focus();
+        }
     }
 
     // Inline editing of the app-filled fields; saves the edited row to the server.

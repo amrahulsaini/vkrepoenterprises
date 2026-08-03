@@ -192,7 +192,19 @@
             CanUserDeleteRows="True"
             SelectionUnit="CellOrRowHeader"
             IsReadOnly="False"
+            ScrollViewer.HorizontalScrollBarVisibility="Visible"
+            ScrollViewer.VerticalScrollBarVisibility="Visible"
+            ScrollViewer.CanContentScroll="True"
             Background="#FFFFFFFF">
+            <DataGrid.Resources>
+                <Style TargetType="ScrollBar">
+                    <Setter Property="Width" Value="18" />
+                    <Setter Property="Height" Value="18" />
+                    <Setter Property="MinWidth" Value="18" />
+                    <Setter Property="MinHeight" Value="18" />
+                    <Setter Property="Background" Value="#F0F1F3" />
+                </Style>
+            </DataGrid.Resources>
             <DataGrid.Columns>
                 <DataGridTextColumn Header="Original VRN" Binding="{Binding VehicleNo}" />
                 <DataGridTextColumn Header="Chasis No" Binding="{Binding ChasisNo}" />

@@ -18,6 +18,33 @@ public partial class AccountsPage : Page
     private readonly ObservableCollection<AcctRow> _shown = new();
     private bool _ready;
 
+    private static long RowIdOf(object? item) => item is AcctRow r ? r.Id : 0;
+
+    private long _lastRowId;
+
+    /// Clicking the already-expanded row collapses it again.
+    private void XlGrid_RowClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        var src = e.OriginalSource as System.Windows.DependencyObject;
+        while (src != null && src is not DataGridRow && src is not System.Windows.Controls.Primitives.DataGridColumnHeader)
+            src = System.Windows.Media.VisualTreeHelper.GetParent(src);
+        if (src is not DataGridRow row) return;
+
+        long id = RowIdOf(row.Item);
+        if (id != 0 && id == _lastRowId && row.IsSelected)
+        {
+            row.IsSelected = false;
+            _lastRowId = 0;
+            e.Handled = true;
+            return;
+        }
+        _lastRowId = id;
+    }
+
+    private static string Squash4(string? s) =>
+        new string((s ?? "").Where(char.IsLetterOrDigit).ToArray()).ToUpperInvariant();
+
+
     public AccountsPage()
     {
         InitializeComponent();
@@ -169,6 +196,11 @@ public partial class AccountsPage : Page
                 : _all.Where(r => CRMRSDesktopApp.Billing.ViewAllDetailsWindow.NameMatches(r.AgentName, term)).ToList();
         }
 
+        var last4 = Squash4(txtRcLast4?.Text);
+        if (last4.Length > 0)
+            rows = rows.Where(r => Squash4(r.VehicleNo).Contains(last4) ||
+                                   Squash4(r.Src.ChassisNo).Contains(last4)).ToList();
+
         _shown.Clear();
         foreach (var r in rows) _shown.Add(r);
         txtStatus.Text = $"{rows.Count} record(s).";
@@ -181,6 +213,7 @@ public partial class AccountsPage : Page
         Dispatcher.BeginInvoke(new Action(ApplyFilter), System.Windows.Threading.DispatcherPriority.Input);
     }
     private void Agent_Key(object sender, System.Windows.Input.KeyEventArgs e) { if (_ready) ApplyFilter(); }
+    private void RcLast4_Changed(object sender, TextChangedEventArgs e) { if (_ready) ApplyFilter(); }
     private void btnClearAgent_Click(object sender, RoutedEventArgs e) { cmbAgent.Text = ""; if (_ready) ApplyFilter(); }
 
     private async void btnRefresh_Click(object sender, RoutedEventArgs e)

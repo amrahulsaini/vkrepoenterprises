@@ -33,6 +33,11 @@
                           ToolTip="Type to search an agent, or pick from the list, then Generate Agent Bill" />
                 <Button Name="btnClearAgent" Content="✕" Width="26" Height="26" Margin="4,0,0,0"
                         Cursor="Hand" ToolTip="Clear agent filter" Click="btnClearAgent_Click" />
+                <TextBlock Text="RC last 4" VerticalAlignment="Center" Foreground="#666" Margin="0,0,6,0" />
+                <TextBox Name="txtRcLast4" Width="90" Height="26" MaxLength="6" Margin="0,0,14,0"
+                         VerticalContentAlignment="Center" TextAlignment="Center" FontWeight="Bold"
+                         ToolTip="Type the last 4 digits of the RC or chassis"
+                         TextChanged="RcLast4_Changed" />
                 <Button Name="btnRefresh" Content="↻ Refresh" Width="100" Height="26" Margin="14,0,0,0" FontWeight="Bold"
                         Background="#1565C0" Foreground="White" BorderThickness="0" Cursor="Hand"
                         ToolTip="Reload records from the server" Click="btnRefresh_Click" />
@@ -42,6 +47,7 @@
             <DataGrid Name="grid" Style="{StaticResource XlGrid}"
                       CanUserSortColumns="True" FrozenColumnCount="2"
                       RowDetailsVisibilityMode="VisibleWhenSelected"
+                      PreviewMouseLeftButtonDown="XlGrid_RowClick"
                       CellEditEnding="grid_CellEditEnding"
                       SelectionChanged="grid_SelectionChanged">
                 <DataGrid.RowDetailsTemplate>
