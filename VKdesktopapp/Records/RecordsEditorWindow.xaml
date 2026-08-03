@@ -13,6 +13,9 @@
     WindowState="Maximized"
     ShowInTaskbar="True"
     Loaded="RibbonWindow_Loaded">
+    <Window.Resources>
+        <Style TargetType="ScrollBar" BasedOn="{StaticResource XlScrollBar}" />
+    </Window.Resources>
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
