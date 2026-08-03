@@ -50,14 +50,20 @@
                 <Button Name="btnClearFinance" Content="&#10005;" Width="28" Height="28" Margin="0,0,8,0"
                         Cursor="Hand" ToolTip="Clear finance filter" Click="btnClearFinance_Click" />
                 <TextBlock Name="txtFinanceCount" VerticalAlignment="Center" Foreground="#EF6C00"
-                           FontSize="12" FontWeight="Bold" />
+                           FontSize="12" FontWeight="Bold" Margin="0,0,14,0" />
+                <TextBlock Text="RC last 4" VerticalAlignment="Center" Foreground="#666" Margin="0,0,6,0" />
+                <TextBox Name="txtRcLast4" Width="90" Height="28" MaxLength="6"
+                         VerticalContentAlignment="Center" TextAlignment="Center"
+                         FontWeight="Bold" ToolTip="Type the last 4 digits of the RC or chassis"
+                         TextChanged="RcLast4_Changed" />
             </WrapPanel>
         </DockPanel>
 
         <DataGrid Grid.Row="2" Name="grid" Style="{StaticResource XlGrid}"
                   IsReadOnly="False" CellEditEnding="grid_CellEditEnding"
                   SelectionUnit="CellOrRowHeader" CanUserSortColumns="False" FrozenColumnCount="2"
-                  RowDetailsVisibilityMode="VisibleWhenSelected">
+                  RowDetailsVisibilityMode="VisibleWhenSelected"
+                  PreviewMouseLeftButtonDown="XlGrid_RowClick">
             <DataGrid.RowDetailsTemplate>
                 <DataTemplate>
                     <Border Background="#FFFBF4" BorderBrush="#EF6C00" BorderThickness="3,0,0,1" Padding="14,10">

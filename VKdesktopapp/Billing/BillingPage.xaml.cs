@@ -374,6 +374,22 @@ public partial class BillingPage : Page
         txtBranch.Text    = Up(string.IsNullOrWhiteSpace(rec.BranchFromExcel) ? rec.BranchName : rec.BranchFromExcel);
     }
 
+    /// <head office prefix>_<invoice no>, e.g. CHOLA_1042.docx. Falls back to
+    /// the previous timestamped name when either part is unavailable.
+    private string BillFileName(string fallback)
+    {
+        var office = (cmbFinance.SelectedItem as FinanceOption)?.Name ?? "";
+        if (string.IsNullOrWhiteSpace(office)) office = txtBankTo.Text;
+        var letters = new string((office ?? "").Where(char.IsLetterOrDigit).ToArray()).ToUpperInvariant();
+        if (letters.Length > 8) letters = letters.Substring(0, 8);
+
+        var inv = new string(txtInvoiceNo.Text.Where(char.IsLetterOrDigit).ToArray());
+
+        if (letters.Length > 0 && inv.Length > 0) return $"{letters}_{inv}.docx";
+        if (letters.Length > 0) return $"{letters}_{DateTime.Now:yyyyMMdd_HHmmss}.docx";
+        return $"RepoBill_{fallback}_{DateTime.Now:yyyyMMdd_HHmmss}.docx";
+    }
+
     private async void btnGenerate_Click(object sender, RoutedEventArgs e)
     {
         if (_financeId <= 0) { MessageBox.Show("Select a finance first.", "Billing", MessageBoxButton.OK, MessageBoxImage.Information); return; }
@@ -397,7 +413,7 @@ public partial class BillingPage : Page
         {
             Title = "Save Repossession Bill",
             Filter = "Word document (*.docx)|*.docx",
-            FileName = $"RepoBill_{safe}_{DateTime.Now:yyyyMMdd_HHmmss}.docx"
+            FileName = BillFileName(safe)
         };
         if (dlg.ShowDialog() != true) return;
 
@@ -559,7 +575,6 @@ public partial class BillingPage : Page
         KV("REPO CHARGES", txtRepoWords.Text.Trim(), Rs(ParseAmt(txtRepoAmount.Text)));
         KV("ADDITIONAL CHARGES", txtAddlCharges.Text.Trim(), Rs(ParseAmt(txtAddlAmount.Text)));
         KV("COLLECTION UPDATE", txtCollectionUpdate.Text.Trim());
-        KV("REMARK", txtRemark.Text.Trim());
         KV("PAN NO", txtPan.Text.Trim());
         KV("GST STATE", txtGst.Text.Trim());
         KV("BANK ACCOUNT NAME", txtAcHolder.Text.Trim());

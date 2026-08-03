@@ -60,6 +60,33 @@ public partial class CouriersPage : Page
 
     private bool _ready;
 
+    private static long RowIdOf(object? item) => item is Row r ? r.Id : 0;
+
+    private long _lastRowId;
+
+    /// Clicking the already-expanded row collapses it again.
+    private void XlGrid_RowClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        var src = e.OriginalSource as System.Windows.DependencyObject;
+        while (src != null && src is not DataGridRow && src is not System.Windows.Controls.Primitives.DataGridColumnHeader)
+            src = System.Windows.Media.VisualTreeHelper.GetParent(src);
+        if (src is not DataGridRow row) return;
+
+        long id = RowIdOf(row.Item);
+        if (id != 0 && id == _lastRowId && row.IsSelected)
+        {
+            row.IsSelected = false;
+            _lastRowId = 0;
+            e.Handled = true;
+            return;
+        }
+        _lastRowId = id;
+    }
+
+    private static string Squash4(string? s) =>
+        new string((s ?? "").Where(char.IsLetterOrDigit).ToArray()).ToUpperInvariant();
+
+
     public CouriersPage()
     {
         InitializeComponent();
@@ -120,10 +147,27 @@ public partial class CouriersPage : Page
             }
 
             _rows = data.Select(d => new Row { Src = d }).ToList();
-            grid.ItemsSource = _rows;
-            txtStatus.Text = $"{_rows.Count} record(s).";
+            ApplyRcFilter();
         }
         catch (Exception ex) { txtStatus.Text = "Failed: " + ex.Message; }
+    }
+
+    private void ApplyRcFilter()
+    {
+        var last4 = Squash4(txtRcLast4?.Text);
+        var shown = last4.Length == 0
+            ? _rows
+            : _rows.Where(r => Squash4(r.VehicleNo).Contains(last4) ||
+                               Squash4(r.ChassisNo).Contains(last4)).ToList();
+        grid.ItemsSource = shown;
+        txtStatus.Text = shown.Count == _rows.Count
+            ? $"{shown.Count} record(s)."
+            : $"{shown.Count} of {_rows.Count} record(s).";
+    }
+
+    private void RcLast4_Changed(object sender, TextChangedEventArgs e)
+    {
+        if (_ready) ApplyRcFilter();
     }
 
     private async void btnLoad_Click(object sender, RoutedEventArgs e) => await LoadAsync();
