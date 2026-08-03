@@ -242,7 +242,8 @@
                                               Command="ScrollBar.PageUpCommand" />
                             </Track.DecreaseRepeatButton>
                             <Track.Thumb>
-                                <Thumb Style="{StaticResource XlScrollThumb}" />
+                                <Thumb x:Name="PART_Thumb" Style="{StaticResource XlScrollThumb}"
+                                       MinHeight="70" />
                             </Track.Thumb>
                             <Track.IncreaseRepeatButton>
                                 <RepeatButton Style="{StaticResource XlScrollPageBtn}"
@@ -253,6 +254,8 @@
                     <ControlTemplate.Triggers>
                         <Trigger Property="Orientation" Value="Horizontal">
                             <Setter TargetName="PART_Track" Property="IsDirectionReversed" Value="False" />
+                            <Setter TargetName="PART_Thumb" Property="MinHeight" Value="0" />
+                            <Setter TargetName="PART_Thumb" Property="MinWidth" Value="70" />
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
