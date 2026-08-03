@@ -143,8 +143,17 @@ public partial class RecordValidatorAndUploaderWindow : Window
     }
 
 
+    /// Live state/UT codes plus the retired ones still valid on registered
+    /// vehicles: OR (Odisha pre-2012), UA (Uttarakhand pre-2007),
+    /// DN (Dadra & Nagar Haveli pre-2020), TS/TG (Telangana, renamed 2024).
+    private const string StateCodes =
+        "AN|AP|AR|AS|BR|CG|CH|DD|DL|DN|GA|GJ|HP|HR|JH|JK|KA|KL|LA|LD|MH|ML|MN|MP|" +
+        "MZ|NL|OD|OR|PB|PY|RJ|SK|TG|TN|TR|TS|UA|UK|UP|WB";
+
+    /// Standard: SS + RTO(1-2) + series(1-3 letters) + number(1-4).
+    /// Bharat:   YY + BH + 4 digits + 1-2 letters.
     private static readonly Regex RcRegex =
-        new(@"^([A-Z]{2}[0-9]{1,3}[A-Z]{1,3}[0-9]{4}|[A-Z]{2}[0-9]{5,7}|[0-9]{2}BH[0-9]{4}[A-Z]{1,2})$",
+        new($@"^(?:(?:{StateCodes})\d{{1,2}}[A-Z]{{1,3}}\d{{1,4}}|\d{{2}}BH\d{{4}}[A-Z]{{1,2}})$",
             RegexOptions.Compiled);
 
     private static readonly Regex AlphaNumOnly =
