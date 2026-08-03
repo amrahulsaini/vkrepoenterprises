@@ -26,7 +26,7 @@
                 <DatePicker Name="dpFrom" Width="130" Margin="0,0,14,0" SelectedDateChanged="Filter_Changed" />
                 <TextBlock Text="To" VerticalAlignment="Center" Foreground="#666" Margin="0,0,6,0" />
                 <DatePicker Name="dpTo" Width="130" Margin="0,0,14,0" SelectedDateChanged="Filter_Changed" />
-                <TextBlock Text="Billing" VerticalAlignment="Center" Foreground="#666" Margin="0,0,6,0" />
+                <TextBlock Text="Billing Status" VerticalAlignment="Center" Foreground="#666" Margin="0,0,6,0" />
                 <ComboBox Name="cmbAction" Width="150" Margin="0,0,14,0" SelectedIndex="0" SelectionChanged="Filter_Changed">
                     <ComboBoxItem Content="All" />
                     <ComboBoxItem Content="OK for billing" />
