@@ -342,7 +342,7 @@ fun VehicleDetailScreen(
                             }
                             if (entry.financer.isNotBlank()) {
                                 Text(
-                                    "Head Office: ${entry.financer.uppercase()}",
+                                    entry.financer.uppercase(),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.padding(top = 3.dp)
