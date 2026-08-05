@@ -67,42 +67,8 @@ private fun String?.displayRc(showHyphens: Boolean): String =
 private data class BranchEntry(
     val branch: String,
     val financer: String,
-    val distinguisher: String,
     val createdOn: String,
     val record: SearchResult
-)
-
-private fun SearchResult.contentSignature(): String = listOf<String?>(
-    vehicleNo, chassisNo, engineNo, model, agreementNo, customerName, customerContact,
-    customerAddress, financer, branchName, branchFromExcel, firstContact, secondContact,
-    thirdContact, address, region, area, bucket, gv, od, seasoning, tbrFlag, sec9, sec17,
-    level1, level1Contact, level2, level2Contact, level3, level3Contact,
-    level4, level4Contact, senderMail1, senderMail2, executiveName, pos, toss, remark
-).joinToString("") { it.orEmpty().trim().uppercase() }
-
-private val BRANCH_DISTINGUISHERS: List<Pair<String, (SearchResult) -> String?>> = listOf(
-    "AGR"       to { r: SearchResult -> r.agreementNo },
-    "BUCKET"    to { r: SearchResult -> r.bucket },
-    "CUSTOMER"  to { r: SearchResult -> r.customerName },
-    "CHASSIS"   to { r: SearchResult -> r.chassisNo },
-    "ENG"       to { r: SearchResult -> r.engineNo },
-    "MODEL"     to { r: SearchResult -> r.model },
-    "LEVEL 1"   to { r: SearchResult -> r.level1 },
-    "CONTACT"   to { r: SearchResult -> r.level1Contact },
-    "LEVEL 2"   to { r: SearchResult -> r.level2 },
-    "EXECUTIVE" to { r: SearchResult -> r.executiveName },
-    "AREA"      to { r: SearchResult -> r.area },
-    "REGION"    to { r: SearchResult -> r.region },
-    "POS"       to { r: SearchResult -> r.pos },
-    "TOSS"      to { r: SearchResult -> r.toss },
-    "GV"        to { r: SearchResult -> r.gv },
-    "OD"        to { r: SearchResult -> r.od },
-    "SEASONING" to { r: SearchResult -> r.seasoning },
-    "TBR"       to { r: SearchResult -> r.tbrFlag },
-    "SEC 9"     to { r: SearchResult -> r.sec9 },
-    "SEC 17"    to { r: SearchResult -> r.sec17 },
-    "CUST NO"   to { r: SearchResult -> r.customerContact },
-    "REMARK"    to { r: SearchResult -> r.remark }
 )
 
 private val ALL_SEL_KEYS = listOf(
@@ -205,30 +171,15 @@ fun VehicleDetailScreen(
     }
 
     val uniqueBranches = remember(vehicleRecords) {
-        val entries = vehicleRecords
-            .distinctBy { it.contentSignature() }
-            .map { r ->
-                BranchEntry(
-                    branch        = r.branchName.orEmpty().ifBlank { r.branchFromExcel.orEmpty() },
-                    financer      = r.financer.orEmpty(),
-                    distinguisher = "",
-                    createdOn     = r.createdOn.orEmpty(),
-                    record        = r
-                )
-            }
-            .filter { it.branch.isNotBlank() || it.financer.isNotBlank() }
-
-        val siblingsOf = entries.groupBy { "${it.branch}|||${it.financer}" }
-        entries.map { entry ->
-            val group = siblingsOf["${entry.branch}|||${entry.financer}"].orEmpty()
-            if (group.size < 2) return@map entry
-            val field = BRANCH_DISTINGUISHERS.firstOrNull { (_, get) ->
-                group.map { get(it.record).orEmpty().trim().uppercase() }.distinct().size > 1
-            } ?: return@map entry
-            val (label, get) = field
-            val value = get(entry.record).orEmpty().trim()
-            entry.copy(distinguisher = if (value.isBlank()) "$label —" else "$label ${value.uppercase()}")
-        }.sortedByDescending { it.createdOn }
+        vehicleRecords.map { r ->
+            BranchEntry(
+                branch    = r.branchName.orEmpty().ifBlank { r.branchFromExcel.orEmpty() },
+                financer  = r.financer.orEmpty(),
+                createdOn = r.createdOn.orEmpty(),
+                record    = r
+            )
+        }.filter { it.branch.isNotBlank() || it.financer.isNotBlank() }
+         .sortedByDescending { it.createdOn }
     }
 
     var branchSheetAutoShown by remember(item?.id) { mutableStateOf(false) }
@@ -393,15 +344,6 @@ fun VehicleDetailScreen(
                                     entry.financer.uppercase(),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(top = 3.dp)
-                                )
-                            }
-                            if (entry.distinguisher.isNotBlank()) {
-                                Text(
-                                    entry.distinguisher,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = Color(0xFFF57F17),
                                     modifier = Modifier.padding(top = 3.dp)
                                 )
                             }
