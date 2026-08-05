@@ -72,15 +72,15 @@ private data class BranchEntry(
     val record: SearchResult
 )
 
-private fun SearchResult.contentSignature(): String = listOf(
+private fun SearchResult.contentSignature(): String = listOf<String?>(
     vehicleNo, chassisNo, engineNo, model, agreementNo, customerName, customerContact,
     customerAddress, financer, branchName, branchFromExcel, firstContact, secondContact,
     thirdContact, address, region, area, bucket, gv, od, seasoning, tbrFlag, sec9, sec17,
     level1, level1Contact, level2, level2Contact, level3, level3Contact,
     level4, level4Contact, senderMail1, senderMail2, executiveName, pos, toss, remark
-).joinToString("") { it.trim().uppercase() }
+).joinToString("") { it.orEmpty().trim().uppercase() }
 
-private val BRANCH_DISTINGUISHERS: List<Pair<String, (SearchResult) -> String>> = listOf(
+private val BRANCH_DISTINGUISHERS: List<Pair<String, (SearchResult) -> String?>> = listOf(
     "AGR"       to { r: SearchResult -> r.agreementNo },
     "BUCKET"    to { r: SearchResult -> r.bucket },
     "CUSTOMER"  to { r: SearchResult -> r.customerName },
@@ -223,10 +223,10 @@ fun VehicleDetailScreen(
             val group = siblingsOf["${entry.branch}|||${entry.financer}"].orEmpty()
             if (group.size < 2) return@map entry
             val field = BRANCH_DISTINGUISHERS.firstOrNull { (_, get) ->
-                group.map { get(it.record).trim().uppercase() }.distinct().size > 1
+                group.map { get(it.record).orEmpty().trim().uppercase() }.distinct().size > 1
             } ?: return@map entry
             val (label, get) = field
-            val value = get(entry.record).trim()
+            val value = get(entry.record).orEmpty().trim()
             entry.copy(distinguisher = if (value.isBlank()) "$label —" else "$label ${value.uppercase()}")
         }.sortedByDescending { it.createdOn }
     }
