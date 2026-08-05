@@ -54,6 +54,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlin.coroutines.resume
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 private val RC_REGEX = Regex(
     "^([A-Z]{2}[0-9]{2}[A-Z]{1,3}[0-9]{4}|[A-Z]{2}[0-9]{5,7}|[0-9]{2}BH[0-9]{4}[A-Z]{1,2})$"
@@ -63,6 +65,12 @@ private fun String.isValidRc(): Boolean =
 
 private fun String?.displayRc(showHyphens: Boolean): String =
     if (showHyphens) this.orEmpty().replace(Regex("-{2,}"), "-") else this.orEmpty().replace("-", "")
+
+private val BRANCH_DATE_FMT = SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.US)
+
+private fun String.toBranchTime(): Long =
+    try { BRANCH_DATE_FMT.parse(trim())?.time ?: Long.MIN_VALUE }
+    catch (e: Exception) { Long.MIN_VALUE }
 
 private data class BranchEntry(
     val branch: String,
@@ -179,7 +187,7 @@ fun VehicleDetailScreen(
                 record    = r
             )
         }.filter { it.branch.isNotBlank() || it.financer.isNotBlank() }
-         .sortedByDescending { it.createdOn }
+         .sortedByDescending { it.createdOn.toBranchTime() }
     }
 
     var branchSheetAutoShown by remember(item?.id) { mutableStateOf(false) }
@@ -288,7 +296,11 @@ fun VehicleDetailScreen(
     if (showBranchSheet && uniqueBranches.isNotEmpty()) {
         ModalBottomSheet(onDismissRequest = { showBranchSheet = false }) {
             Column(
-                Modifier.padding(horizontal = 16.dp).padding(bottom = 24.dp),
+                Modifier
+                    .navigationBarsPadding()
+                    .padding(horizontal = 16.dp)
+                    .verticalScroll(rememberScrollState())
+                    .padding(bottom = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Row(
