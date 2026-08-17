@@ -42,12 +42,6 @@ public partial class App : Application
         }
         catch { }
 
-        if (Settings.Default.ApiKey == "vk@kunal.admin")
-        {
-            Settings.Default.ApiKey = "12";
-            Settings.Default.Save();
-        }
-
         const string CurrentApi = "https://api.crmrecoverysoftware.com/";
         if (!string.Equals(Settings.Default.ApiBaseUrl, CurrentApi, StringComparison.Ordinal))
         {
