@@ -48,7 +48,9 @@ TenantContext.DefaultConn = new MySqlConnectionStringBuilder
     AllowLoadLocalInfile  = true
 }.ConnectionString;
 
-var desktopLoginPassword = Environment.GetEnvironmentVariable("DESKTOP_LOGIN_PASSWORD") ?? "vk@kunal.admin";
+var desktopLoginPassword = Environment.GetEnvironmentVariable("DESKTOP_LOGIN_PASSWORD") is { Length: > 0 } dlp
+    ? dlp
+    : throw new InvalidOperationException("DESKTOP_LOGIN_PASSWORD must be set in db/.env.local.");
 var privateKey = Environment.GetEnvironmentVariable("PRIVATEKEY") ?? "vk_enterprises_local_jwt_key";
 var port = Environment.GetEnvironmentVariable("PORT") ?? "5002";
 
