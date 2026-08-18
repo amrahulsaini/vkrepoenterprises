@@ -1,22 +1,5 @@
 namespace VKApiServer.Models;
 
-public class LoginRequest
-{
-    public string mobileno { get; set; } = "";
-    public string password { get; set; } = "";
-}
-
-public class SignedAppUser
-{
-    public int AppUserId { get; set; }
-    public string MobileNo { get; set; } = "";
-    public string FirstName { get; set; } = "";
-    public string LastName { get; set; } = "";
-    public bool IsActive { get; set; } = true;
-    public bool IsAdmin { get; set; } = true;
-    public string Token { get; set; } = "";
-}
-
 public class HomeDashboardResponse
 {
     public OverviewCard Overview { get; set; } = new();

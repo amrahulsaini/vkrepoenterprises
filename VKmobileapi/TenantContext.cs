@@ -43,9 +43,7 @@ internal static class TenantContext
         }.ConnectionString;
     }
 
-    private static readonly string TenantDbSecret =
-        Environment.GetEnvironmentVariable("TENANT_DB_SECRET")
-        ?? "crmrs-tenant-secret-rotate-me-2026";
+    private static readonly string TenantDbSecret = RequiredEnv.Get("TENANT_DB_SECRET");
 
     public static string DeriveTenantPassword(string slug)
     {
@@ -57,9 +55,7 @@ internal static class TenantContext
 
 internal static class MobileToken
 {
-    private static readonly byte[] Key = Encoding.UTF8.GetBytes(
-        Environment.GetEnvironmentVariable("TENANT_DB_SECRET")
-        ?? "crmrs-tenant-secret-rotate-me-2026");
+    private static readonly byte[] Key = Encoding.UTF8.GetBytes(RequiredEnv.Get("TENANT_DB_SECRET"));
 
     // Session = the decoded, verified contents of a token. Tokens issued before
     // this change carry only {slug}|{exp} — HasIdentity is false for those, so

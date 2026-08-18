@@ -36,9 +36,9 @@ builder.Services.Configure<Microsoft.AspNetCore.ResponseCompression.GzipCompress
 TenantContext.DefaultConn = new MySqlConnectionStringBuilder
 {
     Server   = Environment.GetEnvironmentVariable("MYSQL_HOST")     ?? "127.0.0.1",
-    UserID   = Environment.GetEnvironmentVariable("MYSQL_USER")     ?? "vkre_db1",
-    Password = Environment.GetEnvironmentVariable("MYSQL_PASSWORD") ?? "db1",
-    Database = Environment.GetEnvironmentVariable("MYSQL_DATABASE") ?? "vkre_db1",
+    UserID   = RequiredEnv.Get("MYSQL_USER"),
+    Password = RequiredEnv.Get("MYSQL_PASSWORD"),
+    Database = RequiredEnv.Get("MYSQL_DATABASE"),
     Port     = uint.TryParse(Environment.GetEnvironmentVariable("MYSQL_PORT"), out var p) ? p : 3306u,
     SslMode  = MySqlSslMode.None,
     Pooling  = true,
@@ -48,10 +48,8 @@ TenantContext.DefaultConn = new MySqlConnectionStringBuilder
     AllowLoadLocalInfile  = true
 }.ConnectionString;
 
-var desktopLoginPassword = Environment.GetEnvironmentVariable("DESKTOP_LOGIN_PASSWORD") is { Length: > 0 } dlp
-    ? dlp
-    : throw new InvalidOperationException("DESKTOP_LOGIN_PASSWORD must be set in db/.env.local.");
-var privateKey = Environment.GetEnvironmentVariable("PRIVATEKEY") ?? "vk_enterprises_local_jwt_key";
+var desktopLoginPassword = RequiredEnv.Get("DESKTOP_LOGIN_PASSWORD");
+MgrKeys.Set(desktopLoginPassword, Environment.GetEnvironmentVariable("DESKTOP_LOGIN_PASSWORD_OLD"));
 var port = Environment.GetEnvironmentVariable("PORT") ?? "5002";
 
 var mysqlHost = Environment.GetEnvironmentVariable("MYSQL_HOST") ?? "127.0.0.1";
@@ -133,49 +131,6 @@ app.MapGet("/api/health", async () =>
         overall   = allOk ? "operational" : "degraded",
         checkedAt = DateTime.UtcNow.ToString("o"),
         components
-    });
-});
-
-app.MapPost("/api/AppUsers/Login", async (LoginRequest request) =>
-{
-    if (!Regex.IsMatch(request.mobileno ?? string.Empty, @"^\d{10}$"))
-        return Results.BadRequest(new { message = "Please enter a valid 10-digit mobile number." });
-
-    if (!string.Equals(request.password, desktopLoginPassword, StringComparison.Ordinal))
-        return Results.BadRequest(new { message = "Invalid mobile number or password." });
-
-    int appUserId = 0;
-    string fullName = "CRMS ADMIN";
-
-    try
-    {
-        await using var conn = new MySqlConnection(TenantContext.Conn);
-        await conn.OpenAsync();
-        await using var cmd = new MySqlCommand(
-            "SELECT id, name FROM users WHERE mobile = @m AND status = 'ACTIVE' LIMIT 1", conn);
-        cmd.Parameters.AddWithValue("@m", request.mobileno);
-        await using var reader = await cmd.ExecuteReaderAsync();
-        if (await reader.ReadAsync())
-        {
-            if (!reader.IsDBNull(0)) appUserId = reader.GetInt32(0);
-            if (!reader.IsDBNull(1)) fullName = reader.GetString(1);
-        }
-    }
-    catch { }
-
-    if (string.IsNullOrWhiteSpace(fullName)) fullName = "CRMS ADMIN";
-    var nameParts = fullName.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
-    var tokenPayload = $"{request.mobileno}:{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}:{privateKey}";
-
-    return Results.Ok(new SignedAppUser
-    {
-        AppUserId = appUserId,
-        MobileNo  = request.mobileno ?? string.Empty,
-        FirstName = nameParts.FirstOrDefault() ?? "VK",
-        LastName  = nameParts.Length > 1 ? nameParts[1] : "ADMIN",
-        IsActive  = true,
-        IsAdmin   = true,
-        Token     = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(tokenPayload))
     });
 });
 
@@ -575,7 +530,7 @@ app.MapGet("/", () => Results.Ok(new
 
 
 static bool MgrAuth(HttpContext ctx, string key) =>
-    ctx.Request.Headers.TryGetValue("X-Api-Key", out var v) && v == key;
+    ctx.Request.Headers.TryGetValue("X-Api-Key", out var v) && MgrKeys.Matches(v);
 
 static async Task MgrExec(string sql, MySqlConnection c, int timeout = 30,
     params (string n, object v)[] ps)
@@ -3836,9 +3791,7 @@ string[] XLSX_HEADERS = {
     "Sender Mail 1","Sender Mail 2","Executive Name",
     "POS","TOSS","Remark","Region","Area","Created On" };
 
-static bool MgrAuthFlexible(HttpContext ctx, string key) =>
-    (ctx.Request.Headers.TryGetValue("X-Api-Key", out var v) && v == key) ||
-    (ctx.Request.Query.TryGetValue("key", out var q) && q == key);
+static bool MgrAuthFlexible(HttpContext ctx, string key) => MgrAuth(ctx, key);
 
 async Task StreamVehicleXlsx(HttpContext ctx, string whereSql, string sheetName,
                              string downloadName, long offset, int limit, params (string, object)[] ps)

@@ -42,6 +42,13 @@ public partial class App : Application
         }
         catch { }
 
+        const string CurrentApiKey = "CUCfaQdVHN0bKbNPnvZ8PloDrIzbiNwnUcDFoBKk";
+        if (!string.Equals(Settings.Default.ApiKey, CurrentApiKey, StringComparison.Ordinal))
+        {
+            Settings.Default.ApiKey = CurrentApiKey;
+            Settings.Default.Save();
+        }
+
         const string CurrentApi = "https://api.crmrecoverysoftware.com/";
         if (!string.Equals(Settings.Default.ApiBaseUrl, CurrentApi, StringComparison.Ordinal))
         {

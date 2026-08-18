@@ -9,9 +9,9 @@ public static class DbFactory
     public static void Init()
     {
         var host = Environment.GetEnvironmentVariable("MYSQL_HOST")     ?? "127.0.0.1";
-        var user = Environment.GetEnvironmentVariable("MYSQL_USER")     ?? "vkre_db1";
-        var pass = Environment.GetEnvironmentVariable("MYSQL_PASSWORD") ?? "db1";
-        var db   = Environment.GetEnvironmentVariable("MYSQL_DATABASE") ?? "vkre_db1";
+        var user = RequiredEnv.Get("MYSQL_USER");
+        var pass = RequiredEnv.Get("MYSQL_PASSWORD");
+        var db   = RequiredEnv.Get("MYSQL_DATABASE");
         uint port = uint.TryParse(Environment.GetEnvironmentVariable("MYSQL_PORT"), out var p) ? p : 3306u;
 
         TenantContext.MysqlHost = host;
@@ -35,8 +35,8 @@ public static class DbFactory
             Server   = host,
             Port     = port,
             Database = "crm_master",
-            UserID   = Environment.GetEnvironmentVariable("MASTER_DB_USER")     ?? "crm_master_app",
-            Password = Environment.GetEnvironmentVariable("MASTER_DB_PASSWORD") ?? "SET_VIA_ENV",
+            UserID   = RequiredEnv.Get("MASTER_DB_USER"),
+            Password = RequiredEnv.Get("MASTER_DB_PASSWORD"),
             SslMode  = MySqlSslMode.None,
             Pooling  = true,
             ConnectionTimeout     = 10,
