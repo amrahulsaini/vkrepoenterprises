@@ -15,13 +15,11 @@ namespace VKApiServer;
 
 internal static class AgencyPortal
 {
-    private const string MANAGE_PASSWORD = "crmrs@kc.12";
+    private static readonly string MANAGE_PASSWORD = RequiredEnv.Get("MANAGE_PASSWORD");
 
     private const string LOGO_DIR = "/opt/vkapi/agency-uploads";
 
-    private static readonly string TenantDbSecret =
-        Environment.GetEnvironmentVariable("TENANT_DB_SECRET")
-        ?? "crmrs-tenant-secret-rotate-me-2026";
+    private static readonly string TenantDbSecret = RequiredEnv.Get("TENANT_DB_SECRET");
 
     public static string MasterConn { get; private set; } = "";
 
@@ -220,8 +218,8 @@ internal static class AgencyPortal
     {
         string masterConn =
             $"server={mysqlHost};port={mysqlPort};database=crm_master;" +
-            $"uid={Env("MASTER_DB_USER",     "crm_master_app")};" +
-            $"pwd={Env("MASTER_DB_PASSWORD", "SET_VIA_ENV")};" +
+            $"uid={RequiredEnv.Get("MASTER_DB_USER")};" +
+            $"pwd={RequiredEnv.Get("MASTER_DB_PASSWORD")};" +
              "Pooling=true;DefaultCommandTimeout=30;";
         MasterConn = masterConn;
         string provConn =

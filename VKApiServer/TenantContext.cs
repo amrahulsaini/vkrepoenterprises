@@ -48,9 +48,7 @@ internal static class TenantContext
 
 internal static class AgencyToken
 {
-    private static readonly byte[] Key = Encoding.UTF8.GetBytes(
-        Environment.GetEnvironmentVariable("TENANT_DB_SECRET")
-        ?? "crmrs-tenant-secret-rotate-me-2026");
+    private static readonly byte[] Key = Encoding.UTF8.GetBytes(RequiredEnv.Get("TENANT_DB_SECRET"));
 
     public static string Issue(int agencyId, string slug, int validDays = 60)
     {
@@ -99,9 +97,7 @@ internal static class AgencyToken
 
 internal static class IntegrationToken
 {
-    private static readonly byte[] Key = Encoding.UTF8.GetBytes(
-        Environment.GetEnvironmentVariable("TENANT_DB_SECRET")
-        ?? "crmrs-tenant-secret-rotate-me-2026");
+    private static readonly byte[] Key = Encoding.UTF8.GetBytes(RequiredEnv.Get("TENANT_DB_SECRET"));
 
     public static string Issue(int accountId, string email, int validDays = 30)
     {
