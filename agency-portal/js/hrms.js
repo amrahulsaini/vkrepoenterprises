@@ -145,6 +145,13 @@
     return ((p[0] || '?')[0] + (p.length > 1 ? p[p.length - 1][0] : '')).toUpperCase();
   }
 
+  function avatar(u, big) {
+    var ini = esc(initials(u.name));
+    var style = big ? ' style="width:44px;height:44px;font-size:15px;border-radius:10px"' : '';
+    var img = u.pfpUrl ? '<img src="' + esc(u.pfpUrl) + '" alt="">' : '';
+    return '<div class="av"' + style + '>' + ini + img + '</div>';
+  }
+
   function pill(cls, text) { return '<span class="pill ' + cls + '">' + esc(text) + '</span>'; }
 
   function renderProfiles() {
@@ -170,7 +177,7 @@
       var kyc = u.kycStatus ? pill(u.kycStatus === 'verified' ? 'p-on' : 'p-off', u.kycStatus) : pill('p-off', 'None');
       var login = u.hasPassword ? pill('p-on', 'Set') : pill('p-off', 'Not set');
       return '<div class="trow" data-id="' + u.id + '">' +
-        '<div class="who2"><div class="av">' + esc(initials(u.name)) + '</div>' +
+        '<div class="who2">' + avatar(u, false) +
         '<div style="min-width:0"><div class="n">' + esc(u.name || 'Unnamed') + '</div>' +
         '<div class="m">' + esc(u.mobile || '') + '</div></div></div>' +
         '<div>' + login + '</div><div>' + kyc + '</div><div>' + status + '</div></div>';
@@ -204,7 +211,8 @@
     openPfDrawer(true);
     try {
       var u = await call('/hrms/profiles/' + id);
-      $('pf-av').textContent = initials(u.name);
+      $('pf-av').innerHTML = esc(initials(u.name)) +
+        (u.pfpUrl ? '<img src="' + esc(u.pfpUrl) + '" alt="">' : '');
       $('pf-name').textContent = u.name || 'Unnamed';
       $('pf-mobile').textContent = u.mobile || '';
       $('pf-pwstate').textContent = u.hasPassword
