@@ -115,6 +115,88 @@
     width:14px;height:14px;border:2px solid rgba(255,255,255,.35);
     border-top-color:#fff;border-radius:50%;animation:sp .6s linear infinite;
   }
+  /* ── app shell ─────────────────────────────────────────────── */
+  .shell{display:grid;grid-template-columns:232px 1fr;min-height:calc(100vh - 53px)}
+  .side{
+    background:var(--paper);border-right:1px solid var(--line);
+    padding:18px 12px;display:flex;flex-direction:column;gap:2px;
+  }
+  .side .grp{
+    font-size:9.5px;font-weight:750;letter-spacing:1.4px;text-transform:uppercase;
+    color:var(--muted-2);padding:14px 10px 7px;
+  }
+  .nav{
+    display:flex;align-items:center;gap:11px;width:100%;text-align:left;
+    padding:9px 10px;border:0;border-radius:8px;background:transparent;
+    font-family:var(--font);font-size:13.5px;font-weight:600;color:var(--ink-2);
+    cursor:pointer;transition:background .13s,color .13s;
+  }
+  .nav svg{flex:none;color:var(--muted)}
+  .nav:hover:not(:disabled){background:var(--paper-2)}
+  .nav.on{background:var(--ink);color:#fff}
+  .nav.on svg{color:var(--orange)}
+  .nav:disabled{color:var(--muted-2);cursor:not-allowed}
+  .nav:disabled svg{color:#c9c9d0}
+  .soon{
+    margin-left:auto;font-size:8.5px;font-weight:750;letter-spacing:.7px;
+    text-transform:uppercase;color:var(--muted-2);
+    border:1px solid var(--line);border-radius:4px;padding:2px 5px;
+  }
+  .main{padding:34px 30px 60px;max-width:1000px}
+  /* ── agency chip + drawer ──────────────────────────────────── */
+  .chip{
+    display:flex;align-items:center;gap:9px;padding:5px 10px 5px 5px;
+    border:1px solid var(--line);border-radius:999px;background:var(--paper);
+    cursor:pointer;font-family:var(--font);transition:border-color .13s;
+  }
+  .chip:hover{border-color:var(--ink-3)}
+  .chip img{width:26px;height:26px;border-radius:50%;object-fit:contain;
+            background:var(--paper-2);border:1px solid var(--line)}
+  .chip .nm{font-size:12.5px;font-weight:650;color:var(--ink);max-width:190px;
+            overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .scrim{position:fixed;inset:0;background:rgba(13,13,15,.42);opacity:0;
+         pointer-events:none;transition:opacity .18s;z-index:40}
+  .scrim.on{opacity:1;pointer-events:auto}
+  .drawer{
+    position:fixed;top:0;right:0;bottom:0;width:378px;max-width:92vw;z-index:41;
+    background:var(--paper);border-left:1px solid var(--line);
+    transform:translateX(100%);transition:transform .22s ease;
+    display:flex;flex-direction:column;
+  }
+  .drawer.on{transform:none}
+  .dr-head{padding:20px 22px;border-bottom:1px solid var(--line);
+           display:flex;align-items:center;gap:13px}
+  .dr-head img{width:44px;height:44px;border-radius:10px;object-fit:contain;
+               background:var(--paper-2);border:1px solid var(--line)}
+  .dr-body{padding:20px 22px;overflow-y:auto;flex:1}
+  .x{margin-left:auto;background:none;border:0;cursor:pointer;color:var(--muted);
+     padding:5px;border-radius:6px;display:flex}
+  .x:hover{background:var(--paper-2);color:var(--ink)}
+  .kv{padding:11px 0;border-bottom:1px solid var(--paper-2)}
+  .kv:last-child{border-bottom:0}
+  .kv .k{font-size:9.5px;font-weight:750;letter-spacing:1px;text-transform:uppercase;
+         color:var(--muted-2);margin-bottom:3px}
+  .kv .v{font-size:13.5px;color:var(--ink);word-break:break-word}
+  .sess{
+    margin-top:16px;padding:14px;border-radius:9px;
+    background:var(--orange-wash);border:1px solid #ffd9c2;
+  }
+  .sess .big{font-size:19px;font-weight:800;color:var(--orange-ink);letter-spacing:-.3px}
+  .sess .lbl{font-size:9.5px;font-weight:750;letter-spacing:1px;
+             text-transform:uppercase;color:var(--orange-ink);opacity:.75;margin-bottom:3px}
+  .sess .exp{font-size:11.5px;color:var(--orange-ink);opacity:.85;margin-top:4px}
+  .empty-note{
+    border:1px dashed var(--line);border-radius:var(--radius);padding:30px;
+    text-align:center;color:var(--muted);font-size:13.5px;background:var(--paper);
+  }
+  @media(max-width:820px){
+    .shell{grid-template-columns:1fr}
+    .side{flex-direction:row;flex-wrap:wrap;border-right:0;
+          border-bottom:1px solid var(--line);padding:10px}
+    .side .grp{display:none}
+    .nav{width:auto}
+    .main{padding:24px 18px 48px}
+  }
   @keyframes sp{to{transform:rotate(360deg)}}
   @media(max-width:560px){.wrap{padding:24px 16px 48px}.card{padding:22px}}
 </style>
@@ -126,7 +208,14 @@
   <div class="sep"></div>
   <div class="mod">HRMS</div>
   <div class="spacer"></div>
-  <div class="who" id="who"></div>
+  <button class="chip hidden" id="chip" title="Agency details">
+    <img id="chip-logo" src="/assets/crmrs-logo.webp" alt="">
+    <span class="nm" id="chip-name"></span>
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+         stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="color:#9a9aa3">
+      <path d="m6 9 6 6 6-6"/>
+    </svg>
+  </button>
   <button class="btn btn-ghost hidden" id="logout"
           style="padding:7px 12px;font-size:12.5px;">Sign out</button>
 </header>
@@ -175,62 +264,105 @@
   </div>
 </section>
 
-<section class="wrap hidden" id="app">
-  <div class="head">
-    <div>
-      <h1 class="t" id="ag-name">&mdash;</h1>
-      <p class="s">Human resource management</p>
-    </div>
-  </div>
+<section class="hidden" id="app">
+  <div class="shell">
+    <aside class="side">
+      <div class="grp">Overview</div>
+        <button class="nav" data-page="dashboard" disabled><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.5"/></svg><span>Dashboard</span><span class="soon">Soon</span></button>
+      <div class="grp">People</div>
+        <button class="nav on" data-page="profiles"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 20v-1.5a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4V20"/><circle cx="9" cy="7" r="3.5"/><path d="M22 20v-1.5a4 4 0 0 0-3-3.87"/><path d="M16 3.6a4 4 0 0 1 0 7"/></svg><span>Profiles</span></button>
+        <button class="nav" data-page="departments" disabled><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M10 21v-5h4v5"/></svg><span>Departments</span><span class="soon">Soon</span></button>
+        <button class="nav" data-page="attendance" disabled><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M8 2.5v4M16 2.5v4M3 9.5h18"/><path d="m9 14.5 2 2 4-4"/></svg><span>Attendance</span><span class="soon">Soon</span></button>
+        <button class="nav" data-page="leave" disabled><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M8 2.5v4M16 2.5v4M3 9.5h18M12 13v4M10 15h4"/></svg><span>Leave</span><span class="soon">Soon</span></button>
+      <div class="grp">Finance</div>
+        <button class="nav" data-page="payroll" disabled><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5.5" width="19" height="13" rx="2"/><circle cx="12" cy="12" r="2.8"/><path d="M6 12h.01M18 12h.01"/></svg><span>Payroll</span><span class="soon">Soon</span></button>
+      <div class="grp">Records</div>
+        <button class="nav" data-page="documents" disabled><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2.5H7a2 2 0 0 0-2 2v15a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7.5Z"/><path d="M14 2.5v5h5"/><path d="M9 13h6M9 17h4"/></svg><span>Documents</span><span class="soon">Soon</span></button>
+        <button class="nav" data-page="reports" disabled><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m7 15 3.5-4 3 2.5L20 7"/></svg><span>Reports</span><span class="soon">Soon</span></button>
+      <div class="grp">System</div>
+        <button class="nav" data-page="settings" disabled><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-2.87 1.2V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 7 19.4a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 2.6 15a1.7 1.7 0 0 0-1.6-1H1a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 2.6 9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 7 4.6h.09A1.7 1.7 0 0 0 8 3V3a2 2 0 1 1 4 0v.09A1.7 1.7 0 0 0 15 4.6a1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9v.09a1.7 1.7 0 0 0 1.6 1.6H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1Z"/></svg><span>Settings</span><span class="soon">Soon</span></button>
+    </aside>
 
-  <div class="card">
-    <div style="margin-bottom:18px;">
-      <h2>Profiles</h2>
-      <p class="sub" style="margin:4px 0 0;">
-        Create and manage the staff profiles that sign in to CRMRS.
-      </p>
-    </div>
-
-    <div class="grid">
-      <div class="tile live" id="tile-desktop">
-        <div class="ic">
-          <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-               stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="2.5" y="3.5" width="19" height="13" rx="2"/><path d="M8 20.5h8M12 16.5v4"/>
-          </svg>
+    <main class="main">
+      <div id="page-profiles">
+        <div class="head">
+          <div>
+            <h1 class="t">Profiles</h1>
+            <p class="s">Create and manage the staff profiles that sign in to CRMRS.</p>
+          </div>
         </div>
-        <span class="tag tag-live"><span class="dot"></span>Available</span>
-        <h3>CRMRS Desktop</h3>
-        <p>Create profiles for the Windows desktop application.</p>
-        <button class="btn btn-accent" id="go-desktop">
-          Create profiles
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-               stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M5 12h13M12.5 5.5 19 12l-6.5 6.5"/>
-          </svg>
-        </button>
+
+        <div class="grid">
+          <div class="tile live" id="tile-desktop">
+            <div class="ic">
+              <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                   stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2.5" y="3.5" width="19" height="13" rx="2"/><path d="M8 20.5h8M12 16.5v4"/>
+              </svg>
+            </div>
+            <span class="tag tag-live"><span class="dot"></span>Available</span>
+            <h3>CRMRS Desktop</h3>
+            <p>Create profiles for the Windows desktop application.</p>
+            <button class="btn btn-accent" id="go-desktop">
+              Create profiles
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                   stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M5 12h13M12.5 5.5 19 12l-6.5 6.5"/>
+              </svg>
+            </button>
+          </div>
+
+          <div class="tile off" id="tile-android">
+            <div class="ic">
+              <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                   stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M11 18.5h2"/>
+              </svg>
+            </div>
+            <span class="tag tag-off">Not available yet</span>
+            <h3>Android</h3>
+            <p>Profiles for the mobile app. Coming in a later release.</p>
+            <button class="btn btn-ghost" disabled>Unavailable</button>
+          </div>
+        </div>
       </div>
 
-      <div class="tile off" id="tile-android">
-        <div class="ic">
-          <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-               stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M11 18.5h2"/>
-          </svg>
+      <div id="page-stub" class="hidden">
+        <div class="head">
+          <div>
+            <h1 class="t" id="stub-title">&mdash;</h1>
+            <p class="s">This part of HRMS has not been built yet.</p>
+          </div>
         </div>
-        <span class="tag tag-off">Not available yet</span>
-        <h3>Android</h3>
-        <p>Profiles for the mobile app. Coming in a later release.</p>
-        <button class="btn btn-ghost" disabled>Unavailable</button>
+        <div class="empty-note">Coming in a later release.</div>
       </div>
-    </div>
-
-    <div class="foot">
-      <span>Signed in with a one-time code sent to your registered email.</span>
-      <span>&copy; CRMRS</span>
-    </div>
+    </main>
   </div>
 </section>
+
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="drawer" aria-label="Agency details">
+  <div class="dr-head">
+    <img id="dr-logo" src="/assets/crmrs-logo.webp" alt="">
+    <div style="min-width:0">
+      <div style="font-size:15px;font-weight:750;letter-spacing:-.2px" id="dr-name">&mdash;</div>
+      <div style="font-size:11.5px;color:var(--muted)" id="dr-slug"></div>
+    </div>
+    <button class="x" id="dr-close" title="Close">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+    </button>
+  </div>
+  <div class="dr-body">
+    <div id="dr-rows"></div>
+    <div class="sess">
+      <div class="lbl">HRMS session</div>
+      <div class="big" id="dr-left">&mdash;</div>
+      <div class="exp" id="dr-exp"></div>
+    </div>
+    <button class="btn btn-ghost btn-block" id="dr-signout" style="margin-top:16px;">Sign out</button>
+  </div>
+</aside>
 
 <script>
 (function () {
@@ -272,14 +404,106 @@
     return data;
   }
 
+  var ME = null, tick = null;
+
+  function logoUrl(p) {
+    if (!p) return '/assets/crmrs-logo.webp';
+    if (/^https?:\/\//i.test(p)) return p;
+    return 'https://api.crmrecoverysoftware.com' + (p.charAt(0) === '/' ? '' : '/') + p;
+  }
+
+  function esc(v) {
+    return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) {
+      return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c];
+    });
+  }
+
+  function row(k, v) {
+    if (!v) return '';
+    return '<div class="kv"><div class="k">' + esc(k) + '</div><div class="v">' + esc(v) + '</div></div>';
+  }
+
+  // 12-hour absolute session; this counts down what is left of it.
+  function renderCountdown() {
+    if (!ME || !ME.sessionExpiresAt) return;
+    var ms = new Date(ME.sessionExpiresAt).getTime() - Date.now();
+    if (ms <= 0) {
+      $('dr-left').textContent = 'Expired';
+      $('dr-exp').textContent = 'Sign in again to continue.';
+      return;
+    }
+    var mins = Math.floor(ms / 60000), h = Math.floor(mins / 60), m = mins % 60;
+    $('dr-left').textContent = (h > 0 ? h + 'h ' : '') + m + 'm left';
+    $('dr-exp').textContent = 'Expires ' + new Date(ME.sessionExpiresAt)
+      .toLocaleString([], { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' }) +
+      ' · ' + (ME.sessionHours || 12) + '-hour session';
+  }
+
+  function fillDrawer() {
+    if (!ME) return;
+    $('dr-logo').src  = logoUrl(ME.logoPath);
+    $('dr-name').textContent = ME.agencyName || '';
+    $('dr-slug').textContent = ME.slug || '';
+    $('dr-rows').innerHTML =
+      row('Status', ME.status) +
+      row('Primary email', ME.email) +
+      row('Secondary email', ME.email2) +
+      row('Primary mobile', ME.mobile1) +
+      row('Secondary mobile', ME.mobile2) +
+      row('Address', ME.address) +
+      row('Registered', ME.registeredAt) +
+      row('Approved', ME.approvedAt) +
+      row('HRMS enabled since', ME.hrmsSince);
+    renderCountdown();
+  }
+
+  function openDrawer(on) {
+    $('drawer').classList.toggle('on', on);
+    $('scrim').classList.toggle('on', on);
+    if (on) renderCountdown();
+  }
+
   function enterApp(info) {
+    ME = info;
     show($('auth'), false);
     show($('app'), true);
     show($('logout'), true);
-    $('ag-name').textContent = info.agencyName || '';
-    $('who').textContent = info.agencyName || '';
+    show($('chip'), true);
+    $('chip-name').textContent = info.agencyName || '';
+    $('chip-logo').src = logoUrl(info.logoPath);
     document.title = (info.agencyName ? info.agencyName + ' — ' : '') + 'HRMS — CRMRS';
+    fillDrawer();
+    if (tick) clearInterval(tick);
+    tick = setInterval(renderCountdown, 30000);
   }
+
+  // ── sidebar ──────────────────────────────────────────────────────────
+  var LABELS = {
+    dashboard:'Dashboard', departments:'Departments', attendance:'Attendance',
+    leave:'Leave', payroll:'Payroll', documents:'Documents',
+    reports:'Reports', settings:'Settings'
+  };
+
+  Array.prototype.forEach.call(document.querySelectorAll('.nav'), function (b) {
+    b.addEventListener('click', function () {
+      if (b.disabled) return;
+      Array.prototype.forEach.call(document.querySelectorAll('.nav'), function (o) {
+        o.classList.remove('on');
+      });
+      b.classList.add('on');
+      var page = b.getAttribute('data-page');
+      show($('page-profiles'), page === 'profiles');
+      show($('page-stub'), page !== 'profiles');
+      if (page !== 'profiles') $('stub-title').textContent = LABELS[page] || page;
+    });
+  });
+
+  $('chip').addEventListener('click', function () { openDrawer(true); });
+  $('dr-close').addEventListener('click', function () { openDrawer(false); });
+  $('scrim').addEventListener('click', function () { openDrawer(false); });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') openDrawer(false);
+  });
 
   (async function boot() {
     if (!slug) { $('auth-sub').textContent = 'No agency in the address.'; return; }
@@ -331,13 +555,17 @@
     try {
       var r = await call('/hrms/otp/verify', { method: 'POST', body: { slug: slug, code: code } });
       token(r.token);
-      enterApp(r);
+      // verify returns just enough to sign in; /me carries the full profile
+      // and the session expiry the drawer counts down.
+      enterApp(await call('/hrms/me'));
     } catch (e) {
       say(e.message, 'err');
       $('code').value = '';
       $('code').focus();
     } finally { busy($('verify'), false); }
   });
+
+  $('dr-signout').addEventListener('click', function () { $('logout').click(); });
 
   $('logout').addEventListener('click', async function () {
     try { await call('/hrms/logout', { method: 'POST' }); } catch (e) {}

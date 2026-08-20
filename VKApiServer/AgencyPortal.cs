@@ -3153,7 +3153,10 @@ internal static class AgencyPortal
         await using var conn = new MySqlConnection(masterConn);
         await conn.OpenAsync();
         await using var cmd = new MySqlCommand(@"
-            SELECT a.id, a.name, a.slug, COALESCE(a.logo_path,''), a.email1
+            SELECT a.id, a.name, a.slug, COALESCE(a.logo_path,''), a.email1,
+                   COALESCE(a.email2,''), a.mobile1, COALESCE(a.mobile2,''),
+                   COALESCE(a.address,''), a.status, a.created_at, a.approved_at,
+                   a.hrms_enabled_at, s.expires_at
               FROM hrms_sessions s
               JOIN agencies a ON a.id = s.agency_id
              WHERE s.token_hash = @t AND s.revoked = 0 AND s.expires_at > UTC_TIMESTAMP()
@@ -3162,6 +3165,10 @@ internal static class AgencyPortal
         cmd.Parameters.AddWithValue("@t", Sha256Hex(token));
         await using var rdr = await cmd.ExecuteReaderAsync();
         if (!await rdr.ReadAsync()) return null;
+
+        string? D(int i, string fmt = "yyyy-MM-dd HH:mm") =>
+            rdr.IsDBNull(i) ? null : rdr.GetDateTime(i).ToString(fmt);
+
         return new
         {
             agencyId   = rdr.GetInt32(0),
@@ -3169,6 +3176,20 @@ internal static class AgencyPortal
             slug       = rdr.GetString(2),
             logoPath   = rdr.GetString(3),
             email      = MaskEmail(rdr.GetString(4)),
+            email2     = rdr.GetString(5).Length == 0 ? "" : MaskEmail(rdr.GetString(5)),
+            mobile1    = rdr.GetString(6),
+            mobile2    = rdr.GetString(7),
+            address    = rdr.GetString(8),
+            status     = rdr.GetString(9),
+            registeredAt = D(10),
+            approvedAt   = D(11),
+            hrmsSince    = D(12),
+            // UTC ISO so the browser can count down in the viewer's own zone.
+            // expires_at is a DATETIME written in UTC, so it is safe to tag as Z.
+            // (s.created_at is a TIMESTAMP and comes back in the server's IST
+            // zone, so it is deliberately not exposed as a UTC instant here.)
+            sessionExpiresAt = rdr.GetDateTime(13).ToString("yyyy-MM-ddTHH:mm:ss") + "Z",
+            sessionHours     = 12,
         };
     }
 
