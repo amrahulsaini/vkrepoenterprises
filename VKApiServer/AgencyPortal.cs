@@ -295,6 +295,151 @@ internal static class AgencyPortal
             return Results.Ok(new { verified = true });
         });
 
+        // ── HRMS portal (agency.crmrecoverysoftware.com/hrms/<slug>) ──────────
+        // Sign-in is an OTP to the agency's REGISTERED primary email. The client
+        // never supplies the address -- it is looked up from the slug, so the
+        // portal cannot be used to mail a code anywhere else.
+        // Page-load probe: is HRMS open for this agency, and which address will
+        // the code go to. Deliberately separate from otp/request so simply
+        // opening the page never sends mail.
+        app.MapGet("/api/agency/hrms/status", async (string? slug) =>
+        {
+            string s2 = (slug ?? "").Trim().ToLowerInvariant();
+            if (s2.Length == 0) return Results.BadRequest(new { message = "Agency not specified." });
+
+            await using var conn = new MySqlConnection(masterConn);
+            await conn.OpenAsync();
+            await using var cmd = new MySqlCommand(
+                "SELECT name, email1, status, COALESCE(hrms_enabled,0) FROM agencies WHERE slug=@s LIMIT 1", conn);
+            cmd.Parameters.AddWithValue("@s", s2);
+            await using var rdr = await cmd.ExecuteReaderAsync();
+            if (!await rdr.ReadAsync())
+                return Results.NotFound(new { message = "Agency not found." });
+
+            string name = rdr.GetString(0), email = rdr.GetString(1), st = rdr.GetString(2);
+            bool hrms = rdr.GetInt32(3) == 1;
+            if (st != "approved")
+                return Results.Json(new { message = "This agency is not active." }, statusCode: 403);
+            if (!hrms)
+                return Results.Json(new { message = "HRMS is not enabled for this agency. Contact CRMRS to enable it." }, statusCode: 403);
+
+            return Results.Ok(new { agencyName = name, email = MaskEmail(email), hrmsEnabled = true });
+        });
+
+        app.MapPost("/api/agency/hrms/otp/request", async (HttpRequest req) =>
+        {
+            var dto = await ReadJsonAsync(req);
+            string slug = (dto.GetValueOrDefault("slug") ?? "").Trim().ToLowerInvariant();
+            if (slug.Length == 0) return Results.BadRequest(new { message = "Agency not specified." });
+
+            await using var conn = new MySqlConnection(masterConn);
+            await conn.OpenAsync();
+
+            string email = "", name = "", status = "";
+            bool hrms = false;
+            await using (var cmd = new MySqlCommand(
+                "SELECT email1, name, status, COALESCE(hrms_enabled,0) FROM agencies WHERE slug=@s LIMIT 1", conn))
+            {
+                cmd.Parameters.AddWithValue("@s", slug);
+                await using var rdr = await cmd.ExecuteReaderAsync();
+                if (!await rdr.ReadAsync())
+                    return Results.NotFound(new { message = "Agency not found." });
+                email  = rdr.GetString(0);
+                name   = rdr.GetString(1);
+                status = rdr.GetString(2);
+                hrms   = rdr.GetInt32(3) == 1;
+            }
+
+            if (status != "approved")
+                return Results.Json(new { message = "This agency is not active." }, statusCode: 403);
+            if (!hrms)
+                return Results.Json(new { message = "HRMS is not enabled for this agency. Contact CRMRS to enable it." }, statusCode: 403);
+
+            string code = GenerateOtp();
+            await using (var ins = new MySqlCommand(
+                "INSERT INTO agency_otps (email, code, purpose, expires_at) VALUES (@e, @c, 'hrms', @x)", conn))
+            {
+                ins.Parameters.AddWithValue("@e", email);
+                ins.Parameters.AddWithValue("@c", code);
+                ins.Parameters.AddWithValue("@x", DateTime.UtcNow.AddMinutes(10));
+                await ins.ExecuteNonQueryAsync();
+            }
+
+            try { await SendOtpEmail(smtp, email, code); }
+            catch (Exception ex) { return Results.Problem("Could not send the code: " + ex.Message); }
+
+            return Results.Ok(new { sent = true, agencyName = name, email = MaskEmail(email) });
+        });
+
+        app.MapPost("/api/agency/hrms/otp/verify", async (HttpRequest req) =>
+        {
+            var dto = await ReadJsonAsync(req);
+            string slug = (dto.GetValueOrDefault("slug") ?? "").Trim().ToLowerInvariant();
+            string code = (dto.GetValueOrDefault("code") ?? "").Trim();
+            if (slug.Length == 0 || code.Length != 6)
+                return Results.BadRequest(new { message = "Enter the 6-digit code." });
+
+            await using var conn = new MySqlConnection(masterConn);
+            await conn.OpenAsync();
+
+            int agencyId = 0; string email = "", name = "", logo = "";
+            await using (var cmd = new MySqlCommand(
+                "SELECT id, email1, name, COALESCE(logo_path,'') FROM agencies WHERE slug=@s AND status='approved' AND COALESCE(hrms_enabled,0)=1 LIMIT 1", conn))
+            {
+                cmd.Parameters.AddWithValue("@s", slug);
+                await using var rdr = await cmd.ExecuteReaderAsync();
+                if (!await rdr.ReadAsync())
+                    return Results.Json(new { message = "HRMS is not available for this agency." }, statusCode: 403);
+                agencyId = rdr.GetInt32(0); email = rdr.GetString(1);
+                name = rdr.GetString(2); logo = rdr.GetString(3);
+            }
+
+            int n;
+            await using (var upd = new MySqlCommand(@"
+                UPDATE agency_otps SET consumed = 1
+                 WHERE email = @e AND code = @c AND purpose = 'hrms'
+                   AND consumed = 0 AND expires_at > UTC_TIMESTAMP()
+                 ORDER BY id DESC LIMIT 1;", conn))
+            {
+                upd.Parameters.AddWithValue("@e", email);
+                upd.Parameters.AddWithValue("@c", code);
+                n = await upd.ExecuteNonQueryAsync();
+            }
+            if (n == 0) return Results.BadRequest(new { message = "That code is invalid or has expired." });
+
+            string token = NewToken();
+            await using (var ins = new MySqlCommand(
+                "INSERT INTO hrms_sessions (agency_id, token_hash, expires_at) VALUES (@a, @t, DATE_ADD(UTC_TIMESTAMP(), INTERVAL 12 HOUR))", conn))
+            {
+                ins.Parameters.AddWithValue("@a", agencyId);
+                ins.Parameters.AddWithValue("@t", Sha256Hex(token));
+                await ins.ExecuteNonQueryAsync();
+            }
+
+            return Results.Ok(new { token, agencyId, agencyName = name, slug, logoPath = logo });
+        });
+
+        app.MapGet("/api/agency/hrms/me", async (HttpContext ctx) =>
+        {
+            var a = await HrmsSessionAgency(masterConn, ctx);
+            if (a is null) return Results.Json(new { message = "Session expired." }, statusCode: 401);
+            return Results.Ok(a);
+        });
+
+        app.MapPost("/api/agency/hrms/logout", async (HttpContext ctx) =>
+        {
+            string token = ctx.Request.Headers["X-Hrms-Token"].FirstOrDefault() ?? "";
+            if (token.Length > 0)
+            {
+                await using var conn = new MySqlConnection(masterConn);
+                await conn.OpenAsync();
+                await using var cmd = new MySqlCommand("UPDATE hrms_sessions SET revoked=1 WHERE token_hash=@t", conn);
+                cmd.Parameters.AddWithValue("@t", Sha256Hex(token));
+                await cmd.ExecuteNonQueryAsync();
+            }
+            return Results.Ok(new { ok = true });
+        });
+
         app.MapPost("/api/agency/register", async (HttpRequest req) =>
         {
             if (!req.HasFormContentType)
@@ -2989,6 +3134,42 @@ internal static class AgencyPortal
             return d;
         }
         catch { return new(); }
+    }
+
+    private static string MaskEmail(string email)
+    {
+        int at = email.IndexOf('@');
+        if (at <= 0) return "***";
+        string user = email.Substring(0, at), dom = email.Substring(at);
+        if (user.Length <= 2) return user.Substring(0, 1) + "***" + dom;
+        return user.Substring(0, 2) + new string('*', Math.Min(6, user.Length - 2)) + dom;
+    }
+
+    private static async Task<object?> HrmsSessionAgency(string masterConn, HttpContext ctx)
+    {
+        string token = ctx.Request.Headers["X-Hrms-Token"].FirstOrDefault() ?? "";
+        if (string.IsNullOrWhiteSpace(token)) return null;
+
+        await using var conn = new MySqlConnection(masterConn);
+        await conn.OpenAsync();
+        await using var cmd = new MySqlCommand(@"
+            SELECT a.id, a.name, a.slug, COALESCE(a.logo_path,''), a.email1
+              FROM hrms_sessions s
+              JOIN agencies a ON a.id = s.agency_id
+             WHERE s.token_hash = @t AND s.revoked = 0 AND s.expires_at > UTC_TIMESTAMP()
+               AND a.status = 'approved' AND COALESCE(a.hrms_enabled,0) = 1
+             LIMIT 1;", conn);
+        cmd.Parameters.AddWithValue("@t", Sha256Hex(token));
+        await using var rdr = await cmd.ExecuteReaderAsync();
+        if (!await rdr.ReadAsync()) return null;
+        return new
+        {
+            agencyId   = rdr.GetInt32(0),
+            agencyName = rdr.GetString(1),
+            slug       = rdr.GetString(2),
+            logoPath   = rdr.GetString(3),
+            email      = MaskEmail(rdr.GetString(4)),
+        };
     }
 
     private static bool IsValidEmail(string e) =>

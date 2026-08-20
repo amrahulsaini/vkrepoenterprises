@@ -24,6 +24,9 @@ public class SignedAppUser
     public string Address    { get; set; } = string.Empty;
     public string LogoPath   { get; set; } = string.Empty;
 
+    /// HRMS is a paid module; the server sets this per agency.
+    public bool HrmsEnabled { get; set; }
+
     /// Server-issued token that lets this device resume without the password.
     public string DeviceToken { get; set; } = string.Empty;
 }
