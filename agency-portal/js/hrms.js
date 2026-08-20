@@ -112,6 +112,7 @@
     $('chip-logo').src = logoUrl(info.logoPath);
     document.title = (info.agencyName ? info.agencyName + ' — ' : '') + 'HRMS — CRMRS';
     fillDrawer();
+    loadProfiles();
     if (tick) clearInterval(tick);
     tick = setInterval(renderCountdown, 30000);
   }
@@ -136,11 +137,130 @@
     });
   });
 
+
+  var PROFILES = [], PFID = null;
+
+  function initials(n) {
+    var p = (n || '?').trim().split(/\s+/);
+    return ((p[0] || '?')[0] + (p.length > 1 ? p[p.length - 1][0] : '')).toUpperCase();
+  }
+
+  function pill(cls, text) { return '<span class="pill ' + cls + '">' + esc(text) + '</span>'; }
+
+  function renderProfiles() {
+    var q = ($('pf-q').value || '').trim().toLowerCase();
+    var rows = PROFILES.filter(function (u) {
+      if (!q) return true;
+      return (u.name || '').toLowerCase().indexOf(q) >= 0 ||
+             (u.mobile || '').toLowerCase().indexOf(q) >= 0;
+    });
+    $('pf-count').textContent = rows.length === PROFILES.length
+      ? PROFILES.length + ' staff'
+      : rows.length + ' of ' + PROFILES.length;
+
+    if (!rows.length) {
+      $('pf-rows').innerHTML = '<div class="empty-note" style="border:0">No staff match that search.</div>';
+      return;
+    }
+
+    $('pf-rows').innerHTML = rows.map(function (u) {
+      var status = u.isBlacklisted ? pill('p-red', 'Blacklisted')
+                 : !u.isActive     ? pill('p-off', 'Inactive')
+                 : pill('p-on', 'Active');
+      var kyc = u.kycStatus ? pill(u.kycStatus === 'verified' ? 'p-on' : 'p-off', u.kycStatus) : pill('p-off', 'None');
+      var login = u.hasPassword ? pill('p-on', 'Set') : pill('p-off', 'Not set');
+      return '<div class="trow" data-id="' + u.id + '">' +
+        '<div class="who2"><div class="av">' + esc(initials(u.name)) + '</div>' +
+        '<div style="min-width:0"><div class="n">' + esc(u.name || 'Unnamed') + '</div>' +
+        '<div class="m">' + esc(u.mobile || '') + '</div></div></div>' +
+        '<div>' + login + '</div><div>' + kyc + '</div><div>' + status + '</div></div>';
+    }).join('');
+
+    Array.prototype.forEach.call($('pf-rows').querySelectorAll('.trow'), function (r) {
+      r.addEventListener('click', function () { openProfile(r.getAttribute('data-id')); });
+    });
+  }
+
+  async function loadProfiles() {
+    $('pf-rows').innerHTML = '<div class="empty-note" style="border:0">Loading…</div>';
+    try {
+      PROFILES = await call('/hrms/profiles');
+      renderProfiles();
+    } catch (e) {
+      $('pf-rows').innerHTML = '<div class="empty-note" style="border:0">' + esc(e.message) + '</div>';
+    }
+  }
+
+  function openPfDrawer(on) {
+    $('pfdrawer').classList.toggle('on', on);
+    $('scrim2').classList.toggle('on', on);
+  }
+
+  async function openProfile(id) {
+    PFID = id;
+    $('pf-pw').value = '';
+    $('pf-msg').textContent = '';
+    $('pf-rows2').innerHTML = '';
+    openPfDrawer(true);
+    try {
+      var u = await call('/hrms/profiles/' + id);
+      $('pf-av').textContent = initials(u.name);
+      $('pf-name').textContent = u.name || 'Unnamed';
+      $('pf-mobile').textContent = u.mobile || '';
+      $('pf-pwstate').textContent = u.hasPassword
+        ? 'Set' + (u.passwordSetAt ? ' on ' + u.passwordSetAt : '') + '. Entering a new one replaces it.'
+        : 'Not set. This person cannot open a desktop mode until you set one.';
+      show($('pf-clear'), !!u.hasPassword);
+      $('pf-rows2').innerHTML =
+        row('Status', u.isBlacklisted ? 'Blacklisted' : (u.isActive ? 'Active' : 'Inactive')) +
+        row('Role', u.isAdmin ? 'Admin' : 'Staff') +
+        row('Address', u.address) + row('Pincode', u.pincode) +
+        row('KYC status', u.kycStatus) + row('KYC name', u.kycName) +
+        row('Aadhaar (last 4)', u.kycAadhaarLast4) + row('PAN', u.kycPan) +
+        row('Bank holder', u.kycBankHolder) + row('Account no', u.accountNumber) +
+        row('IFSC', u.ifsc) + row('Balance', u.balance) +
+        row('Registered at', u.regLocation) + row('Joined', u.createdAt) +
+        row('Last seen', u.lastSeen) + row('Device linked', u.hasDevice ? 'Yes' : 'No');
+    } catch (e) {
+      $('pf-rows2').innerHTML = '<div class="empty-note" style="border:0">' + esc(e.message) + '</div>';
+    }
+  }
+
+  async function savePassword(clear) {
+    if (!PFID) return;
+    var pw = $('pf-pw').value;
+    if (!clear && pw.length < 4) {
+      $('pf-msg').textContent = 'Use at least 4 characters.';
+      $('pf-msg').className = 'msg err';
+      return;
+    }
+    var btn = clear ? $('pf-clear') : $('pf-save');
+    btn.disabled = true;
+    try {
+      await call('/hrms/profiles/' + PFID + '/password',
+        { method: 'POST', body: clear ? { clear: 'true' } : { password: pw } });
+      $('pf-msg').textContent = clear ? 'Password removed.' : 'Password set.';
+      $('pf-msg').className = 'msg ok';
+      $('pf-pw').value = '';
+      await loadProfiles();
+      await openProfile(PFID);
+    } catch (e) {
+      $('pf-msg').textContent = e.message;
+      $('pf-msg').className = 'msg err';
+    } finally { btn.disabled = false; }
+  }
+
+  $('pf-q').addEventListener('input', renderProfiles);
+  $('pf-save').addEventListener('click', function () { savePassword(false); });
+  $('pf-clear').addEventListener('click', function () { savePassword(true); });
+  $('pf-close').addEventListener('click', function () { openPfDrawer(false); });
+  $('scrim2').addEventListener('click', function () { openPfDrawer(false); });
+
   $('chip').addEventListener('click', function () { openDrawer(true); });
   $('dr-close').addEventListener('click', function () { openDrawer(false); });
   $('scrim').addEventListener('click', function () { openDrawer(false); });
   document.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape') openDrawer(false);
+    if (e.key === 'Escape') { openDrawer(false); openPfDrawer(false); }
   });
 
   var IC = {
@@ -282,7 +402,4 @@
     location.reload();
   });
 
-  $('go-desktop').addEventListener('click', function () {
-    alert('Desktop profile creation is being built — this is where it will open.');
-  });
 })();

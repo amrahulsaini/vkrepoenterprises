@@ -154,6 +154,12 @@ public partial class ModeChooserWindow : Window
     /// password is checked on the server; it is never held in the app.
     private async System.Threading.Tasks.Task<bool> AskPasswordAsync(string title, string gate)
     {
+        if (await DesktopApiClient.ProfileLoginRequiredAsync())
+        {
+            var login = new ProfileLoginWindow(title) { Owner = this };
+            return login.ShowDialog() == true;
+        }
+
         var prompt = new PasswordPromptWindow(title) { Owner = this };
         if (prompt.ShowDialog() != true) return false;
 

@@ -427,6 +427,162 @@ internal static class AgencyPortal
             return Results.Ok(new { token, agencyId, agencyName = name, slug, logoPath = logo });
         });
 
+        app.MapGet("/api/agency/desktop/profile-login/required", async (HttpContext ctx) =>
+        {
+            var agency = VerifyAgencyBearer(ctx);
+            if (agency is not { } ag) return Results.Json(new { message = "Unauthorized" }, statusCode: 401);
+
+            await using var conn = new MySqlConnection(TenantContext.BuildTenantConn(mysqlHost, mysqlPort, ag.slug));
+            await conn.OpenAsync();
+            await using var cmd = new MySqlCommand(
+                "SELECT COUNT(*) FROM app_users WHERE profile_password_hash IS NOT NULL AND profile_password_hash <> ''", conn)
+            { CommandTimeout = 15 };
+            long n = Convert.ToInt64(await cmd.ExecuteScalarAsync());
+            return Results.Ok(new { required = n > 0, profiles = n });
+        });
+
+        app.MapPost("/api/agency/desktop/profile-login", async (HttpContext ctx, HttpRequest req) =>
+        {
+            var agency = VerifyAgencyBearer(ctx);
+            if (agency is not { } ag) return Results.Json(new { message = "Unauthorized" }, statusCode: 401);
+
+            var dto = await ReadJsonAsync(req);
+            string mobile = new string((dto.GetValueOrDefault("mobile") ?? "").Where(char.IsDigit).ToArray());
+            string pw     = dto.GetValueOrDefault("password") ?? "";
+            if (mobile.Length < 10 || pw.Length == 0)
+                return Results.BadRequest(new { message = "Enter your mobile number and password." });
+
+            await using var conn = new MySqlConnection(TenantContext.BuildTenantConn(mysqlHost, mysqlPort, ag.slug));
+            await conn.OpenAsync();
+
+            long id = 0; string name = "", hash = "";
+            bool active = false, stopped = false, blacklisted = false;
+            await using (var cmd = new MySqlCommand(@"
+                SELECT id, COALESCE(name,''), COALESCE(profile_password_hash,''),
+                       COALESCE(is_active,0), COALESCE(is_stopped,0), COALESCE(is_blacklisted,0)
+                  FROM app_users WHERE RIGHT(REPLACE(COALESCE(mobile,''),' ',''),10) = @m LIMIT 1;", conn)
+            { CommandTimeout = 15 })
+            {
+                cmd.Parameters.AddWithValue("@m", mobile.Substring(mobile.Length - 10));
+                await using var rdr = await cmd.ExecuteReaderAsync();
+                if (await rdr.ReadAsync())
+                {
+                    id = rdr.GetInt64(0); name = rdr.GetString(1); hash = rdr.GetString(2);
+                    active = rdr.GetInt32(3) == 1; stopped = rdr.GetInt32(4) == 1; blacklisted = rdr.GetInt32(5) == 1;
+                }
+            }
+
+            if (id == 0 || hash.Length == 0 || !VerifyPassword(pw, hash))
+                return Results.Json(new { message = "Wrong mobile number or password." }, statusCode: 401);
+            if (blacklisted || stopped || !active)
+                return Results.Json(new { message = "This profile is not allowed to sign in." }, statusCode: 403);
+
+            return Results.Ok(new { ok = true, userId = id, name });
+        });
+
+        app.MapGet("/api/agency/hrms/profiles", async (HttpContext ctx) =>
+        {
+            var a = await HrmsSessionSlug(masterConn, ctx);
+            if (a is null) return Results.Json(new { message = "Session expired." }, statusCode: 401);
+
+            await using var conn = new MySqlConnection(TenantContext.BuildTenantConn(mysqlHost, mysqlPort, a));
+            await conn.OpenAsync();
+            await using var cmd = new MySqlCommand(@"
+                SELECT id, COALESCE(name,''), COALESCE(mobile,''), COALESCE(is_active,0),
+                       COALESCE(is_admin,0), COALESCE(is_blacklisted,0), COALESCE(kyc_status,''),
+                       last_seen, (profile_password_hash IS NOT NULL AND profile_password_hash <> '') AS has_pw,
+                       profile_password_set_at
+                  FROM app_users ORDER BY COALESCE(name,'') ASC, id ASC LIMIT 1000;", conn)
+            { CommandTimeout = 30 };
+            var list = new List<object>();
+            await using var rdr = await cmd.ExecuteReaderAsync();
+            while (await rdr.ReadAsync())
+            {
+                list.Add(new
+                {
+                    id = rdr.GetInt64(0),
+                    name = rdr.GetString(1),
+                    mobile = rdr.GetString(2),
+                    isActive = rdr.GetInt32(3) == 1,
+                    isAdmin = rdr.GetInt32(4) == 1,
+                    isBlacklisted = rdr.GetInt32(5) == 1,
+                    kycStatus = rdr.GetString(6),
+                    lastSeen = rdr.IsDBNull(7) ? null : rdr.GetDateTime(7).ToString("yyyy-MM-dd HH:mm"),
+                    hasPassword = rdr.GetInt64(8) == 1,
+                    passwordSetAt = rdr.IsDBNull(9) ? null : rdr.GetDateTime(9).ToString("yyyy-MM-dd HH:mm"),
+                });
+            }
+            return Results.Ok(list);
+        });
+
+        app.MapGet("/api/agency/hrms/profiles/{id:long}", async (HttpContext ctx, long id) =>
+        {
+            var a = await HrmsSessionSlug(masterConn, ctx);
+            if (a is null) return Results.Json(new { message = "Session expired." }, statusCode: 401);
+
+            await using var conn = new MySqlConnection(TenantContext.BuildTenantConn(mysqlHost, mysqlPort, a));
+            await conn.OpenAsync();
+            await using var cmd = new MySqlCommand(@"
+                SELECT id, COALESCE(name,''), COALESCE(mobile,''), COALESCE(address,''), COALESCE(pincode,''),
+                       COALESCE(is_active,0), COALESCE(is_admin,0), COALESCE(is_stopped,0), COALESCE(is_blacklisted,0),
+                       COALESCE(balance,0), COALESCE(account_number,''), COALESCE(ifsc_code,''),
+                       COALESCE(kyc_status,''), COALESCE(kyc_aadhaar_name,''), COALESCE(kyc_aadhaar_last4,''),
+                       COALESCE(kyc_pan,''), COALESCE(kyc_bank_holder,''),
+                       COALESCE(kyc_aadhaar_verified,0), COALESCE(kyc_pan_verified,0), COALESCE(kyc_bank_verified,0),
+                       created_at, last_seen, COALESCE(kyc_reg_location,''),
+                       (profile_password_hash IS NOT NULL AND profile_password_hash <> '') AS has_pw,
+                       profile_password_set_at, COALESCE(profile_password_by,''), COALESCE(device_id,'')
+                  FROM app_users WHERE id=@id LIMIT 1;", conn) { CommandTimeout = 20 };
+            cmd.Parameters.AddWithValue("@id", id);
+            await using var rdr = await cmd.ExecuteReaderAsync();
+            if (!await rdr.ReadAsync()) return Results.NotFound(new { message = "Profile not found." });
+
+            string? D(int i) => rdr.IsDBNull(i) ? null : rdr.GetDateTime(i).ToString("yyyy-MM-dd HH:mm");
+            return Results.Ok(new
+            {
+                id = rdr.GetInt64(0), name = rdr.GetString(1), mobile = rdr.GetString(2),
+                address = rdr.GetString(3), pincode = rdr.GetString(4),
+                isActive = rdr.GetInt32(5) == 1, isAdmin = rdr.GetInt32(6) == 1,
+                isStopped = rdr.GetInt32(7) == 1, isBlacklisted = rdr.GetInt32(8) == 1,
+                balance = rdr.GetDecimal(9), accountNumber = rdr.GetString(10), ifsc = rdr.GetString(11),
+                kycStatus = rdr.GetString(12), kycName = rdr.GetString(13), kycAadhaarLast4 = rdr.GetString(14),
+                kycPan = rdr.GetString(15), kycBankHolder = rdr.GetString(16),
+                kycAadhaarVerified = rdr.GetInt32(17) == 1, kycPanVerified = rdr.GetInt32(18) == 1,
+                kycBankVerified = rdr.GetInt32(19) == 1,
+                createdAt = D(20), lastSeen = D(21), regLocation = rdr.GetString(22),
+                hasPassword = rdr.GetInt64(23) == 1, passwordSetAt = D(24),
+                passwordBy = rdr.GetString(25), hasDevice = rdr.GetString(26).Length > 0,
+            });
+        });
+
+        app.MapPost("/api/agency/hrms/profiles/{id:long}/password", async (HttpContext ctx, long id, HttpRequest req) =>
+        {
+            var a = await HrmsSessionSlug(masterConn, ctx);
+            if (a is null) return Results.Json(new { message = "Session expired." }, statusCode: 401);
+
+            var dto = await ReadJsonAsync(req);
+            string pw = (dto.GetValueOrDefault("password") ?? "").Trim();
+            bool clear = (dto.GetValueOrDefault("clear") ?? "").Trim().ToLowerInvariant() is "1" or "true";
+
+            if (!clear && pw.Length < 4)
+                return Results.BadRequest(new { message = "Use at least 4 characters." });
+            if (!clear && pw.Length > 64)
+                return Results.BadRequest(new { message = "That password is too long." });
+
+            await using var conn = new MySqlConnection(TenantContext.BuildTenantConn(mysqlHost, mysqlPort, a));
+            await conn.OpenAsync();
+            await using var cmd = new MySqlCommand(
+                "UPDATE app_users SET profile_password_hash=@h, profile_password_set_at=@t, profile_password_by=@b WHERE id=@id", conn);
+            cmd.Parameters.AddWithValue("@h", clear ? (object)DBNull.Value : HashPassword(pw));
+            cmd.Parameters.AddWithValue("@t", clear ? (object)DBNull.Value : DateTime.UtcNow);
+            cmd.Parameters.AddWithValue("@b", clear ? (object)DBNull.Value : "HRMS");
+            cmd.Parameters.AddWithValue("@id", id);
+            if (await cmd.ExecuteNonQueryAsync() == 0)
+                return Results.NotFound(new { message = "Profile not found." });
+
+            return Results.Ok(new { ok = true, hasPassword = !clear });
+        });
+
         app.MapGet("/api/agency/hrms/me", async (HttpContext ctx) =>
         {
             var a = await HrmsSessionAgency(masterConn, ctx);
@@ -3192,6 +3348,23 @@ internal static class AgencyPortal
         string user = email.Substring(0, at), dom = email.Substring(at);
         if (user.Length <= 2) return user.Substring(0, 1) + "***" + dom;
         return user.Substring(0, 2) + new string('*', Math.Min(6, user.Length - 2)) + dom;
+    }
+
+    private static async Task<string?> HrmsSessionSlug(string masterConn, HttpContext ctx)
+    {
+        string token = ctx.Request.Headers["X-Hrms-Token"].FirstOrDefault() ?? "";
+        if (string.IsNullOrWhiteSpace(token)) return null;
+
+        await using var conn = new MySqlConnection(masterConn);
+        await conn.OpenAsync();
+        await using var cmd = new MySqlCommand(@"
+            SELECT a.slug FROM hrms_sessions s
+              JOIN agencies a ON a.id = s.agency_id
+             WHERE s.token_hash = @t AND s.revoked = 0 AND s.expires_at > UTC_TIMESTAMP()
+               AND a.status = 'approved' AND COALESCE(a.hrms_enabled,0) = 1
+             LIMIT 1;", conn);
+        cmd.Parameters.AddWithValue("@t", Sha256Hex(token));
+        return (await cmd.ExecuteScalarAsync()) as string;
     }
 
     private static async Task<object?> HrmsSessionAgency(string masterConn, HttpContext ctx)
