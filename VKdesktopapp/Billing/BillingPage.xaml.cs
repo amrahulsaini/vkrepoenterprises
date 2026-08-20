@@ -303,16 +303,16 @@ public partial class BillingPage : Page
         if (!string.IsNullOrWhiteSpace(s.ParkingYardName)) txtParkingYard.Text = Up(s.ParkingYardName);
         if (!string.IsNullOrWhiteSpace(s.AddlChargesNotes)) txtAddlCharges.Text = Up(s.AddlChargesNotes);
         if (s.AddlChargesAmount is decimal amt && amt > 0) txtAddlAmount.Text = amt.ToString("0.##");
-        SetSubmissionFieldsReadOnly(true);
+        SetSubmissionFieldsReadOnly(false);
         txtGenStatus.Foreground = System.Windows.Media.Brushes.Green;
-        txtGenStatus.Text = $"Loaded submission for {s.VehicleNo}. Review and generate.";
+        txtGenStatus.Text = $"Loaded submission for {s.VehicleNo}. Edit any field, then generate.";
     }
 
     private void SetSubmissionFieldsReadOnly(bool ro)
     {
         var boxes = new[]
         {
-            txtAgriLoan, txtCustomer, txtMakeModel, txtRcNo, txtBranch,
+            txtAgriLoan, txtCustomer, txtMakeModel, txtRcNo,
             txtConfirmationBy, txtConfirmationByMobile, txtAgentName, txtParkingYardMobile,
             txtLoadDetails, txtExecutiveName, txtCollectionUpdate, txtRemark,
             txtParkingYard, txtAddlCharges, txtAddlAmount
@@ -322,6 +322,34 @@ public partial class BillingPage : Page
             b.IsReadOnly = ro;
             b.Background = ro ? System.Windows.Media.Brushes.WhiteSmoke : System.Windows.Media.Brushes.White;
         }
+        txtBranch.IsReadOnly = true;
+        txtBranch.Background = System.Windows.Media.Brushes.WhiteSmoke;
+    }
+
+    private async Task SaveSubmissionEditsAsync(long submissionId)
+    {
+        decimal? addl = decimal.TryParse((txtAddlAmount.Text ?? "").Trim(),
+            System.Globalization.NumberStyles.Any,
+            System.Globalization.CultureInfo.InvariantCulture, out var a) ? a : (decimal?)null;
+
+        await DesktopApiClient.UpdateSubmissionFieldsAsync(submissionId, new
+        {
+            LoanNo               = txtAgriLoan.Text.Trim(),
+            CustomerName         = txtCustomer.Text.Trim(),
+            Model                = txtMakeModel.Text.Trim(),
+            VehicleNo            = txtRcNo.Text.Trim(),
+            AgentName            = txtAgentName.Text.Trim(),
+            ParkingYardName      = txtParkingYard.Text.Trim(),
+            ParkingYardMobile    = txtParkingYardMobile.Text.Trim(),
+            LoadDetails          = txtLoadDetails.Text.Trim(),
+            AddlChargesNotes     = txtAddlCharges.Text.Trim(),
+            AddlChargesAmount    = addl,
+            ConfirmationByName   = txtConfirmationBy.Text.Trim(),
+            ConfirmationByMobile = txtConfirmationByMobile.Text.Trim(),
+            ExecutiveName        = txtExecutiveName.Text.Trim(),
+            CollectionUpdate     = txtCollectionUpdate.Text.Trim(),
+            Remark               = txtRemark.Text.Trim()
+        });
     }
 
     private void txtVehSearch_KeyDown(object sender, KeyEventArgs e)
@@ -437,6 +465,17 @@ public partial class BillingPage : Page
                     "Billing", MessageBoxButton.OK, MessageBoxImage.Warning);
             if (_currentSubmissionId > 0)
             {
+                try
+                {
+                    await SaveSubmissionEditsAsync(_currentSubmissionId);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show(
+                        "The bill was generated, but your edits could not be saved back to the record: " + ex.Message,
+                        "Billing", MessageBoxButton.OK, MessageBoxImage.Warning);
+                }
+
                 try
                 {
                     var billPath = pdfPath ?? dlg.FileName;
