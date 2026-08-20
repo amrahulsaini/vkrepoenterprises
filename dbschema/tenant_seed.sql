@@ -1381,3 +1381,8 @@ INSERT INTO `column_mappings` (`id`, `column_type_id`, `name`) VALUES (1466,26,'
 INSERT INTO `column_mappings` (`id`, `column_type_id`, `name`) VALUES (1467,28,'exc');
 INSERT INTO `column_mappings` (`id`, `column_type_id`, `name`) VALUES (1468,14,'cmcode');
 INSERT INTO `column_mappings` (`id`, `column_type_id`, `name`) VALUES (1469,5,'agrimentno');
+INSERT INTO `column_mappings` (`id`, `column_type_id`, `name`) VALUES (1470,5,'lannumber');
+INSERT INTO `column_mappings` (`id`, `column_type_id`, `name`) VALUES (1471,14,'bms');
+INSERT INTO `column_mappings` (`id`, `column_type_id`, `name`) VALUES (1472,1,'rcsno');
+INSERT INTO `column_mappings` (`id`, `column_type_id`, `name`) VALUES (1473,16,'srmname');
+INSERT INTO `column_mappings` (`id`, `column_type_id`, `name`) VALUES (1474,17,'srmmobile');
