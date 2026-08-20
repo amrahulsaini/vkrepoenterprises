@@ -310,20 +310,20 @@ internal static class AgencyPortal
             await using var conn = new MySqlConnection(masterConn);
             await conn.OpenAsync();
             await using var cmd = new MySqlCommand(
-                "SELECT name, email1, status, COALESCE(hrms_enabled,0) FROM agencies WHERE slug=@s LIMIT 1", conn);
+                "SELECT name, email1, status, COALESCE(hrms_enabled,0), COALESCE(logo_path,'') FROM agencies WHERE slug=@s LIMIT 1", conn);
             cmd.Parameters.AddWithValue("@s", s2);
             await using var rdr = await cmd.ExecuteReaderAsync();
             if (!await rdr.ReadAsync())
-                return Results.NotFound(new { message = "Agency not found." });
+                return Results.Json(new { code = "not_found", message = "No agency matches that address." }, statusCode: 404);
 
             string name = rdr.GetString(0), email = rdr.GetString(1), st = rdr.GetString(2);
             bool hrms = rdr.GetInt32(3) == 1;
             if (st != "approved")
-                return Results.Json(new { message = "This agency is not active." }, statusCode: 403);
+                return Results.Json(new { code = "not_active", agencyName = name, message = "This agency account is not active." }, statusCode: 403);
             if (!hrms)
-                return Results.Json(new { message = "HRMS is not enabled for this agency. Contact CRMRS to enable it." }, statusCode: 403);
+                return Results.Json(new { code = "not_enabled", agencyName = name, message = "HRMS is not switched on for this agency." }, statusCode: 403);
 
-            return Results.Ok(new { agencyName = name, email = MaskEmail(email), hrmsEnabled = true });
+            return Results.Ok(new { agencyName = name, email = MaskEmail(email), logoPath = rdr.GetString(4), hrmsEnabled = true });
         });
 
         app.MapPost("/api/agency/hrms/otp/request", async (HttpRequest req) =>
