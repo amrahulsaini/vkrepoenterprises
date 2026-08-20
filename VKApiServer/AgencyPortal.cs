@@ -491,7 +491,7 @@ internal static class AgencyPortal
                 SELECT id, COALESCE(name,''), COALESCE(mobile,''), COALESCE(is_active,0),
                        COALESCE(is_admin,0), COALESCE(is_blacklisted,0), COALESCE(kyc_status,''),
                        last_seen, (profile_password_hash IS NOT NULL AND profile_password_hash <> '') AS has_pw,
-                       profile_password_set_at
+                       profile_password_set_at, COALESCE(pfp,'')
                   FROM app_users ORDER BY COALESCE(name,'') ASC, id ASC LIMIT 1000;", conn)
             { CommandTimeout = 30 };
             var list = new List<object>();
@@ -510,6 +510,7 @@ internal static class AgencyPortal
                     lastSeen = rdr.IsDBNull(7) ? null : rdr.GetDateTime(7).ToString("yyyy-MM-dd HH:mm"),
                     hasPassword = rdr.GetInt64(8) == 1,
                     passwordSetAt = rdr.IsDBNull(9) ? null : rdr.GetDateTime(9).ToString("yyyy-MM-dd HH:mm"),
+                    pfpUrl = PfpUrl(rdr.GetString(10)),
                 });
             }
             return Results.Ok(list);
@@ -531,7 +532,8 @@ internal static class AgencyPortal
                        COALESCE(kyc_aadhaar_verified,0), COALESCE(kyc_pan_verified,0), COALESCE(kyc_bank_verified,0),
                        created_at, last_seen, COALESCE(kyc_reg_location,''),
                        (profile_password_hash IS NOT NULL AND profile_password_hash <> '') AS has_pw,
-                       profile_password_set_at, COALESCE(profile_password_by,''), COALESCE(device_id,'')
+                       profile_password_set_at, COALESCE(profile_password_by,''), COALESCE(device_id,''),
+                       COALESCE(pfp,'')
                   FROM app_users WHERE id=@id LIMIT 1;", conn) { CommandTimeout = 20 };
             cmd.Parameters.AddWithValue("@id", id);
             await using var rdr = await cmd.ExecuteReaderAsync();
@@ -552,6 +554,7 @@ internal static class AgencyPortal
                 createdAt = D(20), lastSeen = D(21), regLocation = rdr.GetString(22),
                 hasPassword = rdr.GetInt64(23) == 1, passwordSetAt = D(24),
                 passwordBy = rdr.GetString(25), hasDevice = rdr.GetString(26).Length > 0,
+                pfpUrl = PfpUrl(rdr.GetString(27)),
             });
         });
 
@@ -3339,6 +3342,15 @@ internal static class AgencyPortal
         }
 
         return (0, false);
+    }
+
+    private static string PfpUrl(string? p)
+    {
+        if (string.IsNullOrEmpty(p)) return "";
+        if (p.StartsWith("http") || p.StartsWith("data:")) return p;
+        if (p.Length < 256 && p.Contains('/') && !p.Contains('+') && !p.Contains('='))
+            return "https://api.crmrecoverysoftware.com/uploads/" + p.TrimStart('/');
+        return "data:image/jpeg;base64," + p;
     }
 
     private static string MaskEmail(string email)
