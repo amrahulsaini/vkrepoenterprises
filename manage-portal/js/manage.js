@@ -328,7 +328,38 @@ const manageLogoPreview = document.getElementById('manage-logo-preview');
 const manageLogoFile   = document.getElementById('manage-logo-file');
 const manageLogoUpload = document.getElementById('manage-logo-upload');
 const manageLogoMsg    = document.getElementById('manage-logo-msg');
+const manageHrmsToggle = document.getElementById('manage-hrms-toggle');
+const manageHrmsState  = document.getElementById('manage-hrms-state');
+const manageHrmsNote   = document.getElementById('manage-hrms-note');
+const manageHrmsDefaultNote = manageHrmsNote ? manageHrmsNote.textContent : '';
 let managingAgencyId   = null;
+let managingHrms       = false;
+
+function renderHrms() {
+    if (!manageHrmsState || !manageHrmsToggle) return;
+    manageHrmsState.textContent = managingHrms ? 'Enabled' : 'Disabled';
+    manageHrmsState.className   = 'badge ' + (managingHrms ? 'badge-approved' : 'badge-pending');
+    manageHrmsToggle.textContent = managingHrms ? 'Revoke HRMS' : 'Allow HRMS';
+}
+
+manageHrmsToggle?.addEventListener('click', async () => {
+    if (managingAgencyId == null) return;
+    const next = !managingHrms;
+    if (!confirm(next
+        ? 'Enable HRMS for this agency? They will get the HRMS module.'
+        : 'Revoke HRMS for this agency? They will lose access to the HRMS module.')) return;
+    manageHrmsToggle.disabled = true;
+    try {
+        const r = await api(`/manage/agency/${managingAgencyId}/hrms`, { method: 'POST', body: { enabled: next } });
+        managingHrms = !!r.hrmsEnabled;
+        renderHrms();
+        toast(managingHrms ? 'HRMS enabled for this agency' : 'HRMS revoked', 'success');
+    } catch (e) {
+        toast(e.message || 'Could not change HRMS access', 'error', 5000);
+    } finally {
+        manageHrmsToggle.disabled = false;
+    }
+});
 
 function logoUrlFrom(logoPath) {
     if (!logoPath) return 'assets/crmrs-logo.webp';
@@ -410,6 +441,9 @@ async function openManageModal(id) {
     if (manageLogoFile) manageLogoFile.value = '';
     if (manageLogoMsg) manageLogoMsg.textContent = '';
     if (manageLogoPreview) manageLogoPreview.src = 'assets/crmrs-logo.webp';
+    managingHrms = false;
+    renderHrms();
+    if (manageHrmsNote) manageHrmsNote.textContent = manageHrmsDefaultNote;
     manageModal.classList.add('is-open');
     try {
         const a = await api(`/manage/agency/${id}`);
@@ -418,6 +452,10 @@ async function openManageModal(id) {
         manageMobile1.value = a.mobile1 || '';
         manageMobile2.value = a.mobile2 || '';
         if (manageLogoPreview) manageLogoPreview.src = logoUrlFrom(a.logoPath);
+        managingHrms = !!a.hrmsEnabled;
+        renderHrms();
+        if (manageHrmsNote && a.hrmsEnabledAt && a.hrmsEnabled)
+            manageHrmsNote.textContent = 'Enabled since ' + a.hrmsEnabledAt + '.';
         (a.extras || []).forEach(e => addExtraRow(e));
     } catch (e) {
         toast(e.message || 'Failed to load agency', 'error');
