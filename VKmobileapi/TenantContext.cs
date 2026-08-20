@@ -57,18 +57,8 @@ internal static class MobileToken
 {
     private static readonly byte[] Key = Encoding.UTF8.GetBytes(RequiredEnv.Get("TENANT_DB_SECRET"));
 
-    // Session = the decoded, verified contents of a token. Tokens issued before
-    // this change carry only {slug}|{exp} — HasIdentity is false for those, so
-    // the caller falls back to trusting the legacy X-User-Id header rather than
-    // rejecting every already-logged-in device the moment this ships.
     public readonly record struct Session(string Slug, long UserId, string? DeviceId, bool HasIdentity);
 
-    /// <summary>
-    /// Issues a token bound to one user on one device. Any endpoint gated by
-    /// X-Tenant-Token now derives the caller's identity from this token instead
-    /// of trusting a client-supplied X-User-Id header — closing the hole where
-    /// any valid tenant token could impersonate any userId in that agency.
-    /// </summary>
     public static string Issue(string slug, long userId, string deviceId, int validDays = 90)
     {
         long exp = DateTimeOffset.UtcNow.AddDays(validDays).ToUnixTimeSeconds();

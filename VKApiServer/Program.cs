@@ -528,7 +528,6 @@ app.MapGet("/", () => Results.Ok(new
     port
 }));
 
-
 static bool MgrAuth(HttpContext ctx, string key) =>
     ctx.Request.Headers.TryGetValue("X-Api-Key", out var v) && MgrKeys.Matches(v);
 
@@ -586,7 +585,6 @@ static async Task<IResult> SaveBillingImage(HttpContext ctx, string? base64, str
     }
     catch (Exception ex) { return Results.Problem(ex.Message); }
 }
-
 
 app.MapGet("/api/mgr/finances", async (HttpContext ctx) =>
 {
@@ -672,7 +670,6 @@ app.MapDelete("/api/mgr/finances/{id:int}", async (HttpContext ctx, int id) =>
     }
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
-
 
 app.MapGet("/api/mgr/branches", async (HttpContext ctx, int? financeId) =>
 {
@@ -846,7 +843,6 @@ app.MapDelete("/api/mgr/branches/{id:int}", async (HttpContext ctx, int id) =>
     }
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
-
 
 app.MapGet("/api/mgr/users", async (HttpContext ctx) =>
 {
@@ -1716,8 +1712,6 @@ app.MapDelete("/api/mgr/subscriptions/{id:long}", async (HttpContext ctx, long i
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
 
-
-// ── ID card review (desktop admin) ──────────────────────────────────────────
 app.MapGet("/api/mgr/id-cards", async (HttpContext ctx, string? status) =>
 {
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
@@ -1776,8 +1770,6 @@ app.MapPost("/api/mgr/id-cards/{id:long}/approve", async (HttpContext ctx, long 
         await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
 
-        // Prefer explicit calendar dates (ValidFrom..ValidUntil) if given;
-        // otherwise fall back to a validity in days from today.
         MySqlCommand cmd;
         if (!string.IsNullOrWhiteSpace(dto.ValidUntil))
         {
@@ -1831,7 +1823,6 @@ app.MapPost("/api/mgr/id-cards/{id:long}/decline", async (HttpContext ctx, long 
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
 
-// ── Repo kits (desktop admin uploads PDFs per head office) ──────────────────
 app.MapGet("/api/mgr/repokits", async (HttpContext ctx, int? financeId) =>
 {
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
@@ -2272,9 +2263,6 @@ app.MapPost("/api/mgr/couriers/submissions/{id:long}/update", async (HttpContext
         await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
 
-        // A field the caller did not send is LEFT ALONE. Wiping a value now
-        // requires ClearEntries, so one screen saving from a stale copy can no
-        // longer silently undo another screen's edit.
         var sets = new List<string> { "courier_updated_at=NOW()" };
         var ps = new List<(string, object)> { ("@id", id) };
         void Set(string column, string param, object? value)
@@ -2360,7 +2348,6 @@ app.MapPost("/api/mgr/settings/verify-gate", async (HttpContext ctx, MgrVerifyGa
             return Results.Ok(new { ok, stamp = AgencyPortal.Sha256Hex("cfg:" + configured)[..16] });
         }
 
-        // No gate password set, so the agency account password is the fallback.
         if (string.IsNullOrEmpty(AgencyPortal.MasterConn))
             return Results.Ok(new { ok = false, stamp = "" });
 
@@ -2432,10 +2419,6 @@ app.MapPost("/api/mgr/billing/submissions/{id:long}/action", async (HttpContext 
     {
         await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
-        // Hold-for-collection / Collection-done fulfil demand, so they are
-        // auto-billed the moment they are set. Moving back to OK-for-billing or
-        // Cancel reverts to pending UNLESS a real bill was already generated
-        // (invoice_no / bill_file present). Courier entries stay put.
         if (dto.BillingAction is "hold" or "collection_done")
         {
             await MgrExec(
@@ -2538,7 +2521,6 @@ app.MapPost("/api/mgr/billing/submissions/{id:long}/billed", async (HttpContext 
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
 
-// Edit the app-filled fields of a submission from the billing "View all details".
 app.MapPost("/api/mgr/billing/submissions/{id:long}/fields", async (HttpContext ctx, long id, MgrEditFieldsDto dto) =>
 {
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
@@ -2579,8 +2561,6 @@ app.MapPost("/api/mgr/billing/submissions/{id:long}/fields", async (HttpContext 
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
 
-// Accounts: save the per-vehicle payment details (UTR + date). Bank details and
-// application charges are collective per agent (see agent-billing below).
 app.MapPost("/api/mgr/accounts/submissions/{id:long}/payment", async (HttpContext ctx, long id, MgrPaymentDto dto) =>
 {
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
@@ -2605,7 +2585,6 @@ app.MapPost("/api/mgr/accounts/submissions/{id:long}/payment", async (HttpContex
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
 
-// Accounts: collective per-agent bank details + application charges.
 app.MapGet("/api/mgr/accounts/agent-billing", async (HttpContext ctx, string? agent) =>
 {
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
@@ -2664,7 +2643,6 @@ app.MapPost("/api/mgr/accounts/agent-billing", async (HttpContext ctx, MgrAgentB
     }
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
-
 
 app.MapGet("/api/mgr/search", async (HttpContext ctx, string? q, string? mode) =>
 {
@@ -2835,7 +2813,6 @@ app.MapGet("/api/mgr/record/{id:long}", async (HttpContext ctx, long id) =>
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
 
-
 app.MapGet("/api/mgr/dashboard-stats", async (HttpContext ctx) =>
 {
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
@@ -2860,7 +2837,6 @@ app.MapGet("/api/mgr/dashboard-stats", async (HttpContext ctx) =>
     }
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
-
 
 app.MapGet("/api/mgr/device-requests", async (HttpContext ctx) =>
 {
@@ -2928,7 +2904,6 @@ app.MapDelete("/api/mgr/device-requests/{id:long}", async (HttpContext ctx, long
     }
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
-
 
 app.MapGet("/api/mgr/live-users", async (HttpContext ctx, string? since) =>
 {
@@ -3414,7 +3389,6 @@ app.MapPost("/api/mgr/records/upload", async (HttpContext ctx) =>
 
     return new NoopResult();
 });
-
 
 app.MapGet("/api/mgr/export/users", async (HttpContext ctx) =>
 {
@@ -3999,7 +3973,6 @@ if (Directory.Exists(mobileUploadsPath))
     });
 }
 
-
 var webhookFilesRoot = Path.Combine(app.Environment.ContentRootPath, "webhook-files");
 Directory.CreateDirectory(webhookFilesRoot);
 
@@ -4399,7 +4372,6 @@ static async Task<T> GetCachedAsync<T>(IMemoryCache cache, string key, Func<Task
     cache.Set(key, result, TimeSpan.FromSeconds(seconds));
     return result;
 }
-
 
 record MgrCreateFinanceDto(string Name, string? Description);
 record MgrUpdateNameDto(string Name);

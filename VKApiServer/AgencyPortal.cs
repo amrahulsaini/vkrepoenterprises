@@ -252,6 +252,14 @@ internal static class AgencyPortal
 
             await using var conn = new MySqlConnection(masterConn);
             await conn.OpenAsync();
+
+            var rThrottle = await OtpThrottle(conn, email, "register");
+            if (rThrottle.HourlyCapHit)
+                return Results.Json(new { message = "Too many codes requested. Try again later." }, statusCode: 429);
+            if (rThrottle.RetrySeconds > 0)
+                return Results.Json(new { retryAfter = rThrottle.RetrySeconds,
+                    message = "A code was just sent. Wait " + rThrottle.RetrySeconds + "s before asking for another." }, statusCode: 429);
+
             await using (var cmd = new MySqlCommand(
                 "INSERT INTO agency_otps (email, code, purpose, expires_at) VALUES (@e, @c, 'register', @x)", conn))
             {
@@ -295,13 +303,6 @@ internal static class AgencyPortal
             return Results.Ok(new { verified = true });
         });
 
-        // ── HRMS portal (agency.crmrecoverysoftware.com/hrms/<slug>) ──────────
-        // Sign-in is an OTP to the agency's REGISTERED primary email. The client
-        // never supplies the address -- it is looked up from the slug, so the
-        // portal cannot be used to mail a code anywhere else.
-        // Page-load probe: is HRMS open for this agency, and which address will
-        // the code go to. Deliberately separate from otp/request so simply
-        // opening the page never sends mail.
         app.MapGet("/api/agency/hrms/status", async (string? slug) =>
         {
             string s2 = (slug ?? "").Trim().ToLowerInvariant();
@@ -354,6 +355,13 @@ internal static class AgencyPortal
                 return Results.Json(new { message = "This agency is not active." }, statusCode: 403);
             if (!hrms)
                 return Results.Json(new { message = "HRMS is not enabled for this agency. Contact CRMRS to enable it." }, statusCode: 403);
+
+            var throttle = await OtpThrottle(conn, email, "hrms");
+            if (throttle.HourlyCapHit)
+                return Results.Json(new { code = "rate_limited", message = "Too many codes requested. Try again later." }, statusCode: 429);
+            if (throttle.RetrySeconds > 0)
+                return Results.Json(new { code = "cooldown", retryAfter = throttle.RetrySeconds,
+                    message = "A code was just sent. Wait " + throttle.RetrySeconds + "s before asking for another." }, statusCode: 429);
 
             string code = GenerateOtp();
             await using (var ins = new MySqlCommand(
@@ -545,6 +553,14 @@ internal static class AgencyPortal
             var expiresAt = DateTime.UtcNow.AddMinutes(10);
             await using var conn = new MySqlConnection(masterConn);
             await conn.OpenAsync();
+
+            var mThrottle = await OtpThrottle(conn, manageOtpEmail, "manage");
+            if (mThrottle.HourlyCapHit)
+                return Results.Json(new { message = "Too many codes requested. Try again later." }, statusCode: 429);
+            if (mThrottle.RetrySeconds > 0)
+                return Results.Json(new { retryAfter = mThrottle.RetrySeconds,
+                    message = "A code was just sent. Wait " + mThrottle.RetrySeconds + "s before asking for another." }, statusCode: 429);
+
             await using (var cmd = new MySqlCommand(
                 "INSERT INTO agency_otps (email, code, purpose, expires_at) VALUES (@e, @c, 'manage', @x)", conn))
             {
@@ -854,8 +870,6 @@ internal static class AgencyPortal
             var ext = (Path.GetExtension(logoFile.FileName) ?? ".jpg").ToLowerInvariant();
             if (ext.Length > 5 || !Regex.IsMatch(ext, @"^\.[a-z]+$")) ext = ".jpg";
             Directory.CreateDirectory(LOGO_DIR);
-            // Unique filename per upload so the URL changes — otherwise clients
-            // (and the app's Coil image cache) keep serving the old same-URL logo.
             var fname = $"{slug}_{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}{ext}";
             var fpath = Path.Combine(LOGO_DIR, fname);
             await using (var fs = File.Create(fpath))
@@ -869,7 +883,6 @@ internal static class AgencyPortal
                 await up.ExecuteNonQueryAsync();
             }
 
-            // Best-effort removal of the previous logo file so uploads don't accumulate.
             if (!string.IsNullOrEmpty(oldPath))
             {
                 var oldFull = Path.Combine(LOGO_DIR, Path.GetFileName(oldPath));
@@ -901,7 +914,6 @@ internal static class AgencyPortal
                     return Results.NotFound(new { message = "Agency not found" });
             }
 
-            // Every device that stayed signed in used the old password, so drop them.
             int dropped = 0;
             await using (var rev = new MySqlCommand(
                 "UPDATE desktop_sessions SET revoked=1 WHERE agency_id=@id AND revoked=0", conn))
@@ -1444,7 +1456,6 @@ internal static class AgencyPortal
                 hrmsEnabled = rdr.GetInt32(9) == 1;
             }
 
-            // The password changed since this device signed in, so the session is dead.
             if (!CryptographicOperations.FixedTimeEquals(
                     Encoding.UTF8.GetBytes(storedStamp), Encoding.UTF8.GetBytes(Sha256Hex(hash))))
             {
@@ -3112,7 +3123,6 @@ internal static class AgencyPortal
         return result;
     }
 
-
     private static string Env(string key, string fallback) =>
         Environment.GetEnvironmentVariable(key) is { Length: > 0 } v ? v : fallback;
 
@@ -3134,6 +3144,45 @@ internal static class AgencyPortal
             return d;
         }
         catch { return new(); }
+    }
+
+    private static async Task<(int RetrySeconds, bool HourlyCapHit)> OtpThrottle(
+        MySqlConnection conn, string email, string purpose)
+    {
+        const int WindowSeconds = 60;
+        const int MaxPerHour    = 5;
+        const int TtlMinutes    = 10;
+
+        DateTime? newest = null;
+        await using (var cmd = new MySqlCommand(
+            "SELECT expires_at FROM agency_otps WHERE email=@e AND purpose=@p ORDER BY id DESC LIMIT 1", conn))
+        {
+            cmd.Parameters.AddWithValue("@e", email);
+            cmd.Parameters.AddWithValue("@p", purpose);
+            var v = await cmd.ExecuteScalarAsync();
+            if (v is DateTime d) newest = d;
+        }
+
+        if (newest is DateTime exp)
+        {
+            var issuedUtc = exp.AddMinutes(-TtlMinutes);
+            var age = (DateTime.UtcNow - issuedUtc).TotalSeconds;
+            if (age >= 0 && age < WindowSeconds)
+                return ((int)Math.Ceiling(WindowSeconds - age), false);
+        }
+
+        await using (var cnt = new MySqlCommand(
+            "SELECT COUNT(*) FROM agency_otps WHERE email=@e AND purpose=@p " +
+            "AND expires_at > DATE_SUB(UTC_TIMESTAMP(), INTERVAL @back MINUTE)", conn))
+        {
+            cnt.Parameters.AddWithValue("@e", email);
+            cnt.Parameters.AddWithValue("@p", purpose);
+            cnt.Parameters.AddWithValue("@back", 60 - TtlMinutes);
+            if (Convert.ToInt32(await cnt.ExecuteScalarAsync()) >= MaxPerHour)
+                return (0, true);
+        }
+
+        return (0, false);
     }
 
     private static string MaskEmail(string email)
@@ -3184,10 +3233,6 @@ internal static class AgencyPortal
             registeredAt = D(10),
             approvedAt   = D(11),
             hrmsSince    = D(12),
-            // UTC ISO so the browser can count down in the viewer's own zone.
-            // expires_at is a DATETIME written in UTC, so it is safe to tag as Z.
-            // (s.created_at is a TIMESTAMP and comes back in the server's IST
-            // zone, so it is deliberately not exposed as a UTC instant here.)
             sessionExpiresAt = rdr.GetDateTime(13).ToString("yyyy-MM-ddTHH:mm:ss") + "Z",
             sessionHours     = 12,
         };
