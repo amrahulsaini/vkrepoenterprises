@@ -579,7 +579,8 @@ internal static class AgencyPortal
                 SELECT id, name, slug, email1, COALESCE(email2,''),
                        mobile1, COALESCE(mobile2,''),
                        COALESCE(address,''), COALESCE(mobiles_extra,''),
-                       COALESCE(logo_path,''), status
+                       COALESCE(logo_path,''), status,
+                       COALESCE(hrms_enabled,0), hrms_enabled_at
                   FROM agencies WHERE id = @id LIMIT 1;", conn);
             cmd.Parameters.AddWithValue("@id", id);
             await using var rdr = await cmd.ExecuteReaderAsync();
@@ -603,6 +604,8 @@ internal static class AgencyPortal
                 extras,
                 logoPath = rdr.GetString(9),
                 status   = rdr.GetString(10),
+                hrmsEnabled   = rdr.GetInt32(11) == 1,
+                hrmsEnabledAt = rdr.IsDBNull(12) ? null : rdr.GetDateTime(12).ToString("yyyy-MM-dd HH:mm"),
             });
         });
 
@@ -650,6 +653,31 @@ internal static class AgencyPortal
             int n = await cmd.ExecuteNonQueryAsync();
             if (n == 0) return Results.NotFound(new { message = "Agency not found" });
             return Results.Ok(new { ok = true });
+        });
+
+        app.MapPost("/api/agency/manage/agency/{id:int}/hrms", async (HttpContext ctx, int id, HttpRequest req) =>
+        {
+            if (!await IsManageTokenValid(masterConn, ctx))
+                return Results.Json(new { message = "Unauthorized" }, statusCode: 401);
+
+            using var doc = await System.Text.Json.JsonDocument.ParseAsync(req.Body);
+            if (!doc.RootElement.TryGetProperty("enabled", out var el) ||
+                (el.ValueKind != System.Text.Json.JsonValueKind.True &&
+                 el.ValueKind != System.Text.Json.JsonValueKind.False))
+                return Results.BadRequest(new { message = "enabled must be true or false" });
+
+            bool enabled = el.GetBoolean();
+
+            await using var conn = new MySqlConnection(masterConn);
+            await conn.OpenAsync();
+            await using var cmd = new MySqlCommand(
+                "UPDATE agencies SET hrms_enabled=@v, hrms_enabled_at=IF(@v=1, COALESCE(hrms_enabled_at, NOW()), NULL) WHERE id=@id", conn);
+            cmd.Parameters.AddWithValue("@v", enabled ? 1 : 0);
+            cmd.Parameters.AddWithValue("@id", id);
+            if (await cmd.ExecuteNonQueryAsync() == 0)
+                return Results.NotFound(new { message = "Agency not found" });
+
+            return Results.Ok(new { ok = true, hrmsEnabled = enabled });
         });
 
         app.MapPost("/api/agency/manage/agency/{id:int}/logo", async (HttpContext ctx, int id, HttpRequest req) =>
@@ -1147,8 +1175,10 @@ internal static class AgencyPortal
             int id = 0;
             string name = "", slug = "", status = "", hash = "";
             string? logoPath = null, mobile1 = null, address = null;
+            bool hrmsEnabled = false;
             await using (var cmd = new MySqlCommand(@"
-                SELECT id, name, slug, status, password_hash, logo_path, mobile1, address
+                SELECT id, name, slug, status, password_hash, logo_path, mobile1, address,
+                       COALESCE(hrms_enabled,0) AS hrms_enabled
                   FROM agencies WHERE email1 = @e LIMIT 1;", conn))
             {
                 cmd.Parameters.AddWithValue("@e", email);
@@ -1163,6 +1193,7 @@ internal static class AgencyPortal
                 logoPath = rdr.IsDBNull(rdr.GetOrdinal("logo_path"))     ? null : rdr.GetString("logo_path");
                 mobile1  = rdr.IsDBNull(rdr.GetOrdinal("mobile1"))       ? null : rdr.GetString("mobile1");
                 address  = rdr.IsDBNull(rdr.GetOrdinal("address"))       ? null : rdr.GetString("address");
+                hrmsEnabled = rdr.GetInt32("hrms_enabled") == 1;
             }
 
             if (!VerifyPassword(password, hash))
@@ -1213,6 +1244,7 @@ internal static class AgencyPortal
                 address    = address ?? "",
                 logoPath   = logoPath ?? "",
                 isAgency   = true,
+                hrmsEnabled,
             });
         });
 
@@ -1245,8 +1277,10 @@ internal static class AgencyPortal
             int id = 0;
             string name = "", slug = "", status = "", hash = "", email = "";
             string? logoPath = null, mobile1 = null, address = null;
+            bool hrmsEnabled = false;
             await using (var cmd = new MySqlCommand(@"
-                SELECT id, name, slug, status, COALESCE(password_hash,''), logo_path, mobile1, address, email1
+                SELECT id, name, slug, status, COALESCE(password_hash,''), logo_path, mobile1, address, email1,
+                       COALESCE(hrms_enabled,0)
                   FROM agencies WHERE id = @id LIMIT 1;", conn))
             {
                 cmd.Parameters.AddWithValue("@id", agencyId);
@@ -1262,6 +1296,7 @@ internal static class AgencyPortal
                 mobile1  = rdr.IsDBNull(6) ? null : rdr.GetString(6);
                 address  = rdr.IsDBNull(7) ? null : rdr.GetString(7);
                 email    = rdr.IsDBNull(8) ? "" : rdr.GetString(8);
+                hrmsEnabled = rdr.GetInt32(9) == 1;
             }
 
             // The password changed since this device signed in, so the session is dead.
@@ -1299,6 +1334,7 @@ internal static class AgencyPortal
                 address    = address ?? "",
                 logoPath   = logoPath ?? "",
                 isAgency   = true,
+                hrmsEnabled,
             });
         });
 

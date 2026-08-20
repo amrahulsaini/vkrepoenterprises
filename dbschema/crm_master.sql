@@ -28,6 +28,8 @@ CREATE TABLE IF NOT EXISTS agencies (
     db_password_enc VARBINARY(512),                          -- encrypted at-rest
     status          ENUM('pending','approved','rejected','suspended')
                     NOT NULL DEFAULT 'pending',
+    hrms_enabled    TINYINT(1)   NOT NULL DEFAULT 0,       -- HRMS opt-in, granted from the manage portal
+    hrms_enabled_at TIMESTAMP    NULL,                     -- when HRMS was granted
     rejected_reason TEXT,
     created_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     approved_at     TIMESTAMP    NULL,
