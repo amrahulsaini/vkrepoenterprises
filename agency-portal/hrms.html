@@ -15,6 +15,7 @@
     --paper:#ffffff; --paper-2:#f7f7f8; --line:#e4e4e7;
     --muted:#6b6b74; --muted-2:#9a9aa3;
     --orange:#ff5500; --orange-ink:#cc3c00; --orange-wash:#fff4ee;
+    --topH:64px;
     --radius:14px;
     --radius-sm:10px;
     --shadow:0 1px 2px rgba(13,13,15,.04), 0 1px 3px rgba(13,13,15,.06);
@@ -29,7 +30,8 @@
   }
   .top{
     background:var(--paper); border-bottom:1px solid var(--line);
-    padding:13px 22px; display:flex; align-items:center; gap:13px;
+    height:var(--topH); padding:0 22px; display:flex; align-items:center; gap:13px;
+    position:sticky; top:0; z-index:30;
   }
   .logo{height:26px;width:auto;display:block}
   .top .sep{width:1px;height:24px;background:var(--line);margin:0 3px}
@@ -155,12 +157,12 @@
     width:14px;height:14px;border:2px solid rgba(255,255,255,.35);
     border-top-color:#fff;border-radius:50%;animation:sp .6s linear infinite;
   }
-  .shell{display:grid;grid-template-columns:232px 1fr;min-height:calc(100vh - 53px)}
+  .shell{display:grid;grid-template-columns:232px 1fr;min-height:calc(100vh - var(--topH))}
   .side{
     background:var(--paper);border-right:1px solid var(--line);
     padding:16px 12px 14px;display:flex;flex-direction:column;gap:2px;
-    position:sticky;top:0;align-self:start;
-    min-height:calc(100vh - 53px);max-height:100vh;overflow-y:auto;
+    position:sticky;top:var(--topH);align-self:start;
+    height:calc(100vh - var(--topH));overflow-y:auto;
   }
   .side-foot{margin-top:auto;padding-top:12px;border-top:1px solid var(--line)}
   .side .grp{
@@ -271,7 +273,7 @@
     .shell{grid-template-columns:1fr}
     .side{flex-direction:row;flex-wrap:wrap;border-right:0;
           border-bottom:1px solid var(--line);padding:10px;
-          position:static;min-height:0;max-height:none;overflow:visible}
+          position:static;height:auto;overflow:visible}
     .side-foot{margin-top:0;padding-top:0;border-top:0}
     .side .grp{display:none}
     .nav{width:auto}
@@ -534,6 +536,6 @@
   </div>
 </aside>
 
-<script src="/js/hrms.js?v=5"></script>
+<script src="/js/hrms.js?v=6"></script>
 </body>
 </html>
