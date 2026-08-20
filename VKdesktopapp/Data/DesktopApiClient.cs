@@ -636,6 +636,41 @@ internal static class DesktopApiClient
     internal record GateStampResult(string Stamp);
 
     /// The password is checked on the server; it is never returned to the app.
+    internal record ProfileLoginResult(bool Ok, long UserId, string Name);
+    internal record ProfileRequiredResult(bool Required, long Profiles);
+
+    internal static async Task<bool> ProfileLoginRequiredAsync()
+    {
+        try
+        {
+            var resp = await Send(HttpMethod.Get, "api/agency/desktop/profile-login/required");
+            if (!resp.IsSuccessStatusCode) return false;
+            var r = await resp.Content.ReadFromJsonAsync<ProfileRequiredResult>(_json);
+            return r?.Required == true;
+        }
+        catch { return false; }
+    }
+
+    internal static async Task<(bool Ok, string Name, string Error)> ProfileLoginAsync(string mobile, string password)
+    {
+        var resp = await Send(HttpMethod.Post, "api/agency/desktop/profile-login",
+            new { Mobile = mobile, Password = password });
+        if (resp.IsSuccessStatusCode)
+        {
+            var r = await resp.Content.ReadFromJsonAsync<ProfileLoginResult>(_json);
+            return (true, r?.Name ?? "", "");
+        }
+        string msg = "Wrong mobile number or password.";
+        try
+        {
+            var body = await resp.Content.ReadAsStringAsync();
+            using var doc = System.Text.Json.JsonDocument.Parse(body);
+            if (doc.RootElement.TryGetProperty("message", out var m)) msg = m.GetString() ?? msg;
+        }
+        catch { }
+        return (false, "", msg);
+    }
+
     internal static async Task<GateVerifyResult> VerifyGateAsync(string gate, string password)
     {
         var resp = await Send(HttpMethod.Post, "api/mgr/settings/verify-gate",
