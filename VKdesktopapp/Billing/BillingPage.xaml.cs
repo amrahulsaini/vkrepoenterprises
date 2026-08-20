@@ -117,6 +117,8 @@ public partial class BillingPage : Page
             : App.Firm.FirmName;
         txtAgencyRealName.Text = (_realAgencyName ?? "").ToUpperInvariant();
         txtInvoiceNo.IsReadOnly = true;
+        txtBranch.IsReadOnly = true;
+        txtBranch.Background = System.Windows.Media.Brushes.WhiteSmoke;
         RefreshCertStatus();
 
         try
