@@ -60,7 +60,7 @@ namespace CRMRSDesktopApp.Properties
 
         [UserScopedSetting]
         [DebuggerNonUserCode]
-        [DefaultSettingValue("12")]
+        [DefaultSettingValue("CUCfaQdVHN0bKbNPnvZ8PloDrIzbiNwnUcDFoBKk")]
         public string ApiKey
         {
             get => (string)this[nameof(ApiKey)];
