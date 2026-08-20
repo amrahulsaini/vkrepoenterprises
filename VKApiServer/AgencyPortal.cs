@@ -3378,8 +3378,8 @@ internal static class AgencyPortal
 <div style=""font-family:'Hanken Grotesk',Segoe UI,Arial,sans-serif;max-width:520px;margin:0 auto;padding:32px;color:#100f0c;background:#fbfaf7;"">
   <div style=""background:#ffffff;border-radius:16px;border:1px solid #ece9e2;padding:36px;"">
     <div style=""text-align:center;margin-bottom:26px;"">
-      <span style=""font-family:'Archivo',Segoe UI,Arial,sans-serif;font-weight:900;font-size:24px;letter-spacing:-0.5px;color:#100f0c;"">CRM<span style=""color:#ff5500;"">RS</span></span>
-      <div style=""font-size:9px;letter-spacing:3px;color:#ff5500;font-weight:700;margin-top:3px;"">RECOVERY SOFTWARE</div>
+      <img src=""https://crmrecoverysoftware.com/assets/crmrs-banner.png"" alt=""CRMRS"" width=""170"" style=""display:block;margin:0 auto;width:170px;max-width:62%;height:auto;border:0;outline:none;text-decoration:none;"" />
+      <div style=""font-size:9px;letter-spacing:3px;color:#ff5500;font-weight:700;margin-top:7px;"">RECOVERY SOFTWARE</div>
     </div>
     <h2 style=""margin:0 0 8px;font-family:'Archivo',Segoe UI,Arial,sans-serif;font-size:20px;font-weight:800;color:#100f0c;text-align:center;"">Verify your email</h2>
     <p style=""margin:0 0 24px;color:#5a574f;font-size:14px;text-align:center;"">Use the code below to verify your email address. It is valid for 10 minutes.</p>
@@ -3398,8 +3398,8 @@ internal static class AgencyPortal
 <div style=""font-family:'Hanken Grotesk',Segoe UI,Arial,sans-serif;max-width:520px;margin:0 auto;padding:32px;color:#100f0c;background:#fbfaf7;"">
   <div style=""background:#ffffff;border-radius:16px;border:1px solid #ece9e2;padding:36px;"">
     <div style=""text-align:center;margin-bottom:26px;"">
-      <span style=""font-family:'Archivo',Segoe UI,Arial,sans-serif;font-weight:900;font-size:24px;letter-spacing:-0.5px;color:#100f0c;"">CRM<span style=""color:#ff5500;"">RS</span></span>
-      <div style=""font-size:9px;letter-spacing:3px;color:#ff5500;font-weight:700;margin-top:3px;"">RECOVERY SOFTWARE</div>
+      <img src=""https://crmrecoverysoftware.com/assets/crmrs-banner.png"" alt=""CRMRS"" width=""170"" style=""display:block;margin:0 auto;width:170px;max-width:62%;height:auto;border:0;outline:none;text-decoration:none;"" />
+      <div style=""font-size:9px;letter-spacing:3px;color:#ff5500;font-weight:700;margin-top:7px;"">RECOVERY SOFTWARE</div>
     </div>
     <h2 style=""margin:0 0 10px;font-family:'Archivo',Segoe UI,Arial,sans-serif;font-size:22px;font-weight:800;color:#ff5500;text-align:center;"">You're approved 🎉</h2>
     <p style=""margin:0 0 18px;color:#100f0c;font-size:15px;text-align:center;""><strong>{System.Net.WebUtility.HtmlEncode(agencyName)}</strong>, your CRMRS agency account is now active.</p>
@@ -3418,8 +3418,8 @@ internal static class AgencyPortal
 <div style=""font-family:'Hanken Grotesk',Segoe UI,Arial,sans-serif;max-width:520px;margin:0 auto;padding:32px;color:#100f0c;background:#fbfaf7;"">
   <div style=""background:#ffffff;border-radius:16px;border:1px solid #ece9e2;padding:36px;"">
     <div style=""text-align:center;margin-bottom:26px;"">
-      <span style=""font-family:'Archivo',Segoe UI,Arial,sans-serif;font-weight:900;font-size:24px;letter-spacing:-0.5px;color:#100f0c;"">CRM<span style=""color:#ff5500;"">RS</span></span>
-      <div style=""font-size:9px;letter-spacing:3px;color:#ff5500;font-weight:700;margin-top:3px;"">RECOVERY SOFTWARE</div>
+      <img src=""https://crmrecoverysoftware.com/assets/crmrs-banner.png"" alt=""CRMRS"" width=""170"" style=""display:block;margin:0 auto;width:170px;max-width:62%;height:auto;border:0;outline:none;text-decoration:none;"" />
+      <div style=""font-size:9px;letter-spacing:3px;color:#ff5500;font-weight:700;margin-top:7px;"">RECOVERY SOFTWARE</div>
     </div>
     <h2 style=""margin:0 0 8px;font-family:'Archivo',Segoe UI,Arial,sans-serif;font-size:20px;font-weight:800;color:#100f0c;text-align:center;"">Administrator sign-in</h2>
     <p style=""margin:0 0 24px;color:#5a574f;font-size:14px;text-align:center;"">Use the code below to finish signing in to the manage page. It is valid for 10 minutes.</p>
