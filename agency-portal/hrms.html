@@ -22,22 +22,18 @@
     -webkit-font-smoothing:antialiased; line-height:1.5;
   }
   .top{
-    background:var(--ink); color:#fff; padding:14px 22px;
-    display:flex; align-items:center; gap:12px;
+    background:var(--paper); border-bottom:1px solid var(--line);
+    padding:13px 22px; display:flex; align-items:center; gap:13px;
   }
-  .brand{font-weight:800; letter-spacing:-.3px; font-size:17px}
-  .brand span{color:var(--orange)}
-  .brand-sub{
-    font-size:9px; letter-spacing:2.4px; color:var(--muted-2);
-    font-weight:700; margin-top:1px;
-  }
-  .top .sep{width:1px;height:26px;background:#33333b;margin:0 4px}
+  .logo{height:26px;width:auto;display:block}
+  .top .sep{width:1px;height:24px;background:var(--line);margin:0 3px}
   .top .mod{
-    font-size:11px;font-weight:700;letter-spacing:1.6px;text-transform:uppercase;
-    color:var(--orange);
+    font-size:10.5px;font-weight:750;letter-spacing:1.6px;text-transform:uppercase;
+    color:var(--orange-ink);background:var(--orange-wash);
+    border:1px solid #ffd9c2;border-radius:5px;padding:4px 9px;
   }
   .top .spacer{flex:1}
-  .top .who{font-size:12.5px;color:#b9b9c0}
+  .top .who{font-size:12.5px;color:var(--muted);font-weight:600}
   .wrap{max-width:940px;margin:0 auto;padding:40px 22px 64px}
   .card{
     background:var(--paper); border:1px solid var(--line);
@@ -126,20 +122,19 @@
 <body>
 
 <header class="top">
-  <div>
-    <div class="brand">CRM<span>RS</span></div>
-    <div class="brand-sub">RECOVERY SOFTWARE</div>
-  </div>
+  <img class="logo" src="/assets/crmrs-banner.png" alt="CRMRS">
   <div class="sep"></div>
   <div class="mod">HRMS</div>
   <div class="spacer"></div>
   <div class="who" id="who"></div>
-  <button class="btn btn-ghost hidden" id="logout" style="padding:7px 12px;font-size:12.5px;
-          border-color:#33333b;color:#b9b9c0;">Sign out</button>
+  <button class="btn btn-ghost hidden" id="logout"
+          style="padding:7px 12px;font-size:12.5px;">Sign out</button>
 </header>
 
 <section class="wrap auth" id="auth">
   <div class="card">
+    <img src="/assets/crmrs-banner.png" alt="CRMRS"
+         style="height:30px;width:auto;display:block;margin:0 0 18px;">
     <h1 id="auth-title">HRMS sign in</h1>
     <p class="sub" id="auth-sub">Checking this agency&hellip;</p>
 
