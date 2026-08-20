@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>HRMS — CRMRS</title>
+<link rel="icon" href="/assets/favicon.ico">
+<style>
+  :root{
+    --ink:#0d0d0f; --ink-2:#1a1a1e; --ink-3:#2a2a30;
+    --paper:#ffffff; --paper-2:#f7f7f8; --line:#e4e4e7;
+    --muted:#6b6b74; --muted-2:#9a9aa3;
+    --orange:#ff5500; --orange-ink:#cc3c00; --orange-wash:#fff4ee;
+    --radius:12px;
+    --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:var(--font); background:var(--paper-2); color:var(--ink);
+    -webkit-font-smoothing:antialiased; line-height:1.5;
+  }
+  .top{
+    background:var(--ink); color:#fff; padding:14px 22px;
+    display:flex; align-items:center; gap:12px;
+  }
+  .brand{font-weight:800; letter-spacing:-.3px; font-size:17px}
+  .brand span{color:var(--orange)}
+  .brand-sub{
+    font-size:9px; letter-spacing:2.4px; color:var(--muted-2);
+    font-weight:700; margin-top:1px;
+  }
+  .top .sep{width:1px;height:26px;background:#33333b;margin:0 4px}
+  .top .mod{
+    font-size:11px;font-weight:700;letter-spacing:1.6px;text-transform:uppercase;
+    color:var(--orange);
+  }
+  .top .spacer{flex:1}
+  .top .who{font-size:12.5px;color:#b9b9c0}
+  .wrap{max-width:940px;margin:0 auto;padding:40px 22px 64px}
+  .card{
+    background:var(--paper); border:1px solid var(--line);
+    border-radius:var(--radius); padding:28px;
+  }
+  .auth{max-width:430px;margin:6vh auto 0}
+  h1{font-size:22px;font-weight:800;letter-spacing:-.3px;margin:0 0 6px}
+  h2{font-size:17px;font-weight:700;margin:0}
+  .sub{color:var(--muted);font-size:13.5px;margin:0 0 22px}
+  label{display:block;font-size:10.5px;font-weight:700;letter-spacing:1px;
+        text-transform:uppercase;color:var(--muted);margin-bottom:7px}
+  .field{
+    width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:9px;
+    font-family:var(--font);font-size:15px;color:var(--ink);background:var(--paper);
+    transition:border-color .15s,box-shadow .15s;
+  }
+  .field:focus{outline:none;border-color:var(--orange);box-shadow:0 0 0 3px rgba(255,85,0,.12)}
+  .otp{
+    text-align:center;letter-spacing:.55em;font-size:24px;font-weight:700;
+    font-variant-numeric:tabular-nums;padding-left:.55em;
+  }
+  .btn{
+    display:inline-flex;align-items:center;justify-content:center;gap:8px;
+    padding:12px 18px;border-radius:9px;border:1px solid transparent;
+    font-family:var(--font);font-size:14px;font-weight:650;cursor:pointer;
+    transition:background .15s,border-color .15s,opacity .15s;
+  }
+  .btn-primary{background:var(--ink);color:#fff}
+  .btn-primary:hover:not(:disabled){background:var(--ink-2)}
+  .btn-accent{background:var(--orange);color:#fff}
+  .btn-accent:hover:not(:disabled){background:var(--orange-ink)}
+  .btn-ghost{background:transparent;color:var(--muted);border-color:var(--line)}
+  .btn-ghost:hover:not(:disabled){color:var(--ink);border-color:var(--ink-3)}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+  .btn-block{width:100%}
+  .msg{font-size:13px;margin-top:14px;min-height:18px}
+  .msg.err{color:#b3261e}
+  .msg.ok{color:var(--orange-ink)}
+  .hint{font-size:12.5px;color:var(--muted);margin-top:14px}
+  .link{background:none;border:0;padding:0;color:var(--orange-ink);
+        font:inherit;font-size:12.5px;cursor:pointer;text-decoration:underline}
+  .hidden{display:none !important}
+  .mail{
+    display:flex;align-items:center;gap:10px;padding:12px 14px;
+    background:var(--orange-wash);border:1px solid #ffd9c2;border-radius:9px;
+    font-size:13.5px;color:var(--orange-ink);margin-bottom:20px;
+  }
+  .mail svg{flex:none}
+  .head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:26px}
+  .head .t{font-size:24px;font-weight:800;letter-spacing:-.4px;margin:0}
+  .head .s{color:var(--muted);font-size:13.5px;margin:4px 0 0}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(268px,1fr));gap:16px}
+  .tile{
+    background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);
+    padding:22px;display:flex;flex-direction:column;gap:14px;
+    transition:border-color .15s,transform .15s;
+  }
+  .tile.live:hover{border-color:var(--orange);transform:translateY(-2px)}
+  .tile .ic{
+    width:42px;height:42px;border-radius:10px;display:flex;align-items:center;
+    justify-content:center;background:var(--ink);color:#fff;
+  }
+  .tile.live .ic{background:var(--orange)}
+  .tile.off{opacity:.62}
+  .tile.off .ic{background:var(--paper-2);color:var(--muted-2);border:1px solid var(--line)}
+  .tile h3{margin:0;font-size:15.5px;font-weight:700}
+  .tile p{margin:0;font-size:13px;color:var(--muted);flex:1}
+  .tag{
+    display:inline-flex;align-items:center;gap:5px;align-self:flex-start;
+    font-size:10px;font-weight:750;letter-spacing:.9px;text-transform:uppercase;
+    padding:3px 8px;border-radius:5px;
+  }
+  .tag-live{background:var(--orange-wash);color:var(--orange-ink)}
+  .tag-off{background:var(--paper-2);color:var(--muted);border:1px solid var(--line)}
+  .dot{width:5px;height:5px;border-radius:50%;background:currentColor}
+  .foot{margin-top:34px;padding-top:18px;border-top:1px solid var(--line);
+        font-size:12px;color:var(--muted-2);display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+  .spin{
+    width:14px;height:14px;border:2px solid rgba(255,255,255,.35);
+    border-top-color:#fff;border-radius:50%;animation:sp .6s linear infinite;
+  }
+  @keyframes sp{to{transform:rotate(360deg)}}
+  @media(max-width:560px){.wrap{padding:24px 16px 48px}.card{padding:22px}}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div>
+    <div class="brand">CRM<span>RS</span></div>
+    <div class="brand-sub">RECOVERY SOFTWARE</div>
+  </div>
+  <div class="sep"></div>
+  <div class="mod">HRMS</div>
+  <div class="spacer"></div>
+  <div class="who" id="who"></div>
+  <button class="btn btn-ghost hidden" id="logout" style="padding:7px 12px;font-size:12.5px;
+          border-color:#33333b;color:#b9b9c0;">Sign out</button>
+</header>
+
+<section class="wrap auth" id="auth">
+  <div class="card">
+    <h1 id="auth-title">HRMS sign in</h1>
+    <p class="sub" id="auth-sub">Checking this agency&hellip;</p>
+
+    <div id="step-send" class="hidden">
+      <div class="mail">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="2.5" y="4.5" width="19" height="15" rx="2.5"/><path d="m3 6.5 9 6 9-6"/>
+        </svg>
+        <span>A one-time code will be sent to <strong id="mask"></strong></span>
+      </div>
+      <button class="btn btn-accent btn-block" id="send">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21.5 2.5 11 13"/><path d="M21.5 2.5 15 21.5l-4-8.5-8.5-4Z"/>
+        </svg>
+        Send code
+      </button>
+    </div>
+
+    <div id="step-code" class="hidden">
+      <label for="code">Enter the 6-digit code</label>
+      <input class="field otp" id="code" inputmode="numeric" autocomplete="one-time-code"
+             maxlength="6" placeholder="000000">
+      <button class="btn btn-primary btn-block" id="verify" style="margin-top:14px;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 6 9 17l-5-5"/>
+        </svg>
+        Verify &amp; continue
+      </button>
+      <div class="hint">
+        Didn&rsquo;t get it? <button class="link" id="resend">Send it again</button>
+      </div>
+    </div>
+
+    <div class="msg" id="auth-msg"></div>
+  </div>
+</section>
+
+<section class="wrap hidden" id="app">
+  <div class="head">
+    <div>
+      <h1 class="t" id="ag-name">&mdash;</h1>
+      <p class="s">Human resource management</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div style="margin-bottom:18px;">
+      <h2>Profiles</h2>
+      <p class="sub" style="margin:4px 0 0;">
+        Create and manage the staff profiles that sign in to CRMRS.
+      </p>
+    </div>
+
+    <div class="grid">
+      <div class="tile live" id="tile-desktop">
+        <div class="ic">
+          <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2.5" y="3.5" width="19" height="13" rx="2"/><path d="M8 20.5h8M12 16.5v4"/>
+          </svg>
+        </div>
+        <span class="tag tag-live"><span class="dot"></span>Available</span>
+        <h3>CRMRS Desktop</h3>
+        <p>Create profiles for the Windows desktop application.</p>
+        <button class="btn btn-accent" id="go-desktop">
+          Create profiles
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M5 12h13M12.5 5.5 19 12l-6.5 6.5"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="tile off" id="tile-android">
+        <div class="ic">
+          <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M11 18.5h2"/>
+          </svg>
+        </div>
+        <span class="tag tag-off">Not available yet</span>
+        <h3>Android</h3>
+        <p>Profiles for the mobile app. Coming in a later release.</p>
+        <button class="btn btn-ghost" disabled>Unavailable</button>
+      </div>
+    </div>
+
+    <div class="foot">
+      <span>Signed in with a one-time code sent to your registered email.</span>
+      <span>&copy; CRMRS</span>
+    </div>
+  </div>
+</section>
+
+<script>
+(function () {
+  'use strict';
+  var API  = 'https://api.crmrecoverysoftware.com/api/agency';
+  var slug = decodeURIComponent((location.pathname.match(/\/hrms\/([^\/]+)/) || [])[1] || '');
+  var KEY  = 'crmrs_hrms_' + slug;
+
+  var $ = function (id) { return document.getElementById(id); };
+  function show(el, on) { el.classList.toggle('hidden', !on); }
+  function say(text, kind) {
+    var m = $('auth-msg');
+    m.textContent = text || '';
+    m.className = 'msg' + (kind ? ' ' + kind : '');
+  }
+  function busy(btn, on, label) {
+    btn.disabled = on;
+    if (on) { btn.dataset.html = btn.innerHTML; btn.innerHTML = '<span class="spin"></span>' + (label || ''); }
+    else if (btn.dataset.html) { btn.innerHTML = btn.dataset.html; }
+  }
+  function token(v) {
+    if (v === undefined) { try { return localStorage.getItem(KEY) || ''; } catch (e) { return ''; } }
+    try { v ? localStorage.setItem(KEY, v) : localStorage.removeItem(KEY); } catch (e) {}
+  }
+
+  async function call(path, opts) {
+    opts = opts || {};
+    var headers = { 'Content-Type': 'application/json' };
+    var t = token();
+    if (t) headers['X-Hrms-Token'] = t;
+    var r = await fetch(API + path, {
+      method: opts.method || 'GET',
+      headers: headers,
+      body: opts.body ? JSON.stringify(opts.body) : undefined
+    });
+    var data = {};
+    try { data = await r.json(); } catch (e) {}
+    if (!r.ok) throw new Error(data.message || ('Request failed (' + r.status + ')'));
+    return data;
+  }
+
+  function enterApp(info) {
+    show($('auth'), false);
+    show($('app'), true);
+    show($('logout'), true);
+    $('ag-name').textContent = info.agencyName || '';
+    $('who').textContent = info.agencyName || '';
+    document.title = (info.agencyName ? info.agencyName + ' — ' : '') + 'HRMS — CRMRS';
+  }
+
+  (async function boot() {
+    if (!slug) { $('auth-sub').textContent = 'No agency in the address.'; return; }
+
+    if (token()) {
+      try { return enterApp(await call('/hrms/me')); }
+      catch (e) { token(''); }
+    }
+
+    try {
+      var r = await call('/hrms/status?slug=' + encodeURIComponent(slug));
+      $('auth-title').textContent = r.agencyName || 'HRMS sign in';
+      $('auth-sub').textContent = 'Verify it is you to open HRMS.';
+      $('mask').textContent = r.email || '';
+      show($('step-send'), true);
+    } catch (e) {
+      $('auth-sub').textContent = e.message || 'HRMS is not available for this agency.';
+    }
+  })();
+
+  async function sendCode(btn) {
+    busy(btn, true, ' Sending');
+    say('');
+    try {
+      var r = await call('/hrms/otp/request', { method: 'POST', body: { slug: slug } });
+      $('mask').textContent = r.email || '';
+      show($('step-send'), false);
+      show($('step-code'), true);
+      say('Code sent to ' + (r.email || 'your email') + '.', 'ok');
+      $('code').focus();
+    } catch (e) {
+      say(e.message, 'err');
+    } finally { busy(btn, false); }
+  }
+
+  $('send').addEventListener('click', function () { sendCode($('send')); });
+  $('resend').addEventListener('click', function () { sendCode($('verify')); });
+
+  $('code').addEventListener('input', function () {
+    this.value = this.value.replace(/\D/g, '').slice(0, 6);
+    if (this.value.length === 6) $('verify').click();
+  });
+
+  $('verify').addEventListener('click', async function () {
+    var code = $('code').value.trim();
+    if (code.length !== 6) { say('Enter all 6 digits.', 'err'); return; }
+    busy($('verify'), true, ' Verifying');
+    say('');
+    try {
+      var r = await call('/hrms/otp/verify', { method: 'POST', body: { slug: slug, code: code } });
+      token(r.token);
+      enterApp(r);
+    } catch (e) {
+      say(e.message, 'err');
+      $('code').value = '';
+      $('code').focus();
+    } finally { busy($('verify'), false); }
+  });
+
+  $('logout').addEventListener('click', async function () {
+    try { await call('/hrms/logout', { method: 'POST' }); } catch (e) {}
+    token('');
+    location.reload();
+  });
+
+  $('go-desktop').addEventListener('click', function () {
+    alert('Desktop profile creation is being built — this is where it will open.');
+  });
+})();
+</script>
+</body>
+</html>

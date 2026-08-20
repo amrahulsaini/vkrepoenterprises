@@ -199,6 +199,7 @@ public partial class MainWindow : Window
         var tag = (btn.Tag ?? string.Empty).ToString();
         switch (tag)
         {
+            case "Hrms": OpenHrms(); break;
             case "Home": LoadPage(_homePage); break;
             case "Search": LoadPage(_findVehiclePage); break;
             case "Finances": LoadPage(_financesManagerPage); break;
@@ -342,6 +343,33 @@ public partial class MainWindow : Window
         if (FindName("lblFirmName")    is TextBlock nameTb)   nameTb.Text   = name;
         if (FindName("lblFirmMobile")  is TextBlock mobileTb) mobileTb.Text = mobile;
         if (FindName("lblFirmAddress") is TextBlock addrTb)   addrTb.Text   = addr;
+
+        if (FindName("tileHrms") is Button hrmsTile)
+            hrmsTile.Visibility = (u?.HrmsEnabled == true) ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void OpenHrms()
+    {
+        var u = App.SignedAppUser;
+        if (u == null || !u.HrmsEnabled)
+        {
+            MessageBox.Show("HRMS is not enabled for this agency. Contact CRMRS to enable it.",
+                "HRMS", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(u.Slug))
+        {
+            MessageBox.Show("Could not determine this agency. Sign out and sign in again.",
+                "HRMS", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+        var url = "https://agency.crmrecoverysoftware.com/hrms/" + Uri.EscapeDataString(u.Slug);
+        try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true }); }
+        catch (Exception ex)
+        {
+            MessageBox.Show("Could not open your browser: " + ex.Message,
+                "HRMS", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
     }
 
     private async void LoadAgencyLogo()
