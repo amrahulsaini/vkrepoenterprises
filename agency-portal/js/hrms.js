@@ -112,7 +112,6 @@
     $('chip-logo').src = logoUrl(info.logoPath);
     document.title = (info.agencyName ? info.agencyName + ' — ' : '') + 'HRMS — CRMRS';
     fillDrawer();
-    loadProfiles();
     if (tick) clearInterval(tick);
     tick = setInterval(renderCountdown, 30000);
   }
@@ -132,6 +131,7 @@
       b.classList.add('on');
       var page = b.getAttribute('data-page');
       show($('page-profiles'), page === 'profiles');
+      show($('page-desktop'), false);
       show($('page-stub'), page !== 'profiles');
       if (page !== 'profiles') $('stub-title').textContent = LABELS[page] || page;
     });
@@ -249,6 +249,17 @@
       $('pf-msg').className = 'msg err';
     } finally { btn.disabled = false; }
   }
+
+  $('go-desktop').addEventListener('click', function () {
+    show($('page-profiles'), false);
+    show($('page-desktop'), true);
+    if (!PROFILES.length) loadProfiles();
+  });
+
+  $('pf-back').addEventListener('click', function () {
+    show($('page-desktop'), false);
+    show($('page-profiles'), true);
+  });
 
   $('pf-q').addEventListener('input', renderProfiles);
   $('pf-save').addEventListener('click', function () { savePassword(false); });
