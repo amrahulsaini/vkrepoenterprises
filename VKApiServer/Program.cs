@@ -2561,6 +2561,12 @@ app.MapPost("/api/mgr/billing/submissions/{id:long}/fields", async (HttpContext 
         if (dto.CollectionUpdate  != null) M("collection_update", dto.CollectionUpdate);
         if (dto.Remark            != null) M("remark", dto.Remark);
         if (dto.AddlChargesAmount.HasValue) M("addl_charges_amount", dto.AddlChargesAmount.Value);
+        if (dto.ParkingYardMobile    != null) M("parking_yard_mobile", dto.ParkingYardMobile);
+        if (dto.LoadDetails          != null) M("load_details", dto.LoadDetails);
+        if (dto.AddlChargesNotes     != null) M("addl_charges_notes", dto.AddlChargesNotes);
+        if (dto.ConfirmationByName   != null) M("confirmation_by_name", dto.ConfirmationByName);
+        if (dto.ConfirmationByMobile != null) M("confirmation_by_mobile", dto.ConfirmationByMobile);
+        if (dto.ExecutiveName        != null) M("executive_name", dto.ExecutiveName);
 
         if (sets.Count == 0) return Results.Ok(new { success = true });
 
@@ -4432,7 +4438,9 @@ record MgrEditFieldsDto(
     string? CustomerName = null, string? FinanceName = null, string? BranchName = null,
     string? LoanNo = null, string? AgentName = null, string? ParkingYardName = null,
     string? VehicleNo = null, string? ChassisNo = null, string? Model = null, string? EngineNo = null,
-    string? CollectionUpdate = null, string? Remark = null, decimal? AddlChargesAmount = null);
+    string? CollectionUpdate = null, string? Remark = null, decimal? AddlChargesAmount = null,
+    string? ParkingYardMobile = null, string? LoadDetails = null, string? AddlChargesNotes = null,
+    string? ConfirmationByName = null, string? ConfirmationByMobile = null, string? ExecutiveName = null);
 record MgrPaymentDto(
     string? AcctHolderName = null, string? BankName = null, string? BankAccountNo = null,
     string? IfscCode = null, string? UtrNo = null, string? PaymentDate = null,
