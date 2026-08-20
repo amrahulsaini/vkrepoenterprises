@@ -13,6 +13,11 @@ public partial class BillingShellWindow : Window
     public BillingShellWindow()
     {
         InitializeComponent();
+        Loaded += async (_, __) =>
+        {
+            if (!await ProfileGate.EnsureAsync(this, "Billing")) { Close(); return; }
+            ProfileGate.Stamp(this);
+        };
         lblTitle.Text = AgencyDisplayName();
         LoadAgencyLogo();
         Loaded += (_, __) => PageContainer.Navigate(new BillingLoginPage());

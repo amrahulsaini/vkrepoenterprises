@@ -17,6 +17,14 @@ public partial class App : Application
 
     public static SignedAppUser? SignedAppUser { get; set; }
 
+    public static ProfileSession? ProfileUser { get; set; }
+
+    public sealed class ProfileSession
+    {
+        public string Name { get; init; } = "";
+        public string Mobile { get; init; } = "";
+    }
+
     public static string LoginEmail { get; set; } = "";
 
     public static Firm Firm => new Firm

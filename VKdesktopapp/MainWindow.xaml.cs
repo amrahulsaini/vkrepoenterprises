@@ -39,6 +39,11 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        Loaded += async (_, __) =>
+        {
+            if (!await ProfileGate.EnsureAsync(this, "Super Admin")) { Close(); return; }
+            ProfileGate.Stamp(this);
+        };
 
         _homePage = new HomePage();
         _findVehiclePage = new FindVehiclePage();
