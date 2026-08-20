@@ -39,10 +39,52 @@
     background:var(--paper); border:1px solid var(--line);
     border-radius:var(--radius); padding:28px;
   }
-  .auth{max-width:430px;margin:6vh auto 0}
+  .auth{max-width:412px;margin:0 auto;padding:min(11vh,90px) 22px 60px}
   h1{font-size:22px;font-weight:800;letter-spacing:-.3px;margin:0 0 6px}
   h2{font-size:17px;font-weight:700;margin:0}
   .sub{color:var(--muted);font-size:13.5px;margin:0 0 22px}
+
+  /* ── sign-in identity block ───────────────────────────────── */
+  .idblk{text-align:center;padding-bottom:22px;margin-bottom:22px;
+         border-bottom:1px solid var(--line)}
+  .idlogo{
+    width:66px;height:66px;border-radius:16px;object-fit:contain;
+    background:var(--paper-2);border:1px solid var(--line);
+    padding:7px;margin:0 auto 14px;display:block;
+  }
+  .idname{
+    font-size:19px;font-weight:800;letter-spacing:-.35px;color:var(--ink);
+    margin:0;line-height:1.28;word-break:break-word;
+  }
+  .idmeta{
+    display:inline-flex;align-items:center;gap:6px;margin-top:9px;
+    font-size:10px;font-weight:750;letter-spacing:1.2px;text-transform:uppercase;
+    color:var(--orange-ink);background:var(--orange-wash);
+    border:1px solid #ffd9c2;border-radius:999px;padding:4px 11px;
+  }
+  .step-t{font-size:14.5px;font-weight:700;margin:0 0 5px;color:var(--ink)}
+  .step-s{font-size:13px;color:var(--muted);margin:0 0 18px;line-height:1.5}
+  .step-s b{color:var(--ink);font-weight:650}
+
+  /* ── full-page states (loading / error) ───────────────────── */
+  .state{text-align:center;padding:8px 4px 4px}
+  .state .badge-ic{
+    width:54px;height:54px;border-radius:14px;margin:0 auto 16px;
+    display:flex;align-items:center;justify-content:center;
+    background:var(--paper-2);border:1px solid var(--line);color:var(--muted);
+  }
+  .state.warn .badge-ic{background:var(--orange-wash);border-color:#ffd9c2;color:var(--orange-ink)}
+  .state h1{margin:0 0 8px}
+  .state p{color:var(--muted);font-size:13.5px;margin:0;line-height:1.6}
+  .state .addr{
+    display:block;margin-top:16px;padding:11px 13px;border-radius:8px;
+    background:var(--paper-2);border:1px solid var(--line);
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    font-size:12px;color:var(--ink-2);word-break:break-all;text-align:left;
+  }
+  .skel{height:12px;border-radius:6px;background:var(--paper-2);
+        animation:pulse 1.1s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
   label{display:block;font-size:10.5px;font-weight:700;letter-spacing:1px;
         text-transform:uppercase;color:var(--muted);margin-bottom:7px}
   .field{
@@ -222,45 +264,77 @@
 
 <section class="wrap auth" id="auth">
   <div class="card">
-    <img src="/assets/crmrs-banner.png" alt="CRMRS"
-         style="height:30px;width:auto;display:block;margin:0 0 18px;">
-    <h1 id="auth-title">HRMS sign in</h1>
-    <p class="sub" id="auth-sub">Checking this agency&hellip;</p>
 
-    <div id="step-send" class="hidden">
-      <div class="mail">
-        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    <!-- loading -->
+    <div id="st-load" class="state">
+      <div class="badge-ic">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
              stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="2.5" y="4.5" width="19" height="15" rx="2.5"/><path d="m3 6.5 9 6 9-6"/>
+          <circle cx="11" cy="11" r="7"/><path d="m20 20-3.6-3.6"/>
         </svg>
-        <span>A one-time code will be sent to <strong id="mask"></strong></span>
       </div>
-      <button class="btn btn-accent btn-block" id="send">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-             stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M21.5 2.5 11 13"/><path d="M21.5 2.5 15 21.5l-4-8.5-8.5-4Z"/>
-        </svg>
-        Send code
-      </button>
+      <div class="skel" style="width:60%;margin:0 auto 9px"></div>
+      <div class="skel" style="width:40%;margin:0 auto"></div>
     </div>
 
-    <div id="step-code" class="hidden">
-      <label for="code">Enter the 6-digit code</label>
-      <input class="field otp" id="code" inputmode="numeric" autocomplete="one-time-code"
-             maxlength="6" placeholder="000000">
-      <button class="btn btn-primary btn-block" id="verify" style="margin-top:14px;">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M20 6 9 17l-5-5"/>
-        </svg>
-        Verify &amp; continue
-      </button>
-      <div class="hint">
-        Didn&rsquo;t get it? <button class="link" id="resend">Send it again</button>
+    <!-- sign in -->
+    <div id="st-signin" class="hidden">
+      <div class="idblk">
+        <img class="idlogo" id="id-logo" src="/assets/crmrs-logo.webp" alt="">
+        <h1 class="idname" id="id-name">&mdash;</h1>
+        <span class="idmeta">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="4" y="10.5" width="16" height="10.5" rx="2"/>
+            <path d="M8 10.5V7a4 4 0 0 1 8 0v3.5"/>
+          </svg>
+          HRMS sign in
+        </span>
       </div>
+
+      <div id="step-send">
+        <p class="step-t">Verify it&rsquo;s you</p>
+        <p class="step-s">
+          We&rsquo;ll email a one-time code to the agency&rsquo;s registered address,
+          <b id="mask">&mdash;</b>.
+        </p>
+        <button class="btn btn-accent btn-block" id="send">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21.5 2.5 11 13"/><path d="M21.5 2.5 15 21.5l-4-8.5-8.5-4Z"/>
+          </svg>
+          Send code
+        </button>
+      </div>
+
+      <div id="step-code" class="hidden">
+        <p class="step-t">Enter the code</p>
+        <p class="step-s">Sent to <b id="mask2">&mdash;</b>. It expires in 10 minutes.</p>
+        <input class="field otp" id="code" inputmode="numeric" autocomplete="one-time-code"
+               maxlength="6" placeholder="000000" aria-label="6-digit code">
+        <button class="btn btn-primary btn-block" id="verify" style="margin-top:12px;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 6 9 17l-5-5"/>
+          </svg>
+          Verify &amp; continue
+        </button>
+        <div class="hint">
+          Didn&rsquo;t get it? <button class="link" id="resend">Send a new code</button>
+        </div>
+      </div>
+
+      <div class="msg" id="auth-msg"></div>
     </div>
 
-    <div class="msg" id="auth-msg"></div>
+    <!-- error / unavailable -->
+    <div id="st-error" class="state warn hidden">
+      <div class="badge-ic" id="er-ic"></div>
+      <h1 id="er-title">&mdash;</h1>
+      <p id="er-body"></p>
+      <code class="addr hidden" id="er-addr"></code>
+    </div>
+
   </div>
 </section>
 
@@ -400,7 +474,13 @@
     });
     var data = {};
     try { data = await r.json(); } catch (e) {}
-    if (!r.ok) throw new Error(data.message || ('Request failed (' + r.status + ')'));
+    if (!r.ok) {
+      var err = new Error(data.message || ('Request failed (' + r.status + ')'));
+      err.code = data.code || '';
+      err.status = r.status;
+      err.agencyName = data.agencyName || '';
+      throw err;
+    }
     return data;
   }
 
@@ -505,23 +585,77 @@
     if (e.key === 'Escape') openDrawer(false);
   });
 
+  var IC = {
+    search:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.6-3.6"/></svg>',
+    lock:  '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10.5" width="16" height="10.5" rx="2"/><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5"/></svg>',
+    link:  '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13.5a4 4 0 0 0 6 .5l2.5-2.5a4 4 0 0 0-5.7-5.7L11.5 7"/><path d="M14 10.5a4 4 0 0 0-6-.5L5.5 12.5a4 4 0 0 0 5.7 5.7L12.5 17"/></svg>',
+    warn:  '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8.5v5"/><path d="M12 17h.01"/><path d="M10.3 3.9 1.9 18.4A2 2 0 0 0 3.6 21.4h16.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>',
+    plug:  '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2.5v6M15 2.5v6"/><path d="M6 8.5h12v3a6 6 0 0 1-12 0Z"/><path d="M12 17.5v4"/></svg>'
+  };
+
+  function showState(which) {
+    show($('st-load'),   which === 'load');
+    show($('st-signin'), which === 'signin');
+    show($('st-error'),  which === 'error');
+  }
+
+  function fail(icon, title, body, addr) {
+    $('er-ic').innerHTML  = IC[icon] || IC.warn;
+    $('er-title').textContent = title;
+    $('er-body').innerHTML = body;
+    if (addr) { $('er-addr').textContent = addr; show($('er-addr'), true); }
+    else show($('er-addr'), false);
+    showState('error');
+    document.title = title + ' — HRMS — CRMRS';
+  }
+
   (async function boot() {
-    if (!slug) { $('auth-sub').textContent = 'No agency in the address.'; return; }
+    showState('load');
+
+    if (!slug) {
+      fail('link', 'Add your agency to the address',
+        'This link is missing the agency it belongs to. Open HRMS from the CRMRS desktop app, ' +
+        'or use the full address your administrator gave you — it ends with your agency name:',
+        location.origin + '/hrms/your-agency');
+      return;
+    }
 
     if (token()) {
       try { return enterApp(await call('/hrms/me')); }
       catch (e) { token(''); }
     }
 
+    var r;
     try {
-      var r = await call('/hrms/status?slug=' + encodeURIComponent(slug));
-      $('auth-title').textContent = r.agencyName || 'HRMS sign in';
-      $('auth-sub').textContent = 'Verify it is you to open HRMS.';
-      $('mask').textContent = r.email || '';
-      show($('step-send'), true);
+      r = await call('/hrms/status?slug=' + encodeURIComponent(slug));
     } catch (e) {
-      $('auth-sub').textContent = e.message || 'HRMS is not available for this agency.';
+      var code = e.code || '';
+      if (code === 'not_found') {
+        fail('search', 'We couldn’t find that agency',
+          'Nothing is registered under this name. Check the address for a typo, ' +
+          'or open HRMS from the CRMRS desktop app so the link is filled in for you.',
+          location.origin + '/hrms/' + slug);
+      } else if (code === 'not_enabled') {
+        fail('plug', 'HRMS isn’t switched on',
+          'HRMS is not enabled for <b>' + esc(e.agencyName || slug) + '</b> yet. ' +
+          'Contact CRMRS to have it turned on for your agency.');
+      } else if (code === 'not_active') {
+        fail('lock', 'This agency isn’t active',
+          'The account for <b>' + esc(e.agencyName || slug) + '</b> is not active, so HRMS ' +
+          'cannot be opened. Please contact CRMRS support.');
+      } else {
+        fail('warn', 'We can’t reach HRMS right now',
+          esc(e.message || 'Please check your connection and try again in a moment.'));
+      }
+      return;
     }
+
+    $('id-name').textContent = r.agencyName || '';
+    $('id-logo').src = logoUrl(r.logoPath);
+    $('mask').textContent = r.email || '';
+    $('mask2').textContent = r.email || '';
+    document.title = (r.agencyName ? r.agencyName + ' — ' : '') + 'HRMS — CRMRS';
+    showState('signin');
   })();
 
   async function sendCode(btn) {
@@ -530,9 +664,10 @@
     try {
       var r = await call('/hrms/otp/request', { method: 'POST', body: { slug: slug } });
       $('mask').textContent = r.email || '';
+      $('mask2').textContent = r.email || '';
       show($('step-send'), false);
       show($('step-code'), true);
-      say('Code sent to ' + (r.email || 'your email') + '.', 'ok');
+      say('Code sent.', 'ok');
       $('code').focus();
     } catch (e) {
       say(e.message, 'err');
