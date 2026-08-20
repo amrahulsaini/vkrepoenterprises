@@ -379,8 +379,6 @@ public partial class MainWindow : Window
             var u = App.SignedAppUser;
             if (u == null || !u.IsAgency) return;
 
-            // Refresh name/mobile/address/logo from the server so a change made
-            // elsewhere (portal or Server Settings) shows here without re-login.
             var logoPath = u.LogoPath;
             try
             {
@@ -392,8 +390,6 @@ public partial class MainWindow : Window
                     u.Mobile1 = p.Mobile1 ?? "";
                     u.Address = p.Address ?? "";
 
-                    // Set labels straight from the server so a value the agency
-                    // cleared shows as blank instead of the App.Firm fallback.
                     if (FindName("lblFirmName")    is TextBlock nameTb)
                         nameTb.Text   = string.IsNullOrWhiteSpace(p.Name) ? App.Firm.FirmName : p.Name;
                     if (FindName("lblFirmMobile")  is TextBlock mobileTb) mobileTb.Text = p.Mobile1 ?? "";

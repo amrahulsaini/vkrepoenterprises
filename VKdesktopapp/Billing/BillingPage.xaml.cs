@@ -404,8 +404,6 @@ public partial class BillingPage : Page
         txtBranch.Text    = Up(string.IsNullOrWhiteSpace(rec.BranchFromExcel) ? rec.BranchName : rec.BranchFromExcel);
     }
 
-    /// <head office prefix>_<invoice no>, e.g. CHOLA_1042.docx. Falls back to
-    /// the previous timestamped name when either part is unavailable.
     private string BillFileName(string fallback)
     {
         var office = (cmbFinance.SelectedItem as FinanceOption)?.Name ?? "";

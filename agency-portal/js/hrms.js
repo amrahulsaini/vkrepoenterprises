@@ -1,0 +1,288 @@
+(function () {
+  'use strict';
+  var API  = 'https://api.crmrecoverysoftware.com/api/agency';
+  var slug = decodeURIComponent((location.pathname.match(/\/hrms\/([^\/]+)/) || [])[1] || '');
+  var KEY  = 'crmrs_hrms_' + slug;
+
+  var $ = function (id) { return document.getElementById(id); };
+  function show(el, on) { el.classList.toggle('hidden', !on); }
+  function say(text, kind) {
+    var m = $('auth-msg');
+    m.textContent = text || '';
+    m.className = 'msg' + (kind ? ' ' + kind : '');
+  }
+  function busy(btn, on, label) {
+    btn.disabled = on;
+    if (on) { btn.dataset.html = btn.innerHTML; btn.innerHTML = '<span class="spin"></span>' + (label || ''); }
+    else if (btn.dataset.html) { btn.innerHTML = btn.dataset.html; }
+  }
+  function token(v) {
+    if (v === undefined) { try { return localStorage.getItem(KEY) || ''; } catch (e) { return ''; } }
+    try { v ? localStorage.setItem(KEY, v) : localStorage.removeItem(KEY); } catch (e) {}
+  }
+
+  async function call(path, opts) {
+    opts = opts || {};
+    var headers = { 'Content-Type': 'application/json' };
+    var t = token();
+    if (t) headers['X-Hrms-Token'] = t;
+    var r = await fetch(API + path, {
+      method: opts.method || 'GET',
+      headers: headers,
+      body: opts.body ? JSON.stringify(opts.body) : undefined
+    });
+    var data = {};
+    try { data = await r.json(); } catch (e) {}
+    if (!r.ok) {
+      var err = new Error(data.message || ('Request failed (' + r.status + ')'));
+      err.code = data.code || '';
+      err.status = r.status;
+      err.agencyName = data.agencyName || '';
+      err.retryAfter = data.retryAfter || 0;
+      throw err;
+    }
+    return data;
+  }
+
+  var ME = null, tick = null;
+
+  function logoUrl(p) {
+    if (!p) return '/assets/crmrs-logo.webp';
+    if (/^https?:\/\//i.test(p)) return p;
+    return 'https://api.crmrecoverysoftware.com' + (p.charAt(0) === '/' ? '' : '/') + p;
+  }
+
+  function esc(v) {
+    return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) {
+      return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c];
+    });
+  }
+
+  function row(k, v) {
+    if (!v) return '';
+    return '<div class="kv"><div class="k">' + esc(k) + '</div><div class="v">' + esc(v) + '</div></div>';
+  }
+
+  function renderCountdown() {
+    if (!ME || !ME.sessionExpiresAt) return;
+    var ms = new Date(ME.sessionExpiresAt).getTime() - Date.now();
+    if (ms <= 0) {
+      $('dr-left').textContent = 'Expired';
+      $('dr-exp').textContent = 'Sign in again to continue.';
+      return;
+    }
+    var mins = Math.floor(ms / 60000), h = Math.floor(mins / 60), m = mins % 60;
+    $('dr-left').textContent = (h > 0 ? h + 'h ' : '') + m + 'm left';
+    $('dr-exp').textContent = 'Expires ' + new Date(ME.sessionExpiresAt)
+      .toLocaleString([], { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' }) +
+      ' · ' + (ME.sessionHours || 12) + '-hour session';
+  }
+
+  function fillDrawer() {
+    if (!ME) return;
+    $('dr-logo').src  = logoUrl(ME.logoPath);
+    $('dr-name').textContent = ME.agencyName || '';
+    $('dr-slug').textContent = ME.slug || '';
+    $('dr-rows').innerHTML =
+      row('Status', ME.status) +
+      row('Primary email', ME.email) +
+      row('Secondary email', ME.email2) +
+      row('Primary mobile', ME.mobile1) +
+      row('Secondary mobile', ME.mobile2) +
+      row('Address', ME.address) +
+      row('Registered', ME.registeredAt) +
+      row('Approved', ME.approvedAt) +
+      row('HRMS enabled since', ME.hrmsSince);
+    renderCountdown();
+  }
+
+  function openDrawer(on) {
+    $('drawer').classList.toggle('on', on);
+    $('scrim').classList.toggle('on', on);
+    if (on) renderCountdown();
+  }
+
+  function enterApp(info) {
+    ME = info;
+    show($('auth'), false);
+    show($('app'), true);
+    show($('logout'), true);
+    show($('chip'), true);
+    $('chip-name').textContent = info.agencyName || '';
+    $('chip-logo').src = logoUrl(info.logoPath);
+    document.title = (info.agencyName ? info.agencyName + ' — ' : '') + 'HRMS — CRMRS';
+    fillDrawer();
+    if (tick) clearInterval(tick);
+    tick = setInterval(renderCountdown, 30000);
+  }
+
+  var LABELS = {
+    dashboard:'Dashboard', departments:'Departments', attendance:'Attendance',
+    leave:'Leave', payroll:'Payroll', documents:'Documents',
+    reports:'Reports', settings:'Settings'
+  };
+
+  Array.prototype.forEach.call(document.querySelectorAll('.nav'), function (b) {
+    b.addEventListener('click', function () {
+      if (b.disabled) return;
+      Array.prototype.forEach.call(document.querySelectorAll('.nav'), function (o) {
+        o.classList.remove('on');
+      });
+      b.classList.add('on');
+      var page = b.getAttribute('data-page');
+      show($('page-profiles'), page === 'profiles');
+      show($('page-stub'), page !== 'profiles');
+      if (page !== 'profiles') $('stub-title').textContent = LABELS[page] || page;
+    });
+  });
+
+  $('chip').addEventListener('click', function () { openDrawer(true); });
+  $('dr-close').addEventListener('click', function () { openDrawer(false); });
+  $('scrim').addEventListener('click', function () { openDrawer(false); });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') openDrawer(false);
+  });
+
+  var IC = {
+    search:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.6-3.6"/></svg>',
+    lock:  '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10.5" width="16" height="10.5" rx="2"/><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5"/></svg>',
+    link:  '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13.5a4 4 0 0 0 6 .5l2.5-2.5a4 4 0 0 0-5.7-5.7L11.5 7"/><path d="M14 10.5a4 4 0 0 0-6-.5L5.5 12.5a4 4 0 0 0 5.7 5.7L12.5 17"/></svg>',
+    warn:  '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8.5v5"/><path d="M12 17h.01"/><path d="M10.3 3.9 1.9 18.4A2 2 0 0 0 3.6 21.4h16.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>',
+    plug:  '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2.5v6M15 2.5v6"/><path d="M6 8.5h12v3a6 6 0 0 1-12 0Z"/><path d="M12 17.5v4"/></svg>'
+  };
+
+  function showState(which) {
+    show($('st-load'),   which === 'load');
+    show($('st-signin'), which === 'signin');
+    show($('st-error'),  which === 'error');
+  }
+
+  function fail(icon, title, body) {
+    $('er-ic').innerHTML  = IC[icon] || IC.warn;
+    $('er-title').textContent = title;
+    $('er-body').textContent = body;
+    showState('error');
+    document.title = title + ' — HRMS — CRMRS';
+  }
+
+  (async function boot() {
+    showState('load');
+
+    if (!slug) {
+      fail('link', 'Page not found',
+        'This address is incomplete. Open HRMS from the CRMRS desktop app.');
+      return;
+    }
+
+    if (token()) {
+      try { return enterApp(await call('/hrms/me')); }
+      catch (e) { token(''); }
+    }
+
+    var r;
+    try {
+      r = await call('/hrms/status?slug=' + encodeURIComponent(slug));
+    } catch (e) {
+      var code = e.code || '';
+      if (code === 'not_found') {
+        fail('search', 'Page not found',
+          'No agency matches this address.');
+      } else if (code === 'not_enabled') {
+        fail('plug', 'HRMS isn’t switched on',
+          'HRMS is not enabled for this agency. Contact CRMRS to have it turned on.');
+      } else if (code === 'not_active') {
+        fail('lock', 'This agency isn’t active',
+          'This account is not active, so HRMS cannot be opened. Contact CRMRS support.');
+      } else {
+        fail('warn', 'We can’t reach HRMS right now',
+          'Check your connection and try again in a moment.');
+      }
+      return;
+    }
+
+    $('id-name').textContent = r.agencyName || '';
+    $('id-logo').src = logoUrl(r.logoPath);
+    $('mask').textContent = r.email || '';
+    $('mask2').textContent = r.email || '';
+    document.title = (r.agencyName ? r.agencyName + ' — ' : '') + 'HRMS — CRMRS';
+    showState('signin');
+  })();
+
+  var cooldownTimer = null;
+
+  function startCooldown(seconds) {
+    var left = seconds;
+    var send = $('send'), again = $('resend');
+    if (cooldownTimer) clearInterval(cooldownTimer);
+    function paint() {
+      if (left <= 0) {
+        clearInterval(cooldownTimer); cooldownTimer = null;
+        send.disabled = false; again.disabled = false;
+        send.textContent = 'Send code';
+        again.textContent = 'Send a new code';
+        return;
+      }
+      send.disabled = true; again.disabled = true;
+      send.textContent = 'Send code in ' + left + 's';
+      again.textContent = 'Send a new code in ' + left + 's';
+      left--;
+    }
+    paint();
+    cooldownTimer = setInterval(paint, 1000);
+  }
+
+  async function sendCode(btn) {
+    if (cooldownTimer) return;
+    busy(btn, true, ' Sending');
+    say('');
+    try {
+      var r = await call('/hrms/otp/request', { method: 'POST', body: { slug: slug } });
+      $('mask').textContent = r.email || '';
+      $('mask2').textContent = r.email || '';
+      show($('step-send'), false);
+      show($('step-code'), true);
+      say('Code sent.', 'ok');
+      startCooldown(60);
+      $('code').focus();
+    } catch (e) {
+      say(e.message, 'err');
+      if (e.status === 429) startCooldown(e.retryAfter || 60);
+    } finally { busy(btn, false); }
+  }
+
+  $('send').addEventListener('click', function () { sendCode($('send')); });
+  $('resend').addEventListener('click', function () { sendCode($('verify')); });
+
+  $('code').addEventListener('input', function () {
+    this.value = this.value.replace(/\D/g, '').slice(0, 6);
+    if (this.value.length === 6) $('verify').click();
+  });
+
+  $('verify').addEventListener('click', async function () {
+    var code = $('code').value.trim();
+    if (code.length !== 6) { say('Enter all 6 digits.', 'err'); return; }
+    busy($('verify'), true, ' Verifying');
+    say('');
+    try {
+      var r = await call('/hrms/otp/verify', { method: 'POST', body: { slug: slug, code: code } });
+      token(r.token);
+      enterApp(await call('/hrms/me'));
+    } catch (e) {
+      say(e.message, 'err');
+      $('code').value = '';
+      $('code').focus();
+    } finally { busy($('verify'), false); }
+  });
+
+  $('dr-signout').addEventListener('click', function () { $('logout').click(); });
+
+  $('logout').addEventListener('click', async function () {
+    try { await call('/hrms/logout', { method: 'POST' }); } catch (e) {}
+    token('');
+    location.reload();
+  });
+
+  $('go-desktop').addEventListener('click', function () {
+    alert('Desktop profile creation is being built — this is where it will open.');
+  });
+})();
