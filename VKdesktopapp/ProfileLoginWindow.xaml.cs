@@ -8,6 +8,7 @@ namespace CRMRSDesktopApp;
 public partial class ProfileLoginWindow : Window
 {
     public string SignedInName { get; private set; } = "";
+    public string SignedInMobile { get; private set; } = "";
 
     public ProfileLoginWindow(string mode)
     {
@@ -48,6 +49,7 @@ public partial class ProfileLoginWindow : Window
             if (r.Ok)
             {
                 SignedInName = r.Name;
+                SignedInMobile = mobile;
                 DialogResult = true;
                 Close();
                 return;

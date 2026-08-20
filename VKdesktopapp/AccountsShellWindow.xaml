@@ -20,6 +20,8 @@
             <TextBlock Text="  •  Accounts" Foreground="#B0BEC5" FontSize="14" VerticalAlignment="Center" />
         </StackPanel>
 
+        <TextBlock Name="lblProfile" Grid.Row="0" Foreground="#FFB9B9C0" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,16,0" Visibility="Collapsed" />
+
         <Frame Grid.Row="1" Name="PageContainer" NavigationUIVisibility="Hidden"
                Background="White" Padding="0" Margin="0" />
     </Grid>

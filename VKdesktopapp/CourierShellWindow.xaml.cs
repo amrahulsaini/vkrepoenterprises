@@ -13,6 +13,11 @@ public partial class CourierShellWindow : Window
     public CourierShellWindow()
     {
         InitializeComponent();
+        Loaded += async (_, __) =>
+        {
+            if (!await ProfileGate.EnsureAsync(this, "Couriers")) { Close(); return; }
+            ProfileGate.Stamp(this);
+        };
         lblTitle.Text = BillingShellWindow.AgencyDisplayName();
         LoadAgencyLogo();
         Loaded += (_, __) => PageContainer.Navigate(new CouriersPage());
