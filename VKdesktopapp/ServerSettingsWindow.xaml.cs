@@ -212,6 +212,7 @@ public partial class ServerSettingsWindow : Window
         if (confirm != MessageBoxResult.Yes) return;
 
         App.SignedAppUser = null;
+        App.ProfileUser = null;
         App.HttpClient.DefaultRequestHeaders.Authorization = null;
         SavedSession.Clear();
         try

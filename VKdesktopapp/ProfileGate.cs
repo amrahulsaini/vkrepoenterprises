@@ -31,5 +31,20 @@ public static class ProfileGate
         if (u == null) { tb.Visibility = Visibility.Collapsed; return; }
         tb.Text = string.IsNullOrWhiteSpace(u.Name) ? u.Mobile : u.Name + "  ·  " + u.Mobile;
         tb.Visibility = Visibility.Visible;
+        tb.IsHitTestVisible = true;
+        tb.Cursor = System.Windows.Input.Cursors.Hand;
+        tb.ToolTip = "Sign out of this profile";
+
+        if (tb.Tag as string == "wired") return;
+        tb.Tag = "wired";
+        tb.MouseLeftButtonUp += (_, __) =>
+        {
+            var ask = MessageBox.Show(
+                "Sign out of this profile? This screen will close and the next person can sign in.",
+                "Profile", MessageBoxButton.YesNo, MessageBoxImage.Question);
+            if (ask != MessageBoxResult.Yes) return;
+            App.ProfileUser = null;
+            owner.Close();
+        };
     }
 }
