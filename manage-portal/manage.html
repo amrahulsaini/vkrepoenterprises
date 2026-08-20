@@ -140,6 +140,26 @@
         </div>
 
         <div class="card mt-3">
+          <div>
+            <h2 style="margin:0; font-size:20px;">Modules</h2>
+            <p class="text-muted" style="margin:4px 0 0; font-size:14px;">
+              Paid modules for this agency. Off by default &mdash; turn one on only for an agency that has bought it.
+            </p>
+          </div>
+          <div class="flex items-center justify-between" style="gap:12px; flex-wrap:wrap; margin-top:16px;
+                      padding:14px; border:1px solid #e5e7eb; border-radius:10px;">
+            <div style="flex:1; min-width:220px;">
+              <div style="font-size:15px; font-weight:600;">HRMS</div>
+              <div class="text-muted" style="font-size:13px; margin-top:2px;" id="hrms-note">
+                Staff, attendance and payroll.
+              </div>
+            </div>
+            <span id="hrms-state" class="badge badge-pending">Disabled</span>
+            <button class="btn btn-primary" id="hrms-toggle">Allow HRMS</button>
+          </div>
+        </div>
+
+        <div class="card mt-3">
           <div class="flex items-center justify-between" style="flex-wrap:wrap; gap:12px;">
             <div>
               <h2 style="margin:0; font-size:20px;">Integrations</h2>
@@ -311,6 +331,40 @@
     addEdExtra();
   });
 
+  let hrmsEnabled = false;
+
+  function renderHrms(since) {
+    const st = $('#hrms-state'), btn = $('#hrms-toggle'), note = $('#hrms-note');
+    if (!st || !btn) return;
+    st.textContent = hrmsEnabled ? 'Enabled' : 'Disabled';
+    st.className   = 'badge ' + (hrmsEnabled ? 'badge-approved' : 'badge-pending');
+    btn.textContent = hrmsEnabled ? 'Revoke HRMS' : 'Allow HRMS';
+    btn.className   = 'btn ' + (hrmsEnabled ? 'btn-outline' : 'btn-primary');
+    if (note) note.textContent = hrmsEnabled && since
+      ? 'Staff, attendance and payroll. Enabled since ' + since + '.'
+      : 'Staff, attendance and payroll.';
+  }
+
+  $('#hrms-toggle')?.addEventListener('click', async () => {
+    const next = !hrmsEnabled;
+    if (!confirm(next
+      ? 'Enable HRMS for ' + agency.name + '?'
+      : 'Revoke HRMS for ' + agency.name + '? They will lose access to the module.')) return;
+    const btn = $('#hrms-toggle');
+    btn.disabled = true;
+    try {
+      const r = await api('/manage/agency/' + agency.id + '/hrms', { method: 'POST', body: { enabled: next } });
+      hrmsEnabled = !!r.hrmsEnabled;
+      renderHrms(null);
+      initEdit();
+      toast(hrmsEnabled ? 'HRMS enabled' : 'HRMS revoked', 'success');
+    } catch (e) {
+      toast(e.message || 'Could not change HRMS access', 'error');
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
   async function initEdit() {
     try {
       const a = await api('/manage/agency/' + agency.id);
@@ -321,6 +375,8 @@
       $('#ed-extras').innerHTML = '';
       (a.extras || []).forEach(e => addEdExtra(e));
       $('#ed-logo-preview').src = logoSrc(a.logoPath);
+      hrmsEnabled = !!a.hrmsEnabled;
+      renderHrms(a.hrmsEnabledAt);
     } catch (_) { /* keep fields blank on failure */ }
   }
 
