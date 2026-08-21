@@ -427,148 +427,6 @@ internal static class AgencyPortal
             return Results.Ok(new { token, agencyId, agencyName = name, slug, logoPath = logo });
         });
 
-        app.MapPost("/api/agency/desktop/face-challenge", async (HttpContext ctx, HttpRequest req) =>
-        {
-            var agency = VerifyAgencyBearer(ctx);
-            if (agency is not { } ag) return Results.Json(new { message = "Unauthorized" }, statusCode: 401);
-
-            var dto = await ReadJsonAsync(req);
-            string mobile = new string((dto.GetValueOrDefault("mobile") ?? "").Where(char.IsDigit).ToArray());
-            string pw = dto.GetValueOrDefault("password") ?? "";
-            if (mobile.Length < 10 || pw.Length == 0)
-                return Results.BadRequest(new { message = "Enter your mobile number and password." });
-
-            long userId = 0; string name = "", hash = "";
-            bool enrolled = false, blocked = false;
-            await using (var tconn = new MySqlConnection(TenantContext.BuildTenantConn(mysqlHost, mysqlPort, ag.slug)))
-            {
-                await tconn.OpenAsync();
-                await using var cmd = new MySqlCommand(
-                    "SELECT id, COALESCE(name,''), COALESCE(profile_password_hash,''), " +
-                    "(face_template IS NOT NULL) AS enrolled, " +
-                    "(COALESCE(is_blacklisted,0)=1 OR COALESCE(is_stopped,0)=1 OR COALESCE(is_active,1)=0) AS blocked " +
-                    "FROM app_users WHERE RIGHT(REPLACE(COALESCE(mobile,''),' ',''),10) = @m LIMIT 1;", tconn)
-                { CommandTimeout = 15 };
-                cmd.Parameters.AddWithValue("@m", mobile.Substring(mobile.Length - 10));
-                await using var rdr = await cmd.ExecuteReaderAsync();
-                if (await rdr.ReadAsync())
-                {
-                    userId = rdr.GetInt64(0); name = rdr.GetString(1); hash = rdr.GetString(2);
-                    enrolled = rdr.GetInt64(3) == 1; blocked = rdr.GetInt64(4) == 1;
-                }
-            }
-
-            if (userId == 0 || hash.Length == 0 || !VerifyPassword(pw, hash))
-                return Results.Json(new { code = "bad_login", message = "Wrong mobile number or password." }, statusCode: 401);
-            if (blocked)
-                return Results.Json(new { code = "blocked", message = "This profile is not allowed to sign in." }, statusCode: 403);
-            if (!enrolled)
-                return Results.Json(new { code = "not_enrolled", message = "No face is enrolled for this profile yet." }, statusCode: 409);
-
-            string id = NewChallengeId(), pair = NewPairCode();
-            var now = DateTime.UtcNow;
-            await using (var conn = new MySqlConnection(masterConn))
-            {
-                await conn.OpenAsync();
-                await using var ins = new MySqlCommand(
-                    "INSERT INTO face_challenges (id, agency_id, slug, user_id, user_name, mode, device_label, pair_code, created_at, expires_at) " +
-                    "VALUES (@i, @a, @s, @u, @n, @m, @d, @p, @c, @x);", conn);
-                ins.Parameters.AddWithValue("@i", id);
-                ins.Parameters.AddWithValue("@a", ag.id);
-                ins.Parameters.AddWithValue("@s", ag.slug);
-                ins.Parameters.AddWithValue("@u", userId);
-                ins.Parameters.AddWithValue("@n", name);
-                ins.Parameters.AddWithValue("@m", (dto.GetValueOrDefault("mode") ?? "").Trim());
-                ins.Parameters.AddWithValue("@d", (dto.GetValueOrDefault("deviceLabel") ?? "").Trim());
-                ins.Parameters.AddWithValue("@p", pair);
-                ins.Parameters.AddWithValue("@c", now);
-                ins.Parameters.AddWithValue("@x", now.AddSeconds(FaceChallengeSeconds));
-                await ins.ExecuteNonQueryAsync();
-            }
-
-            string url = "https://agency.crmrecoverysoftware.com/verify/" + id;
-            return Results.Ok(new
-            {
-                id,
-                url,
-                pairCode = pair,
-                name,
-                qr = QrDataUri(url),
-                expiresInSeconds = FaceChallengeSeconds
-            });
-        });
-
-        app.MapGet("/api/agency/desktop/face-challenge/{id}", async (HttpContext ctx, string id) =>
-        {
-            var agency = VerifyAgencyBearer(ctx);
-            if (agency is not { } ag) return Results.Json(new { message = "Unauthorized" }, statusCode: 401);
-
-            await using var conn = new MySqlConnection(masterConn);
-            await conn.OpenAsync();
-            await using var cmd = new MySqlCommand(
-                "SELECT status, user_name, user_id, expires_at, COALESCE(fail_reason,'') " +
-                "FROM face_challenges WHERE id=@i AND agency_id=@a LIMIT 1;", conn);
-            cmd.Parameters.AddWithValue("@i", id);
-            cmd.Parameters.AddWithValue("@a", ag.id);
-            await using var rdr = await cmd.ExecuteReaderAsync();
-            if (!await rdr.ReadAsync()) return Results.NotFound(new { message = "Unknown challenge." });
-
-            string status = rdr.GetString(0);
-            if ((status == "pending" || status == "scanned") && rdr.GetDateTime(3) < DateTime.UtcNow)
-                status = "expired";
-
-            return Results.Ok(new
-            {
-                status,
-                name = rdr.GetString(1),
-                userId = rdr.GetInt64(2),
-                failReason = rdr.GetString(4)
-            });
-        });
-
-        app.MapGet("/api/agency/face/challenge/{id}", async (string id) =>
-        {
-            await using var conn = new MySqlConnection(masterConn);
-            await conn.OpenAsync();
-
-            string status, name, mode, device, pair, agencyName;
-            await using (var cmd = new MySqlCommand(
-                "SELECT c.status, c.user_name, c.mode, c.device_label, c.pair_code, c.expires_at, a.name " +
-                "FROM face_challenges c JOIN agencies a ON a.id = c.agency_id WHERE c.id=@i LIMIT 1;", conn))
-            {
-                cmd.Parameters.AddWithValue("@i", id);
-                await using var rdr = await cmd.ExecuteReaderAsync();
-                if (!await rdr.ReadAsync())
-                    return Results.Json(new { code = "unknown", message = "This link is not valid." }, statusCode: 404);
-
-                status = rdr.GetString(0); name = rdr.GetString(1); mode = rdr.GetString(2);
-                device = rdr.GetString(3); pair = rdr.GetString(4);
-                bool gone = rdr.GetDateTime(5) < DateTime.UtcNow;
-                agencyName = rdr.GetString(6);
-
-                if (gone || status == "expired")
-                    return Results.Json(new { code = "expired", message = "This link has expired. Start again on the desktop." }, statusCode: 410);
-                if (status == "approved" || status == "denied")
-                    return Results.Json(new { code = "used", message = "This link has already been used." }, statusCode: 409);
-            }
-
-            await using (var upd = new MySqlCommand(
-                "UPDATE face_challenges SET status='scanned' WHERE id=@i AND status='pending'", conn))
-            {
-                upd.Parameters.AddWithValue("@i", id);
-                await upd.ExecuteNonQueryAsync();
-            }
-
-            return Results.Ok(new
-            {
-                agencyName,
-                name = MaskName(name),
-                mode,
-                deviceLabel = device,
-                pairCode = pair
-            });
-        });
-
         app.MapGet("/api/agency/desktop/profile-login/required", async (HttpContext ctx) =>
         {
             var agency = VerifyAgencyBearer(ctx);
@@ -744,7 +602,7 @@ internal static class AgencyPortal
                 SELECT id, COALESCE(name,''), COALESCE(mobile,''), COALESCE(is_active,0),
                        COALESCE(is_admin,0), COALESCE(is_blacklisted,0), COALESCE(kyc_status,''),
                        last_seen, (profile_password_hash IS NOT NULL AND profile_password_hash <> '') AS has_pw,
-                       profile_password_set_at, COALESCE(pfp,''), (face_template IS NOT NULL) AS has_face
+                       profile_password_set_at, COALESCE(pfp,'')
                   FROM app_users ORDER BY COALESCE(name,'') ASC, id ASC LIMIT 1000;", conn)
             { CommandTimeout = 30 };
             var list = new List<object>();
@@ -764,7 +622,6 @@ internal static class AgencyPortal
                     hasPassword = rdr.GetInt64(8) == 1,
                     passwordSetAt = rdr.IsDBNull(9) ? null : rdr.GetDateTime(9).ToString("yyyy-MM-dd HH:mm"),
                     pfpUrl = PfpUrl(rdr.GetString(10)),
-                    faceEnrolled = rdr.GetInt64(11) == 1,
                 });
             }
             return Results.Ok(list);
@@ -787,8 +644,7 @@ internal static class AgencyPortal
                        created_at, last_seen, COALESCE(kyc_reg_location,''),
                        (profile_password_hash IS NOT NULL AND profile_password_hash <> '') AS has_pw,
                        profile_password_set_at, COALESCE(profile_password_by,''), COALESCE(device_id,''),
-                       COALESCE(pfp,''), (face_template IS NOT NULL) AS has_face,
-                       face_enrolled_at, COALESCE(face_thumb,'')
+                       COALESCE(pfp,'')
                   FROM app_users WHERE id=@id LIMIT 1;", conn) { CommandTimeout = 20 };
             cmd.Parameters.AddWithValue("@id", id);
             await using var rdr = await cmd.ExecuteReaderAsync();
@@ -810,60 +666,7 @@ internal static class AgencyPortal
                 hasPassword = rdr.GetInt64(23) == 1, passwordSetAt = D(24),
                 passwordBy = rdr.GetString(25), hasDevice = rdr.GetString(26).Length > 0,
                 pfpUrl = PfpUrl(rdr.GetString(27)),
-                faceEnrolled = rdr.GetInt64(28) == 1,
-                faceEnrolledAt = D(29),
-                faceThumb = rdr.GetString(30),
             });
-        });
-
-        app.MapPost("/api/agency/hrms/profiles/{id:long}/face", async (HttpContext ctx, long id, HttpRequest req) =>
-        {
-            var slug = await HrmsSessionSlug(masterConn, ctx);
-            if (slug is null) return Results.Json(new { message = "Session expired." }, statusCode: 401);
-            if (!FaceEngine.Available)
-                return Results.Json(new { message = "Face recognition is not installed on this server." }, statusCode: 503);
-
-            var dto = await ReadJsonAsync(req);
-            byte[] bytes;
-            try { bytes = FaceEngine.DecodeDataUri(dto.GetValueOrDefault("image") ?? ""); }
-            catch { return Results.BadRequest(new { message = "That image could not be read." }); }
-            if (bytes.Length > 8 * 1024 * 1024)
-                return Results.BadRequest(new { message = "That image is too large." });
-
-            float[] vec; string thumb;
-            try
-            {
-                vec = FaceEngine.Embed(bytes);
-                thumb = FaceEngine.Thumb(bytes);
-            }
-            catch (Exception ex) { return Results.BadRequest(new { message = ex.Message }); }
-
-            await using var conn = new MySqlConnection(TenantContext.BuildTenantConn(mysqlHost, mysqlPort, slug));
-            await conn.OpenAsync();
-            await using var cmd = new MySqlCommand(
-                "UPDATE app_users SET face_template=@t, face_thumb=@h, face_enrolled_at=@d, face_enrolled_by='HRMS' WHERE id=@id", conn);
-            cmd.Parameters.AddWithValue("@t", FaceEngine.Pack(vec));
-            cmd.Parameters.AddWithValue("@h", thumb);
-            cmd.Parameters.AddWithValue("@d", IstNow());
-            cmd.Parameters.AddWithValue("@id", id);
-            if (await cmd.ExecuteNonQueryAsync() == 0)
-                return Results.NotFound(new { message = "Profile not found." });
-
-            return Results.Ok(new { ok = true, faceEnrolled = true, faceThumb = thumb });
-        });
-
-        app.MapDelete("/api/agency/hrms/profiles/{id:long}/face", async (HttpContext ctx, long id) =>
-        {
-            var slug = await HrmsSessionSlug(masterConn, ctx);
-            if (slug is null) return Results.Json(new { message = "Session expired." }, statusCode: 401);
-
-            await using var conn = new MySqlConnection(TenantContext.BuildTenantConn(mysqlHost, mysqlPort, slug));
-            await conn.OpenAsync();
-            await using var cmd = new MySqlCommand(
-                "UPDATE app_users SET face_template=NULL, face_thumb=NULL, face_enrolled_at=NULL, face_enrolled_by=NULL WHERE id=@id", conn);
-            cmd.Parameters.AddWithValue("@id", id);
-            await cmd.ExecuteNonQueryAsync();
-            return Results.Ok(new { ok = true, faceEnrolled = false });
         });
 
         app.MapPost("/api/agency/hrms/profiles/{id:long}/password", async (HttpContext ctx, long id, HttpRequest req) =>
@@ -3650,33 +3453,6 @@ internal static class AgencyPortal
         }
 
         return (0, false);
-    }
-
-    private const int FaceChallengeSeconds = 120;
-
-    private static string NewChallengeId()
-    {
-        var b = new byte[16];
-        RandomNumberGenerator.Fill(b);
-        return Convert.ToHexString(b).ToLowerInvariant();
-    }
-
-    private static string NewPairCode() => RandomNumberGenerator.GetInt32(10, 100).ToString();
-
-    private static string QrDataUri(string text)
-    {
-        using var gen = new QRCoder.QRCodeGenerator();
-        using var data = gen.CreateQrCode(text, QRCoder.QRCodeGenerator.ECCLevel.M);
-        var png = new QRCoder.PngByteQRCode(data).GetGraphic(8);
-        return "data:image/png;base64," + Convert.ToBase64String(png);
-    }
-
-    private static string MaskName(string n)
-    {
-        n = (n ?? "").Trim();
-        if (n.Length == 0) return "";
-        var parts = n.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        return string.Join(" ", parts.Select(x => x.Length <= 2 ? x : x.Substring(0, 2) + new string('*', Math.Min(5, x.Length - 2))));
     }
 
     private static readonly TimeSpan IstOffset = TimeSpan.FromMinutes(330);

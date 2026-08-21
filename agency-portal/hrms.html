@@ -283,18 +283,6 @@
     font-size:9.5px;font-weight:750;letter-spacing:1px;text-transform:uppercase;color:var(--muted-2);
   }
   .btn-xs{padding:7px 13px;font-size:12.5px;border-radius:8px}
-  .facebox{margin-top:14px;padding:16px;border:1px solid var(--line);
-           border-radius:var(--radius-sm);background:var(--paper-2)}
-  .facerow{display:flex;align-items:center;gap:14px}
-  .facepic{
-    width:74px;height:74px;border-radius:12px;flex:none;object-fit:cover;
-    background:var(--paper);border:1px solid var(--line);
-  }
-  .faceph{
-    width:74px;height:74px;border-radius:12px;flex:none;display:flex;
-    align-items:center;justify-content:center;background:var(--paper);
-    border:1px dashed var(--line);color:var(--muted-2);
-  }
   .pwbox{margin-top:16px;padding:16px;border:1px solid var(--line);
          border-radius:var(--radius-sm);background:var(--paper-2)}
   .empty-note{
@@ -567,29 +555,6 @@
       </div>
       <div class="msg" id="pf-msg"></div>
     </div>
-    <div class="facebox">
-      <div class="k" style="font-size:9.5px;font-weight:750;letter-spacing:1px;text-transform:uppercase;color:var(--muted-2);margin-bottom:10px">Face lock</div>
-      <div class="facerow">
-        <img class="facepic hidden" id="pf-facepic" alt="">
-        <div class="faceph" id="pf-faceph">
-          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-               stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/>
-            <circle cx="12" cy="11" r="2.6"/><path d="M8 16.5a4.4 4.4 0 0 1 8 0"/>
-          </svg>
-        </div>
-        <div style="flex:1;min-width:0">
-          <div id="pf-facestate" style="font-size:12.5px;color:var(--muted);margin-bottom:9px"></div>
-          <input type="file" id="pf-facefile" accept="image/*" capture="user" style="font-size:12px;width:100%">
-          <div style="display:flex;gap:8px;margin-top:9px">
-            <button class="btn btn-accent btn-xs" id="pf-facesave" style="flex:1">Set face</button>
-            <button class="btn btn-ghost btn-xs hidden" id="pf-faceclear">Remove</button>
-          </div>
-        </div>
-      </div>
-      <div class="msg" id="pf-facemsg"></div>
-    </div>
-
     <div id="pf-rows2" style="margin-top:6px"></div>
   </div>
 </aside>
@@ -617,6 +582,6 @@
   </div>
 </aside>
 
-<script src="/js/hrms.js?v=9"></script>
+<script src="/js/hrms.js?v=10"></script>
 </body>
 </html>
