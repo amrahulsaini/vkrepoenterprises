@@ -263,6 +263,26 @@
   .p-on{background:var(--orange-wash);color:var(--orange-ink)}
   .p-off{background:var(--paper-2);color:var(--muted);border:1px solid var(--line)}
   .p-red{background:#fdecea;color:#b3261e}
+  .stat{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+  .stat .b{
+    flex:1;min-width:120px;background:var(--paper);border:1px solid var(--line);
+    border-radius:var(--radius-sm);padding:13px 15px;box-shadow:var(--shadow);
+  }
+  .stat .n{font-size:22px;font-weight:800;letter-spacing:-.5px;line-height:1.1}
+  .stat .l{font-size:9.5px;font-weight:750;letter-spacing:1px;text-transform:uppercase;
+           color:var(--muted-2);margin-top:3px}
+  .stat .b.ok .n{color:var(--orange-ink)}
+  .arow{
+    display:grid;grid-template-columns:1fr 128px 150px;gap:12px;align-items:center;
+    padding:13px 18px;border-bottom:1px solid var(--paper-2);
+  }
+  .arow:last-child{border-bottom:0}
+  .ahead{
+    display:grid;grid-template-columns:1fr 128px 150px;gap:12px;
+    padding:11px 18px;background:var(--paper-2);border-bottom:1px solid var(--line);
+    font-size:9.5px;font-weight:750;letter-spacing:1px;text-transform:uppercase;color:var(--muted-2);
+  }
+  .btn-xs{padding:7px 13px;font-size:12.5px;border-radius:8px}
   .pwbox{margin-top:16px;padding:16px;border:1px solid var(--line);
          border-radius:var(--radius-sm);background:var(--paper-2)}
   .empty-note{
@@ -382,7 +402,7 @@
       <div class="grp">People</div>
         <button class="nav on" data-page="profiles"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 20v-1.5a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4V20"/><circle cx="9" cy="7" r="3.5"/><path d="M22 20v-1.5a4 4 0 0 0-3-3.87"/><path d="M16 3.6a4 4 0 0 1 0 7"/></svg><span>Profiles</span></button>
         <button class="nav" data-page="departments" disabled><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M10 21v-5h4v5"/></svg><span>Departments</span><span class="soon">Soon</span></button>
-        <button class="nav" data-page="attendance" disabled><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M8 2.5v4M16 2.5v4M3 9.5h18"/><path d="m9 14.5 2 2 4-4"/></svg><span>Attendance</span><span class="soon">Soon</span></button>
+        <button class="nav" data-page="attendance"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M8 2.5v4M16 2.5v4M3 9.5h18"/><path d="m9 14.5 2 2 4-4"/></svg><span>Attendance</span></button>
         <button class="nav" data-page="leave" disabled><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M8 2.5v4M16 2.5v4M3 9.5h18M12 13v4M10 15h4"/></svg><span>Leave</span><span class="soon">Soon</span></button>
       <div class="grp">Finance</div>
         <button class="nav" data-page="payroll" disabled><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5.5" width="19" height="13" rx="2"/><circle cx="12" cy="12" r="2.8"/><path d="M6 12h.01M18 12h.01"/></svg><span>Payroll</span><span class="soon">Soon</span></button>
@@ -472,6 +492,32 @@
         </div>
       </div>
 
+      <div id="page-attendance" class="hidden">
+        <div class="head">
+          <div>
+            <h1 class="t">Attendance</h1>
+            <p class="s">One mark per person per day, on the Indian calendar (IST).</p>
+          </div>
+        </div>
+
+        <div class="toolbar">
+          <input class="field" id="at-date" type="date" style="max-width:180px">
+          <button class="btn btn-ghost btn-xs" id="at-today">Today</button>
+          <span class="count" id="at-when"></span>
+        </div>
+
+        <div class="stat">
+          <div class="b"><div class="n" id="at-total">0</div><div class="l">Staff</div></div>
+          <div class="b ok"><div class="n" id="at-present">0</div><div class="l">Present</div></div>
+          <div class="b"><div class="n" id="at-absent">0</div><div class="l">Not marked</div></div>
+        </div>
+
+        <div class="tbl">
+          <div class="ahead"><span>Staff</span><span>Marked at</span><span>Attendance</span></div>
+          <div id="at-rows"></div>
+        </div>
+      </div>
+
       <div id="page-stub" class="hidden">
         <div class="head">
           <div>
@@ -536,6 +582,6 @@
   </div>
 </aside>
 
-<script src="/js/hrms.js?v=7"></script>
+<script src="/js/hrms.js?v=8"></script>
 </body>
 </html>

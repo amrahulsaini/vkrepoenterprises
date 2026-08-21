@@ -117,7 +117,7 @@
   }
 
   var LABELS = {
-    dashboard:'Dashboard', departments:'Departments', attendance:'Attendance',
+    dashboard:'Dashboard', departments:'Departments',
     leave:'Leave', payroll:'Payroll', documents:'Documents',
     reports:'Reports', settings:'Settings'
   };
@@ -132,8 +132,14 @@
       var page = b.getAttribute('data-page');
       show($('page-profiles'), page === 'profiles');
       show($('page-desktop'), false);
-      show($('page-stub'), page !== 'profiles');
-      if (page !== 'profiles') $('stub-title').textContent = LABELS[page] || page;
+      show($('page-attendance'), page === 'attendance');
+      show($('page-stub'), page !== 'profiles' && page !== 'attendance');
+      if (page === 'attendance') {
+        if (!$('at-date').value) $('at-date').value = istToday();
+        loadAttendance();
+      } else if (page !== 'profiles') {
+        $('stub-title').textContent = LABELS[page] || page;
+      }
     });
   });
 
@@ -257,6 +263,75 @@
       $('pf-msg').className = 'msg err';
     } finally { btn.disabled = false; }
   }
+
+
+  var ATT = null;
+
+  function istToday() {
+    var n = new Date();
+    var ist = new Date(n.getTime() + (n.getTimezoneOffset() * 60000) + (330 * 60000));
+    var m = ist.getMonth() + 1, d = ist.getDate();
+    return ist.getFullYear() + '-' + (m < 10 ? '0' : '') + m + '-' + (d < 10 ? '0' : '') + d;
+  }
+
+  function renderAttendance() {
+    if (!ATT) return;
+    $('at-total').textContent = ATT.total;
+    $('at-present').textContent = ATT.present;
+    $('at-absent').textContent = ATT.absent;
+    $('at-when').textContent = ATT.isToday ? 'Today' : ATT.date;
+
+    $('at-rows').innerHTML = ATT.staff.map(function (u) {
+      var right = u.marked
+        ? '<button class="btn btn-ghost btn-xs" data-un="' + u.id + '">Marked · undo</button>'
+        : '<button class="btn btn-accent btn-xs" data-at="' + u.id + '">Mark present</button>';
+      var when = u.marked ? esc(u.markedAt) : '<span style="color:var(--muted-2)">&mdash;</span>';
+      return '<div class="arow">' +
+        '<div class="who2">' + avatar(u, false) +
+        '<div style="min-width:0"><div class="n">' + esc(u.name || 'Unnamed') + '</div>' +
+        '<div class="m">' + esc(u.mobile || '') + '</div></div></div>' +
+        '<div style="font-size:13px;font-variant-numeric:tabular-nums">' + when + '</div>' +
+        '<div>' + right + '</div></div>';
+    }).join('');
+
+    Array.prototype.forEach.call($('at-rows').querySelectorAll('[data-at]'), function (b) {
+      b.addEventListener('click', function () { mark(b.getAttribute('data-at'), true, b); });
+    });
+    Array.prototype.forEach.call($('at-rows').querySelectorAll('[data-un]'), function (b) {
+      b.addEventListener('click', function () { mark(b.getAttribute('data-un'), false, b); });
+    });
+  }
+
+  async function loadAttendance() {
+    var d = $('at-date').value || istToday();
+    $('at-rows').innerHTML = '<div class="empty-note" style="border:0">Loading…</div>';
+    try {
+      ATT = await call('/hrms/attendance?date=' + encodeURIComponent(d));
+      $('at-date').value = ATT.date;
+      renderAttendance();
+    } catch (e) {
+      $('at-rows').innerHTML = '<div class="empty-note" style="border:0">' + esc(e.message) + '</div>';
+    }
+  }
+
+  async function mark(id, on, btn) {
+    var d = $('at-date').value || istToday();
+    btn.disabled = true;
+    try {
+      if (on) await call('/hrms/attendance/' + id, { method: 'POST', body: { date: d, status: 'present' } });
+      else    await call('/hrms/attendance/' + id + '?date=' + encodeURIComponent(d), { method: 'DELETE' });
+      await loadAttendance();
+    } catch (e) {
+      btn.disabled = false;
+      alert(e.message);
+    }
+  }
+
+  $('at-date').addEventListener('change', loadAttendance);
+  $('at-today').addEventListener('click', function () {
+    $('at-date').value = istToday();
+    loadAttendance();
+  });
 
   $('go-desktop').addEventListener('click', function () {
     show($('page-profiles'), false);

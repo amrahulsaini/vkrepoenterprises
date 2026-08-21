@@ -480,6 +480,117 @@ internal static class AgencyPortal
             return Results.Ok(new { ok = true, userId = id, name });
         });
 
+        app.MapGet("/api/agency/hrms/attendance", async (HttpContext ctx, string? date) =>
+        {
+            var slug = await HrmsSessionSlug(masterConn, ctx);
+            if (slug is null) return Results.Json(new { message = "Session expired." }, statusCode: 401);
+
+            var day = ParseIstDate(date) ?? IstToday();
+            if (day > IstToday())
+                return Results.BadRequest(new { message = "That date has not started yet." });
+
+            await using var conn = new MySqlConnection(TenantContext.BuildTenantConn(mysqlHost, mysqlPort, slug));
+            await conn.OpenAsync();
+            await using var cmd = new MySqlCommand(@"
+                SELECT u.id, COALESCE(u.name,''), COALESCE(u.mobile,''), COALESCE(u.pfp,''),
+                       COALESCE(u.is_active,0), COALESCE(u.is_blacklisted,0),
+                       a.id, a.marked_at, COALESCE(a.status,''), COALESCE(a.source,''),
+                       COALESCE(a.location,''), COALESCE(a.marked_by,'')
+                  FROM app_users u
+             LEFT JOIN attendance a ON a.user_id = u.id AND a.work_date = @d
+              ORDER BY COALESCE(u.name,'') ASC, u.id ASC LIMIT 1000;", conn) { CommandTimeout = 30 };
+            cmd.Parameters.AddWithValue("@d", day);
+
+            var list = new List<object>();
+            int present = 0;
+            await using var rdr = await cmd.ExecuteReaderAsync();
+            while (await rdr.ReadAsync())
+            {
+                bool marked = !rdr.IsDBNull(6);
+                if (marked) present++;
+                list.Add(new
+                {
+                    id = rdr.GetInt64(0),
+                    name = rdr.GetString(1),
+                    mobile = rdr.GetString(2),
+                    pfpUrl = PfpUrl(rdr.GetString(3)),
+                    isActive = rdr.GetInt32(4) == 1,
+                    isBlacklisted = rdr.GetInt32(5) == 1,
+                    marked,
+                    markedAt = rdr.IsDBNull(7) ? null : rdr.GetDateTime(7).ToString("HH:mm"),
+                    status = marked ? rdr.GetString(8) : "",
+                    source = marked ? rdr.GetString(9) : "",
+                    location = marked ? rdr.GetString(10) : "",
+                    markedBy = marked ? rdr.GetString(11) : "",
+                });
+            }
+
+            return Results.Ok(new
+            {
+                date = day.ToString("yyyy-MM-dd"),
+                isToday = day == IstToday(),
+                total = list.Count,
+                present,
+                absent = list.Count - present,
+                staff = list,
+            });
+        });
+
+        app.MapPost("/api/agency/hrms/attendance/{userId:long}", async (HttpContext ctx, long userId, HttpRequest req) =>
+        {
+            var slug = await HrmsSessionSlug(masterConn, ctx);
+            if (slug is null) return Results.Json(new { message = "Session expired." }, statusCode: 401);
+
+            var dto = await ReadJsonAsync(req);
+            var day = ParseIstDate(dto.GetValueOrDefault("date")) ?? IstToday();
+            if (day > IstToday())
+                return Results.BadRequest(new { message = "That date has not started yet." });
+
+            string status = (dto.GetValueOrDefault("status") ?? "present").Trim().ToLowerInvariant();
+            if (status is not ("present" or "halfday" or "leave"))
+                return Results.BadRequest(new { message = "Unknown attendance status." });
+
+            await using var conn = new MySqlConnection(TenantContext.BuildTenantConn(mysqlHost, mysqlPort, slug));
+            await conn.OpenAsync();
+
+            await using (var chk = new MySqlCommand("SELECT COALESCE(is_blacklisted,0) FROM app_users WHERE id=@u LIMIT 1", conn))
+            {
+                chk.Parameters.AddWithValue("@u", userId);
+                var v = await chk.ExecuteScalarAsync();
+                if (v is null) return Results.NotFound(new { message = "Staff member not found." });
+                if (Convert.ToInt32(v) == 1)
+                    return Results.Json(new { message = "This staff member is blacklisted." }, statusCode: 403);
+            }
+
+            await using var cmd = new MySqlCommand(@"
+                INSERT INTO attendance (user_id, work_date, marked_at, status, source, note, marked_by)
+                VALUES (@u, @d, @t, @s, 'hrms', @n, 'HRMS')
+                ON DUPLICATE KEY UPDATE status = VALUES(status), note = VALUES(note);", conn);
+            cmd.Parameters.AddWithValue("@u", userId);
+            cmd.Parameters.AddWithValue("@d", day);
+            cmd.Parameters.AddWithValue("@t", IstNow());
+            cmd.Parameters.AddWithValue("@s", status);
+            cmd.Parameters.AddWithValue("@n", (object?)dto.GetValueOrDefault("note") ?? DBNull.Value);
+            await cmd.ExecuteNonQueryAsync();
+
+            return Results.Ok(new { ok = true, date = day.ToString("yyyy-MM-dd"), status });
+        });
+
+        app.MapDelete("/api/agency/hrms/attendance/{userId:long}", async (HttpContext ctx, long userId, string? date) =>
+        {
+            var slug = await HrmsSessionSlug(masterConn, ctx);
+            if (slug is null) return Results.Json(new { message = "Session expired." }, statusCode: 401);
+
+            var day = ParseIstDate(date) ?? IstToday();
+            await using var conn = new MySqlConnection(TenantContext.BuildTenantConn(mysqlHost, mysqlPort, slug));
+            await conn.OpenAsync();
+            await using var cmd = new MySqlCommand("DELETE FROM attendance WHERE user_id=@u AND work_date=@d", conn);
+            cmd.Parameters.AddWithValue("@u", userId);
+            cmd.Parameters.AddWithValue("@d", day);
+            await cmd.ExecuteNonQueryAsync();
+            return Results.Ok(new { ok = true });
+        });
+
         app.MapGet("/api/agency/hrms/profiles", async (HttpContext ctx) =>
         {
             var a = await HrmsSessionSlug(masterConn, ctx);
@@ -3342,6 +3453,20 @@ internal static class AgencyPortal
         }
 
         return (0, false);
+    }
+
+    private static readonly TimeSpan IstOffset = TimeSpan.FromMinutes(330);
+
+    private static DateTime IstNow() => DateTime.UtcNow + IstOffset;
+
+    private static DateTime IstToday() => IstNow().Date;
+
+    private static DateTime? ParseIstDate(string? v)
+    {
+        if (string.IsNullOrWhiteSpace(v)) return null;
+        return DateTime.TryParseExact(v.Trim(), "yyyy-MM-dd",
+            System.Globalization.CultureInfo.InvariantCulture,
+            System.Globalization.DateTimeStyles.None, out var d) ? d.Date : null;
     }
 
     private static string PfpUrl(string? p)
