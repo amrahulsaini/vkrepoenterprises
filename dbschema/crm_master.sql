@@ -50,6 +50,27 @@ CREATE TABLE IF NOT EXISTS agency_otps (
     INDEX idx_email_purpose (email, purpose, consumed)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+CREATE TABLE IF NOT EXISTS face_challenges (
+  id            CHAR(32)     NOT NULL PRIMARY KEY,
+  agency_id     INT          NOT NULL,
+  slug          VARCHAR(64)  NOT NULL,
+  user_id       BIGINT       NOT NULL,
+  user_name     VARCHAR(190) NOT NULL DEFAULT '',
+  mode          VARCHAR(32)  NOT NULL DEFAULT '',
+  device_label  VARCHAR(120) NOT NULL DEFAULT '',
+  pair_code     CHAR(2)      NOT NULL,
+  status        ENUM('pending','scanned','approved','denied','expired') NOT NULL DEFAULT 'pending',
+  score         DECIMAL(6,4) NULL,
+  fail_reason   VARCHAR(64)  NULL,
+  attempts      INT          NOT NULL DEFAULT 0,
+  created_at    DATETIME     NOT NULL,
+  expires_at    DATETIME     NOT NULL,
+  resolved_at   DATETIME     NULL,
+  INDEX idx_fc_expiry (expires_at),
+  INDEX idx_fc_agency (agency_id, created_at),
+  CONSTRAINT fk_fc_agency FOREIGN KEY (agency_id) REFERENCES agencies(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
 -- ───── manage_sessions — opaque tokens for the /manage password gate ─────
 CREATE TABLE IF NOT EXISTS manage_sessions (
     token      CHAR(64)     NOT NULL PRIMARY KEY,

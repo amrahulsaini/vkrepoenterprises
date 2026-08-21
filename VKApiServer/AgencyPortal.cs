@@ -427,6 +427,146 @@ internal static class AgencyPortal
             return Results.Ok(new { token, agencyId, agencyName = name, slug, logoPath = logo });
         });
 
+        app.MapPost("/api/agency/desktop/face-challenge", async (HttpContext ctx, HttpRequest req) =>
+        {
+            var agency = VerifyAgencyBearer(ctx);
+            if (agency is not { } ag) return Results.Json(new { message = "Unauthorized" }, statusCode: 401);
+
+            var dto = await ReadJsonAsync(req);
+            string mobile = new string((dto.GetValueOrDefault("mobile") ?? "").Where(char.IsDigit).ToArray());
+            if (mobile.Length < 10)
+                return Results.BadRequest(new { message = "Enter a 10-digit mobile number." });
+
+            long userId = 0; string name = "";
+            bool enrolled = false, blocked = false;
+            await using (var tconn = new MySqlConnection(TenantContext.BuildTenantConn(mysqlHost, mysqlPort, ag.slug)))
+            {
+                await tconn.OpenAsync();
+                await using var cmd = new MySqlCommand(
+                    "SELECT id, COALESCE(name,''), (face_template IS NOT NULL) AS enrolled, " +
+                    "(COALESCE(is_blacklisted,0)=1 OR COALESCE(is_stopped,0)=1 OR COALESCE(is_active,1)=0) AS blocked " +
+                    "FROM app_users WHERE RIGHT(REPLACE(COALESCE(mobile,''),' ',''),10) = @m LIMIT 1;", tconn)
+                { CommandTimeout = 15 };
+                cmd.Parameters.AddWithValue("@m", mobile.Substring(mobile.Length - 10));
+                await using var rdr = await cmd.ExecuteReaderAsync();
+                if (await rdr.ReadAsync())
+                {
+                    userId = rdr.GetInt64(0); name = rdr.GetString(1);
+                    enrolled = rdr.GetInt64(2) == 1; blocked = rdr.GetInt64(3) == 1;
+                }
+            }
+
+            if (userId == 0)
+                return Results.Json(new { code = "no_user", message = "No staff member with that mobile number." }, statusCode: 404);
+            if (blocked)
+                return Results.Json(new { code = "blocked", message = "This profile is not allowed to sign in." }, statusCode: 403);
+            if (!enrolled)
+                return Results.Json(new { code = "not_enrolled", message = "No face is enrolled for this profile yet." }, statusCode: 409);
+
+            string id = NewChallengeId(), pair = NewPairCode();
+            var now = DateTime.UtcNow;
+            await using (var conn = new MySqlConnection(masterConn))
+            {
+                await conn.OpenAsync();
+                await using var ins = new MySqlCommand(
+                    "INSERT INTO face_challenges (id, agency_id, slug, user_id, user_name, mode, device_label, pair_code, created_at, expires_at) " +
+                    "VALUES (@i, @a, @s, @u, @n, @m, @d, @p, @c, @x);", conn);
+                ins.Parameters.AddWithValue("@i", id);
+                ins.Parameters.AddWithValue("@a", ag.id);
+                ins.Parameters.AddWithValue("@s", ag.slug);
+                ins.Parameters.AddWithValue("@u", userId);
+                ins.Parameters.AddWithValue("@n", name);
+                ins.Parameters.AddWithValue("@m", (dto.GetValueOrDefault("mode") ?? "").Trim());
+                ins.Parameters.AddWithValue("@d", (dto.GetValueOrDefault("deviceLabel") ?? "").Trim());
+                ins.Parameters.AddWithValue("@p", pair);
+                ins.Parameters.AddWithValue("@c", now);
+                ins.Parameters.AddWithValue("@x", now.AddSeconds(FaceChallengeSeconds));
+                await ins.ExecuteNonQueryAsync();
+            }
+
+            string url = "https://agency.crmrecoverysoftware.com/verify/" + id;
+            return Results.Ok(new
+            {
+                id,
+                url,
+                pairCode = pair,
+                name,
+                qr = QrDataUri(url),
+                expiresInSeconds = FaceChallengeSeconds
+            });
+        });
+
+        app.MapGet("/api/agency/desktop/face-challenge/{id}", async (HttpContext ctx, string id) =>
+        {
+            var agency = VerifyAgencyBearer(ctx);
+            if (agency is not { } ag) return Results.Json(new { message = "Unauthorized" }, statusCode: 401);
+
+            await using var conn = new MySqlConnection(masterConn);
+            await conn.OpenAsync();
+            await using var cmd = new MySqlCommand(
+                "SELECT status, user_name, user_id, expires_at, COALESCE(fail_reason,'') " +
+                "FROM face_challenges WHERE id=@i AND agency_id=@a LIMIT 1;", conn);
+            cmd.Parameters.AddWithValue("@i", id);
+            cmd.Parameters.AddWithValue("@a", ag.id);
+            await using var rdr = await cmd.ExecuteReaderAsync();
+            if (!await rdr.ReadAsync()) return Results.NotFound(new { message = "Unknown challenge." });
+
+            string status = rdr.GetString(0);
+            if ((status == "pending" || status == "scanned") && rdr.GetDateTime(3) < DateTime.UtcNow)
+                status = "expired";
+
+            return Results.Ok(new
+            {
+                status,
+                name = rdr.GetString(1),
+                userId = rdr.GetInt64(2),
+                failReason = rdr.GetString(4)
+            });
+        });
+
+        app.MapGet("/api/agency/face/challenge/{id}", async (string id) =>
+        {
+            await using var conn = new MySqlConnection(masterConn);
+            await conn.OpenAsync();
+
+            string status, name, mode, device, pair, agencyName;
+            await using (var cmd = new MySqlCommand(
+                "SELECT c.status, c.user_name, c.mode, c.device_label, c.pair_code, c.expires_at, a.name " +
+                "FROM face_challenges c JOIN agencies a ON a.id = c.agency_id WHERE c.id=@i LIMIT 1;", conn))
+            {
+                cmd.Parameters.AddWithValue("@i", id);
+                await using var rdr = await cmd.ExecuteReaderAsync();
+                if (!await rdr.ReadAsync())
+                    return Results.Json(new { code = "unknown", message = "This link is not valid." }, statusCode: 404);
+
+                status = rdr.GetString(0); name = rdr.GetString(1); mode = rdr.GetString(2);
+                device = rdr.GetString(3); pair = rdr.GetString(4);
+                bool gone = rdr.GetDateTime(5) < DateTime.UtcNow;
+                agencyName = rdr.GetString(6);
+
+                if (gone || status == "expired")
+                    return Results.Json(new { code = "expired", message = "This link has expired. Start again on the desktop." }, statusCode: 410);
+                if (status == "approved" || status == "denied")
+                    return Results.Json(new { code = "used", message = "This link has already been used." }, statusCode: 409);
+            }
+
+            await using (var upd = new MySqlCommand(
+                "UPDATE face_challenges SET status='scanned' WHERE id=@i AND status='pending'", conn))
+            {
+                upd.Parameters.AddWithValue("@i", id);
+                await upd.ExecuteNonQueryAsync();
+            }
+
+            return Results.Ok(new
+            {
+                agencyName,
+                name = MaskName(name),
+                mode,
+                deviceLabel = device,
+                pairCode = pair
+            });
+        });
+
         app.MapGet("/api/agency/desktop/profile-login/required", async (HttpContext ctx) =>
         {
             var agency = VerifyAgencyBearer(ctx);
@@ -3453,6 +3593,33 @@ internal static class AgencyPortal
         }
 
         return (0, false);
+    }
+
+    private const int FaceChallengeSeconds = 120;
+
+    private static string NewChallengeId()
+    {
+        var b = new byte[16];
+        RandomNumberGenerator.Fill(b);
+        return Convert.ToHexString(b).ToLowerInvariant();
+    }
+
+    private static string NewPairCode() => RandomNumberGenerator.GetInt32(10, 100).ToString();
+
+    private static string QrDataUri(string text)
+    {
+        using var gen = new QRCoder.QRCodeGenerator();
+        using var data = gen.CreateQrCode(text, QRCoder.QRCodeGenerator.ECCLevel.M);
+        var png = new QRCoder.PngByteQRCode(data).GetGraphic(8);
+        return "data:image/png;base64," + Convert.ToBase64String(png);
+    }
+
+    private static string MaskName(string n)
+    {
+        n = (n ?? "").Trim();
+        if (n.Length == 0) return "";
+        var parts = n.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return string.Join(" ", parts.Select(x => x.Length <= 2 ? x : x.Substring(0, 2) + new string('*', Math.Min(5, x.Length - 2))));
     }
 
     private static readonly TimeSpan IstOffset = TimeSpan.FromMinutes(330);
