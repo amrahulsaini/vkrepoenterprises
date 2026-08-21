@@ -182,7 +182,6 @@
                  : pill('p-on', 'Active');
       var kyc = u.kycStatus ? pill(u.kycStatus === 'verified' ? 'p-on' : 'p-off', u.kycStatus) : pill('p-off', 'None');
       var login = u.hasPassword ? pill('p-on', 'Set') : pill('p-off', 'Not set');
-      if (u.faceEnrolled) login += ' ' + pill('p-on', 'Face');
       return '<div class="trow" data-id="' + u.id + '">' +
         '<div class="who2">' + avatar(u, false) +
         '<div style="min-width:0"><div class="n">' + esc(u.name || 'Unnamed') + '</div>' +
@@ -214,8 +213,6 @@
     PFID = id;
     $('pf-pw').value = '';
     $('pf-msg').textContent = '';
-    faceMsg('');
-    $('pf-facefile').value = '';
     $('pf-rows2').innerHTML = '';
     openPfDrawer(true);
     try {
@@ -224,7 +221,6 @@
         (u.pfpUrl ? '<img src="' + esc(u.pfpUrl) + '" alt="">' : '');
       $('pf-name').textContent = u.name || 'Unnamed';
       $('pf-mobile').textContent = u.mobile || '';
-      renderFace(u);
       $('pf-pwstate').textContent = u.hasPassword
         ? 'Set' + (u.passwordSetAt ? ' on ' + u.passwordSetAt : '') + '. Entering a new one replaces it.'
         : 'Not set. This person cannot open a desktop mode until you set one.';
@@ -347,57 +343,6 @@
     show($('page-desktop'), false);
     show($('page-profiles'), true);
   });
-
-
-  function renderFace(u) {
-    var has = !!u.faceEnrolled;
-    show($('pf-facepic'), has && !!u.faceThumb);
-    show($('pf-faceph'), !(has && u.faceThumb));
-    if (has && u.faceThumb) $('pf-facepic').src = u.faceThumb;
-    $('pf-facestate').textContent = has
-      ? 'Enrolled' + (u.faceEnrolledAt ? ' on ' + u.faceEnrolledAt : '') + '. Choosing a new photo replaces it.'
-      : 'Not set. Choose a clear, front-facing photo of this person.';
-    show($('pf-faceclear'), has);
-    $('pf-facesave').textContent = has ? 'Replace face' : 'Set face';
-  }
-
-  function faceMsg(t, kind) {
-    $('pf-facemsg').textContent = t || '';
-    $('pf-facemsg').className = 'msg' + (kind ? ' ' + kind : '');
-  }
-
-  async function saveFace(clear) {
-    if (!PFID) return;
-    var btn = clear ? $('pf-faceclear') : $('pf-facesave');
-    btn.disabled = true;
-    faceMsg('');
-    try {
-      if (clear) {
-        await call('/hrms/profiles/' + PFID + '/face', { method: 'DELETE' });
-        faceMsg('Face removed.', 'ok');
-      } else {
-        var f = $('pf-facefile').files && $('pf-facefile').files[0];
-        if (!f) { faceMsg('Choose a photo first.', 'err'); btn.disabled = false; return; }
-        faceMsg('Reading face\u2026');
-        var b64 = await new Promise(function (res, rej) {
-          var r = new FileReader();
-          r.onload = function () { res(r.result); };
-          r.onerror = function () { rej(new Error('Could not read that file.')); };
-          r.readAsDataURL(f);
-        });
-        await call('/hrms/profiles/' + PFID + '/face', { method: 'POST', body: { image: b64 } });
-        faceMsg('Face set.', 'ok');
-        $('pf-facefile').value = '';
-      }
-      await loadProfiles();
-      await openProfile(PFID);
-    } catch (e) {
-      faceMsg(e.message, 'err');
-    } finally { btn.disabled = false; }
-  }
-
-  $('pf-facesave').addEventListener('click', function () { saveFace(false); });
-  $('pf-faceclear').addEventListener('click', function () { saveFace(true); });
 
   $('pf-q').addEventListener('input', renderProfiles);
   $('pf-save').addEventListener('click', function () { savePassword(false); });
