@@ -744,7 +744,7 @@ internal static class AgencyPortal
                 SELECT id, COALESCE(name,''), COALESCE(mobile,''), COALESCE(is_active,0),
                        COALESCE(is_admin,0), COALESCE(is_blacklisted,0), COALESCE(kyc_status,''),
                        last_seen, (profile_password_hash IS NOT NULL AND profile_password_hash <> '') AS has_pw,
-                       profile_password_set_at, COALESCE(pfp,'')
+                       profile_password_set_at, COALESCE(pfp,''), (face_template IS NOT NULL) AS has_face
                   FROM app_users ORDER BY COALESCE(name,'') ASC, id ASC LIMIT 1000;", conn)
             { CommandTimeout = 30 };
             var list = new List<object>();
@@ -764,6 +764,7 @@ internal static class AgencyPortal
                     hasPassword = rdr.GetInt64(8) == 1,
                     passwordSetAt = rdr.IsDBNull(9) ? null : rdr.GetDateTime(9).ToString("yyyy-MM-dd HH:mm"),
                     pfpUrl = PfpUrl(rdr.GetString(10)),
+                    faceEnrolled = rdr.GetInt64(11) == 1,
                 });
             }
             return Results.Ok(list);
@@ -786,7 +787,8 @@ internal static class AgencyPortal
                        created_at, last_seen, COALESCE(kyc_reg_location,''),
                        (profile_password_hash IS NOT NULL AND profile_password_hash <> '') AS has_pw,
                        profile_password_set_at, COALESCE(profile_password_by,''), COALESCE(device_id,''),
-                       COALESCE(pfp,'')
+                       COALESCE(pfp,''), (face_template IS NOT NULL) AS has_face,
+                       face_enrolled_at, COALESCE(face_thumb,'')
                   FROM app_users WHERE id=@id LIMIT 1;", conn) { CommandTimeout = 20 };
             cmd.Parameters.AddWithValue("@id", id);
             await using var rdr = await cmd.ExecuteReaderAsync();
@@ -808,7 +810,60 @@ internal static class AgencyPortal
                 hasPassword = rdr.GetInt64(23) == 1, passwordSetAt = D(24),
                 passwordBy = rdr.GetString(25), hasDevice = rdr.GetString(26).Length > 0,
                 pfpUrl = PfpUrl(rdr.GetString(27)),
+                faceEnrolled = rdr.GetInt64(28) == 1,
+                faceEnrolledAt = D(29),
+                faceThumb = rdr.GetString(30),
             });
+        });
+
+        app.MapPost("/api/agency/hrms/profiles/{id:long}/face", async (HttpContext ctx, long id, HttpRequest req) =>
+        {
+            var slug = await HrmsSessionSlug(masterConn, ctx);
+            if (slug is null) return Results.Json(new { message = "Session expired." }, statusCode: 401);
+            if (!FaceEngine.Available)
+                return Results.Json(new { message = "Face recognition is not installed on this server." }, statusCode: 503);
+
+            var dto = await ReadJsonAsync(req);
+            byte[] bytes;
+            try { bytes = FaceEngine.DecodeDataUri(dto.GetValueOrDefault("image") ?? ""); }
+            catch { return Results.BadRequest(new { message = "That image could not be read." }); }
+            if (bytes.Length > 8 * 1024 * 1024)
+                return Results.BadRequest(new { message = "That image is too large." });
+
+            float[] vec; string thumb;
+            try
+            {
+                vec = FaceEngine.Embed(bytes);
+                thumb = FaceEngine.Thumb(bytes);
+            }
+            catch (Exception ex) { return Results.BadRequest(new { message = ex.Message }); }
+
+            await using var conn = new MySqlConnection(TenantContext.BuildTenantConn(mysqlHost, mysqlPort, slug));
+            await conn.OpenAsync();
+            await using var cmd = new MySqlCommand(
+                "UPDATE app_users SET face_template=@t, face_thumb=@h, face_enrolled_at=@d, face_enrolled_by='HRMS' WHERE id=@id", conn);
+            cmd.Parameters.AddWithValue("@t", FaceEngine.Pack(vec));
+            cmd.Parameters.AddWithValue("@h", thumb);
+            cmd.Parameters.AddWithValue("@d", IstNow());
+            cmd.Parameters.AddWithValue("@id", id);
+            if (await cmd.ExecuteNonQueryAsync() == 0)
+                return Results.NotFound(new { message = "Profile not found." });
+
+            return Results.Ok(new { ok = true, faceEnrolled = true, faceThumb = thumb });
+        });
+
+        app.MapDelete("/api/agency/hrms/profiles/{id:long}/face", async (HttpContext ctx, long id) =>
+        {
+            var slug = await HrmsSessionSlug(masterConn, ctx);
+            if (slug is null) return Results.Json(new { message = "Session expired." }, statusCode: 401);
+
+            await using var conn = new MySqlConnection(TenantContext.BuildTenantConn(mysqlHost, mysqlPort, slug));
+            await conn.OpenAsync();
+            await using var cmd = new MySqlCommand(
+                "UPDATE app_users SET face_template=NULL, face_thumb=NULL, face_enrolled_at=NULL, face_enrolled_by=NULL WHERE id=@id", conn);
+            cmd.Parameters.AddWithValue("@id", id);
+            await cmd.ExecuteNonQueryAsync();
+            return Results.Ok(new { ok = true, faceEnrolled = false });
         });
 
         app.MapPost("/api/agency/hrms/profiles/{id:long}/password", async (HttpContext ctx, long id, HttpRequest req) =>
