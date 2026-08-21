@@ -434,16 +434,18 @@ internal static class AgencyPortal
 
             var dto = await ReadJsonAsync(req);
             string mobile = new string((dto.GetValueOrDefault("mobile") ?? "").Where(char.IsDigit).ToArray());
-            if (mobile.Length < 10)
-                return Results.BadRequest(new { message = "Enter a 10-digit mobile number." });
+            string pw = dto.GetValueOrDefault("password") ?? "";
+            if (mobile.Length < 10 || pw.Length == 0)
+                return Results.BadRequest(new { message = "Enter your mobile number and password." });
 
-            long userId = 0; string name = "";
+            long userId = 0; string name = "", hash = "";
             bool enrolled = false, blocked = false;
             await using (var tconn = new MySqlConnection(TenantContext.BuildTenantConn(mysqlHost, mysqlPort, ag.slug)))
             {
                 await tconn.OpenAsync();
                 await using var cmd = new MySqlCommand(
-                    "SELECT id, COALESCE(name,''), (face_template IS NOT NULL) AS enrolled, " +
+                    "SELECT id, COALESCE(name,''), COALESCE(profile_password_hash,''), " +
+                    "(face_template IS NOT NULL) AS enrolled, " +
                     "(COALESCE(is_blacklisted,0)=1 OR COALESCE(is_stopped,0)=1 OR COALESCE(is_active,1)=0) AS blocked " +
                     "FROM app_users WHERE RIGHT(REPLACE(COALESCE(mobile,''),' ',''),10) = @m LIMIT 1;", tconn)
                 { CommandTimeout = 15 };
@@ -451,13 +453,13 @@ internal static class AgencyPortal
                 await using var rdr = await cmd.ExecuteReaderAsync();
                 if (await rdr.ReadAsync())
                 {
-                    userId = rdr.GetInt64(0); name = rdr.GetString(1);
-                    enrolled = rdr.GetInt64(2) == 1; blocked = rdr.GetInt64(3) == 1;
+                    userId = rdr.GetInt64(0); name = rdr.GetString(1); hash = rdr.GetString(2);
+                    enrolled = rdr.GetInt64(3) == 1; blocked = rdr.GetInt64(4) == 1;
                 }
             }
 
-            if (userId == 0)
-                return Results.Json(new { code = "no_user", message = "No staff member with that mobile number." }, statusCode: 404);
+            if (userId == 0 || hash.Length == 0 || !VerifyPassword(pw, hash))
+                return Results.Json(new { code = "bad_login", message = "Wrong mobile number or password." }, statusCode: 401);
             if (blocked)
                 return Results.Json(new { code = "blocked", message = "This profile is not allowed to sign in." }, statusCode: 403);
             if (!enrolled)
