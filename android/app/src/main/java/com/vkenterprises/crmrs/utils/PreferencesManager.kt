@@ -24,6 +24,8 @@ class PreferencesManager(private val context: Context) {
         val KEY_AGENCY_NAME    = stringPreferencesKey("agency_name")
         val KEY_AGENCY_LOGO    = stringPreferencesKey("agency_logo")
         val KEY_SHOW_HYPHENS   = booleanPreferencesKey("show_hyphens")
+        val KEY_TWO_COLUMN     = booleanPreferencesKey("two_column_view")
+        val KEY_ONLINE_ONLY    = booleanPreferencesKey("online_only")
     }
 
     val showHyphens: Flow<Boolean> = context.dataStore.data
@@ -31,6 +33,28 @@ class PreferencesManager(private val context: Context) {
 
     suspend fun setShowHyphens(v: Boolean) {
         context.dataStore.edit { prefs -> prefs[KEY_SHOW_HYPHENS] = v }
+    }
+
+    val twoColumnView: Flow<Boolean> = context.dataStore.data
+        .map { it[KEY_TWO_COLUMN] ?: true }
+
+    suspend fun setTwoColumnView(v: Boolean) {
+        context.dataStore.edit { prefs -> prefs[KEY_TWO_COLUMN] = v }
+    }
+
+    val onlineOnly: Flow<Boolean> = context.dataStore.data
+        .map { it[KEY_ONLINE_ONLY] ?: true }
+
+    suspend fun setOnlineOnly(v: Boolean) {
+        context.dataStore.edit { prefs -> prefs[KEY_ONLINE_ONLY] = v }
+    }
+
+    suspend fun applyCloudSettings(twoColumn: Boolean, online: Boolean, hyphens: Boolean) {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_TWO_COLUMN]   = twoColumn
+            prefs[KEY_ONLINE_ONLY]  = online
+            prefs[KEY_SHOW_HYPHENS] = hyphens
+        }
     }
 
     val isLoggedIn: Flow<Boolean> = context.dataStore.data

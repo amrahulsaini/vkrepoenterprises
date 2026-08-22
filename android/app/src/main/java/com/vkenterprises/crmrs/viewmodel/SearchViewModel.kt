@@ -2,8 +2,10 @@ package com.vkenterprises.crmrs.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.vkenterprises.crmrs.data.api.ApiService
 import com.vkenterprises.crmrs.data.local.TenantDb
 import com.vkenterprises.crmrs.data.local.VehicleCache
+import com.vkenterprises.crmrs.data.models.SaveUserSettingsRequest
 import com.vkenterprises.crmrs.data.models.SearchResult
 import com.vkenterprises.crmrs.data.repository.SearchRepository
 import com.vkenterprises.crmrs.data.repository.SearchResult2
@@ -44,15 +46,23 @@ data class SearchUiState(
     val showHyphens: Boolean          = true,
     val twoColumnView: Boolean        = true,
     val actionType: String            = "confirm",
-    val offlineCount: Long            = 0L
+    val offlineCount: Long            = 0L,
+    val searchToken: Long             = 0L
 )
 
 @HiltViewModel
 class SearchViewModel @Inject constructor(
     private val db: TenantDb,
     private val syncRepo: SyncRepository,
-    private val prefs: PreferencesManager
+    private val prefs: PreferencesManager,
+    private val api: ApiService
 ) : ViewModel() {
+
+    var scrollIndex  = 0
+        private set
+    var scrollOffset = 0
+        private set
+    var lastScrolledToken = 0L
 
     private val vehicleDao get() = db.vehicleCacheDao()
 
@@ -69,6 +79,17 @@ class SearchViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             prefs.showHyphens.collect { v -> _ui.update { it.copy(showHyphens = v) } }
+        }
+        viewModelScope.launch {
+            prefs.twoColumnView.collect { v -> _ui.update { it.copy(twoColumnView = v) } }
+        }
+        viewModelScope.launch {
+            prefs.onlineOnly.collect { v -> _ui.update { it.copy(onlineOnly = v) } }
+        }
+        viewModelScope.launch {
+            prefs.userId.filter { it > 0 }.distinctUntilChanged().collect { uid ->
+                loadCloudSettings(uid)
+            }
         }
         viewModelScope.launch(Dispatchers.IO) {
             val hasUpdates = runCatching { syncRepo.hasUpdates() }.getOrDefault(false)
@@ -154,6 +175,7 @@ class SearchViewModel @Inject constructor(
 
     fun setMode(mode: SearchMode) {
         searchJob?.cancel()
+        resetScroll()
         _ui.update { it.copy(mode = mode, inputText = "", prefixInput = "", results = emptyList(), allResults = emptyList(), errorMsg = null) }
     }
 
@@ -178,17 +200,45 @@ class SearchViewModel @Inject constructor(
         }
     }
 
+    fun saveScroll(index: Int, offset: Int) {
+        scrollIndex  = index
+        scrollOffset = offset
+    }
+
+    private fun resetScroll() {
+        scrollIndex  = 0
+        scrollOffset = 0
+    }
+
+    private suspend fun loadCloudSettings(userId: Long) {
+        val remote = runCatching { api.getUserSettings(userId) }.getOrNull()?.body() ?: return
+        prefs.applyCloudSettings(remote.twoColumnView, remote.onlineOnly, remote.showHyphens)
+    }
+
+    private fun pushCloudSettings(req: SaveUserSettingsRequest) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val uid = prefs.userId.first()
+            if (uid > 0) runCatching { api.saveUserSettings(uid, req) }
+        }
+    }
+
     fun setOnlineOnly(v: Boolean) {
         _ui.update { it.copy(onlineOnly = v, results = emptyList(), allResults = emptyList(), errorMsg = null, inputText = "") }
+        resetScroll()
+        viewModelScope.launch { prefs.setOnlineOnly(v) }
+        pushCloudSettings(SaveUserSettingsRequest(onlineOnly = v))
     }
 
     fun setTwoColumnView(v: Boolean) {
         _ui.update { it.copy(twoColumnView = v) }
+        viewModelScope.launch { prefs.setTwoColumnView(v) }
+        pushCloudSettings(SaveUserSettingsRequest(twoColumnView = v))
     }
 
     fun setShowHyphens(v: Boolean) {
         _ui.update { it.copy(showHyphens = v) }
         viewModelScope.launch { prefs.setShowHyphens(v) }
+        pushCloudSettings(SaveUserSettingsRequest(showHyphens = v))
     }
 
     fun setActionType(type: String) {
@@ -230,7 +280,8 @@ class SearchViewModel @Inject constructor(
     }
 
     private suspend fun executeSearch(q: String, mode: SearchMode, userId: Long, statePrefix: String = "") {
-        _ui.update { it.copy(isSearching = true, errorMsg = null) }
+        resetScroll()
+        _ui.update { it.copy(isSearching = true, errorMsg = null, searchToken = it.searchToken + 1) }
 
         if (!_ui.value.onlineOnly) {
             val local = withContext(Dispatchers.IO) {
@@ -282,6 +333,7 @@ class SearchViewModel @Inject constructor(
 
     fun clearResults() {
         searchJob?.cancel()
+        resetScroll()
         _ui.update { it.copy(results = emptyList(), allResults = emptyList(), lastQuery = "", inputText = "", prefixInput = "", errorMsg = null, isSearching = false) }
     }
 }

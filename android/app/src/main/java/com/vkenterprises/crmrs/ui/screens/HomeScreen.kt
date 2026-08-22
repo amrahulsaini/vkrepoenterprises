@@ -506,11 +506,23 @@ fun HomeScreen(
                 }
             }
 
-            val gridState = rememberLazyGridState()
-            val listState = rememberLazyListState()
-            LaunchedEffect(ui.lastQuery) {
-                gridState.scrollToItem(0)
-                listState.scrollToItem(0)
+            val gridState = rememberLazyGridState(searchVm.scrollIndex, searchVm.scrollOffset)
+            val listState = rememberLazyListState(searchVm.scrollIndex, searchVm.scrollOffset)
+            LaunchedEffect(ui.searchToken) {
+                if (ui.searchToken != searchVm.lastScrolledToken) {
+                    searchVm.lastScrolledToken = ui.searchToken
+                    gridState.scrollToItem(0)
+                    listState.scrollToItem(0)
+                }
+            }
+            LaunchedEffect(ui.twoColumnView) {
+                if (ui.twoColumnView) {
+                    snapshotFlow { gridState.firstVisibleItemIndex to gridState.firstVisibleItemScrollOffset }
+                        .collect { (i, o) -> searchVm.saveScroll(i, o) }
+                } else {
+                    snapshotFlow { listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset }
+                        .collect { (i, o) -> searchVm.saveScroll(i, o) }
+                }
             }
 
             if (ui.results.isNotEmpty()) {

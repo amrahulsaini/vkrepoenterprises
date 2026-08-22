@@ -981,6 +981,44 @@ public class MobileRepository
         return list;
     }
 
+    public async Task<AppUserSettings> GetUserSettingsAsync(long userId)
+    {
+        await using var conn = DbFactory.Create();
+        await conn.OpenAsync();
+        await using var cmd = new MySqlCommand(@"
+            SELECT two_column_view, online_only, show_hyphens
+            FROM app_user_settings WHERE user_id = @uid LIMIT 1", conn) { CommandTimeout = 10 };
+        cmd.Parameters.AddWithValue("@uid", userId);
+        await using var r = await cmd.ExecuteReaderAsync();
+        if (!await r.ReadAsync()) return new AppUserSettings(true, true, true);
+        return new AppUserSettings(r.GetBoolean(0), r.GetBoolean(1), r.GetBoolean(2));
+    }
+
+    public async Task<AppUserSettings> SaveUserSettingsAsync(long userId, SaveAppUserSettingsRequest req)
+    {
+        var current = await GetUserSettingsAsync(userId);
+        var merged = new AppUserSettings(
+            req.TwoColumnView ?? current.TwoColumnView,
+            req.OnlineOnly    ?? current.OnlineOnly,
+            req.ShowHyphens   ?? current.ShowHyphens);
+
+        await using var conn = DbFactory.Create();
+        await conn.OpenAsync();
+        await using var cmd = new MySqlCommand(@"
+            INSERT INTO app_user_settings (user_id, two_column_view, online_only, show_hyphens)
+            VALUES (@uid, @tcv, @oo, @sh)
+            ON DUPLICATE KEY UPDATE
+                two_column_view = VALUES(two_column_view),
+                online_only     = VALUES(online_only),
+                show_hyphens    = VALUES(show_hyphens)", conn) { CommandTimeout = 10 };
+        cmd.Parameters.AddWithValue("@uid", userId);
+        cmd.Parameters.AddWithValue("@tcv", merged.TwoColumnView ? 1 : 0);
+        cmd.Parameters.AddWithValue("@oo", merged.OnlineOnly ? 1 : 0);
+        cmd.Parameters.AddWithValue("@sh", merged.ShowHyphens ? 1 : 0);
+        await cmd.ExecuteNonQueryAsync();
+        return merged;
+    }
+
     public async Task<RepoLetterSettings> GetRepoSettingsAsync(int financeId)
     {
         await using var conn = DbFactory.Create();

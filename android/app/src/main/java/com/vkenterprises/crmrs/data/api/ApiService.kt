@@ -53,6 +53,17 @@ interface ApiService {
         @Header("X-User-Id") userId: Long
     ): Response<SearchResult>
 
+    @GET("api/mobile/user/settings")
+    suspend fun getUserSettings(
+        @Header("X-User-Id") userId: Long
+    ): Response<UserSettings>
+
+    @PUT("api/mobile/user/settings")
+    suspend fun saveUserSettings(
+        @Header("X-User-Id") userId: Long,
+        @Body body: SaveUserSettingsRequest
+    ): Response<UserSettings>
+
     @GET("api/mobile/repo/head-offices")
     suspend fun getHeadOffices(
         @Header("X-User-Id") userId: Long
