@@ -231,6 +231,16 @@ public record SaveRepoSettingsRequest(
     string? PoliceStation,
     string? PoliceAddress);
 
+public record AppUserSettings(
+    bool TwoColumnView,
+    bool OnlineOnly,
+    bool ShowHyphens);
+
+public record SaveAppUserSettingsRequest(
+    bool? TwoColumnView,
+    bool? OnlineOnly,
+    bool? ShowHyphens);
+
 public record UploadRepoLogoRequest(string? ImageBase64);
 
 public record RepoSubmitRequest(

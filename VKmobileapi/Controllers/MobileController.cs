@@ -313,6 +313,37 @@ public class MobileController : ControllerBase
         }
     }
 
+    [HttpGet("user/settings")]
+    public async Task<IActionResult> GetUserSettings(
+        [FromHeader(Name = "X-User-Id")] long userId)
+    {
+        if (userId <= 0) return BadRequest(new ApiError(false, "Missing user id"));
+        try
+        {
+            return Ok(await _repo.GetUserSettingsAsync(userId));
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new ApiError(false, $"Failed to load settings: {ex.Message}"));
+        }
+    }
+
+    [HttpPut("user/settings")]
+    public async Task<IActionResult> SaveUserSettings(
+        [FromHeader(Name = "X-User-Id")] long userId,
+        [FromBody] SaveAppUserSettingsRequest req)
+    {
+        if (userId <= 0) return BadRequest(new ApiError(false, "Missing user id"));
+        try
+        {
+            return Ok(await _repo.SaveUserSettingsAsync(userId, req));
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new ApiError(false, $"Failed to save settings: {ex.Message}"));
+        }
+    }
+
     [HttpGet("repo/settings/{financeId:int}")]
     public async Task<IActionResult> GetRepoSettings(
         int financeId,

@@ -196,6 +196,18 @@ data class RepoTaskEditRequest(
     val cashAmount: Double? = null
 )
 
+data class UserSettings(
+    val twoColumnView: Boolean = true,
+    val onlineOnly: Boolean = true,
+    val showHyphens: Boolean = true
+)
+
+data class SaveUserSettingsRequest(
+    val twoColumnView: Boolean? = null,
+    val onlineOnly: Boolean? = null,
+    val showHyphens: Boolean? = null
+)
+
 data class RepoLetterSettings(
     val financeId: Long = 0,
     val agencyName: String? = null,
