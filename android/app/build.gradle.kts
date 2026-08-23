@@ -176,6 +176,8 @@ dependencies {
     // registration so the agent doesn't type it (Latin text recognition, models
     // bundled in the APK, fully offline).
     implementation("com.google.mlkit:text-recognition:16.0.1")
+    implementation("com.google.mlkit:barcode-scanning:17.2.0")
+    implementation("androidx.biometric:biometric:1.1.0")
 }
 
 kapt { correctErrorTypes = true }

@@ -6,6 +6,21 @@ import retrofit2.http.*
 
 interface ApiService {
 
+    @GET("api/mobile/fingerprint/status")
+    suspend fun fpStatus(): Response<Map<String, Any>>
+
+    @POST("api/mobile/fingerprint/enrol")
+    suspend fun fpEnrol(@Body body: Map<String, String?>): Response<Map<String, Any>>
+
+    @DELETE("api/mobile/fingerprint")
+    suspend fun fpRemove(): Response<Map<String, Any>>
+
+    @GET("api/mobile/fingerprint/challenge/{id}")
+    suspend fun fpChallenge(@Path("id") id: String): Response<Map<String, Any>>
+
+    @POST("api/mobile/fingerprint/approve")
+    suspend fun fpApprove(@Body body: Map<String, String?>): Response<Map<String, Any>>
+
     @GET("api/mobile/agencies")
     suspend fun getAgencies(): Response<List<AgencyListItem>>
 
