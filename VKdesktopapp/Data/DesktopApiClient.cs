@@ -687,7 +687,7 @@ internal static class DesktopApiClient
             {
                 System.Net.HttpStatusCode.Conflict     => (false, "", "", true, Array.Empty<string>(), ""),
                 System.Net.HttpStatusCode.Unauthorized => (false, "", "Wrong mobile number or password.", false, Array.Empty<string>(), ""),
-                System.Net.HttpStatusCode.Forbidden    => (false, "", "This profile is not allowed to sign in.", false, Array.Empty<string>(), ""),
+                System.Net.HttpStatusCode.Forbidden    => (false, "", ex.Message, false, Array.Empty<string>(), ""),
                 _                                      => (false, "", ex.Message, false, Array.Empty<string>(), ""),
             };
         }

@@ -502,9 +502,14 @@ internal static class AgencyPortal
                     var ov = rr.IsDBNull(3) ? null : rr.GetString(3);
                     mods = Modules.Effective(rr.GetInt32(0) == 1, ov ?? rr.GetString(1));
                     roleName = rr.GetString(2);
-                    if (mods.Length == 0 && ov is null && roleName.Length == 0)
-                        mods = Modules.All.Select(m => m.Key).ToArray();
                 }
+            }
+
+            string fail = rdr.GetString(4);
+            if (status == "approved" && mods.Length == 0)
+            {
+                status = "denied";
+                fail = "no_role";
             }
 
             return Results.Ok(new
@@ -512,7 +517,7 @@ internal static class AgencyPortal
                 status,
                 name = rdr.GetString(1),
                 userId = approvedId,
-                failReason = rdr.GetString(4),
+                failReason = fail,
                 role = roleName,
                 modules = mods
             });
@@ -602,15 +607,17 @@ internal static class AgencyPortal
                     message = "This profile signs in with a fingerprint." }, statusCode: 409);
 
             var effective = Modules.Effective(isSuper, overrideCsv ?? modulesCsv);
-            bool unrestricted = false;
-            if (effective.Length == 0 && overrideCsv is null && roleName.Length == 0)
-            {
-                effective = Modules.All.Select(m => m.Key).ToArray();
-                unrestricted = true;
-            }
 
-            return Results.Ok(new { ok = true, userId = id, name, role = roleName,
-                modules = effective, unrestricted });
+            if (effective.Length == 0)
+                return Results.Json(new
+                {
+                    code = "no_role",
+                    message = overrideCsv is null && roleName.Length == 0
+                        ? "No role has been assigned to this profile. Ask your administrator to set one in HRMS."
+                        : "This profile has no modules enabled. Ask your administrator to update it in HRMS."
+                }, statusCode: 403);
+
+            return Results.Ok(new { ok = true, userId = id, name, role = roleName, modules = effective });
         });
 
         app.MapGet("/api/agency/hrms/attendance", async (HttpContext ctx, string? date) =>

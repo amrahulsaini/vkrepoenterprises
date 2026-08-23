@@ -97,9 +97,12 @@ public partial class FingerprintLoginWindow : Window
 
                 case "denied":
                     _poll.Stop();
-                    lblStatus.Text = r.FailReason == "bad_signature"
-                        ? "That fingerprint could not be verified. Get a new code and try again."
-                        : "That sign-in was refused. Get a new code and try again.";
+                    lblStatus.Text = r.FailReason switch
+                    {
+                        "bad_signature" => "That fingerprint could not be verified. Get a new code and try again.",
+                        "no_role"       => "No role has been assigned to this profile. Ask your administrator to set one in HRMS.",
+                        _               => "That sign-in was refused. Get a new code and try again.",
+                    };
                     break;
 
                 case "expired":
