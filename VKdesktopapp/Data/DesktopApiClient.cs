@@ -671,24 +671,26 @@ internal static class DesktopApiClient
         catch { return false; }
     }
 
-    internal static async Task<(bool Ok, string Name, string Error)> ProfileLoginAsync(string mobile, string password)
+    internal static async Task<(bool Ok, string Name, string Error, bool NeedsFingerprint)> ProfileLoginAsync(
+        string mobile, string password)
     {
-        var resp = await Send(HttpMethod.Post, "api/agency/desktop/profile-login",
-            new { Mobile = mobile, Password = password });
-        if (resp.IsSuccessStatusCode)
-        {
-            var r = await resp.Content.ReadFromJsonAsync<ProfileLoginResult>(_json);
-            return (true, r?.Name ?? "", "");
-        }
-        string msg = "Wrong mobile number or password.";
         try
         {
-            var body = await resp.Content.ReadAsStringAsync();
-            using var doc = System.Text.Json.JsonDocument.Parse(body);
-            if (doc.RootElement.TryGetProperty("message", out var m)) msg = m.GetString() ?? msg;
+            var resp = await Send(HttpMethod.Post, "api/agency/desktop/profile-login",
+                new { Mobile = mobile, Password = password });
+            var r = await resp.Content.ReadFromJsonAsync<ProfileLoginResult>(_json);
+            return (true, r?.Name ?? "", "", false);
         }
-        catch { }
-        return (false, "", msg);
+        catch (HttpRequestException ex)
+        {
+            return ex.StatusCode switch
+            {
+                System.Net.HttpStatusCode.Conflict     => (false, "", "", true),
+                System.Net.HttpStatusCode.Unauthorized => (false, "", "Wrong mobile number or password.", false),
+                System.Net.HttpStatusCode.Forbidden    => (false, "", "This profile is not allowed to sign in.", false),
+                _                                      => (false, "", ex.Message, false),
+            };
+        }
     }
 
     internal static async Task<GateVerifyResult> VerifyGateAsync(string gate, string password)

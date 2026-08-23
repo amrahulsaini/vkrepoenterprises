@@ -56,7 +56,7 @@ public partial class ProfileLoginWindow : Window
                 Close();
                 return;
             }
-            if (r.Error != null && r.Error.Contains("fingerprint", StringComparison.OrdinalIgnoreCase))
+            if (r.NeedsFingerprint)
             {
                 NeedsFingerprint = true;
                 DialogResult = false;
