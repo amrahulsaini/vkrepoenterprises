@@ -167,6 +167,9 @@
   // it and is routinely kilometres out, which is useless for a 200m circle.
   var MAP = null, PIN = null, RING = null, TILES = {}, PICKED = null;
 
+  // Mirrors the cap the server applies to a phone's reported accuracy.
+  var GPS_SLACK = 50;
+
   var INDIA = [22.9734, 78.6569];
 
   function loadScript(src) {
@@ -344,6 +347,7 @@
 
     $('geo-radius').value = r;
     $('geo-radius-v').textContent = metres(r);
+    radiusNote(r);
     $('geo-label').value = (ME && ME.geoLabel) || '';
     show($('geo-clear'), !!has);
 
@@ -389,9 +393,35 @@
     saveGeo({ clear: 'true' });
   });
 
+  // A phone cannot be located more precisely than its own fix, so a tight
+  // circle is judged with that slack added. Saying so here stops a 20 m circle
+  // being read as a promise of 20 m precision.
+  function radiusNote(v) {
+    var el = $('geo-radius-note');
+    if (v <= 30) {
+      el.className = 'callout bad';
+      el.innerHTML = '<b>Tighter than a phone can measure.</b> A good fix is 10&ndash;20 m out ' +
+        'and an indoor one is worse, so up to ' + metres(GPS_SLACK) + ' of the phone&rsquo;s own ' +
+        'reported error is allowed on top of this. Staff at their desk should still pass, but ' +
+        'someone just outside your gate may pass too. Nobody at home will.';
+      return;
+    }
+    if (v <= 80) {
+      el.className = 'callout';
+      el.innerHTML = '<b>Tight.</b> Up to ' + metres(GPS_SLACK) + ' of the phone&rsquo;s own ' +
+        'reported error is allowed on top, so the real cut-off sits a little wider than the ' +
+        'circle you see. Watch the list below for anyone rejected while genuinely at work.';
+      return;
+    }
+    el.className = 'callout';
+    el.innerHTML = 'Comfortable for indoor GPS. Up to ' + metres(GPS_SLACK) + ' of the ' +
+      'phone&rsquo;s own reported error is allowed on top of this.';
+  }
+
   $('geo-radius').addEventListener('input', function () {
     var v = parseInt($('geo-radius').value, 10);
     $('geo-radius-v').textContent = metres(v);
+    radiusNote(v);
     if (RING) RING.setRadius(v);
   });
 

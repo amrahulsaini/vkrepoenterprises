@@ -1189,7 +1189,7 @@ internal static class AgencyPortal
                 return Results.BadRequest(new { message = "That is not a valid location." });
 
             if (!int.TryParse(dto.GetValueOrDefault("radius"), out int radius)) radius = 200;
-            if (radius < 50) radius = 50;
+            if (radius < 10) radius = 10;
             if (radius > 5000) radius = 5000;
 
             string label = (dto.GetValueOrDefault("label") ?? "").Trim();

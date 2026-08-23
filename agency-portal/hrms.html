@@ -768,13 +768,13 @@
             <hr class="split">
 
             <h4>How far around it counts as at work</h4>
-            <p class="ph">GPS indoors is commonly 20&ndash;50 m out, so a circle under 100 m will
-               reject people sitting at their own desk. 200 m suits most offices. The shaded circle
-               on the map is exactly what staff must be inside.</p>
+            <p class="ph">The shaded circle on the map is exactly what staff must be inside.
+               Tighten it until it covers your premises and not the buildings next door.</p>
             <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-              <input type="range" id="geo-radius" min="50" max="2000" step="50" value="200" style="flex:1;min-width:200px;accent-color:var(--orange)">
+              <input type="range" id="geo-radius" min="10" max="2000" step="10" value="200" style="flex:1;min-width:200px;accent-color:var(--orange)">
               <span class="count" id="geo-radius-v">200 m</span>
             </div>
+            <div id="geo-radius-note" class="callout" style="margin-top:12px"></div>
 
             <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:18px">
               <button class="btn btn-accent" id="geo-save">Save boundary</button>
@@ -855,6 +855,6 @@
 </aside>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="/js/hrms.js?v=19"></script>
+<script src="/js/hrms.js?v=20"></script>
 </body>
 </html>

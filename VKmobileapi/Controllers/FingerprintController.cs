@@ -285,7 +285,9 @@ public class FingerprintController : ControllerBase
                 double m = MetresBetween(fenceLat!.Value, fenceLng!.Value, body!.Lat!.Value, body.Lng!.Value);
                 // A poor fix should not fail someone standing at their desk, so
                 // the phone's own accuracy widens the circle it is judged against.
-                double allow = fenceRadius + Math.Min(body.Accuracy ?? 0, 100);
+                // Capped, or a phone reporting a useless fix would widen a tight
+                // circle until it meant nothing.
+                double allow = fenceRadius + Math.Min(body.Accuracy ?? 0, 50);
                 distance = (int)Math.Round(m);
                 verdict = m <= allow ? "match" : "mismatch";
                 if (verdict == "mismatch")
