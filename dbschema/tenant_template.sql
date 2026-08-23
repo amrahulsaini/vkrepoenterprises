@@ -66,6 +66,7 @@ CREATE TABLE `app_users` (
   `fingerprint_required` tinyint(1) NOT NULL DEFAULT 0,
   `fingerprint_waived_until` datetime DEFAULT NULL,
   `role_id` int(11) DEFAULT NULL,
+  `modules_override` text DEFAULT NULL,
   `kyc_aadhaar_last4` varchar(8) DEFAULT NULL,
   `kyc_aadhaar_name` varchar(190) DEFAULT NULL,
   `kyc_aadhaar_dob` varchar(20) DEFAULT NULL,

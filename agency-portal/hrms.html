@@ -605,6 +605,20 @@
       <div class="k" style="font-size:9.5px;font-weight:750;letter-spacing:1px;text-transform:uppercase;color:var(--muted-2);margin-bottom:9px">Role &mdash; what they can open on the desktop</div>
       <select class="field" id="pf-role"></select>
       <div id="pf-rolemods" style="font-size:12px;color:var(--muted);margin-top:9px;line-height:1.55"></div>
+
+      <label class="modchk" style="margin-top:12px;background:var(--paper)">
+        <input type="checkbox" id="pf-custom">
+        <span>Choose modules just for this person</span>
+      </label>
+      <div id="pf-modbox" class="hidden" style="margin-top:4px">
+        <div style="display:flex;gap:8px;margin:10px 0 2px;flex-wrap:wrap">
+          <button class="btn btn-ghost btn-xs" id="pf-modall">Select all</button>
+          <button class="btn btn-ghost btn-xs" id="pf-modnone">Clear all</button>
+          <span class="count" id="pf-modcount" style="margin-left:auto"></span>
+        </div>
+        <div id="pf-modules"></div>
+        <button class="btn btn-accent btn-xs" id="pf-modsave" style="width:100%;margin-top:10px;">Save modules for this person</button>
+      </div>
       <div class="msg" id="pf-rolemsg"></div>
     </div>
 
@@ -661,6 +675,6 @@
   </div>
 </aside>
 
-<script src="/js/hrms.js?v=13"></script>
+<script src="/js/hrms.js?v=14"></script>
 </body>
 </html>

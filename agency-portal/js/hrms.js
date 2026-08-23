@@ -148,7 +148,7 @@
   });
 
 
-  var PROFILES = [], PFID = null;
+  var PROFILES = [], PFID = null, CURRENT_PROFILE = null;
 
   function initials(n) {
     var p = (n || '?').trim().split(/\s+/);
@@ -228,8 +228,12 @@
         (u.pfpUrl ? '<img src="' + esc(u.pfpUrl) + '" alt="">' : '');
       $('pf-name').textContent = u.name || 'Unnamed';
       $('pf-mobile').textContent = u.mobile || '';
+      CURRENT_PROFILE = u;
       loadFp(u);
       fillRolePicker(u);
+      $('pf-custom').checked = !!u.hasOverride;
+      show($('pf-modbox'), !!u.hasOverride);
+      if (u.hasOverride) renderUserModules((u.overrideModules || []).slice());
       $('pf-pwstate').textContent = u.hasPassword
         ? 'Set' + (u.passwordSetAt ? ' on ' + u.passwordSetAt : '') + '. Entering a new one replaces it.'
         : 'Not set. This person cannot open a desktop mode until you set one.';
@@ -553,6 +557,13 @@
   });
 
   function describeRole(id) {
+    if (CURRENT_PROFILE && CURRENT_PROFILE.hasOverride) {
+      var mods = CURRENT_PROFILE.modules || [];
+      $('pf-rolemods').innerHTML = mods.length
+        ? '<b>Custom for this person \u2014 ' + mods.length + ' of ' + MODULES.length + '.</b> The role is ignored.'
+        : '<span style="color:#b3261e">Custom list is empty \u2014 this person sees nothing.</span>';
+      return;
+    }
     var r = ROLES.filter(function (x) { return x.id === id; })[0];
     if (!r) {
       $('pf-rolemods').innerHTML =
@@ -602,6 +613,78 @@
       $('pf-rolemsg').textContent = e.message;
       $('pf-rolemsg').className = 'msg err';
     }
+  });
+
+
+  function renderUserModules(selected) {
+    var groups = [];
+    MODULES.forEach(function (m) { if (groups.indexOf(m.group) < 0) groups.push(m.group); });
+    $('pf-modules').innerHTML = groups.map(function (g) {
+      var items = MODULES.filter(function (m) { return m.group === g; }).map(function (m) {
+        var on = selected.indexOf(m.key) >= 0 ? ' checked' : '';
+        return '<label class="modchk"><input type="checkbox" value="' + esc(m.key) + '"' + on + '>' +
+               '<span>' + esc(m.label) + '</span></label>';
+      }).join('');
+      return '<div class="modgrp">' + esc(g) + '</div><div class="rolegrid">' + items + '</div>';
+    }).join('');
+    Array.prototype.forEach.call($('pf-modules').querySelectorAll('input'), function (c) {
+      c.addEventListener('change', countUserMods);
+    });
+    countUserMods();
+  }
+
+  function pickedUserMods() {
+    return Array.prototype.slice
+      .call($('pf-modules').querySelectorAll('input:checked'))
+      .map(function (c) { return c.value; });
+  }
+
+  function countUserMods() {
+    $('pf-modcount').textContent = pickedUserMods().length + ' of ' + MODULES.length + ' selected';
+  }
+
+  $('pf-custom').addEventListener('change', async function () {
+    var on = $('pf-custom').checked;
+    show($('pf-modbox'), on);
+    if (on) {
+      var cur = (CURRENT_PROFILE && CURRENT_PROFILE.modules) ? CURRENT_PROFILE.modules.slice() : [];
+      renderUserModules(cur);
+    } else if (PFID) {
+      try {
+        await call('/hrms/profiles/' + PFID + '/modules', { method: 'POST', body: { useRole: true } });
+        $('pf-rolemsg').textContent = 'Back to the role\u2019s modules.';
+        $('pf-rolemsg').className = 'msg ok';
+        await openProfile(PFID);
+      } catch (e) {
+        $('pf-rolemsg').textContent = e.message;
+        $('pf-rolemsg').className = 'msg err';
+      }
+    }
+  });
+
+  $('pf-modall').addEventListener('click', function () {
+    Array.prototype.forEach.call($('pf-modules').querySelectorAll('input'), function (c) { c.checked = true; });
+    countUserMods();
+  });
+  $('pf-modnone').addEventListener('click', function () {
+    Array.prototype.forEach.call($('pf-modules').querySelectorAll('input'), function (c) { c.checked = false; });
+    countUserMods();
+  });
+
+  $('pf-modsave').addEventListener('click', async function () {
+    if (!PFID) return;
+    $('pf-modsave').disabled = true;
+    try {
+      await call('/hrms/profiles/' + PFID + '/modules',
+        { method: 'POST', body: { modules: pickedUserMods() } });
+      $('pf-rolemsg').textContent = 'Modules saved for this person.';
+      $('pf-rolemsg').className = 'msg ok';
+      await loadProfiles();
+      await openProfile(PFID);
+    } catch (e) {
+      $('pf-rolemsg').textContent = e.message;
+      $('pf-rolemsg').className = 'msg err';
+    } finally { $('pf-modsave').disabled = false; }
   });
 
   $('pf-q').addEventListener('input', renderProfiles);

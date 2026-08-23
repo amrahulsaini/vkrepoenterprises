@@ -493,13 +493,14 @@ internal static class AgencyPortal
                 await using var tconn = new MySqlConnection(TenantContext.BuildTenantConn(mysqlHost, mysqlPort, chalSlug));
                 await tconn.OpenAsync();
                 await using var rc = new MySqlCommand(
-                    "SELECT r.is_superadmin, COALESCE(r.modules,''), r.name FROM app_users u " +
-                    "JOIN roles r ON r.id = u.role_id WHERE u.id=@u LIMIT 1;", tconn);
+                    "SELECT COALESCE(r.is_superadmin,0), COALESCE(r.modules,''), COALESCE(r.name,''), u.modules_override " +
+                    "FROM app_users u LEFT JOIN roles r ON r.id = u.role_id WHERE u.id=@u LIMIT 1;", tconn);
                 rc.Parameters.AddWithValue("@u", approvedId);
                 await using var rr = await rc.ExecuteReaderAsync();
                 if (await rr.ReadAsync())
                 {
-                    mods = Modules.Effective(rr.GetInt32(0) == 1, rr.GetString(1));
+                    var ov = rr.IsDBNull(3) ? null : rr.GetString(3);
+                    mods = Modules.Effective(rr.GetInt32(0) == 1, ov ?? rr.GetString(1));
                     roleName = rr.GetString(2);
                 }
             }
@@ -547,13 +548,15 @@ internal static class AgencyPortal
             long id = 0; string name = "", hash = "";
             bool active = false, stopped = false, blacklisted = false, fpRequired = false, isSuper = false;
             string modulesCsv = "", roleName = "";
+            string? overrideCsv = null;
             await using (var cmd = new MySqlCommand(@"
                 SELECT id, COALESCE(name,''), COALESCE(profile_password_hash,''),
                        COALESCE(is_active,0), COALESCE(is_stopped,0), COALESCE(is_blacklisted,0),
                        COALESCE(fingerprint_required,0),
                        (SELECT r.is_superadmin FROM roles r WHERE r.id = app_users.role_id),
                        (SELECT COALESCE(r.modules,'') FROM roles r WHERE r.id = app_users.role_id),
-                       (SELECT r.name FROM roles r WHERE r.id = app_users.role_id)
+                       (SELECT r.name FROM roles r WHERE r.id = app_users.role_id),
+                       modules_override
                   FROM app_users WHERE RIGHT(REPLACE(COALESCE(mobile,''),' ',''),10) = @m LIMIT 1;", conn)
             { CommandTimeout = 15 })
             {
@@ -567,6 +570,7 @@ internal static class AgencyPortal
                     isSuper = !rdr.IsDBNull(7) && rdr.GetInt32(7) == 1;
                     modulesCsv = rdr.IsDBNull(8) ? "" : rdr.GetString(8);
                     roleName = rdr.IsDBNull(9) ? "" : rdr.GetString(9);
+                    overrideCsv = rdr.IsDBNull(10) ? null : rdr.GetString(10);
                 }
             }
 
@@ -579,7 +583,7 @@ internal static class AgencyPortal
                     message = "This profile signs in with a fingerprint." }, statusCode: 409);
 
             return Results.Ok(new { ok = true, userId = id, name, role = roleName,
-                modules = Modules.Effective(isSuper, modulesCsv) });
+                modules = Modules.Effective(isSuper, overrideCsv ?? modulesCsv) });
         });
 
         app.MapGet("/api/agency/hrms/attendance", async (HttpContext ctx, string? date) =>
@@ -813,6 +817,39 @@ internal static class AgencyPortal
             return Results.Ok(new { ok = true });
         });
 
+        app.MapPost("/api/agency/hrms/profiles/{id:long}/modules", async (HttpContext ctx, long id, HttpRequest req) =>
+        {
+            var slug = await HrmsSessionSlug(masterConn, ctx);
+            if (slug is null) return Results.Json(new { message = "Session expired." }, statusCode: 401);
+
+            using var doc = await System.Text.Json.JsonDocument.ParseAsync(req.Body);
+            var root = doc.RootElement;
+
+            bool useRole = root.TryGetProperty("useRole", out var uEl) &&
+                           uEl.ValueKind == System.Text.Json.JsonValueKind.True;
+
+            string? csv = null;
+            if (!useRole)
+            {
+                var keys = new List<string>();
+                if (root.TryGetProperty("modules", out var mEl) && mEl.ValueKind == System.Text.Json.JsonValueKind.Array)
+                    keys.AddRange(mEl.EnumerateArray()
+                        .Where(e => e.ValueKind == System.Text.Json.JsonValueKind.String)
+                        .Select(e => e.GetString() ?? ""));
+                csv = Modules.Normalise(keys);
+            }
+
+            await using var conn = new MySqlConnection(TenantContext.BuildTenantConn(mysqlHost, mysqlPort, slug));
+            await conn.OpenAsync();
+            await using var cmd = new MySqlCommand("UPDATE app_users SET modules_override=@m WHERE id=@id", conn);
+            cmd.Parameters.AddWithValue("@m", csv is null ? (object)DBNull.Value : csv);
+            cmd.Parameters.AddWithValue("@id", id);
+            if (await cmd.ExecuteNonQueryAsync() == 0)
+                return Results.NotFound(new { message = "Profile not found." });
+
+            return Results.Ok(new { ok = true, hasOverride = csv is not null, modules = Modules.Split(csv) });
+        });
+
         app.MapPost("/api/agency/hrms/profiles/{id:long}/role", async (HttpContext ctx, long id, HttpRequest req) =>
         {
             var slug = await HrmsSessionSlug(masterConn, ctx);
@@ -900,7 +937,9 @@ internal static class AgencyPortal
                        profile_password_set_at, COALESCE(profile_password_by,''), COALESCE(device_id,''),
                        COALESCE(pfp,''), COALESCE(fingerprint_required,0),
                        COALESCE(role_id,0),
-                       (SELECT r.name FROM roles r WHERE r.id = app_users.role_id)
+                       (SELECT r.name FROM roles r WHERE r.id = app_users.role_id),
+                       modules_override,
+                       (SELECT r.is_superadmin FROM roles r WHERE r.id = app_users.role_id)
                   FROM app_users WHERE id=@id LIMIT 1;", conn) { CommandTimeout = 20 };
             cmd.Parameters.AddWithValue("@id", id);
             await using var rdr = await cmd.ExecuteReaderAsync();
@@ -925,6 +964,11 @@ internal static class AgencyPortal
                 fingerprintRequired = rdr.GetInt32(28) == 1,
                 roleId = rdr.GetInt32(29),
                 roleName = rdr.IsDBNull(30) ? "" : rdr.GetString(30),
+                hasOverride = !rdr.IsDBNull(31),
+                modules = Modules.Effective(
+                    !rdr.IsDBNull(32) && rdr.GetInt32(32) == 1,
+                    rdr.IsDBNull(31) ? null : rdr.GetString(31)),
+                overrideModules = rdr.IsDBNull(31) ? Array.Empty<string>() : Modules.Split(rdr.GetString(31)),
             });
         });
 
