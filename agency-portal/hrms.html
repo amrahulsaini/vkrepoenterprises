@@ -290,6 +290,10 @@
   .modchk input{width:15px;height:15px;accent-color:var(--orange);cursor:pointer}
   .modgrp{font-size:9.5px;font-weight:750;letter-spacing:1px;text-transform:uppercase;
           color:var(--muted-2);margin:16px 0 2px}
+  .rolecard.fixed{background:var(--paper-2)}
+  .savebar{display:flex;align-items:center;gap:12px;margin-top:26px;padding:14px 16px;
+    background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);flex-wrap:wrap}
   .rolecard{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);
             padding:18px;box-shadow:var(--shadow);margin-bottom:12px}
   .rolehead{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
@@ -304,6 +308,27 @@
   .swsub{font-size:11.5px;color:var(--muted);margin-top:2px}
   .pwbox{margin-top:16px;padding:16px;border:1px solid var(--line);
          border-radius:var(--radius-sm);background:var(--paper-2)}
+  .backlink{background:none;border:0;padding:0;display:inline-flex;align-items:center;gap:6px;
+    font-size:12.5px;font-weight:650;color:var(--muted);cursor:pointer;margin-bottom:18px}
+  .backlink:hover{color:var(--ink)}
+  .hero{display:flex;align-items:center;gap:16px;padding:20px;background:var(--paper);
+    border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+  .hero .nm{font-size:22px;font-weight:800;letter-spacing:-.5px;line-height:1.2}
+  .hero .mo{font-size:13px;color:var(--muted);margin-top:3px;font-variant-numeric:tabular-nums}
+  .pills{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}
+  .sec{margin-top:28px}
+  .sec .st{font-size:10px;font-weight:750;letter-spacing:1.5px;text-transform:uppercase;
+    color:var(--muted-2);margin-bottom:11px}
+  .panel{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);
+    padding:18px;box-shadow:var(--shadow)}
+  .panel h4{margin:0;font-size:14.5px;font-weight:750;letter-spacing:-.15px}
+  .panel .ph{font-size:12.5px;color:var(--muted);margin:5px 0 14px;line-height:1.55}
+  .duo{display:grid;grid-template-columns:repeat(auto-fit,minmax(304px,1fr));gap:16px;align-items:start}
+  .callout{border-left:3px solid var(--orange);background:var(--orange-wash);color:var(--orange-ink);
+    padding:10px 12px;border-radius:0 8px 8px 0;font-size:12.5px;line-height:1.55;margin-top:12px}
+  .callout.bad{border-left-color:#b3261e;background:#fdecea;color:#b3261e}
+  .split{margin:18px 0;border:0;border-top:1px solid var(--line)}
+  .kvgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:0 26px}
   .empty-note{
     border:1px dashed var(--line);border-radius:var(--radius);padding:30px;
     text-align:center;color:var(--muted);font-size:13.5px;background:var(--paper);
@@ -512,6 +537,98 @@
         </div>
       </div>
 
+      <div id="page-staff" class="hidden">
+        <button class="backlink" id="st-back">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M19 12H6M11.5 5.5 5 12l6.5 6.5"/>
+          </svg>
+          Desktop profiles
+        </button>
+
+        <div class="hero">
+          <div class="av" id="pf-av" style="width:64px;height:64px;font-size:21px;border-radius:14px"></div>
+          <div style="min-width:0">
+            <div class="nm" id="pf-name">&mdash;</div>
+            <div class="mo" id="pf-mobile"></div>
+            <div class="pills" id="pf-pills"></div>
+          </div>
+        </div>
+
+        <div class="sec">
+          <div class="st">Desktop access</div>
+          <div class="panel">
+            <h4>Role</h4>
+            <p class="ph">A role is a named set of modules. Everyone with the same role sees
+               the same parts of the desktop.</p>
+            <select class="field" id="pf-role"></select>
+            <div id="pf-rolemods" style="font-size:12.5px;color:var(--muted);margin-top:10px;line-height:1.55"></div>
+
+            <hr class="split">
+
+            <h4>Override for this person</h4>
+            <p class="ph">Ignore the role and pick modules for this one person. Use it for an
+               exception, not as the normal way to grant access.</p>
+            <label class="modchk" style="background:var(--paper-2)">
+              <input type="checkbox" id="pf-custom">
+              <span>Choose modules just for this person</span>
+            </label>
+            <div id="pf-modbox" class="hidden">
+              <div style="display:flex;gap:8px;margin:14px 0 2px;flex-wrap:wrap">
+                <button class="btn btn-ghost btn-xs" id="pf-modall">Select all</button>
+                <button class="btn btn-ghost btn-xs" id="pf-modnone">Clear all</button>
+                <span class="count" id="pf-modcount" style="margin-left:auto"></span>
+              </div>
+              <div id="pf-modules"></div>
+              <button class="btn btn-accent btn-xs" id="pf-modsave" style="width:100%;margin-top:12px;">Save modules for this person</button>
+            </div>
+            <div class="msg" id="pf-rolemsg"></div>
+          </div>
+        </div>
+
+        <div class="sec">
+          <div class="st">How they sign in</div>
+          <div class="duo">
+            <div class="panel">
+              <h4>Desktop password</h4>
+              <p class="ph" id="pf-pwstate"></p>
+              <input class="field" id="pf-pw" type="password"
+                     placeholder="New password (min 4 characters)" autocomplete="new-password">
+              <div style="display:flex;gap:8px;margin-top:10px">
+                <button class="btn btn-accent" id="pf-save" style="flex:1">Set password</button>
+                <button class="btn btn-ghost hidden" id="pf-clear">Remove</button>
+              </div>
+              <div class="msg" id="pf-msg"></div>
+            </div>
+
+            <div class="panel">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+                <h4>Fingerprint</h4>
+                <span id="fp-badge" class="pill p-off">Off</span>
+              </div>
+              <p class="ph" id="fp-state"></p>
+              <div class="sw">
+                <div>
+                  <div class="swlbl">Require fingerprint</div>
+                  <div class="swsub">They scan the desktop QR and confirm on their phone instead of typing a password.</div>
+                </div>
+                <button class="btn btn-accent btn-xs" id="fp-toggle">Turn on</button>
+              </div>
+              <div id="fp-detail" style="margin-top:10px"></div>
+              <button class="btn btn-ghost btn-xs hidden" id="fp-reset" style="width:100%;margin-top:10px;">Reset fingerprint (lost or new phone)</button>
+              <div class="msg" id="fp-msg"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="sec">
+          <div class="st">Staff record</div>
+          <div class="panel">
+            <div class="kvgrid" id="pf-rows2"></div>
+          </div>
+        </div>
+      </div>
+
       <div id="page-attendance" class="hidden">
         <div class="head">
           <div>
@@ -542,7 +659,8 @@
         <div class="head">
           <div>
             <h1 class="t">Roles</h1>
-            <p class="s">Choose which parts of the desktop each role can open.</p>
+            <p class="s">A role is a named set of desktop modules. Assign one to each person
+               on their profile; without a role they can open nothing.</p>
           </div>
           <button class="btn btn-accent" id="role-new">New role</button>
         </div>
@@ -554,23 +672,33 @@
         <div class="head">
           <div>
             <h1 class="t" id="role-title">New role</h1>
-            <p class="s">Only the modules you tick will appear for staff with this role.</p>
+            <p class="s" id="role-sub">Name the role, then tick the modules staff with it should be able to open.</p>
           </div>
         </div>
-        <div class="card">
-          <label for="role-name">Role name</label>
-          <input class="field" id="role-name" maxlength="80" placeholder="e.g. Field Executive">
-          <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
-            <button class="btn btn-ghost btn-xs" id="role-all">Select all</button>
-            <button class="btn btn-ghost btn-xs" id="role-none">Clear all</button>
-            <span class="count" id="role-count" style="margin-left:auto"></span>
+
+        <div class="sec" style="margin-top:0">
+          <div class="st">Name</div>
+          <div class="panel">
+            <input class="field" id="role-name" maxlength="80" placeholder="e.g. Field Executive">
           </div>
-          <div id="role-modules"></div>
-          <div style="display:flex;gap:8px;margin-top:20px">
-            <button class="btn btn-accent" id="role-save" style="flex:1">Save role</button>
-            <button class="btn btn-ghost hidden" id="role-del">Delete</button>
+        </div>
+
+        <div class="sec">
+          <div class="st">Modules this role opens</div>
+          <div class="panel">
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+              <button class="btn btn-ghost btn-xs" id="role-all">Select all</button>
+              <button class="btn btn-ghost btn-xs" id="role-none">Clear all</button>
+              <span class="count" id="role-count" style="margin-left:auto"></span>
+            </div>
+            <div id="role-modules"></div>
           </div>
-          <div class="msg" id="role-msg"></div>
+        </div>
+
+        <div class="savebar">
+          <button class="btn btn-ghost hidden" id="role-del">Delete role</button>
+          <div class="msg" id="role-msg" style="margin:0;flex:1"></div>
+          <button class="btn btn-accent" id="role-save">Save role</button>
         </div>
       </div>
 
@@ -587,70 +715,6 @@
   </div>
 </section>
 
-<div class="scrim" id="scrim2"></div>
-<aside class="drawer" id="pfdrawer" aria-label="Profile details">
-  <div class="dr-head">
-    <div class="av" id="pf-av" style="width:44px;height:44px;font-size:15px;border-radius:10px"></div>
-    <div style="min-width:0">
-      <div style="font-size:15px;font-weight:750;letter-spacing:-.2px" id="pf-name">&mdash;</div>
-      <div style="font-size:11.5px;color:var(--muted)" id="pf-mobile"></div>
-    </div>
-    <button class="x" id="pf-close" title="Close">
-      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-           stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
-    </button>
-  </div>
-  <div class="dr-body">
-    <div class="fpbox" style="margin-top:0">
-      <div class="k" style="font-size:9.5px;font-weight:750;letter-spacing:1px;text-transform:uppercase;color:var(--muted-2);margin-bottom:9px">Role &mdash; what they can open on the desktop</div>
-      <select class="field" id="pf-role"></select>
-      <div id="pf-rolemods" style="font-size:12px;color:var(--muted);margin-top:9px;line-height:1.55"></div>
-
-      <label class="modchk" style="margin-top:12px;background:var(--paper)">
-        <input type="checkbox" id="pf-custom">
-        <span>Choose modules just for this person</span>
-      </label>
-      <div id="pf-modbox" class="hidden" style="margin-top:4px">
-        <div style="display:flex;gap:8px;margin:10px 0 2px;flex-wrap:wrap">
-          <button class="btn btn-ghost btn-xs" id="pf-modall">Select all</button>
-          <button class="btn btn-ghost btn-xs" id="pf-modnone">Clear all</button>
-          <span class="count" id="pf-modcount" style="margin-left:auto"></span>
-        </div>
-        <div id="pf-modules"></div>
-        <button class="btn btn-accent btn-xs" id="pf-modsave" style="width:100%;margin-top:10px;">Save modules for this person</button>
-      </div>
-      <div class="msg" id="pf-rolemsg"></div>
-    </div>
-
-    <div class="pwbox">
-      <div class="k" style="font-size:9.5px;font-weight:750;letter-spacing:1px;text-transform:uppercase;color:var(--muted-2);margin-bottom:8px">Desktop login password</div>
-      <div id="pf-pwstate" style="font-size:12.5px;color:var(--muted);margin-bottom:10px"></div>
-      <input class="field" id="pf-pw" type="password" placeholder="New password (min 4 characters)" autocomplete="new-password">
-      <div style="display:flex;gap:8px;margin-top:10px">
-        <button class="btn btn-accent" id="pf-save" style="flex:1">Set password</button>
-        <button class="btn btn-ghost hidden" id="pf-clear">Remove</button>
-      </div>
-      <div class="msg" id="pf-msg"></div>
-    </div>
-    <div class="fpbox">
-      <div class="k" style="font-size:9.5px;font-weight:750;letter-spacing:1px;text-transform:uppercase;color:var(--muted-2);margin-bottom:9px">Fingerprint</div>
-      <div id="fp-state" style="font-size:12.5px;color:var(--muted)"></div>
-      <div id="fp-detail" style="margin-top:8px"></div>
-      <div class="sw">
-        <div>
-          <div class="swlbl">Require fingerprint</div>
-          <div class="swsub">Sign in by scanning the desktop QR instead of typing a password.</div>
-        </div>
-        <span id="fp-badge" class="pill p-off">Off</span>
-        <button class="btn btn-accent btn-xs" id="fp-toggle">Turn on</button>
-      </div>
-      <button class="btn btn-ghost btn-xs hidden" id="fp-reset" style="width:100%;margin-top:10px;">Reset fingerprint (lost or new phone)</button>
-      <div class="msg" id="fp-msg"></div>
-    </div>
-
-    <div id="pf-rows2" style="margin-top:6px"></div>
-  </div>
-</aside>
 <div class="scrim" id="scrim"></div>
 <aside class="drawer" id="drawer" aria-label="Agency details">
   <div class="dr-head">
@@ -675,6 +739,6 @@
   </div>
 </aside>
 
-<script src="/js/hrms.js?v=14"></script>
+<script src="/js/hrms.js?v=15"></script>
 </body>
 </html>

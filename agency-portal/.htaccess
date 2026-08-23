@@ -6,10 +6,11 @@ RewriteEngine On
 RewriteCond %{THE_REQUEST} \s/+([^.\s?]+)\.html[\s?] [NC]
 RewriteRule ^ /%1 [R=301,L,NE]
 
-# 2) HRMS portal: /hrms/<agencyslug> -> hrms.html
-#    (hrms.html reads the slug from the URL path itself). Placed before the
+# 2) HRMS portal: /hrms/<agencyslug> and everything under it -> hrms.html
+#    (hrms.js reads the slug and the view from the URL path itself, so a staff
+#    member's page survives a reload and the back button). Placed before the
 #    generic extensionless rule so the slug is not treated as a filename.
-RewriteRule ^hrms/[^/]+/?$ hrms.html [L]
+RewriteRule ^hrms/[^/]+(/.*)?$ hrms.html [L]
 
 # 3) Serve the matching .html file for an extensionless URL (internal rewrite).
 #    Skips real directories; only rewrites when <url>.html actually exists.

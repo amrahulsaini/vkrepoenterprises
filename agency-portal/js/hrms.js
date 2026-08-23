@@ -3,6 +3,31 @@
   var API  = 'https://api.crmrecoverysoftware.com/api/agency';
   var slug = decodeURIComponent((location.pathname.match(/\/hrms\/([^\/]+)/) || [])[1] || '');
   var KEY  = 'crmrs_hrms_' + slug;
+  var ROOT = '/hrms/' + encodeURIComponent(slug);
+
+  // Every view has its own address under /hrms/<agency>/… so a person can be
+  // linked to, reloaded onto, and reached with the browser's back button.
+  function route() {
+    var rest = location.pathname.slice(ROOT.length).replace(/^\/+|\/+$/g, '');
+    return rest ? rest.split('/').map(decodeURIComponent) : [];
+  }
+  function go(parts, replace) {
+    var url = ROOT + (parts.length ? '/' + parts.map(encodeURIComponent).join('/') : '');
+    if (url === location.pathname) return;
+    if (replace) history.replaceState(null, '', url);
+    else history.pushState(null, '', url);
+  }
+  function kebab(v) {
+    return String(v || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  }
+  function staffSlug(u) {
+    var base = kebab(u.name) || 'staff';
+    return base + '-' + u.id;
+  }
+  function idFromSlug(v) {
+    var m = String(v || '').match(/(\d+)$/);
+    return m ? m[1] : '';
+  }
 
   var $ = function (id) { return document.getElementById(id); };
   function show(el, on) { el.classList.toggle('hidden', !on); }
@@ -114,6 +139,7 @@
     fillDrawer();
     if (tick) clearInterval(tick);
     tick = setInterval(renderCountdown, 30000);
+    render();
   }
 
   var LABELS = {
@@ -122,28 +148,65 @@
     reports:'Reports', settings:'Settings'
   };
 
+  var PAGES = ['page-profiles','page-desktop','page-staff','page-attendance',
+               'page-roles','page-roleedit','page-stub'];
+
+  function only(id) {
+    PAGES.forEach(function (p) { show($(p), p === id); });
+    window.scrollTo(0, 0);
+  }
+
+  function markNav(page) {
+    Array.prototype.forEach.call(document.querySelectorAll('.nav'), function (o) {
+      o.classList.toggle('on', o.getAttribute('data-page') === page);
+    });
+  }
+
+  function render() {
+    if (!ME) return;
+    var r = route();
+
+    if (r[0] === 'attendance') {
+      markNav('attendance');
+      only('page-attendance');
+      if (!$('at-date').value) $('at-date').value = istToday();
+      loadAttendance();
+      return;
+    }
+
+    if (r[0] === 'roles') {
+      markNav('roles');
+      if (r.length > 1) { only('page-roleedit'); openRole(r[1] === 'new' ? 0 : parseInt(r[1], 10) || 0); }
+      else { only('page-roles'); loadRoles(); }
+      return;
+    }
+
+    if (r[0] === 'desktop') {
+      markNav('profiles');
+      if (r.length > 1) { only('page-staff'); openProfile(idFromSlug(r[1]), r[1]); }
+      else { only('page-desktop'); loadProfiles(); }
+      return;
+    }
+
+    if (r[0] && LABELS[r[0]]) {
+      markNav(r[0]);
+      only('page-stub');
+      $('stub-title').textContent = LABELS[r[0]];
+      return;
+    }
+
+    markNav('profiles');
+    only('page-profiles');
+  }
+
+  window.addEventListener('popstate', render);
+
   Array.prototype.forEach.call(document.querySelectorAll('.nav'), function (b) {
     b.addEventListener('click', function () {
       if (b.disabled) return;
-      Array.prototype.forEach.call(document.querySelectorAll('.nav'), function (o) {
-        o.classList.remove('on');
-      });
-      b.classList.add('on');
       var page = b.getAttribute('data-page');
-      show($('page-profiles'), page === 'profiles');
-      show($('page-desktop'), false);
-      show($('page-attendance'), page === 'attendance');
-      show($('page-roles'), page === 'roles');
-      show($('page-roleedit'), false);
-      show($('page-stub'), page !== 'profiles' && page !== 'attendance' && page !== 'roles');
-      if (page === 'roles') {
-        loadRoles();
-      } else if (page === 'attendance') {
-        if (!$('at-date').value) $('at-date').value = istToday();
-        loadAttendance();
-      } else if (page !== 'profiles') {
-        $('stub-title').textContent = LABELS[page] || page;
-      }
+      go(page === 'profiles' ? [] : [page]);
+      render();
     });
   });
 
@@ -188,7 +251,7 @@
       var login = u.fingerprintRequired ? pill('p-on', 'Fingerprint')
                 : (u.hasPassword ? pill('p-on', 'Password') : pill('p-off', 'Not set'));
       var roleCell = u.roleName ? pill('p-on', u.roleName) : pill('p-off', 'No role');
-      return '<div class="trow" data-id="' + u.id + '">' +
+      return '<div class="trow" data-id="' + u.id + '" data-slug="' + esc(staffSlug(u)) + '">' +
         '<div class="who2">' + avatar(u, false) +
         '<div style="min-width:0"><div class="n">' + esc(u.name || 'Unnamed') + '</div>' +
         '<div class="m">' + esc(u.mobile || '') + '</div></div></div>' +
@@ -196,7 +259,10 @@
     }).join('');
 
     Array.prototype.forEach.call($('pf-rows').querySelectorAll('.trow'), function (r) {
-      r.addEventListener('click', function () { openProfile(r.getAttribute('data-id')); });
+      r.addEventListener('click', function () {
+        go(['desktop', r.getAttribute('data-slug')]);
+        render();
+      });
     });
   }
 
@@ -210,24 +276,41 @@
     }
   }
 
-  function openPfDrawer(on) {
-    $('pfdrawer').classList.toggle('on', on);
-    $('scrim2').classList.toggle('on', on);
+  function staffPills(u) {
+    var out = u.isBlacklisted ? pill('p-red', 'Blacklisted')
+            : !u.isActive     ? pill('p-off', 'Inactive')
+            : pill('p-on', 'Active');
+    out += u.roleName ? pill('p-on', u.roleName) : pill('p-off', 'No role');
+    out += u.fingerprintRequired ? pill('p-on', 'Fingerprint required')
+         : (u.hasPassword ? pill('p-on', 'Password set') : pill('p-off', 'No sign-in set'));
+    out += pill(u.kycStatus === 'verified' ? 'p-on' : 'p-off',
+                'KYC ' + (u.kycStatus || 'none'));
+    $('pf-pills').innerHTML = out;
   }
 
-  async function openProfile(id) {
+  async function openProfile(id, urlSlug) {
+    if (!id) { go(['desktop'], true); render(); return; }
     PFID = id;
     $('pf-pw').value = '';
     $('pf-msg').textContent = '';
+    $('pf-rolemsg').textContent = '';
     fpMsg('');
+    $('pf-name').textContent = 'Loading\u2026';
+    $('pf-mobile').textContent = '';
+    $('pf-pills').innerHTML = '';
     $('pf-rows2').innerHTML = '';
-    openPfDrawer(true);
     try {
       var u = await call('/hrms/profiles/' + id);
       $('pf-av').innerHTML = esc(initials(u.name)) +
         (u.pfpUrl ? '<img src="' + esc(u.pfpUrl) + '" alt="">' : '');
       $('pf-name').textContent = u.name || 'Unnamed';
       $('pf-mobile').textContent = u.mobile || '';
+      document.title = (u.name || 'Staff') + ' \u2014 HRMS \u2014 CRMRS';
+      // A renamed person keeps the same id, so correct the address in place
+      // rather than leaving a stale name in it.
+      var want = staffSlug(u);
+      if (urlSlug && urlSlug !== want) go(['desktop', want], true);
+      staffPills(u);
       CURRENT_PROFILE = u;
       loadFp(u);
       fillRolePicker(u);
@@ -236,7 +319,7 @@
       if (u.hasOverride) renderUserModules((u.overrideModules || []).slice());
       $('pf-pwstate').textContent = u.hasPassword
         ? 'Set' + (u.passwordSetAt ? ' on ' + u.passwordSetAt : '') + '. Entering a new one replaces it.'
-        : 'Not set. This person cannot open a desktop mode until you set one.';
+        : 'Not set. This person cannot sign in to the desktop with a password.';
       show($('pf-clear'), !!u.hasPassword);
       $('pf-rows2').innerHTML =
         row('Status', u.isBlacklisted ? 'Blacklisted' : (u.isActive ? 'Active' : 'Inactive')) +
@@ -346,16 +429,9 @@
     loadAttendance();
   });
 
-  $('go-desktop').addEventListener('click', function () {
-    show($('page-profiles'), false);
-    show($('page-desktop'), true);
-    if (!PROFILES.length) loadProfiles();
-  });
-
-  $('pf-back').addEventListener('click', function () {
-    show($('page-desktop'), false);
-    show($('page-profiles'), true);
-  });
+  $('go-desktop').addEventListener('click', function () { go(['desktop']); render(); });
+  $('pf-back').addEventListener('click', function () { go([]); render(); });
+  $('st-back').addEventListener('click', function () { go(['desktop']); render(); });
 
 
   var FPREQ = false;
@@ -452,20 +528,32 @@
       $('role-list').innerHTML = '<div class="empty-note">' + esc(e.message) + '</div>';
       return;
     }
+    if (!ROLES.length) {
+      $('role-list').innerHTML =
+        '<div class="empty-note">No roles yet. Until a role exists and is assigned, ' +
+        'nobody can open anything on the desktop.</div>';
+      return;
+    }
     $('role-list').innerHTML = ROLES.map(function (r) {
-      var badge = r.isSuperadmin ? pill('p-on', 'All access') : pill('p-off', r.modules.length + ' modules');
+      var badge = r.isSuperadmin
+        ? pill('p-on', 'All access')
+        : (r.modules.length
+            ? pill('p-off', r.modules.length + ' of ' + MODULES.length + ' modules')
+            : pill('p-red', 'Nothing selected'));
       var staff = r.staff === 1 ? '1 person' : r.staff + ' people';
-      return '<div class="rolecard">' +
-        '<div class="rolehead"><div>' +
+      return '<div class="rolecard' + (r.isSuperadmin ? ' fixed' : '') + '">' +
+        '<div class="rolehead"><div style="min-width:0">' +
           '<div class="rolename">' + esc(r.name) + '</div>' +
           '<div class="rolemods">' + esc(roleModsLabel(r)) + '</div>' +
-        '</div><div style="display:flex;align-items:center;gap:10px">' +
+        '</div><div style="display:flex;align-items:center;gap:10px;flex:none">' +
           badge + '<span class="count">' + staff + '</span>' +
-          (r.isSuperadmin ? '' : '<button class="btn btn-ghost btn-xs" data-role="' + r.id + '">Edit</button>') +
+          (r.isSuperadmin
+            ? '<span class="count" style="color:var(--muted-2)">Built in</span>'
+            : '<button class="btn btn-ghost btn-xs" data-role="' + r.id + '">Edit</button>') +
         '</div></div></div>';
     }).join('');
     Array.prototype.forEach.call($('role-list').querySelectorAll('[data-role]'), function (b) {
-      b.addEventListener('click', function () { openRole(parseInt(b.getAttribute('data-role'), 10)); });
+      b.addEventListener('click', function () { go(['roles', b.getAttribute('data-role')]); render(); });
     });
   }
 
@@ -496,25 +584,24 @@
     $('role-count').textContent = pickedMods().length + ' of ' + MODULES.length + ' selected';
   }
 
-  function showRolePage(which) {
-    show($('page-roles'), which === 'list');
-    show($('page-roleedit'), which === 'edit');
-  }
-
   async function openRole(id) {
     await ensureModules();
+    if (!ROLES.length) { try { ROLES = await call('/hrms/roles'); } catch (e) { ROLES = []; } }
     EDITING = id || null;
     var r = ROLES.filter(function (x) { return x.id === id; })[0];
-    $('role-title').textContent = r ? 'Edit role' : 'New role';
+    $('role-title').textContent = r ? r.name : 'New role';
+    $('role-sub').textContent = r
+      ? (r.staff === 1 ? '1 person has this role.' : r.staff + ' people have this role.') +
+        ' Only the modules you tick below will appear for them.'
+      : 'Name the role, then tick the modules staff with it should be able to open.';
     $('role-name').value = r ? r.name : '';
     $('role-msg').textContent = '';
     show($('role-del'), !!r);
     renderModulePicker(r ? r.modules.slice() : []);
-    showRolePage('edit');
   }
 
-  $('role-new').addEventListener('click', function () { openRole(0); });
-  $('role-back').addEventListener('click', function () { showRolePage('list'); loadRoles(); });
+  $('role-new').addEventListener('click', function () { go(['roles', 'new']); render(); });
+  $('role-back').addEventListener('click', function () { go(['roles']); render(); });
   $('role-all').addEventListener('click', function () {
     Array.prototype.forEach.call($('role-modules').querySelectorAll('input'), function (c) { c.checked = true; });
     countMods();
@@ -534,8 +621,8 @@
     $('role-save').disabled = true;
     try {
       await call('/hrms/roles', { method: 'POST', body: { id: EDITING || 0, name: name, modules: pickedMods() } });
-      await loadRoles();
-      showRolePage('list');
+      go(['roles']);
+      render();
     } catch (e) {
       $('role-msg').textContent = e.message;
       $('role-msg').className = 'msg err';
@@ -548,43 +635,53 @@
     $('role-del').disabled = true;
     try {
       await call('/hrms/roles/' + EDITING, { method: 'DELETE' });
-      await loadRoles();
-      showRolePage('list');
+      go(['roles']);
+      render();
     } catch (e) {
       $('role-msg').textContent = e.message;
       $('role-msg').className = 'msg err';
     } finally { $('role-del').disabled = false; }
   });
 
-  function describeRole(id) {
-    if (CURRENT_PROFILE && CURRENT_PROFILE.hasOverride) {
-      var mods = CURRENT_PROFILE.modules || [];
-      $('pf-rolemods').innerHTML = mods.length
-        ? '<b>Custom for this person \u2014 ' + mods.length + ' of ' + MODULES.length + '.</b> The role is ignored.'
-        : '<span style="color:#b3261e">Custom list is empty \u2014 this person sees nothing.</span>';
-      return;
-    }
-    var r = ROLES.filter(function (x) { return x.id === id; })[0];
-    if (!r) {
-      $('pf-rolemods').innerHTML =
-        '<span style="color:#b3261e">No role assigned \u2014 this person cannot open anything on the desktop.</span>';
-      return;
-    }
-    if (r.isSuperadmin) {
-      $('pf-rolemods').innerHTML = 'Every module, no restrictions.';
-      return;
-    }
-    if (!r.modules.length) {
-      $('pf-rolemods').innerHTML =
-        '<span style="color:#b3261e">This role has no modules ticked yet.</span>';
-      return;
-    }
-    var names = r.modules.map(function (k) {
+  function modNames(keys) {
+    return keys.map(function (k) {
       var m = MODULES.filter(function (x) { return x.key === k; })[0];
       return esc(m ? m.label : k);
     });
-    $('pf-rolemods').innerHTML =
-      '<b>' + names.length + ' of ' + MODULES.length + ':</b> ' + names.join(' \u00b7 ');
+  }
+
+  function describeRole(id) {
+    var el = $('pf-rolemods');
+
+    if (CURRENT_PROFILE && CURRENT_PROFILE.hasOverride) {
+      var mods = CURRENT_PROFILE.modules || [];
+      el.innerHTML = mods.length
+        ? '<div class="callout"><b>The role below is being ignored.</b> This person has a ' +
+          'custom list of ' + mods.length + ' of ' + MODULES.length + ' modules: ' +
+          modNames(mods).join(' \u00b7 ') + '</div>'
+        : '<div class="callout bad"><b>The custom list is empty.</b> This person can open ' +
+          'nothing on the desktop. Tick some modules or turn the override off.</div>';
+      return;
+    }
+
+    var r = ROLES.filter(function (x) { return x.id === id; })[0];
+    if (!r) {
+      el.innerHTML = '<div class="callout bad"><b>No role assigned.</b> This person cannot ' +
+        'open anything on the desktop until you pick one.</div>';
+      return;
+    }
+    if (r.isSuperadmin) {
+      el.innerHTML = '<div class="callout"><b>' + esc(r.name) + '</b> opens every module, ' +
+        'with no restrictions.</div>';
+      return;
+    }
+    if (!r.modules.length) {
+      el.innerHTML = '<div class="callout bad"><b>' + esc(r.name) + ' has no modules ticked.</b> ' +
+        'Anyone with this role sees an empty desktop. Edit it under Roles.</div>';
+      return;
+    }
+    el.innerHTML = '<div class="callout"><b>' + esc(r.name) + ' opens ' + r.modules.length +
+      ' of ' + MODULES.length + ':</b> ' + modNames(r.modules).join(' \u00b7 ') + '</div>';
   }
 
   async function fillRolePicker(u) {
@@ -690,14 +787,11 @@
   $('pf-q').addEventListener('input', renderProfiles);
   $('pf-save').addEventListener('click', function () { savePassword(false); });
   $('pf-clear').addEventListener('click', function () { savePassword(true); });
-  $('pf-close').addEventListener('click', function () { openPfDrawer(false); });
-  $('scrim2').addEventListener('click', function () { openPfDrawer(false); });
-
   $('chip').addEventListener('click', function () { openDrawer(true); });
   $('dr-close').addEventListener('click', function () { openDrawer(false); });
   $('scrim').addEventListener('click', function () { openDrawer(false); });
   document.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape') { openDrawer(false); openPfDrawer(false); }
+    if (e.key === 'Escape') openDrawer(false);
   });
 
   var IC = {
