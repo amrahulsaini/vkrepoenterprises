@@ -12,6 +12,8 @@ public partial class FingerprintLoginWindow : Window
 {
     public string SignedInName { get; private set; } = "";
     public string SignedInMobile { get; private set; } = "";
+    public string[] Modules { get; private set; } = System.Array.Empty<string>();
+    public string Role { get; private set; } = "";
 
     private readonly string _mode;
     private readonly DispatcherTimer _poll = new() { Interval = TimeSpan.FromSeconds(2) };
@@ -83,6 +85,8 @@ public partial class FingerprintLoginWindow : Window
                     _poll.Stop();
                     SignedInName = r.Name ?? "";
                     SignedInMobile = "";
+                    Modules = r.Modules ?? System.Array.Empty<string>();
+                    Role = r.Role ?? "";
                     DialogResult = true;
                     Close();
                     return;

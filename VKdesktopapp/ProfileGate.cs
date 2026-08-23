@@ -23,14 +23,14 @@ public static class ProfileGate
         {
             var f = new FingerprintLoginWindow(mode) { Owner = owner };
             if (f.ShowDialog() != true) return false;
-            App.ProfileUser = new App.ProfileSession { Name = f.SignedInName, Mobile = f.SignedInMobile };
+            App.ProfileUser = new App.ProfileSession { Name = f.SignedInName, Mobile = f.SignedInMobile, Role = f.Role, Modules = f.Modules };
             Stamp(owner);
             return true;
         }
 
         if (res != true) return false;
 
-        App.ProfileUser = new App.ProfileSession { Name = w.SignedInName, Mobile = w.SignedInMobile };
+        App.ProfileUser = new App.ProfileSession { Name = w.SignedInName, Mobile = w.SignedInMobile, Role = w.Role, Modules = w.Modules };
         Stamp(owner);
         return true;
     }

@@ -11,6 +11,8 @@ public partial class ProfileLoginWindow : Window
     public string SignedInName { get; private set; } = "";
     public string SignedInMobile { get; private set; } = "";
     public bool NeedsFingerprint { get; private set; }
+    public string[] Modules { get; private set; } = System.Array.Empty<string>();
+    public string Role { get; private set; } = "";
 
     public ProfileLoginWindow(string mode)
     {
@@ -52,6 +54,8 @@ public partial class ProfileLoginWindow : Window
             {
                 SignedInName = r.Name;
                 SignedInMobile = mobile;
+                Modules = r.Modules;
+                Role = r.Role;
                 DialogResult = true;
                 Close();
                 return;

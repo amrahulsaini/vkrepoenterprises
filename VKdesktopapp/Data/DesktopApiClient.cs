@@ -637,7 +637,7 @@ internal static class DesktopApiClient
 
     /// The password is checked on the server; it is never returned to the app.
     internal record AuthChallengeResult(string Id, string PairCode, string Qr, int ExpiresInSeconds);
-    internal record AuthChallengeStatus(string Status, string Name, long UserId, string FailReason);
+    internal record AuthChallengeStatus(string Status, string Name, long UserId, string FailReason, string Role, string[] Modules);
 
     internal static async Task<AuthChallengeResult> CreateAuthChallengeAsync(string mode, string deviceLabel)
     {
@@ -653,10 +653,10 @@ internal static class DesktopApiClient
         var resp = await Send(HttpMethod.Get, "api/agency/desktop/auth-challenge/" + id);
         resp.EnsureSuccessStatusCode();
         return (await resp.Content.ReadFromJsonAsync<AuthChallengeStatus>(_json))
-               ?? new AuthChallengeStatus("pending", "", 0, "");
+               ?? new AuthChallengeStatus("pending", "", 0, "", "", Array.Empty<string>());
     }
 
-    internal record ProfileLoginResult(bool Ok, long UserId, string Name);
+    internal record ProfileLoginResult(bool Ok, long UserId, string Name, string Role, string[] Modules);
     internal record ProfileRequiredResult(bool Required, long Profiles);
 
     internal static async Task<bool> ProfileLoginRequiredAsync()
@@ -671,7 +671,7 @@ internal static class DesktopApiClient
         catch { return false; }
     }
 
-    internal static async Task<(bool Ok, string Name, string Error, bool NeedsFingerprint)> ProfileLoginAsync(
+    internal static async Task<(bool Ok, string Name, string Error, bool NeedsFingerprint, string[] Modules, string Role)> ProfileLoginAsync(
         string mobile, string password)
     {
         try
@@ -679,16 +679,16 @@ internal static class DesktopApiClient
             var resp = await Send(HttpMethod.Post, "api/agency/desktop/profile-login",
                 new { Mobile = mobile, Password = password });
             var r = await resp.Content.ReadFromJsonAsync<ProfileLoginResult>(_json);
-            return (true, r?.Name ?? "", "", false);
+            return (true, r?.Name ?? "", "", false, r?.Modules ?? Array.Empty<string>(), r?.Role ?? "");
         }
         catch (HttpRequestException ex)
         {
             return ex.StatusCode switch
             {
-                System.Net.HttpStatusCode.Conflict     => (false, "", "", true),
-                System.Net.HttpStatusCode.Unauthorized => (false, "", "Wrong mobile number or password.", false),
-                System.Net.HttpStatusCode.Forbidden    => (false, "", "This profile is not allowed to sign in.", false),
-                _                                      => (false, "", ex.Message, false),
+                System.Net.HttpStatusCode.Conflict     => (false, "", "", true, Array.Empty<string>(), ""),
+                System.Net.HttpStatusCode.Unauthorized => (false, "", "Wrong mobile number or password.", false, Array.Empty<string>(), ""),
+                System.Net.HttpStatusCode.Forbidden    => (false, "", "This profile is not allowed to sign in.", false, Array.Empty<string>(), ""),
+                _                                      => (false, "", ex.Message, false, Array.Empty<string>(), ""),
             };
         }
     }

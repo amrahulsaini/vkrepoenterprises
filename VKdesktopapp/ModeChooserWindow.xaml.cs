@@ -15,6 +15,7 @@ public partial class ModeChooserWindow : Window
     {
         InitializeComponent();
         LoadAgencyHeader();
+        Activated += (_, __) => ApplyModePermissions();
     }
 
     private static string LogoCachePath => System.IO.Path.Combine(
@@ -152,6 +153,22 @@ public partial class ModeChooserWindow : Window
 
     /// Asks for the account password every time a mode is opened. The typed
     /// password is checked on the server; it is never held in the app.
+    /// Modes map onto modules, so a profile that cannot open Billing should not
+    /// be offered the Billing tile at all. Runs after a profile signs in; with no
+    /// profile, or an agency that does not gate the desktop, nothing is hidden.
+    private void ApplyModePermissions()
+    {
+        var u = App.ProfileUser;
+        if (u == null || u.Modules.Length == 0) return;
+
+        if (FindName("btnBilling")  is System.Windows.Controls.Button bb && !App.CanOpen("Billing"))
+            bb.Visibility = Visibility.Collapsed;
+        if (FindName("btnCourier")  is System.Windows.Controls.Button bc && !App.CanOpen("Couriers"))
+            bc.Visibility = Visibility.Collapsed;
+        if (FindName("btnAccounts") is System.Windows.Controls.Button ba && !App.CanOpen("Accounts"))
+            ba.Visibility = Visibility.Collapsed;
+    }
+
     private async System.Threading.Tasks.Task<bool> AskPasswordAsync(string title, string gate)
     {
         var prompt = new PasswordPromptWindow(title) { Owner = this };

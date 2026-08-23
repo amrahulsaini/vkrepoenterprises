@@ -43,6 +43,7 @@ public partial class MainWindow : Window
         {
             if (!await ProfileGate.EnsureAsync(this, "Super Admin")) { Close(); return; }
             ProfileGate.Stamp(this);
+            ApplyModulePermissions();
         };
 
         _homePage = new HomePage();
@@ -202,6 +203,13 @@ public partial class MainWindow : Window
     {
         if (sender is not Button btn) return;
         var tag = (btn.Tag ?? string.Empty).ToString();
+        if (!App.CanOpen(tag))
+        {
+            MessageBox.Show("Your role does not include this section.",
+                "Not available", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
         switch (tag)
         {
             case "Hrms": OpenHrms(); break;
@@ -334,6 +342,50 @@ public partial class MainWindow : Window
         }
 
         _recordsEditorWindow.Activate();
+    }
+
+
+    /// Hides every tile and rail button whose Tag is a module this profile was
+    /// not granted. Walking the visual tree by Tag means a module added to the
+    /// XAML later is covered without touching this method.
+    private void ApplyModulePermissions()
+    {
+        var u = App.ProfileUser;
+        if (u == null || u.Modules.Length == 0) return;
+
+        foreach (var btn in FindButtons(this))
+        {
+            var tag = (btn.Tag ?? "").ToString();
+            if (string.IsNullOrEmpty(tag)) continue;
+            if (!App.CanOpen(tag)) btn.Visibility = Visibility.Collapsed;
+        }
+
+        if (FindName("btnSupport")  is Button bs && !App.CanOpen("Support"))  bs.Visibility = Visibility.Collapsed;
+        if (FindName("btnMessages") is Button bm && !App.CanOpen("Messages")) bm.Visibility = Visibility.Collapsed;
+        if (FindName("btnSettings") is Button bg && !App.CanOpen("Settings")) bg.Visibility = Visibility.Collapsed;
+
+        if (!App.CanOpen("Home")) LoadFirstAllowedPage();
+    }
+
+    private static System.Collections.Generic.IEnumerable<Button> FindButtons(DependencyObject root)
+    {
+        int n = System.Windows.Media.VisualTreeHelper.GetChildrenCount(root);
+        for (int i = 0; i < n; i++)
+        {
+            var child = System.Windows.Media.VisualTreeHelper.GetChild(root, i);
+            if (child is Button b) yield return b;
+            foreach (var inner in FindButtons(child)) yield return inner;
+        }
+    }
+
+    private void LoadFirstAllowedPage()
+    {
+        foreach (var key in new[] { "Search", "Users", "Finances", "Billing", "Reports", "Confirmations" })
+        {
+            if (!App.CanOpen(key)) continue;
+            TileButton_Click(new Button { Tag = key }, new RoutedEventArgs());
+            return;
+        }
     }
 
     private void RefreshFirmLabels()

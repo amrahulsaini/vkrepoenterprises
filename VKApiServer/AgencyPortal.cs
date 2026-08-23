@@ -502,6 +502,8 @@ internal static class AgencyPortal
                     var ov = rr.IsDBNull(3) ? null : rr.GetString(3);
                     mods = Modules.Effective(rr.GetInt32(0) == 1, ov ?? rr.GetString(1));
                     roleName = rr.GetString(2);
+                    if (mods.Length == 0 && ov is null && roleName.Length == 0)
+                        mods = Modules.All.Select(m => m.Key).ToArray();
                 }
             }
 
@@ -523,12 +525,29 @@ internal static class AgencyPortal
 
             await using var conn = new MySqlConnection(TenantContext.BuildTenantConn(mysqlHost, mysqlPort, ag.slug));
             await conn.OpenAsync();
-            await using var cmd = new MySqlCommand(
+            long logins = 0, roles = 0;
+            await using (var cmd = new MySqlCommand(
                 "SELECT COUNT(*) FROM app_users WHERE (profile_password_hash IS NOT NULL AND profile_password_hash <> '') " +
-                "OR COALESCE(fingerprint_required,0)=1", conn)
-            { CommandTimeout = 15 };
-            long n = Convert.ToInt64(await cmd.ExecuteScalarAsync());
-            return Results.Ok(new { required = n > 0, profiles = n });
+                "OR COALESCE(fingerprint_required,0)=1", conn) { CommandTimeout = 15 })
+            {
+                logins = Convert.ToInt64(await cmd.ExecuteScalarAsync());
+            }
+
+            try
+            {
+                await using var rc = new MySqlCommand(
+                    "SELECT COUNT(*) FROM roles WHERE is_superadmin=0", conn) { CommandTimeout = 15 };
+                roles = Convert.ToInt64(await rc.ExecuteScalarAsync());
+            }
+            catch { roles = 0; }
+
+            return Results.Ok(new
+            {
+                required = logins > 0,
+                profiles = logins,
+                moduleGating = roles > 0,
+                roles
+            });
         });
 
         app.MapPost("/api/agency/desktop/profile-login", async (HttpContext ctx, HttpRequest req) =>
@@ -582,8 +601,16 @@ internal static class AgencyPortal
                 return Results.Json(new { code = "fingerprint_required",
                     message = "This profile signs in with a fingerprint." }, statusCode: 409);
 
+            var effective = Modules.Effective(isSuper, overrideCsv ?? modulesCsv);
+            bool unrestricted = false;
+            if (effective.Length == 0 && overrideCsv is null && roleName.Length == 0)
+            {
+                effective = Modules.All.Select(m => m.Key).ToArray();
+                unrestricted = true;
+            }
+
             return Results.Ok(new { ok = true, userId = id, name, role = roleName,
-                modules = Modules.Effective(isSuper, overrideCsv ?? modulesCsv) });
+                modules = effective, unrestricted });
         });
 
         app.MapGet("/api/agency/hrms/attendance", async (HttpContext ctx, string? date) =>
