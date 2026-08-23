@@ -16,6 +16,8 @@ public static class ProfileGate
         catch { required = false; }
         if (!required) return true;
 
+        if (!owner.IsVisible) owner.Show();
+
         var w = new ProfileLoginWindow(mode) { Owner = owner };
         var res = w.ShowDialog();
 

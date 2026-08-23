@@ -275,6 +275,31 @@ public partial class LoginWindow : Window
 
         _ = CacheAgencyBrandingAsync(signed.AgencyName, signed.LogoPath);
 
+        // Agencies that use HRMS sign in as a person, not by picking a mode:
+        // the profile decides which modules exist, and MainWindow already
+        // reaches Billing, Couriers, Accounts and Allocations from its own
+        // tiles, so the chooser has nothing left to choose. Agencies without
+        // HRMS have no profiles to sign in with and keep the chooser.
+        bool profileGated = false;
+        try { profileGated = await CRMRSDesktopApp.Data.DesktopApiClient.ProfileLoginRequiredAsync(); } catch { }
+
+        if (profileGated)
+        {
+            if (!await ProfileGate.EnsureAsync(this, "CRMRS"))
+            {
+                txtPassword.Clear();
+                lblStatus.Text = "";
+                return;
+            }
+
+            var main = new MainWindow();
+            main.Closed += (_, __) => Application.Current.Shutdown();
+            Hide();
+            main.Show();
+            main.Activate();
+            return;
+        }
+
         // The chooser is shown non-modally so it can be hidden while a mode is
         // on screen and brought straight back when that mode closes. Hiding a
         // window that is itself running a modal loop ends the loop, which is
