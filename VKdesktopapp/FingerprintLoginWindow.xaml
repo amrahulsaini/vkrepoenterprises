@@ -16,8 +16,23 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <TextBlock Grid.Row="0" Name="lblTitle" Text="Sign in" FontSize="18" FontWeight="Bold"
-                   Foreground="#FF0D0D0F" Margin="0,0,0,4" />
+        <Grid Grid.Row="0" Margin="0,0,0,16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Border Grid.Column="0" Width="52" Height="52" CornerRadius="12"
+                    Background="White" BorderBrush="#FFE4E4E7" BorderThickness="1" Padding="4">
+                <Image Name="imgAgency" Stretch="Uniform"
+                       RenderOptions.BitmapScalingMode="HighQuality" />
+            </Border>
+            <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="13,0,0,0">
+                <TextBlock Name="lblAgency" Text="CRMRS" FontSize="17" FontWeight="Bold"
+                           Foreground="#FF0D0D0F" TextWrapping="Wrap" />
+                <TextBlock Name="lblTitle" Text="FINGERPRINT SIGN IN" FontSize="9.5" FontWeight="Bold"
+                           Foreground="#FF9A9AA3" Margin="0,3,0,0" />
+            </StackPanel>
+        </Grid>
         <TextBlock Grid.Row="1" Name="lblHint" TextWrapping="Wrap" FontSize="12"
                    Foreground="#FF6B6B74" Margin="0,0,0,14"
                    Text="Scan this with the CRMRS app on your phone, then confirm with your fingerprint." />

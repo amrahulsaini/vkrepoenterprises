@@ -10,11 +10,6 @@ namespace CRMRSDesktopApp;
 
 public partial class LoginWindow : Window
 {
-    private static readonly string AgencyCacheDir = System.IO.Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "CRMRS");
-    private static readonly string AgencyLogoCachePath = System.IO.Path.Combine(AgencyCacheDir, "agency-logo.png");
-    private static readonly string AgencyNameCachePath = System.IO.Path.Combine(AgencyCacheDir, "agency-name.txt");
-
     private bool _autoLoginTried;
 
     public LoginWindow()
@@ -114,91 +109,43 @@ public partial class LoginWindow : Window
         if (ask != MessageBoxResult.Yes) return;
 
         btnChangeAgency.IsEnabled = false;
+        try { await ChangeAgencyAsync(); }
+        finally { btnChangeAgency.IsEnabled = true; }
+    }
+
+    /// Drops this computer's 7-day agency session and puts the agency sign-in
+    /// form back on screen, so a different agency can sign in here.
+    private async Task ChangeAgencyAsync()
+    {
         lblStatus.Text = "Signing out...";
-        try
-        {
-            await RevokeDeviceAsync();
-            ClearCachedAgencyBranding();
-            App.SignedAppUser = null;
-            App.ProfileUser = null;
-            App.HttpClient.DefaultRequestHeaders.Authorization = null;
-            txtEmail.Clear();
-            txtPassword.Clear();
-            ShowAgencyForm();
-            lblStatus.Text = "";
-            txtEmail.Focus();
-        }
-        finally
-        {
-            btnChangeAgency.IsEnabled = true;
-        }
+        await RevokeDeviceAsync();
+        ClearCachedAgencyBranding();
+        App.SignedAppUser = null;
+        App.ProfileUser = null;
+        App.HttpClient.DefaultRequestHeaders.Authorization = null;
+        txtEmail.Clear();
+        txtPassword.Clear();
+        ShowAgencyForm();
+        lblStatus.Text = "";
+        _autoLoginTried = true;
+        Show();
+        Activate();
+        txtEmail.Focus();
     }
 
     private void ClearCachedAgencyBranding()
     {
-        foreach (var p in new[] { AgencyNameCachePath, AgencyLogoCachePath })
-        {
-            try { if (System.IO.File.Exists(p)) System.IO.File.Delete(p); }
-            catch { }
-        }
+        AgencyBranding.Clear();
         lblAppName.Text = Branding.IsTenantBuild ? Branding.Name : "CRMRS";
-        try
-        {
-            imgLogo.Source = new BitmapImage(
-                new Uri("pack://application:,,,/public/crmrs-fulllogo.png", UriKind.Absolute));
-        }
-        catch { }
+        var def = AgencyBranding.DefaultLogo();
+        if (def != null) imgLogo.Source = def;
     }
 
     private void LoadCachedAgencyBranding()
     {
-        try
-        {
-            if (System.IO.File.Exists(AgencyNameCachePath))
-            {
-                var name = System.IO.File.ReadAllText(AgencyNameCachePath).Trim();
-                if (!string.IsNullOrWhiteSpace(name)) lblAppName.Text = name;
-            }
-        }
-        catch { }
-
-        try
-        {
-            if (!System.IO.File.Exists(AgencyLogoCachePath)) return;
-            var bytes = System.IO.File.ReadAllBytes(AgencyLogoCachePath);
-            using var ms = new System.IO.MemoryStream(bytes);
-            var bmp = new BitmapImage();
-            bmp.BeginInit();
-            bmp.CacheOption = BitmapCacheOption.OnLoad;
-            bmp.StreamSource = ms;
-            bmp.EndInit();
-            bmp.Freeze();
-            imgLogo.Source = bmp;
-        }
-        catch { }
-    }
-
-    private static async System.Threading.Tasks.Task CacheAgencyBrandingAsync(string agencyName, string logoPath)
-    {
-        try
-        {
-            System.IO.Directory.CreateDirectory(AgencyCacheDir);
-            if (!string.IsNullOrWhiteSpace(agencyName))
-                await System.IO.File.WriteAllTextAsync(AgencyNameCachePath, agencyName.Trim());
-        }
-        catch { }
-
-        if (string.IsNullOrWhiteSpace(logoPath)) return;
-        try
-        {
-            var url = logoPath.StartsWith("http", StringComparison.OrdinalIgnoreCase)
-                ? logoPath
-                : App.ApiBaseUrl.TrimEnd('/') + "/" + logoPath.TrimStart('/');
-            using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
-            var bytes = await http.GetByteArrayAsync(url);
-            await System.IO.File.WriteAllBytesAsync(AgencyLogoCachePath, bytes);
-        }
-        catch { }
+        lblAppName.Text = AgencyBranding.Name;
+        var logo = AgencyBranding.LoadLogo();
+        if (logo != null) imgLogo.Source = logo;
     }
 
     private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -343,7 +290,7 @@ public partial class LoginWindow : Window
 
         if (!string.IsNullOrEmpty(deviceToken)) SavedSession.Save(deviceToken!);
 
-        _ = CacheAgencyBrandingAsync(signed.AgencyName, signed.LogoPath);
+        _ = AgencyBranding.SaveAsync(signed.AgencyName, signed.LogoPath);
 
         // Agencies that use HRMS sign in as a person, not by picking a mode:
         // the profile decides which modules exist, and MainWindow already
@@ -355,12 +302,18 @@ public partial class LoginWindow : Window
 
         if (profileGated)
         {
+            // The profile dialog carries the agency logo, name and "Change
+            // agency" itself, so this window has nothing left to show behind
+            // it and would only read as a second sign in.
             ShowAgencyCard();
+            lblStatus.Text = "";
+            Hide();
 
-            if (!await ProfileGate.EnsureAsync(this, "CRMRS"))
+            if (!await ProfileGate.EnsureAsync(this, "CRMRS", standalone: true))
             {
                 txtPassword.Clear();
-                lblStatus.Text = "";
+                if (ProfileGate.ChangeAgencyRequested) await ChangeAgencyAsync();
+                else Application.Current.Shutdown();
                 return;
             }
 

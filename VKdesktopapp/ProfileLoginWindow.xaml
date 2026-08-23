@@ -1,12 +1,13 @@
 <Window x:Class="CRMRSDesktopApp.ProfileLoginWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Sign in" Width="392"
-        SizeToContent="Height" MinHeight="300"
+        Title="Sign in" Width="404"
+        SizeToContent="Height" MinHeight="320"
         WindowStartupLocation="CenterOwner" ResizeMode="NoResize"
         ShowInTaskbar="False" Background="White">
-    <Grid Margin="26,22,26,20">
+    <Grid Margin="26,24,26,20">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
@@ -15,13 +16,31 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <TextBlock Grid.Row="0" Name="lblTitle" Text="Sign in" FontSize="18" FontWeight="Bold"
-                   Foreground="#FF0D0D0F" Margin="0,0,0,4" />
-        <TextBlock Grid.Row="1" Name="lblHint" TextWrapping="Wrap" FontSize="12"
-                   Foreground="#FF6B6B74" Margin="0,0,0,18"
+        <Grid Grid.Row="0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Border Grid.Column="0" Width="52" Height="52" CornerRadius="12"
+                    Background="White" BorderBrush="#FFE4E4E7" BorderThickness="1" Padding="4">
+                <Image Name="imgAgency" Stretch="Uniform"
+                       RenderOptions.BitmapScalingMode="HighQuality" />
+            </Border>
+            <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="13,0,0,0">
+                <TextBlock Name="lblAgency" Text="CRMRS" FontSize="17" FontWeight="Bold"
+                           Foreground="#FF0D0D0F" TextWrapping="Wrap" />
+                <TextBlock Name="lblMode" Text="PROFILE SIGN IN" FontSize="9.5" FontWeight="Bold"
+                           Foreground="#FF9A9AA3" Margin="0,3,0,0" />
+            </StackPanel>
+        </Grid>
+
+        <Border Grid.Row="1" Height="1" Background="#FFE4E4E7" Margin="0,18,0,16" />
+
+        <TextBlock Grid.Row="2" Name="lblHint" TextWrapping="Wrap" FontSize="12"
+                   Foreground="#FF6B6B74" Margin="0,0,0,16"
                    Text="Enter your mobile number to continue." />
 
-        <StackPanel Grid.Row="2" Name="pnlMobile">
+        <StackPanel Grid.Row="3" Name="pnlMobile">
             <TextBlock Text="MOBILE NUMBER" FontSize="10" FontWeight="Bold"
                        Foreground="#FF9A9AA3" Margin="0,0,0,5" />
             <TextBox Name="txtMobile" Height="34" MaxLength="15" FontSize="14"
@@ -29,7 +48,7 @@
                      BorderBrush="#FFE4E4E7" KeyDown="Field_KeyDown" />
         </StackPanel>
 
-        <StackPanel Grid.Row="3" Name="pnlMethod" Visibility="Collapsed">
+        <StackPanel Grid.Row="4" Name="pnlMethod" Visibility="Collapsed">
             <Border Background="#FFF7F7F8" BorderBrush="#FFE4E4E7" BorderThickness="1"
                     CornerRadius="8" Padding="12,9">
                 <Grid>
@@ -76,15 +95,34 @@
                        Text="Scan a code with the CRMRS app on your phone and confirm with your fingerprint. No password needed." />
         </StackPanel>
 
-        <TextBlock Grid.Row="4" Name="lblError" TextWrapping="Wrap" FontSize="12"
+        <TextBlock Grid.Row="5" Name="lblError" TextWrapping="Wrap" FontSize="12"
                    Foreground="#FFB3261E" Margin="0,14,0,0" Visibility="Collapsed" />
 
-        <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,20,0,0">
-            <Button Name="btnCancel" Content="Cancel" Width="88" Height="34" Margin="0,0,9,0"
-                    Click="btnCancel_Click" />
-            <Button Name="btnOk" Content="Continue" Width="104" Height="34" FontWeight="Bold"
-                    Background="#FFFF5500" Foreground="White" BorderThickness="0"
-                    Cursor="Hand" Click="btnOk_Click" />
+        <StackPanel Grid.Row="6">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,20,0,0">
+                <Button Name="btnCancel" Content="Cancel" Width="88" Height="34" Margin="0,0,9,0"
+                        Click="btnCancel_Click" />
+                <Button Name="btnOk" Content="Continue" Width="104" Height="34" FontWeight="Bold"
+                        Background="#FFFF5500" Foreground="White" BorderThickness="0"
+                        Cursor="Hand" Click="btnOk_Click" />
+            </StackPanel>
+
+            <StackPanel Name="pnlChangeAgency" Visibility="Collapsed">
+                <Border Height="1" Background="#FFE4E4E7" Margin="0,20,0,0" />
+                <Grid Margin="0,14,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" VerticalAlignment="Center" TextWrapping="Wrap"
+                               FontSize="11" Foreground="#FF9A9AA3"
+                               Text="This computer stays signed in to this agency for 7 days." />
+                    <Button Grid.Column="1" Name="btnChangeAgency" Content="Change agency"
+                            Height="30" Padding="12,0" FontSize="12" Cursor="Hand"
+                            Background="White" BorderBrush="#FFE4E4E7"
+                            Foreground="#FF3D444E" Click="btnChangeAgency_Click" />
+                </Grid>
+            </StackPanel>
         </StackPanel>
     </Grid>
 </Window>

@@ -26,7 +26,11 @@ public partial class FingerprintLoginWindow : Window
     {
         InitializeComponent();
         _mode = mode;
-        lblTitle.Text = mode;
+        lblAgency.Text = AgencyBranding.Name;
+        imgAgency.Source = AgencyBranding.LoadLogo() ?? AgencyBranding.DefaultLogo();
+        lblTitle.Text = string.IsNullOrWhiteSpace(mode) || mode == "CRMRS"
+            ? "FINGERPRINT SIGN IN"
+            : mode.ToUpperInvariant();
         _poll.Tick += async (_, __) => await PollAsync();
         Loaded += async (_, __) => await StartAsync();
         Closed += (_, __) => { _poll.Stop(); _cts.Cancel(); };

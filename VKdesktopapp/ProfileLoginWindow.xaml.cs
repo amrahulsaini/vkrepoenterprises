@@ -12,16 +12,34 @@ public partial class ProfileLoginWindow : Window
     public string SignedInMobile { get; private set; } = "";
     public bool NeedsFingerprint { get; private set; }
     public bool ChoseFingerprint { get; private set; }
+    public bool ChangeAgencyRequested { get; private set; }
     public string[] Modules { get; private set; } = System.Array.Empty<string>();
     public string Role { get; private set; } = "";
 
     private string _mobile = "";
 
-    public ProfileLoginWindow(string mode)
+    public ProfileLoginWindow(string mode, bool offerChangeAgency = false)
     {
         InitializeComponent();
-        lblTitle.Text = mode;
+        lblAgency.Text = AgencyBranding.Name;
+        imgAgency.Source = AgencyBranding.LoadLogo() ?? AgencyBranding.DefaultLogo();
+        lblMode.Text = string.IsNullOrWhiteSpace(mode) || mode == "CRMRS"
+            ? "PROFILE SIGN IN"
+            : mode.ToUpperInvariant();
+        if (offerChangeAgency) pnlChangeAgency.Visibility = Visibility.Visible;
         Loaded += (_, __) => txtMobile.Focus();
+    }
+
+    private void btnChangeAgency_Click(object sender, RoutedEventArgs e)
+    {
+        var ask = MessageBox.Show(
+            "Sign out of " + lblAgency.Text + " on this computer and sign in to a different agency?",
+            "Change agency", MessageBoxButton.YesNo, MessageBoxImage.Question);
+        if (ask != MessageBoxResult.Yes) return;
+
+        ChangeAgencyRequested = true;
+        DialogResult = false;
+        Close();
     }
 
     private void Field_KeyDown(object sender, KeyEventArgs e)
