@@ -162,12 +162,154 @@
     return v >= 1000 ? (v / 1000).toFixed(v % 1000 === 0 ? 0 : 1) + ' km' : v + ' m';
   }
 
+  // The office is placed by eye on a map rather than read from the browser,
+  // because a desktop has no GPS: it guesses from its IP or the Wi-Fi around
+  // it and is routinely kilometres out, which is useless for a 200m circle.
+  var MAP = null, PIN = null, RING = null, TILES = {}, PICKED = null;
+
+  var INDIA = [22.9734, 78.6569];
+
+  function ensureMap() {
+    if (MAP || typeof L === 'undefined') { if (MAP) MAP.invalidateSize(); return; }
+
+    var start = (ME && ME.geoLat != null) ? [Number(ME.geoLat), Number(ME.geoLng)] : INDIA;
+    var zoom  = (ME && ME.geoLat != null) ? 18 : 5;
+
+    MAP = L.map('geo-map', { zoomControl: true, attributionControl: true }).setView(start, zoom);
+
+    TILES.map = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19, attribution: '&copy; OpenStreetMap'
+    });
+    // Aerial imagery, so the pin can go on the actual roof rather than a road name.
+    TILES.sat = L.tileLayer(
+      'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+      { maxZoom: 19, attribution: '&copy; Esri' });
+    TILES.map.addTo(MAP);
+
+    MAP.on('click', function (e) { place(e.latlng.lat, e.latlng.lng, false); });
+
+    if (ME && ME.geoLat != null) place(Number(ME.geoLat), Number(ME.geoLng), false);
+  }
+
+  function place(lat, lng, recentre) {
+    PICKED = { lat: lat, lng: lng };
+    var r = parseInt($('geo-radius').value, 10) || 200;
+
+    if (!PIN) {
+      PIN = L.marker([lat, lng], { draggable: true }).addTo(MAP);
+      PIN.on('drag', function (e) {
+        var p = e.target.getLatLng();
+        PICKED = { lat: p.lat, lng: p.lng };
+        if (RING) RING.setLatLng(p);
+        showCoords();
+      });
+      PIN.on('dragend', showCoords);
+    } else {
+      PIN.setLatLng([lat, lng]);
+    }
+
+    if (!RING) {
+      RING = L.circle([lat, lng], {
+        radius: r, color: '#ff5500', weight: 2, fillColor: '#ff5500', fillOpacity: 0.12
+      }).addTo(MAP);
+    } else {
+      RING.setLatLng([lat, lng]);
+      RING.setRadius(r);
+    }
+
+    if (recentre) MAP.setView([lat, lng], Math.max(MAP.getZoom(), 17));
+    showCoords();
+  }
+
+  function showCoords() {
+    $('geo-coords').value = PICKED
+      ? PICKED.lat.toFixed(6) + ', ' + PICKED.lng.toFixed(6)
+      : '';
+  }
+
+  function setLayer(which) {
+    if (!MAP) return;
+    MAP.removeLayer(which === 'sat' ? TILES.map : TILES.sat);
+    (which === 'sat' ? TILES.sat : TILES.map).addTo(MAP);
+    $('geo-lyr-map').classList.toggle('on', which !== 'sat');
+    $('geo-lyr-sat').classList.toggle('on', which === 'sat');
+  }
+
+  $('geo-lyr-map').addEventListener('click', function () { setLayer('map'); });
+  $('geo-lyr-sat').addEventListener('click', function () { setLayer('sat'); });
+
+  // Accepts "28.4595, 77.0266" and the shapes a Google Maps link comes in,
+  // so a spot found in Google Maps can be pasted straight across.
+  function coordsFrom(text) {
+    var t = String(text || '').trim();
+    var m = t.match(/^(-?\d{1,3}(?:\.\d+)?)\s*[, ]\s*(-?\d{1,3}(?:\.\d+)?)$/);
+    if (!m) m = t.match(/[?&]q=(-?\d{1,3}(?:\.\d+)?),(-?\d{1,3}(?:\.\d+)?)/);
+    if (!m) m = t.match(/!3d(-?\d{1,3}(?:\.\d+)?)!4d(-?\d{1,3}(?:\.\d+)?)/);
+    if (!m) m = t.match(/@(-?\d{1,3}(?:\.\d+)?),(-?\d{1,3}(?:\.\d+)?)/);
+    if (!m) return null;
+    var lat = parseFloat(m[1]), lng = parseFloat(m[2]);
+    if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
+    return { lat: lat, lng: lng };
+  }
+
+  async function searchPlace(q) {
+    var url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=in&q='
+              + encodeURIComponent(q);
+    var r = await fetch(url, { headers: { 'Accept': 'application/json' } });
+    var j = await r.json();
+    if (!j || !j.length) return null;
+    return { lat: parseFloat(j[0].lat), lng: parseFloat(j[0].lon), name: j[0].display_name };
+  }
+
+  async function runSearch() {
+    var q = ($('geo-search').value || '').trim();
+    if (!q) return;
+
+    if (!MAP) { geoMsg('The map has not loaded. Check your connection and reload.', 'err'); return; }
+
+    var direct = coordsFrom(q);
+    if (direct) { place(direct.lat, direct.lng, true); geoMsg('Pin moved. Press Save boundary.', 'ok'); return; }
+
+    geoMsg('Searching\u2026');
+    try {
+      var hit = await searchPlace(q);
+      if (!hit) { geoMsg('Nothing found for that. Try a landmark, or paste coordinates.', 'err'); return; }
+      place(hit.lat, hit.lng, true);
+      if (!($('geo-label').value || '').trim()) $('geo-label').value = q;
+      geoMsg('Found it. Drag the pin onto your building, then press Save boundary.', 'ok');
+    } catch (e) {
+      geoMsg('Could not search right now. Paste coordinates instead.', 'err');
+    }
+  }
+
+  $('geo-search').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); runSearch(); }
+  });
+  $('geo-search').addEventListener('paste', function () {
+    var box = this;
+    setTimeout(function () { if (coordsFrom(box.value)) runSearch(); }, 0);
+  });
+
+  // Only ever recentres the map. A desktop fix is far too rough to save.
+  $('geo-here').addEventListener('click', function () {
+    if (!MAP) { geoMsg('The map has not loaded. Check your connection and reload.', 'err'); return; }
+    if (!navigator.geolocation) { geoMsg('This browser cannot find you.', 'err'); return; }
+    geoMsg('Finding roughly where this computer is\u2026');
+    navigator.geolocation.getCurrentPosition(function (pos) {
+      MAP.setView([pos.coords.latitude, pos.coords.longitude], 16);
+      geoMsg('This is only a rough guess from your network. Drag the pin onto your building.', 'ok');
+    }, function () {
+      geoMsg('Could not find you. Search for the place instead.', 'err');
+    }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
+  });
+
   function paintGeo() {
     var has = ME && ME.geoLat != null && ME.geoLng != null;
     var r = (ME && ME.geoRadiusM) || 200;
 
     $('geo-radius').value = r;
     $('geo-radius-v').textContent = metres(r);
+    $('geo-label').value = (ME && ME.geoLabel) || '';
     show($('geo-clear'), !!has);
 
     if (!has) {
@@ -178,7 +320,7 @@
     }
     $('geo-current').className = 'callout';
     $('geo-current').innerHTML = '<b>' + esc(ME.geoLabel || 'Office') + '</b> &mdash; ' +
-      esc(Number(ME.geoLat).toFixed(5)) + ', ' + esc(Number(ME.geoLng).toFixed(5)) +
+      esc(Number(ME.geoLat).toFixed(6)) + ', ' + esc(Number(ME.geoLng).toFixed(6)) +
       '. Staff may approve within ' + metres(r) + ' of this point.';
   }
 
@@ -189,46 +331,19 @@
       var me = await call('/hrms/me');
       ME.geoLat = me.geoLat; ME.geoLng = me.geoLng;
       ME.geoRadiusM = me.geoRadiusM; ME.geoLabel = me.geoLabel;
+      if (r.cleared) { PICKED = null; showCoords(); }
       paintGeo();
-      show($('geo-fields'), false);
       geoMsg(r.cleared ? 'Boundary removed.' : 'Boundary saved.', 'ok');
     } catch (e) {
       geoMsg(e.message, 'err');
     }
   }
 
-  $('geo-here').addEventListener('click', function () {
-    if (!navigator.geolocation) { geoMsg('This browser cannot read a location.', 'err'); return; }
-    geoMsg('Reading this computer\u2019s location\u2026');
-    navigator.geolocation.getCurrentPosition(function (pos) {
-      saveGeo({
-        lat: String(pos.coords.latitude),
-        lng: String(pos.coords.longitude),
-        radius: String($('geo-radius').value),
-        label: (ME && ME.geoLabel) || ''
-      });
-    }, function (err) {
-      geoMsg(err.code === 1
-        ? 'Location was blocked. Allow it for this site, or enter coordinates instead.'
-        : 'Could not read a location here. Enter coordinates instead.', 'err');
-    }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
-  });
-
-  $('geo-manual').addEventListener('click', function () {
-    var on = $('geo-fields').classList.contains('hidden');
-    show($('geo-fields'), on);
-    if (on && ME) {
-      $('geo-lat').value = ME.geoLat != null ? ME.geoLat : '';
-      $('geo-lng').value = ME.geoLng != null ? ME.geoLng : '';
-      $('geo-label').value = ME.geoLabel || '';
-      $('geo-lat').focus();
-    }
-  });
-
   $('geo-save').addEventListener('click', function () {
+    if (!PICKED) { geoMsg('Place the pin on your office first.', 'err'); return; }
     saveGeo({
-      lat: ($('geo-lat').value || '').trim(),
-      lng: ($('geo-lng').value || '').trim(),
+      lat: String(PICKED.lat),
+      lng: String(PICKED.lng),
       radius: String($('geo-radius').value),
       label: ($('geo-label').value || '').trim()
     });
@@ -240,15 +355,9 @@
   });
 
   $('geo-radius').addEventListener('input', function () {
-    $('geo-radius-v').textContent = metres(parseInt($('geo-radius').value, 10));
-  });
-
-  $('geo-radius').addEventListener('change', function () {
-    if (!ME || ME.geoLat == null) { if (ME) ME.geoRadiusM = parseInt($('geo-radius').value, 10); return; }
-    saveGeo({
-      lat: String(ME.geoLat), lng: String(ME.geoLng),
-      radius: String($('geo-radius').value), label: ME.geoLabel || ''
-    });
+    var v = parseInt($('geo-radius').value, 10);
+    $('geo-radius-v').textContent = metres(v);
+    if (RING) RING.setRadius(v);
   });
 
   function loadQrSettings() {
@@ -259,6 +368,7 @@
     qrMsg('');
     geoMsg('');
     paintGeo();
+    setTimeout(ensureMap, 0);
     loadQrAttempts();
   }
 

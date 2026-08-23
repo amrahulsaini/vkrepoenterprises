@@ -9,6 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
   :root{
     --ink:#0d0d0f; --ink-2:#1a1a1e; --ink-3:#2a2a30;
@@ -329,6 +330,18 @@
   .callout.bad{border-left-color:#b3261e;background:#fdecea;color:#b3261e}
   .split{margin:18px 0;border:0;border-top:1px solid var(--line)}
   .kvgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:0 26px}
+  .mapwrap{position:relative;height:380px;border:1px solid var(--line);border-radius:var(--radius);
+    overflow:hidden;margin-top:12px;background:var(--paper-2)}
+  .mapwrap .leaflet-container{height:100%;width:100%;font-family:var(--font)}
+  .maptools{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:12px}
+  .maptools .search{flex:1;min-width:240px;max-width:none}
+  .layerbtn{position:absolute;z-index:600;top:10px;right:10px;display:flex;
+    border:1px solid var(--line);border-radius:8px;overflow:hidden;box-shadow:var(--shadow)}
+  .layerbtn button{background:var(--paper);border:0;padding:7px 12px;font-size:11.5px;
+    font-weight:650;color:var(--muted);cursor:pointer;font-family:var(--font)}
+  .layerbtn button.on{background:var(--ink);color:#fff}
+  .crosshint{position:absolute;z-index:600;left:10px;bottom:10px;background:rgba(13,13,15,.78);
+    color:#fff;font-size:11.5px;padding:6px 10px;border-radius:7px;pointer-events:none}
   .empty-note{
     border:1px dashed var(--line);border-radius:var(--radius);padding:30px;
     text-align:center;color:var(--muted);font-size:13.5px;background:var(--paper);
@@ -721,38 +734,51 @@
 
             <div id="geo-current" class="callout">No boundary set yet.</div>
 
-            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">
-              <button class="btn btn-accent btn-xs" id="geo-here">Use my current location</button>
-              <button class="btn btn-ghost btn-xs" id="geo-manual">Enter coordinates</button>
-              <button class="btn btn-ghost btn-xs hidden" id="geo-clear">Remove boundary</button>
-            </div>
-            <p class="ph" style="margin:9px 0 0">Open HRMS on a computer inside the office and
-               press &ldquo;Use my current location&rdquo;, or paste the coordinates from Google Maps.</p>
-
-            <div id="geo-fields" class="hidden" style="margin-top:14px">
-              <div class="duo">
-                <div>
-                  <div class="modgrp">Latitude</div>
-                  <input class="field" id="geo-lat" placeholder="28.4595" inputmode="decimal">
-                </div>
-                <div>
-                  <div class="modgrp">Longitude</div>
-                  <input class="field" id="geo-lng" placeholder="77.0266" inputmode="decimal">
-                </div>
+            <div class="maptools">
+              <div class="search">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                     stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.6-3.6"/></svg>
+                <input class="field" id="geo-search" autocomplete="off"
+                       placeholder="Search a place, or paste coordinates / a Google Maps link">
               </div>
-              <div class="modgrp" style="margin-top:12px">Name for this place (optional)</div>
-              <input class="field" id="geo-label" maxlength="190" placeholder="Head office, Rewari">
-              <button class="btn btn-accent btn-xs" id="geo-save" style="margin-top:12px">Save boundary</button>
+              <button class="btn btn-ghost btn-xs" id="geo-here">Find me</button>
+            </div>
+
+            <div class="mapwrap">
+              <div id="geo-map"></div>
+              <div class="layerbtn">
+                <button id="geo-lyr-map" class="on">Map</button>
+                <button id="geo-lyr-sat">Satellite</button>
+              </div>
+              <div class="crosshint">Drag the pin, or click the map, to place your office</div>
+            </div>
+
+            <div class="duo" style="margin-top:14px">
+              <div>
+                <div class="modgrp">Name for this place (optional)</div>
+                <input class="field" id="geo-label" maxlength="190" placeholder="Head office, Rewari">
+              </div>
+              <div>
+                <div class="modgrp">Coordinates</div>
+                <input class="field" id="geo-coords" readonly placeholder="Not placed yet"
+                       style="font-variant-numeric:tabular-nums;background:var(--paper-2)">
+              </div>
             </div>
 
             <hr class="split">
 
             <h4>How far around it counts as at work</h4>
             <p class="ph">GPS indoors is commonly 20&ndash;50 m out, so a circle under 100 m will
-               reject people sitting at their own desk. 200 m suits most offices.</p>
+               reject people sitting at their own desk. 200 m suits most offices. The shaded circle
+               on the map is exactly what staff must be inside.</p>
             <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
               <input type="range" id="geo-radius" min="50" max="2000" step="50" value="200" style="flex:1;min-width:200px;accent-color:var(--orange)">
               <span class="count" id="geo-radius-v">200 m</span>
+            </div>
+
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:18px">
+              <button class="btn btn-accent" id="geo-save">Save boundary</button>
+              <button class="btn btn-ghost hidden" id="geo-clear">Remove boundary</button>
             </div>
 
             <div class="msg" id="geo-msg"></div>
@@ -828,6 +854,7 @@
   </div>
 </aside>
 
-<script src="/js/hrms.js?v=17"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="/js/hrms.js?v=18"></script>
 </body>
 </html>
