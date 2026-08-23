@@ -427,6 +427,71 @@ internal static class AgencyPortal
             return Results.Ok(new { token, agencyId, agencyName = name, slug, logoPath = logo });
         });
 
+        app.MapPost("/api/agency/desktop/auth-challenge", async (HttpContext ctx, HttpRequest req) =>
+        {
+            var agency = VerifyAgencyBearer(ctx);
+            if (agency is not { } ag) return Results.Json(new { message = "Unauthorized" }, statusCode: 401);
+
+            var dto = await ReadJsonAsync(req);
+            string id = NewChallengeId(), nonce = NewNonce(), pair = NewPairCode();
+            var now = DateTime.UtcNow;
+
+            await using (var conn = new MySqlConnection(masterConn))
+            {
+                await conn.OpenAsync();
+                await using var ins = new MySqlCommand(
+                    "INSERT INTO auth_challenges (id, agency_id, slug, nonce, pair_code, mode, device_label, created_at, expires_at) " +
+                    "VALUES (@i, @a, @s, @n, @p, @m, @d, @c, @x);", conn);
+                ins.Parameters.AddWithValue("@i", id);
+                ins.Parameters.AddWithValue("@a", ag.id);
+                ins.Parameters.AddWithValue("@s", ag.slug);
+                ins.Parameters.AddWithValue("@n", nonce);
+                ins.Parameters.AddWithValue("@p", pair);
+                ins.Parameters.AddWithValue("@m", (dto.GetValueOrDefault("mode") ?? "").Trim());
+                ins.Parameters.AddWithValue("@d", (dto.GetValueOrDefault("deviceLabel") ?? "").Trim());
+                ins.Parameters.AddWithValue("@c", now);
+                ins.Parameters.AddWithValue("@x", now.AddSeconds(AuthChallengeSeconds));
+                await ins.ExecuteNonQueryAsync();
+            }
+
+            string payload = "crmrs://auth?c=" + id + "&s=" + Uri.EscapeDataString(ag.slug);
+            return Results.Ok(new
+            {
+                id,
+                pairCode = pair,
+                qr = QrDataUri(payload),
+                expiresInSeconds = AuthChallengeSeconds
+            });
+        });
+
+        app.MapGet("/api/agency/desktop/auth-challenge/{id}", async (HttpContext ctx, string id) =>
+        {
+            var agency = VerifyAgencyBearer(ctx);
+            if (agency is not { } ag) return Results.Json(new { message = "Unauthorized" }, statusCode: 401);
+
+            await using var conn = new MySqlConnection(masterConn);
+            await conn.OpenAsync();
+            await using var cmd = new MySqlCommand(
+                "SELECT status, COALESCE(approved_name,''), COALESCE(approved_user_id,0), expires_at, COALESCE(fail_reason,'') " +
+                "FROM auth_challenges WHERE id=@i AND agency_id=@a LIMIT 1;", conn);
+            cmd.Parameters.AddWithValue("@i", id);
+            cmd.Parameters.AddWithValue("@a", ag.id);
+            await using var rdr = await cmd.ExecuteReaderAsync();
+            if (!await rdr.ReadAsync()) return Results.NotFound(new { message = "Unknown request." });
+
+            string status = rdr.GetString(0);
+            if ((status == "pending" || status == "scanned") && rdr.GetDateTime(3) < DateTime.UtcNow)
+                status = "expired";
+
+            return Results.Ok(new
+            {
+                status,
+                name = rdr.GetString(1),
+                userId = rdr.GetInt64(2),
+                failReason = rdr.GetString(4)
+            });
+        });
+
         app.MapGet("/api/agency/desktop/profile-login/required", async (HttpContext ctx) =>
         {
             var agency = VerifyAgencyBearer(ctx);
@@ -3453,6 +3518,32 @@ internal static class AgencyPortal
         }
 
         return (0, false);
+    }
+
+    private const int AuthChallengeSeconds = 120;
+
+    private static string NewChallengeId()
+    {
+        var b = new byte[16];
+        RandomNumberGenerator.Fill(b);
+        return Convert.ToHexString(b).ToLowerInvariant();
+    }
+
+    private static string NewNonce()
+    {
+        var b = new byte[32];
+        RandomNumberGenerator.Fill(b);
+        return Convert.ToHexString(b).ToLowerInvariant();
+    }
+
+    private static string NewPairCode() => RandomNumberGenerator.GetInt32(10, 100).ToString();
+
+    private static string QrDataUri(string text)
+    {
+        using var gen = new QRCoder.QRCodeGenerator();
+        using var data = gen.CreateQrCode(text, QRCoder.QRCodeGenerator.ECCLevel.M);
+        var png = new QRCoder.PngByteQRCode(data).GetGraphic(8);
+        return "data:image/png;base64," + Convert.ToBase64String(png);
     }
 
     private static readonly TimeSpan IstOffset = TimeSpan.FromMinutes(330);

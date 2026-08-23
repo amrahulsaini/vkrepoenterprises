@@ -1,0 +1,20 @@
+CREATE TABLE IF NOT EXISTS auth_challenges (
+  id             CHAR(32)     NOT NULL PRIMARY KEY,
+  agency_id      INT          NOT NULL,
+  slug           VARCHAR(64)  NOT NULL,
+  nonce          CHAR(64)     NOT NULL,
+  pair_code      CHAR(2)      NOT NULL,
+  mode           VARCHAR(32)  NOT NULL DEFAULT '',
+  device_label   VARCHAR(120) NOT NULL DEFAULT '',
+  status         ENUM('pending','scanned','approved','denied','expired') NOT NULL DEFAULT 'pending',
+  approved_user_id BIGINT     NULL,
+  approved_name  VARCHAR(190) NULL,
+  key_id         CHAR(16)     NULL,
+  fail_reason    VARCHAR(64)  NULL,
+  created_at     DATETIME     NOT NULL,
+  expires_at     DATETIME     NOT NULL,
+  resolved_at    DATETIME     NULL,
+  INDEX idx_ac_expiry (expires_at),
+  INDEX idx_ac_agency (agency_id, created_at),
+  CONSTRAINT fk_ac_agency FOREIGN KEY (agency_id) REFERENCES agencies(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
