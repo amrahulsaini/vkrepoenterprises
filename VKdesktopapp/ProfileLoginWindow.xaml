@@ -57,10 +57,10 @@
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
                     <StackPanel Grid.Column="0">
-                        <TextBlock Text="MOBILE NUMBER" FontSize="9.5" FontWeight="Bold"
+                        <TextBlock Name="lblWhoLabel" Text="MOBILE NUMBER" FontSize="9.5" FontWeight="Bold"
                                    Foreground="#FF9A9AA3" />
                         <TextBlock Name="lblMobileEcho" Text="--" FontSize="14" FontWeight="SemiBold"
-                                   Foreground="#FF0D0D0F" Margin="0,2,0,0" />
+                                   Foreground="#FF0D0D0F" Margin="0,2,0,0" TextWrapping="Wrap" />
                     </StackPanel>
                     <Button Grid.Column="1" Name="btnEditMobile" Content="Change" Height="26" Width="72"
                             VerticalAlignment="Center" Cursor="Hand" FontSize="12"
@@ -69,13 +69,15 @@
                 </Grid>
             </Border>
 
-            <TextBlock Text="PROFILE PASSWORD" FontSize="10" FontWeight="Bold"
-                       Foreground="#FF9A9AA3" Margin="0,16,0,5" />
-            <PasswordBox Name="txtPass" Height="34" FontSize="14"
-                         VerticalContentAlignment="Center" Padding="9,0"
-                         BorderBrush="#FFE4E4E7" KeyDown="Field_KeyDown" />
+            <StackPanel Name="pnlPassword">
+                <TextBlock Text="PROFILE PASSWORD" FontSize="10" FontWeight="Bold"
+                           Foreground="#FF9A9AA3" Margin="0,16,0,5" />
+                <PasswordBox Name="txtPass" Height="34" FontSize="14"
+                             VerticalContentAlignment="Center" Padding="9,0"
+                             BorderBrush="#FFE4E4E7" KeyDown="Field_KeyDown" />
+            </StackPanel>
 
-            <Grid Margin="0,16,0,0">
+            <Grid Name="pnlOr" Margin="0,16,0,0">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
@@ -91,7 +93,7 @@
                     Margin="0,14,0,0" FontSize="13" FontWeight="SemiBold" Cursor="Hand"
                     Background="White" Foreground="#FFCC3C00" BorderBrush="#FFFFD9C2"
                     BorderThickness="1" Click="btnFingerprint_Click" />
-            <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="#FF9A9AA3" Margin="0,7,0,0"
+            <TextBlock Name="lblFpHint" TextWrapping="Wrap" FontSize="11" Foreground="#FF9A9AA3" Margin="0,7,0,0"
                        Text="Scan a code with the CRMRS app on your phone and confirm with your fingerprint. No password needed." />
         </StackPanel>
 

@@ -580,6 +580,73 @@ internal static class AgencyPortal
             });
         });
 
+        // What this person can actually sign in with, asked before anything is
+        // offered. Without it the desktop cheerfully shows a QR code to someone
+        // who has no fingerprint enrolled, and the refusal only arrives after
+        // they have fetched their phone and scanned it.
+        app.MapGet("/api/agency/desktop/profile-login/methods", async (HttpContext ctx, string? mobile) =>
+        {
+            var agency = VerifyAgencyBearer(ctx);
+            if (agency is not { } ag) return Results.Json(new { message = "Unauthorized" }, statusCode: 401);
+
+            string m = new string((mobile ?? "").Where(char.IsDigit).ToArray());
+            if (m.Length < 10) return Results.BadRequest(new { message = "Enter a 10-digit mobile number." });
+            m = m.Substring(m.Length - 10);
+
+            await using var conn = new MySqlConnection(TenantContext.BuildTenantConn(mysqlHost, mysqlPort, ag.slug));
+            await conn.OpenAsync();
+
+            long id = 0; string name = "";
+            bool active = false, stopped = false, blacklisted = false, fpRequired = false, hasPw = false;
+            await using (var cmd = new MySqlCommand(@"
+                SELECT id, COALESCE(name,''),
+                       (COALESCE(profile_password_hash,'') <> ''),
+                       COALESCE(is_active,0), COALESCE(is_stopped,0), COALESCE(is_blacklisted,0),
+                       COALESCE(fingerprint_required,0)
+                  FROM app_users WHERE RIGHT(REPLACE(COALESCE(mobile,''),' ',''),10) = @m LIMIT 1;", conn)
+            { CommandTimeout = 15 })
+            {
+                cmd.Parameters.AddWithValue("@m", m);
+                await using var rdr = await cmd.ExecuteReaderAsync();
+                if (await rdr.ReadAsync())
+                {
+                    id = rdr.GetInt64(0); name = rdr.GetString(1); hasPw = rdr.GetInt32(2) == 1;
+                    active = rdr.GetInt32(3) == 1; stopped = rdr.GetInt32(4) == 1;
+                    blacklisted = rdr.GetInt32(5) == 1; fpRequired = rdr.GetInt32(6) == 1;
+                }
+            }
+
+            if (id == 0)
+                return Results.Ok(new { found = false });
+
+            bool enrolled = false;
+            try
+            {
+                await using var kc = new MySqlCommand(
+                    "SELECT COUNT(*) FROM device_keys WHERE user_id=@u AND revoked=0;", conn)
+                { CommandTimeout = 15 };
+                kc.Parameters.AddWithValue("@u", id);
+                enrolled = Convert.ToInt64(await kc.ExecuteScalarAsync()) > 0;
+            }
+            catch { enrolled = false; }
+
+            string block = blacklisted ? "This profile has been blacklisted."
+                         : stopped     ? "This profile has been stopped."
+                         : !active     ? "This profile is not active."
+                         : "";
+
+            return Results.Ok(new
+            {
+                found = true,
+                name,
+                allowed = block.Length == 0,
+                blockReason = block,
+                hasPassword = hasPw,
+                fingerprintRequired = fpRequired,
+                fingerprintEnrolled = enrolled,
+            });
+        });
+
         app.MapPost("/api/agency/desktop/profile-login", async (HttpContext ctx, HttpRequest req) =>
         {
             var agency = VerifyAgencyBearer(ctx);

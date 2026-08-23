@@ -657,6 +657,25 @@ internal static class DesktopApiClient
                ?? new AuthChallengeStatus("pending", "", 0, "", "", Array.Empty<string>());
     }
 
+    internal record ProfileMethods(
+        bool Found, string Name, bool Allowed, string BlockReason,
+        bool HasPassword, bool FingerprintRequired, bool FingerprintEnrolled);
+
+    /// Asked before anything is offered, so the app never shows a QR code to
+    /// someone with no fingerprint enrolled. A lookup that fails must not stop
+    /// a sign-in, so the caller gets null and falls back to offering both.
+    internal static async Task<ProfileMethods?> ProfileMethodsAsync(string mobile)
+    {
+        try
+        {
+            var resp = await Send(HttpMethod.Get,
+                "api/agency/desktop/profile-login/methods?mobile=" + Uri.EscapeDataString(mobile));
+            if (!resp.IsSuccessStatusCode) return null;
+            return await resp.Content.ReadFromJsonAsync<ProfileMethods>(_json);
+        }
+        catch { return null; }
+    }
+
     internal record ProfileLoginResult(bool Ok, long UserId, string Name, string Role, string[] Modules);
     internal record ProfileRequiredResult(bool Required, long Profiles);
 
