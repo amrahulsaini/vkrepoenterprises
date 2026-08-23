@@ -186,6 +186,10 @@ fun FingerprintScanScreen(api: ApiService, onDone: () -> Unit) {
                                 val body = HashMap<String, Any?>()
                                 body["challengeId"] = challenge
                                 body["signature"] = payload
+                                // Tells the server this build checks location at
+                                // all, so an older one is not judged as a phone
+                                // that refused to share it.
+                                body["geoTried"] = true
                                 if (loc != null) {
                                     body["lat"] = loc.latitude
                                     body["lng"] = loc.longitude

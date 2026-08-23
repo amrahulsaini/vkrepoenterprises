@@ -193,7 +193,7 @@ public class FingerprintController : ControllerBase
 
     public record ApproveBody(
         string? ChallengeId, string? Signature,
-        double? Lat, double? Lng, double? Accuracy, bool? Mock);
+        double? Lat, double? Lng, double? Accuracy, bool? Mock, bool? GeoTried);
 
     /// Metres between two points on the earth. Good to a few metres at the
     /// distances a geofence cares about.
@@ -264,11 +264,22 @@ public class FingerprintController : ControllerBase
         bool haveFix  = body?.Lat is double && body?.Lng is double &&
                         !(body.Lat == 0 && body.Lng == 0);
         bool mocked   = body?.Mock == true;
+
+        // An app built before this feature sends no location and cannot be
+        // asked for one. Refusing it would lock out every phone that has not
+        // updated yet, which is not a location failure and must not read as
+        // one. Only a build that says it tried can be held to the boundary.
+        bool clientChecks = body?.GeoTried == true || haveFix;
+
         int? distance = null;
         string verdict = "unknown";
         string refusal = "";
 
-        if (fenced)
+        if (fenced && !clientChecks)
+        {
+            verdict = "unknown";   // recorded, never refused
+        }
+        else if (fenced)
         {
             if (mocked)
             {
