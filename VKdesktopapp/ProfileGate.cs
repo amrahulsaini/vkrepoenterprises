@@ -18,23 +18,30 @@ public static class ProfileGate
 
         if (!owner.IsVisible) owner.Show();
 
-        var w = new ProfileLoginWindow(mode) { Owner = owner };
-        var res = w.ShowDialog();
-
-        if (res != true && w.NeedsFingerprint)
+        // Backing out of the fingerprint scan returns to the mobile step rather
+        // than dropping the person out of the app, so they can still try the
+        // password or a different number.
+        while (true)
         {
+            var w = new ProfileLoginWindow(mode) { Owner = owner };
+            var res = w.ShowDialog();
+
+            if (res == true)
+            {
+                App.ProfileUser = new App.ProfileSession { Name = w.SignedInName, Mobile = w.SignedInMobile, Role = w.Role, Modules = w.Modules };
+                Stamp(owner);
+                return true;
+            }
+
+            if (!w.NeedsFingerprint && !w.ChoseFingerprint) return false;
+
             var f = new FingerprintLoginWindow(mode) { Owner = owner };
-            if (f.ShowDialog() != true) return false;
+            if (f.ShowDialog() != true) continue;
+
             App.ProfileUser = new App.ProfileSession { Name = f.SignedInName, Mobile = f.SignedInMobile, Role = f.Role, Modules = f.Modules };
             Stamp(owner);
             return true;
         }
-
-        if (res != true) return false;
-
-        App.ProfileUser = new App.ProfileSession { Name = w.SignedInName, Mobile = w.SignedInMobile, Role = w.Role, Modules = w.Modules };
-        Stamp(owner);
-        return true;
     }
 
     public static void Stamp(Window owner)

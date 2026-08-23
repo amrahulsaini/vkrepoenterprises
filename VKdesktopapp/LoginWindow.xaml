@@ -84,6 +84,50 @@
 
             <Border Height="1" Background="{StaticResource Gray200}" Margin="28,18,28,4" />
 
+            <StackPanel Name="pnlAgencySaved" Visibility="Collapsed">
+                <TextBlock Name="lblSavedState"
+                           Text="Signed in to this agency on this computer."
+                           TextAlignment="Center"
+                           FontSize="12"
+                           Foreground="{StaticResource Gray600}"
+                           Margin="28,6,28,0"
+                           TextWrapping="Wrap" />
+                <TextBlock Text="This stays signed in for 7 days."
+                           TextAlignment="Center"
+                           FontSize="11"
+                           Foreground="{StaticResource Gray500}"
+                           Margin="28,4,28,0"
+                           TextWrapping="Wrap" />
+                <Button Name="btnChangeAgency" Click="btnChangeAgency_Click"
+                        Content="Change agency"
+                        Margin="28,22,28,0"
+                        Height="40"
+                        FontSize="13" FontWeight="SemiBold"
+                        Foreground="{StaticResource Gray700}"
+                        Background="White"
+                        BorderThickness="0"
+                        Cursor="Hand">
+                    <Button.Template>
+                        <ControlTemplate TargetType="Button">
+                            <Border Name="border" Background="{TemplateBinding Background}"
+                                    BorderBrush="{StaticResource Gray300}" BorderThickness="1"
+                                    CornerRadius="6">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="border" Property="Background" Value="{StaticResource Gray100}" />
+                                </Trigger>
+                                <Trigger Property="IsEnabled" Value="False">
+                                    <Setter TargetName="border" Property="Opacity" Value="0.6" />
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Button.Template>
+                </Button>
+            </StackPanel>
+
+            <StackPanel Name="pnlAgencyForm">
             <TextBlock Text="Sign in to your agency account"
                        TextAlignment="Center"
                        FontSize="12"
@@ -146,6 +190,7 @@
                     </ControlTemplate>
                 </Button.Template>
             </Button>
+            </StackPanel>
 
             <TextBlock Name="lblStatus"
                        TextAlignment="Center"

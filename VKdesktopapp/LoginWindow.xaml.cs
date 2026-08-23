@@ -29,6 +29,22 @@ public partial class LoginWindow : Window
         };
     }
 
+    /// The agency sign in lasts 7 days on this computer. While it holds, this
+    /// window is the agency's identity card, not a login form: the person about
+    /// to sign in should see who they are signing in to, and reach the form
+    /// only by deliberately choosing "Change agency".
+    private void ShowAgencyCard()
+    {
+        pnlAgencyForm.Visibility = Visibility.Collapsed;
+        pnlAgencySaved.Visibility = Visibility.Visible;
+    }
+
+    private void ShowAgencyForm()
+    {
+        pnlAgencySaved.Visibility = Visibility.Collapsed;
+        pnlAgencyForm.Visibility = Visibility.Visible;
+    }
+
     private async Task TryAutoLoginAsync()
     {
         if (_autoLoginTried) return;
@@ -39,6 +55,7 @@ public partial class LoginWindow : Window
         var deviceToken = SavedSession.Load();
         if (string.IsNullOrEmpty(deviceToken)) return;
 
+        ShowAgencyCard();
         btnLogin.IsEnabled = false;
         lblStatus.Text = "Signing in...";
         try
@@ -55,7 +72,14 @@ public partial class LoginWindow : Window
                 // must not cost the user their saved sign in.
                 if (resp.StatusCode == System.Net.HttpStatusCode.Unauthorized ||
                     resp.StatusCode == System.Net.HttpStatusCode.Forbidden)
+                {
                     SavedSession.Clear();
+                    ShowAgencyForm();
+                }
+                else
+                {
+                    lblSavedState.Text = "Cannot reach the server right now. Change agency to sign in again.";
+                }
                 lblStatus.Text = "";
                 return;
             }
@@ -64,6 +88,7 @@ public partial class LoginWindow : Window
             if (signed == null || string.IsNullOrEmpty(signed.Token))
             {
                 SavedSession.Clear();
+                ShowAgencyForm();
                 lblStatus.Text = "";
                 return;
             }
@@ -72,12 +97,57 @@ public partial class LoginWindow : Window
         }
         catch
         {
+            lblSavedState.Text = "Cannot reach the server right now. Change agency to sign in again.";
             lblStatus.Text = "";
         }
         finally
         {
             btnLogin.IsEnabled = true;
         }
+    }
+
+    private async void btnChangeAgency_Click(object sender, RoutedEventArgs e)
+    {
+        var ask = MessageBox.Show(
+            "Sign out of " + lblAppName.Text + " on this computer and sign in to a different agency?",
+            "Change agency", MessageBoxButton.YesNo, MessageBoxImage.Question);
+        if (ask != MessageBoxResult.Yes) return;
+
+        btnChangeAgency.IsEnabled = false;
+        lblStatus.Text = "Signing out...";
+        try
+        {
+            await RevokeDeviceAsync();
+            ClearCachedAgencyBranding();
+            App.SignedAppUser = null;
+            App.ProfileUser = null;
+            App.HttpClient.DefaultRequestHeaders.Authorization = null;
+            txtEmail.Clear();
+            txtPassword.Clear();
+            ShowAgencyForm();
+            lblStatus.Text = "";
+            txtEmail.Focus();
+        }
+        finally
+        {
+            btnChangeAgency.IsEnabled = true;
+        }
+    }
+
+    private void ClearCachedAgencyBranding()
+    {
+        foreach (var p in new[] { AgencyNameCachePath, AgencyLogoCachePath })
+        {
+            try { if (System.IO.File.Exists(p)) System.IO.File.Delete(p); }
+            catch { }
+        }
+        lblAppName.Text = Branding.IsTenantBuild ? Branding.Name : "CRMRS";
+        try
+        {
+            imgLogo.Source = new BitmapImage(
+                new Uri("pack://application:,,,/public/crmrs-fulllogo.png", UriKind.Absolute));
+        }
+        catch { }
     }
 
     private void LoadCachedAgencyBranding()
@@ -285,6 +355,8 @@ public partial class LoginWindow : Window
 
         if (profileGated)
         {
+            ShowAgencyCard();
+
             if (!await ProfileGate.EnsureAsync(this, "CRMRS"))
             {
                 txtPassword.Clear();
@@ -311,6 +383,8 @@ public partial class LoginWindow : Window
             if (chooser.ChangeAgencyRequested || chooser.LoggedOut)
             {
                 await RevokeDeviceAsync();
+                ClearCachedAgencyBranding();
+                ShowAgencyForm();
                 txtEmail.Clear();
                 lblStatus.Text = "";
                 Show();
