@@ -4131,6 +4131,9 @@ internal static class AgencyPortal
             geoLng           = rdr.IsDBNull(16) ? (double?)null : rdr.GetDouble(16),
             geoRadiusM       = rdr.GetInt32(17),
             geoLabel         = rdr.GetString(18),
+            // Handed only to a signed-in HRMS session rather than baked into the
+            // page, so the key never sits in the repo or on an anonymous URL.
+            mapsKey          = Env("GOOGLE_MAPS_KEY", ""),
         };
     }
 
