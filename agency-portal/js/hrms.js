@@ -145,11 +145,73 @@
   var LABELS = {
     dashboard:'Dashboard', departments:'Departments',
     leave:'Leave', payroll:'Payroll', documents:'Documents', roles:'Roles',
-    reports:'Reports', settings:'Settings'
+    reports:'Reports'
   };
 
+  function qrMsg(t, kind) {
+    $('qr-msg').textContent = t || '';
+    $('qr-msg').className = 'msg' + (kind ? ' ' + kind : '');
+  }
+
+  function loadQrSettings() {
+    var cur = (ME && ME.qrProximity) || 'warn';
+    Array.prototype.forEach.call(document.getElementsByName('qrprox'), function (r) {
+      r.checked = (r.value === cur);
+    });
+    qrMsg('');
+    loadQrAttempts();
+  }
+
+  async function loadQrAttempts() {
+    $('qr-rows').innerHTML = '<div class="empty-note" style="border:0">Loading\u2026</div>';
+    var rows;
+    try { rows = await call('/hrms/qr-attempts'); }
+    catch (e) { $('qr-rows').innerHTML = '<div class="empty-note" style="border:0">' + esc(e.message) + '</div>'; return; }
+
+    if (!rows.length) {
+      $('qr-rows').innerHTML = '<div class="empty-note" style="border:0">No fingerprint sign-ins yet.</div>';
+      return;
+    }
+
+    $('qr-rows').innerHTML = rows.map(function (a) {
+      var conn = a.proximity === 'match'    ? pill('p-on', 'Office')
+               : a.proximity === 'mismatch' ? pill('p-red', 'Elsewhere')
+               : pill('p-off', 'Unknown');
+      var result = a.status === 'approved' ? pill('p-on', 'Signed in')
+                 : a.status === 'denied'
+                   ? pill('p-red', a.failReason === 'wrong_person' ? 'Wrong person'
+                                 : a.failReason === 'too_far'      ? 'Blocked'
+                                 : a.failReason === 'bad_signature'? 'Bad fingerprint'
+                                 : a.failReason === 'no_role'      ? 'No role'
+                                 : 'Refused')
+                   : pill('p-off', a.status);
+      return '<div class="trow" style="grid-template-columns:1.4fr 1fr 1fr 1fr;cursor:default">' +
+        '<div style="min-width:0"><div class="n">' + esc(a.name || a.mobile || 'Unknown') + '</div>' +
+        '<div class="m">' + esc(a.at) + '</div></div>' +
+        '<div style="font-size:12.5px;color:var(--muted)">' + esc(a.device || '\u2014') + '</div>' +
+        '<div>' + conn + '</div><div>' + result + '</div></div>';
+    }).join('');
+  }
+
+  Array.prototype.forEach.call(document.getElementsByName('qrprox'), function (radio) {
+    radio.addEventListener('change', async function () {
+      if (!radio.checked) return;
+      qrMsg('Saving\u2026');
+      try {
+        await call('/hrms/qr-proximity', { method: 'POST', body: { mode: radio.value } });
+        if (ME) ME.qrProximity = radio.value;
+        qrMsg(radio.value === 'block' ? 'Sign-ins from outside the office are now refused.'
+            : radio.value === 'warn'  ? 'Recording only. Nothing is refused.'
+            : 'Location is no longer checked.', 'ok');
+      } catch (e) {
+        qrMsg(e.message, 'err');
+        loadQrSettings();
+      }
+    });
+  });
+
   var PAGES = ['page-profiles','page-desktop','page-staff','page-attendance',
-               'page-roles','page-roleedit','page-stub'];
+               'page-roles','page-roleedit','page-settings','page-stub'];
 
   function only(id) {
     PAGES.forEach(function (p) { show($(p), p === id); });
@@ -171,6 +233,13 @@
       only('page-attendance');
       if (!$('at-date').value) $('at-date').value = istToday();
       loadAttendance();
+      return;
+    }
+
+    if (r[0] === 'settings') {
+      markNav('settings');
+      only('page-settings');
+      loadQrSettings();
       return;
     }
 

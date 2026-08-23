@@ -18,6 +18,35 @@ public class FingerprintController : ControllerBase
 
     private static DateTime IstNow() => DateTime.UtcNow.AddMinutes(330);
 
+    /// Behind the local OpenLiteSpeed proxy the connection is always loopback,
+    /// so the forwarded header carries the real client. Safe to trust only
+    /// because the proxy is on this machine — nothing remote reaches Kestrel.
+    private string ClientIp()
+    {
+        var direct = HttpContext.Connection.RemoteIpAddress;
+        if (direct == null || System.Net.IPAddress.IsLoopback(direct))
+        {
+            var fwd = Request.Headers["X-Forwarded-For"].ToString();
+            if (!string.IsNullOrWhiteSpace(fwd))
+            {
+                var first = fwd.Split(',')[0].Trim();
+                if (first.Length > 0) return Trim(first);
+            }
+            var real = Request.Headers["X-Real-IP"].ToString().Trim();
+            if (real.Length > 0) return Trim(real);
+        }
+        return direct == null ? "" : Trim(direct.ToString());
+    }
+
+    private static string Trim(string ip)
+    {
+        ip = ip.Trim();
+        if (ip.StartsWith("[")) { var e = ip.IndexOf(']'); if (e > 0) ip = ip.Substring(1, e - 1); }
+        else if (ip.Split(':').Length == 2) ip = ip.Split(':')[0];
+        if (ip.StartsWith("::ffff:", StringComparison.OrdinalIgnoreCase)) ip = ip.Substring(7);
+        return ip.Length > 45 ? ip.Substring(0, 45) : ip;
+    }
+
     [HttpGet("status")]
     public async Task<IActionResult> Status()
     {
@@ -109,9 +138,11 @@ public class FingerprintController : ControllerBase
         await using var conn = DbFactory.CreateMaster();
         await conn.OpenAsync();
 
-        string status, slug, mode, device, pair, nonce, agencyName;
+        string status, slug, mode, device, pair, nonce, agencyName, claimMobile;
+        long claimUserId;
         await using (var cmd = new MySqlCommand(
-            "SELECT c.status, c.slug, c.mode, c.device_label, c.pair_code, c.nonce, c.expires_at, a.name " +
+            "SELECT c.status, c.slug, c.mode, c.device_label, c.pair_code, c.nonce, c.expires_at, a.name, " +
+            "COALESCE(c.claim_user_id,0), COALESCE(c.claim_mobile,'') " +
             "FROM auth_challenges c JOIN agencies a ON a.id = c.agency_id WHERE c.id=@i LIMIT 1;", conn))
         {
             cmd.Parameters.AddWithValue("@i", id);
@@ -123,6 +154,7 @@ public class FingerprintController : ControllerBase
             device = rdr.GetString(3); pair = rdr.GetString(4); nonce = rdr.GetString(5);
             bool gone = rdr.GetDateTime(6) < DateTime.UtcNow;
             agencyName = rdr.GetString(7);
+            claimUserId = rdr.GetInt64(8); claimMobile = rdr.GetString(9);
 
             if (gone || status == "expired")
                 return StatusCode(410, new { success = false, code = "expired", message = "This request has expired. Start again on the desktop." });
@@ -132,6 +164,13 @@ public class FingerprintController : ControllerBase
 
         if (!string.Equals(slug, s.Slug, StringComparison.OrdinalIgnoreCase))
             return StatusCode(403, new { success = false, code = "wrong_agency", message = "This sign-in belongs to a different agency." });
+
+        // Say no while they are still looking at the scanner, rather than after
+        // they have put a finger on the sensor for nothing.
+        if (claimUserId > 0 && claimUserId != s.UserId)
+            return StatusCode(403, new { success = false, code = "wrong_person",
+                message = "This sign-in was started for a different person. Ask them to scan it, " +
+                          "or start again on the desktop with your own number." });
 
         await using (var upd = new MySqlCommand(
             "UPDATE auth_challenges SET status='scanned' WHERE id=@i AND status='pending'", conn))
@@ -147,7 +186,8 @@ public class FingerprintController : ControllerBase
             mode,
             deviceLabel = device,
             pairCode = pair,
-            nonce
+            nonce,
+            forMobile = claimMobile
         });
     }
 
@@ -163,11 +203,14 @@ public class FingerprintController : ControllerBase
         if (cid.Length == 0 || sig.Length == 0)
             return BadRequest(new { success = false, message = "Missing request or signature." });
 
-        string nonce, slug, status;
+        string nonce, slug, status, desktopIp, policy;
+        long claimUserId;
         await using var master = DbFactory.CreateMaster();
         await master.OpenAsync();
         await using (var cmd = new MySqlCommand(
-            "SELECT nonce, slug, status, expires_at FROM auth_challenges WHERE id=@i LIMIT 1;", master))
+            "SELECT c.nonce, c.slug, c.status, c.expires_at, COALESCE(c.claim_user_id,0), " +
+            "COALESCE(c.desktop_ip,''), COALESCE(a.qr_proximity,'warn') " +
+            "FROM auth_challenges c JOIN agencies a ON a.id = c.agency_id WHERE c.id=@i LIMIT 1;", master))
         {
             cmd.Parameters.AddWithValue("@i", cid);
             await using var rdr = await cmd.ExecuteReaderAsync();
@@ -178,10 +221,44 @@ public class FingerprintController : ControllerBase
                 return StatusCode(410, new { success = false, code = "expired", message = "This request has expired." });
             if (status == "approved" || status == "denied")
                 return Conflict(new { success = false, code = "used", message = "This request has already been used." });
+            claimUserId = rdr.GetInt64(4); desktopIp = rdr.GetString(5); policy = rdr.GetString(6);
         }
 
         if (!string.Equals(slug, s.Slug, StringComparison.OrdinalIgnoreCase))
             return StatusCode(403, new { success = false, message = "This sign-in belongs to a different agency." });
+
+        // Whoever the desktop asked for is the only person who can answer.
+        if (claimUserId > 0 && claimUserId != s.UserId)
+        {
+            await Refuse(master, cid, "wrong_person");
+            return StatusCode(403, new { success = false, code = "wrong_person",
+                message = "This sign-in was started for a different person." });
+        }
+
+        // Same office internet connection, in or out. This is the check that a
+        // forwarded screenshot cannot satisfy from someone's home.
+        string phoneIp = ClientIp();
+        bool near = desktopIp.Length > 0 && phoneIp.Length > 0 &&
+                    string.Equals(desktopIp, phoneIp, StringComparison.OrdinalIgnoreCase);
+        string verdict = desktopIp.Length == 0 || phoneIp.Length == 0
+            ? "unknown" : (near ? "match" : "mismatch");
+
+        await using (var mark = new MySqlCommand(
+            "UPDATE auth_challenges SET phone_ip=@p, proximity=@v WHERE id=@i;", master))
+        {
+            mark.Parameters.AddWithValue("@p", phoneIp);
+            mark.Parameters.AddWithValue("@v", verdict);
+            mark.Parameters.AddWithValue("@i", cid);
+            await mark.ExecuteNonQueryAsync();
+        }
+
+        if (verdict == "mismatch" && policy == "block")
+        {
+            await Refuse(master, cid, "too_far");
+            return StatusCode(403, new { success = false, code = "too_far",
+                message = "You are not on the same internet connection as that computer. " +
+                          "Connect to the office Wi-Fi and scan again." });
+        }
 
         string pub = "", keyId = "", name = "";
         await using (var tconn = DbFactory.Create())
@@ -234,6 +311,17 @@ public class FingerprintController : ControllerBase
                 return Conflict(new { success = false, code = "used", message = "This request has already been used." });
         }
 
-        return Ok(new { success = true, name });
+        return Ok(new { success = true, name, proximity = verdict });
+    }
+
+    private static async Task Refuse(MySqlConnection master, string cid, string reason)
+    {
+        await using var cmd = new MySqlCommand(
+            "UPDATE auth_challenges SET status='denied', fail_reason=@r, resolved_at=@t " +
+            "WHERE id=@i AND status IN ('pending','scanned');", master);
+        cmd.Parameters.AddWithValue("@r", reason);
+        cmd.Parameters.AddWithValue("@t", DateTime.UtcNow);
+        cmd.Parameters.AddWithValue("@i", cid);
+        await cmd.ExecuteNonQueryAsync();
     }
 }

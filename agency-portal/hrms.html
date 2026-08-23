@@ -456,7 +456,7 @@
         <button class="nav" data-page="reports" disabled><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m7 15 3.5-4 3 2.5L20 7"/></svg><span>Reports</span><span class="soon">Soon</span></button>
       <div class="side-foot">
         <div class="grp">System</div>
-          <button class="nav" data-page="settings" disabled><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-2.87 1.2V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 7 19.4a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 2.6 15a1.7 1.7 0 0 0-1.6-1H1a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 2.6 9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 7 4.6h.09A1.7 1.7 0 0 0 8 3V3a2 2 0 1 1 4 0v.09A1.7 1.7 0 0 0 15 4.6a1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9v.09a1.7 1.7 0 0 0 1.6 1.6H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1Z"/></svg><span>Settings</span><span class="soon">Soon</span></button>
+          <button class="nav" data-page="settings"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-2.87 1.2V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 7 19.4a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 2.6 15a1.7 1.7 0 0 0-1.6-1H1a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 2.6 9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 7 4.6h.09A1.7 1.7 0 0 0 8 3V3a2 2 0 1 1 4 0v.09A1.7 1.7 0 0 0 15 4.6a1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9v.09a1.7 1.7 0 0 0 1.6 1.6H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1Z"/></svg><span>Settings</span></button>
       </div>
     </aside>
 
@@ -702,6 +702,53 @@
         </div>
       </div>
 
+      <div id="page-settings" class="hidden">
+        <div class="head">
+          <div>
+            <h1 class="t">Settings</h1>
+            <p class="s">Agency-wide rules for how staff reach the desktop.</p>
+          </div>
+        </div>
+
+        <div class="sec" style="margin-top:0">
+          <div class="st">Fingerprint sign-in</div>
+          <div class="panel">
+            <h4>Where a fingerprint sign-in may be approved from</h4>
+            <p class="ph">The desktop shows a QR code and the staff member approves it on their
+               phone. A photo of that code can be sent to someone elsewhere, so CRMRS compares
+               the internet connection the desktop is on with the one the phone is on. They match
+               whenever both are in the office &mdash; on the office Wi-Fi or plugged into it by
+               cable. They differ when the phone is at home, or on mobile data instead of the
+               office Wi-Fi.</p>
+
+            <label class="modchk" style="background:var(--paper-2);margin-bottom:8px">
+              <input type="radio" name="qrprox" value="block">
+              <span><b>Block</b> &mdash; refuse a sign-in from anywhere but the office connection.</span>
+            </label>
+            <label class="modchk" style="background:var(--paper-2);margin-bottom:8px">
+              <input type="radio" name="qrprox" value="warn">
+              <span><b>Record only</b> &mdash; allow it, but log where it came from. Start here.</span>
+            </label>
+            <label class="modchk" style="background:var(--paper-2)">
+              <input type="radio" name="qrprox" value="off">
+              <span><b>Off</b> &mdash; do not check location at all.</span>
+            </label>
+
+            <div class="callout" style="margin-top:14px">Whoever the desktop asked for is always
+              the only person who can approve, whatever this is set to. That is not optional.</div>
+            <div class="msg" id="qr-msg"></div>
+          </div>
+        </div>
+
+        <div class="sec">
+          <div class="st">Recent desktop sign-ins</div>
+          <div class="tbl">
+            <div class="thead" style="grid-template-columns:1.4fr 1fr 1fr 1fr"><span>Who</span><span>Computer</span><span>Connection</span><span>Result</span></div>
+            <div id="qr-rows"></div>
+          </div>
+        </div>
+      </div>
+
       <div id="page-stub" class="hidden">
         <div class="head">
           <div>
@@ -739,6 +786,6 @@
   </div>
 </aside>
 
-<script src="/js/hrms.js?v=15"></script>
+<script src="/js/hrms.js?v=16"></script>
 </body>
 </html>

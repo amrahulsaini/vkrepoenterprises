@@ -32,6 +32,14 @@ import com.vkenterprises.crmrs.security.FingerprintKey
 import kotlinx.coroutines.launch
 import java.util.concurrent.Executors
 
+private fun serverMessage(r: retrofit2.Response<*>): String? {
+    return try {
+        val body = r.errorBody()?.string() ?: return null
+        val m = Regex("\"message\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"").find(body) ?: return null
+        m.groupValues[1].replace("\\\"", "\"").replace("\\\\", "\\").ifBlank { null }
+    } catch (e: Exception) { null }
+}
+
 private fun challengeIdFrom(raw: String?): String? {
     if (raw.isNullOrBlank()) return null
     val m = Regex("[?&]c=([0-9a-fA-F]{32})").find(raw)
@@ -68,6 +76,7 @@ fun FingerprintScanScreen(api: ApiService, onDone: () -> Unit) {
     var challenge by remember { mutableStateOf("") }
     var confirming by remember { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
+    var forMobile by remember { mutableStateOf("") }
 
     fun onCode(raw: String?) {
         if (handled) return
@@ -82,7 +91,7 @@ fun FingerprintScanScreen(api: ApiService, onDone: () -> Unit) {
                     status = when (r.code()) {
                         410 -> "That code has expired. Get a new one on the desktop."
                         409 -> "That code has already been used."
-                        403 -> "That code belongs to a different agency."
+                        403 -> serverMessage(r) ?: "That code belongs to a different agency."
                         else -> "That code is not valid."
                     }
                     handled = false
@@ -93,6 +102,7 @@ fun FingerprintScanScreen(api: ApiService, onDone: () -> Unit) {
                 pairCode = b["pairCode"] as? String ?: ""
                 mode = b["mode"] as? String ?: ""
                 device = b["deviceLabel"] as? String ?: ""
+                forMobile = b["forMobile"] as? String ?: ""
                 confirming = true
             } catch (e: Exception) {
                 status = e.message ?: "Could not read that code."
@@ -115,6 +125,14 @@ fun FingerprintScanScreen(api: ApiService, onDone: () -> Unit) {
                             append(" ?")
                         }
                     )
+                    if (forMobile.isNotBlank()) {
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            "Started for " + forMobile + ".",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                     Spacer(Modifier.height(14.dp))
                     Text("CODE", style = MaterialTheme.typography.labelSmall)
                     Text(
@@ -166,7 +184,8 @@ fun FingerprintScanScreen(api: ApiService, onDone: () -> Unit) {
                                     confirming = false
                                     onDone()
                                 } else {
-                                    status = "Could not approve (" + ok.code() + ")."
+                                    status = serverMessage(ok)
+                                        ?: ("Could not approve (" + ok.code() + ").")
                                     confirming = false; handled = false
                                 }
                             } catch (e: Exception) {

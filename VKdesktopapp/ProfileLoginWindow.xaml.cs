@@ -13,6 +13,7 @@ public partial class ProfileLoginWindow : Window
     public bool NeedsFingerprint { get; private set; }
     public bool ChoseFingerprint { get; private set; }
     public bool ChangeAgencyRequested { get; private set; }
+    public string EnteredMobile { get { return _mobile; } }
     public string[] Modules { get; private set; } = System.Array.Empty<string>();
     public string Role { get; private set; } = "";
 

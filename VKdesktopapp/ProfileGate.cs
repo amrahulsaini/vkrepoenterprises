@@ -48,7 +48,7 @@ public static class ProfileGate
 
             if (!w.NeedsFingerprint && !w.ChoseFingerprint) return false;
 
-            var f = new FingerprintLoginWindow(mode) { Owner = owner };
+            var f = new FingerprintLoginWindow(mode, w.EnteredMobile) { Owner = owner };
             Detach(f, standalone);
             if (f.ShowDialog() != true) continue;
 

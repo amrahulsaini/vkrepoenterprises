@@ -16,16 +16,18 @@ public partial class FingerprintLoginWindow : Window
     public string Role { get; private set; } = "";
 
     private readonly string _mode;
+    private readonly string _mobile;
     private readonly DispatcherTimer _poll = new() { Interval = TimeSpan.FromSeconds(2) };
     private CancellationTokenSource _cts = new();
     private string _challengeId = "";
     private DateTime _expiresAt = DateTime.MinValue;
     private bool _busy;
 
-    public FingerprintLoginWindow(string mode)
+    public FingerprintLoginWindow(string mode, string mobile = "")
     {
         InitializeComponent();
         _mode = mode;
+        _mobile = mobile ?? "";
         lblAgency.Text = AgencyBranding.Name;
         imgAgency.Source = AgencyBranding.LoadLogo() ?? AgencyBranding.DefaultLogo();
         lblTitle.Text = string.IsNullOrWhiteSpace(mode) || mode == "CRMRS"
@@ -46,7 +48,7 @@ public partial class FingerprintLoginWindow : Window
 
         try
         {
-            var r = await DesktopApiClient.CreateAuthChallengeAsync(_mode, Environment.MachineName);
+            var r = await DesktopApiClient.CreateAuthChallengeAsync(_mode, Environment.MachineName, _mobile);
             _challengeId = r.Id;
             _expiresAt = DateTime.UtcNow.AddSeconds(r.ExpiresInSeconds);
             lblPair.Text = r.PairCode;
@@ -105,6 +107,10 @@ public partial class FingerprintLoginWindow : Window
                     {
                         "bad_signature" => "That fingerprint could not be verified. Get a new code and try again.",
                         "no_role"       => "No role has been assigned to this profile. Ask your administrator to set one in HRMS.",
+                        "wrong_person"  => "That phone belongs to someone else. This code was made for "
+                                           + (_mobile.Length > 0 ? _mobile : "another number") + ".",
+                        "too_far"       => "That phone is not on the office internet connection. "
+                                           + "Connect it to the office Wi-Fi and get a new code.",
                         _               => "That sign-in was refused. Get a new code and try again.",
                     };
                     break;

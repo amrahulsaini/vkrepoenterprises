@@ -436,12 +436,34 @@ internal static class AgencyPortal
             string id = NewChallengeId(), nonce = NewNonce(), pair = NewPairCode();
             var now = DateTime.UtcNow;
 
+            // The mobile number typed on the desktop names who this sign-in is
+            // for. Without it the challenge is anonymous and anyone enrolled in
+            // the agency can approve it and be signed in instead.
+            string claimMobile = new string((dto.GetValueOrDefault("mobile") ?? "").Where(char.IsDigit).ToArray());
+            if (claimMobile.Length > 10) claimMobile = claimMobile.Substring(claimMobile.Length - 10);
+            long claimUserId = 0;
+            if (claimMobile.Length == 10)
+            {
+                try
+                {
+                    await using var tconn = new MySqlConnection(TenantContext.BuildTenantConn(mysqlHost, mysqlPort, ag.slug));
+                    await tconn.OpenAsync();
+                    await using var find = new MySqlCommand(
+                        "SELECT id FROM app_users WHERE RIGHT(REPLACE(COALESCE(mobile,''),' ',''),10) = @m LIMIT 1;", tconn)
+                    { CommandTimeout = 10 };
+                    find.Parameters.AddWithValue("@m", claimMobile);
+                    if (await find.ExecuteScalarAsync() is { } got) claimUserId = Convert.ToInt64(got);
+                }
+                catch { claimUserId = 0; }
+            }
+
             await using (var conn = new MySqlConnection(masterConn))
             {
                 await conn.OpenAsync();
                 await using var ins = new MySqlCommand(
-                    "INSERT INTO auth_challenges (id, agency_id, slug, nonce, pair_code, mode, device_label, created_at, expires_at) " +
-                    "VALUES (@i, @a, @s, @n, @p, @m, @d, @c, @x);", conn);
+                    "INSERT INTO auth_challenges (id, agency_id, slug, nonce, pair_code, mode, device_label, " +
+                    "claim_user_id, claim_mobile, desktop_ip, created_at, expires_at) " +
+                    "VALUES (@i, @a, @s, @n, @p, @m, @d, @cu, @cm, @ip, @c, @x);", conn);
                 ins.Parameters.AddWithValue("@i", id);
                 ins.Parameters.AddWithValue("@a", ag.id);
                 ins.Parameters.AddWithValue("@s", ag.slug);
@@ -449,6 +471,9 @@ internal static class AgencyPortal
                 ins.Parameters.AddWithValue("@p", pair);
                 ins.Parameters.AddWithValue("@m", (dto.GetValueOrDefault("mode") ?? "").Trim());
                 ins.Parameters.AddWithValue("@d", (dto.GetValueOrDefault("deviceLabel") ?? "").Trim());
+                ins.Parameters.AddWithValue("@cu", claimUserId == 0 ? (object)DBNull.Value : claimUserId);
+                ins.Parameters.AddWithValue("@cm", claimMobile);
+                ins.Parameters.AddWithValue("@ip", ClientIp(ctx));
                 ins.Parameters.AddWithValue("@c", now);
                 ins.Parameters.AddWithValue("@x", now.AddSeconds(AuthChallengeSeconds));
                 await ins.ExecuteNonQueryAsync();
@@ -1111,6 +1136,63 @@ internal static class AgencyPortal
             var a = await HrmsSessionAgency(masterConn, ctx);
             if (a is null) return Results.Json(new { message = "Session expired." }, statusCode: 401);
             return Results.Ok(a);
+        });
+
+        // Whether a fingerprint sign-in must come from the office's own internet
+        // connection. 'warn' records the verdict without acting on it, which is
+        // the safe default: a phone on mobile data leaves through a different
+        // address and would otherwise be refused.
+        app.MapPost("/api/agency/hrms/qr-proximity", async (HttpContext ctx, HttpRequest req) =>
+        {
+            var slug = await HrmsSessionSlug(masterConn, ctx);
+            if (slug is null) return Results.Json(new { message = "Session expired." }, statusCode: 401);
+
+            var dto = await ReadJsonAsync(req);
+            string mode = (dto.GetValueOrDefault("mode") ?? "").Trim().ToLowerInvariant();
+            if (mode is not ("off" or "warn" or "block"))
+                return Results.BadRequest(new { message = "Unknown setting." });
+
+            await using var conn = new MySqlConnection(masterConn);
+            await conn.OpenAsync();
+            await using var cmd = new MySqlCommand(
+                "UPDATE agencies SET qr_proximity=@m WHERE slug=@s;", conn);
+            cmd.Parameters.AddWithValue("@m", mode);
+            cmd.Parameters.AddWithValue("@s", slug);
+            await cmd.ExecuteNonQueryAsync();
+            return Results.Ok(new { ok = true, mode });
+        });
+
+        // The last few desktop fingerprint sign-ins, so an agency can see what
+        // enforcing would have blocked before they turn it on.
+        app.MapGet("/api/agency/hrms/qr-attempts", async (HttpContext ctx) =>
+        {
+            var a = await HrmsSessionAgencyId(masterConn, ctx);
+            if (a is null) return Results.Json(new { message = "Session expired." }, statusCode: 401);
+
+            await using var conn = new MySqlConnection(masterConn);
+            await conn.OpenAsync();
+            await using var cmd = new MySqlCommand(@"
+                SELECT COALESCE(approved_name,''), COALESCE(claim_mobile,''), status,
+                       COALESCE(fail_reason,''), COALESCE(proximity,'unknown'),
+                       COALESCE(device_label,''), created_at
+                  FROM auth_challenges
+                 WHERE agency_id = @a
+                 ORDER BY created_at DESC LIMIT 25;", conn);
+            cmd.Parameters.AddWithValue("@a", a.Value);
+            var rows = new List<object>();
+            await using var rdr = await cmd.ExecuteReaderAsync();
+            while (await rdr.ReadAsync())
+                rows.Add(new
+                {
+                    name       = rdr.GetString(0),
+                    mobile     = rdr.GetString(1),
+                    status     = rdr.GetString(2),
+                    failReason = rdr.GetString(3),
+                    proximity  = rdr.GetString(4),
+                    device     = rdr.GetString(5),
+                    at         = rdr.GetDateTime(6).AddMinutes(330).ToString("dd MMM, HH:mm"),
+                });
+            return Results.Ok(rows);
         });
 
         app.MapPost("/api/agency/hrms/logout", async (HttpContext ctx) =>
@@ -1802,7 +1884,7 @@ internal static class AgencyPortal
                 nc.Parameters.AddWithValue("@id", me.id);
                 if (await nc.ExecuteScalarAsync() is string n) agencyName = n;
             }
-            string ip = ctx.Connection.RemoteIpAddress?.ToString() ?? "";
+            string ip = ClientIp(ctx);
 
             await using var ins = new MySqlCommand(@"
                 INSERT INTO client_error_log
@@ -3939,6 +4021,22 @@ internal static class AgencyPortal
         return (await cmd.ExecuteScalarAsync()) as string;
     }
 
+    private static async Task<int?> HrmsSessionAgencyId(string masterConn, HttpContext ctx)
+    {
+        string token = ctx.Request.Headers["X-Hrms-Token"].FirstOrDefault() ?? "";
+        if (string.IsNullOrWhiteSpace(token)) return null;
+
+        await using var conn = new MySqlConnection(masterConn);
+        await conn.OpenAsync();
+        await using var cmd = new MySqlCommand(
+            "SELECT s.agency_id FROM hrms_sessions s JOIN agencies a ON a.id = s.agency_id " +
+            "WHERE s.token_hash=@t AND s.revoked=0 AND s.expires_at > UTC_TIMESTAMP() " +
+            "AND a.status='approved' AND COALESCE(a.hrms_enabled,0)=1 LIMIT 1;", conn);
+        cmd.Parameters.AddWithValue("@t", Sha256Hex(token));
+        var got = await cmd.ExecuteScalarAsync();
+        return got is null ? null : Convert.ToInt32(got);
+    }
+
     private static async Task<object?> HrmsSessionAgency(string masterConn, HttpContext ctx)
     {
         string token = ctx.Request.Headers["X-Hrms-Token"].FirstOrDefault() ?? "";
@@ -3950,7 +4048,7 @@ internal static class AgencyPortal
             SELECT a.id, a.name, a.slug, COALESCE(a.logo_path,''), a.email1,
                    COALESCE(a.email2,''), a.mobile1, COALESCE(a.mobile2,''),
                    COALESCE(a.address,''), a.status, a.created_at, a.approved_at,
-                   a.hrms_enabled_at, s.expires_at
+                   a.hrms_enabled_at, s.expires_at, COALESCE(a.qr_proximity,'warn')
               FROM hrms_sessions s
               JOIN agencies a ON a.id = s.agency_id
              WHERE s.token_hash = @t AND s.revoked = 0 AND s.expires_at > UTC_TIMESTAMP()
@@ -3980,6 +4078,7 @@ internal static class AgencyPortal
             hrmsSince    = D(12),
             sessionExpiresAt = rdr.GetDateTime(13).ToString("yyyy-MM-ddTHH:mm:ss") + "Z",
             sessionHours     = 12,
+            qrProximity      = rdr.GetString(14),
         };
     }
 
@@ -4014,6 +4113,40 @@ internal static class AgencyPortal
     {
         var bytes = RandomNumberGenerator.GetBytes(32);
         return Convert.ToBase64String(bytes).Replace('+', '-').Replace('/', '_').TrimEnd('=');
+    }
+
+    /// The caller's public address. Behind the local OpenLiteSpeed proxy the
+    /// connection itself is always 127.0.0.1, so the forwarded header is the
+    /// only source of the real client. Trusted precisely because the proxy is
+    /// local: a remote client cannot reach Kestrel to forge one.
+    internal static string ClientIp(HttpContext ctx)
+    {
+        var direct = ctx.Connection.RemoteIpAddress;
+        bool viaLocalProxy = direct == null || System.Net.IPAddress.IsLoopback(direct);
+
+        if (viaLocalProxy)
+        {
+            string fwd = ctx.Request.Headers["X-Forwarded-For"].ToString();
+            if (!string.IsNullOrWhiteSpace(fwd))
+            {
+                // Left-most is the original client; the proxy appends to the right.
+                var first = fwd.Split(',')[0].Trim();
+                if (first.Length > 0) return Normalise(first);
+            }
+            string real = ctx.Request.Headers["X-Real-IP"].ToString().Trim();
+            if (real.Length > 0) return Normalise(real);
+        }
+
+        return direct == null ? "" : Normalise(direct.ToString());
+    }
+
+    private static string Normalise(string ip)
+    {
+        ip = ip.Trim();
+        if (ip.StartsWith("[")) { int e = ip.IndexOf(']'); if (e > 0) ip = ip.Substring(1, e - 1); }
+        else if (ip.Count(c => c == ':') == 1) ip = ip.Split(':')[0];   // host:port, IPv4 only
+        if (ip.StartsWith("::ffff:", StringComparison.OrdinalIgnoreCase)) ip = ip.Substring(7);
+        return ip.Length > 45 ? ip.Substring(0, 45) : ip;
     }
 
     internal static string Sha256Hex(string s)

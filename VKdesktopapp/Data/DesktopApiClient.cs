@@ -639,10 +639,11 @@ internal static class DesktopApiClient
     internal record AuthChallengeResult(string Id, string PairCode, string Qr, int ExpiresInSeconds);
     internal record AuthChallengeStatus(string Status, string Name, long UserId, string FailReason, string Role, string[] Modules);
 
-    internal static async Task<AuthChallengeResult> CreateAuthChallengeAsync(string mode, string deviceLabel)
+    internal static async Task<AuthChallengeResult> CreateAuthChallengeAsync(
+        string mode, string deviceLabel, string mobile)
     {
         var resp = await Send(HttpMethod.Post, "api/agency/desktop/auth-challenge",
-            new { Mode = mode, DeviceLabel = deviceLabel });
+            new { Mode = mode, DeviceLabel = deviceLabel, Mobile = mobile });
         resp.EnsureSuccessStatusCode();
         return (await resp.Content.ReadFromJsonAsync<AuthChallengeResult>(_json))
                ?? throw new Exception("Bad response from server.");
