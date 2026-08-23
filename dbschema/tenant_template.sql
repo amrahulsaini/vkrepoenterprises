@@ -63,6 +63,9 @@ CREATE TABLE `app_users` (
   `profile_password_hash` varchar(255) DEFAULT NULL,
   `profile_password_set_at` datetime DEFAULT NULL,
   `profile_password_by` varchar(190) DEFAULT NULL,
+  `fingerprint_required` tinyint(1) NOT NULL DEFAULT 0,
+  `fingerprint_waived_until` datetime DEFAULT NULL,
+  `role_id` int(11) DEFAULT NULL,
   `kyc_aadhaar_last4` varchar(8) DEFAULT NULL,
   `kyc_aadhaar_name` varchar(190) DEFAULT NULL,
   `kyc_aadhaar_dob` varchar(20) DEFAULT NULL,
@@ -102,6 +105,16 @@ CREATE TABLE IF NOT EXISTS attendance (
   INDEX idx_att_day (work_date),
   INDEX idx_att_user (user_id),
   CONSTRAINT fk_att_user FOREIGN KEY (user_id) REFERENCES app_users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+CREATE TABLE IF NOT EXISTS roles (
+  id            INT AUTO_INCREMENT PRIMARY KEY,
+  name          VARCHAR(80)  NOT NULL,
+  is_superadmin TINYINT(1)   NOT NULL DEFAULT 0,
+  modules       TEXT         NULL,
+  created_at    DATETIME     NOT NULL,
+  updated_at    DATETIME     NULL,
+  UNIQUE KEY uq_role_name (name)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 DROP TABLE IF EXISTS `branches`;

@@ -283,6 +283,18 @@
     font-size:9.5px;font-weight:750;letter-spacing:1px;text-transform:uppercase;color:var(--muted-2);
   }
   .btn-xs{padding:7px 13px;font-size:12.5px;border-radius:8px}
+  .rolegrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px;margin-top:10px}
+  .modchk{display:flex;align-items:center;gap:9px;padding:9px 11px;border:1px solid var(--line);
+          border-radius:var(--radius-sm);background:var(--paper);cursor:pointer;font-size:13px}
+  .modchk:hover{border-color:var(--ink-3)}
+  .modchk input{width:15px;height:15px;accent-color:var(--orange);cursor:pointer}
+  .modgrp{font-size:9.5px;font-weight:750;letter-spacing:1px;text-transform:uppercase;
+          color:var(--muted-2);margin:16px 0 2px}
+  .rolecard{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);
+            padding:18px;box-shadow:var(--shadow);margin-bottom:12px}
+  .rolehead{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+  .rolename{font-size:15.5px;font-weight:750}
+  .rolemods{font-size:12.5px;color:var(--muted);margin-top:5px}
   .fpbox{margin-top:14px;padding:16px;border:1px solid var(--line);
          border-radius:var(--radius-sm);background:var(--paper-2)}
   .fpkey{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
@@ -408,6 +420,7 @@
         <button class="nav" data-page="dashboard" disabled><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.5"/></svg><span>Dashboard</span><span class="soon">Soon</span></button>
       <div class="grp">People</div>
         <button class="nav on" data-page="profiles"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 20v-1.5a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4V20"/><circle cx="9" cy="7" r="3.5"/><path d="M22 20v-1.5a4 4 0 0 0-3-3.87"/><path d="M16 3.6a4 4 0 0 1 0 7"/></svg><span>Profiles</span></button>
+        <button class="nav" data-page="roles"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M10 21v-5h4v5"/></svg><span>Roles</span></button>
         <button class="nav" data-page="departments" disabled><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M10 21v-5h4v5"/></svg><span>Departments</span><span class="soon">Soon</span></button>
         <button class="nav" data-page="attendance"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M8 2.5v4M16 2.5v4M3 9.5h18"/><path d="m9 14.5 2 2 4-4"/></svg><span>Attendance</span></button>
         <button class="nav" data-page="leave" disabled><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M8 2.5v4M16 2.5v4M3 9.5h18M12 13v4M10 15h4"/></svg><span>Leave</span><span class="soon">Soon</span></button>
@@ -525,6 +538,42 @@
         </div>
       </div>
 
+      <div id="page-roles" class="hidden">
+        <div class="head">
+          <div>
+            <h1 class="t">Roles</h1>
+            <p class="s">Choose which parts of the desktop each role can open.</p>
+          </div>
+          <button class="btn btn-accent" id="role-new">New role</button>
+        </div>
+        <div id="role-list"></div>
+      </div>
+
+      <div id="page-roleedit" class="hidden">
+        <button class="btn btn-ghost btn-xs" id="role-back" style="margin-bottom:16px;">&larr; Roles</button>
+        <div class="head">
+          <div>
+            <h1 class="t" id="role-title">New role</h1>
+            <p class="s">Only the modules you tick will appear for staff with this role.</p>
+          </div>
+        </div>
+        <div class="card">
+          <label for="role-name">Role name</label>
+          <input class="field" id="role-name" maxlength="80" placeholder="e.g. Field Executive">
+          <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
+            <button class="btn btn-ghost btn-xs" id="role-all">Select all</button>
+            <button class="btn btn-ghost btn-xs" id="role-none">Clear all</button>
+            <span class="count" id="role-count" style="margin-left:auto"></span>
+          </div>
+          <div id="role-modules"></div>
+          <div style="display:flex;gap:8px;margin-top:20px">
+            <button class="btn btn-accent" id="role-save" style="flex:1">Save role</button>
+            <button class="btn btn-ghost hidden" id="role-del">Delete</button>
+          </div>
+          <div class="msg" id="role-msg"></div>
+        </div>
+      </div>
+
       <div id="page-stub" class="hidden">
         <div class="head">
           <div>
@@ -562,6 +611,12 @@
       </div>
       <div class="msg" id="pf-msg"></div>
     </div>
+    <div class="fpbox" style="margin-top:0">
+      <div class="k" style="font-size:9.5px;font-weight:750;letter-spacing:1px;text-transform:uppercase;color:var(--muted-2);margin-bottom:9px">Role</div>
+      <select class="field" id="pf-role"></select>
+      <div class="msg" id="pf-rolemsg"></div>
+    </div>
+
     <div class="fpbox">
       <div class="k" style="font-size:9.5px;font-weight:750;letter-spacing:1px;text-transform:uppercase;color:var(--muted-2);margin-bottom:9px">Fingerprint</div>
       <div id="fp-state" style="font-size:12.5px;color:var(--muted)"></div>
@@ -605,6 +660,6 @@
   </div>
 </aside>
 
-<script src="/js/hrms.js?v=11"></script>
+<script src="/js/hrms.js?v=12"></script>
 </body>
 </html>

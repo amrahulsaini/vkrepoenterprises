@@ -118,7 +118,7 @@
 
   var LABELS = {
     dashboard:'Dashboard', departments:'Departments',
-    leave:'Leave', payroll:'Payroll', documents:'Documents',
+    leave:'Leave', payroll:'Payroll', documents:'Documents', roles:'Roles',
     reports:'Reports', settings:'Settings'
   };
 
@@ -133,8 +133,12 @@
       show($('page-profiles'), page === 'profiles');
       show($('page-desktop'), false);
       show($('page-attendance'), page === 'attendance');
-      show($('page-stub'), page !== 'profiles' && page !== 'attendance');
-      if (page === 'attendance') {
+      show($('page-roles'), page === 'roles');
+      show($('page-roleedit'), false);
+      show($('page-stub'), page !== 'profiles' && page !== 'attendance' && page !== 'roles');
+      if (page === 'roles') {
+        loadRoles();
+      } else if (page === 'attendance') {
         if (!$('at-date').value) $('at-date').value = istToday();
         loadAttendance();
       } else if (page !== 'profiles') {
@@ -224,6 +228,7 @@
       $('pf-name').textContent = u.name || 'Unnamed';
       $('pf-mobile').textContent = u.mobile || '';
       loadFp(u);
+      fillRolePicker(u);
       $('pf-pwstate').textContent = u.hasPassword
         ? 'Set' + (u.passwordSetAt ? ' on ' + u.passwordSetAt : '') + '. Entering a new one replaces it.'
         : 'Not set. This person cannot open a desktop mode until you set one.';
@@ -412,6 +417,164 @@
     } catch (e) {
       fpMsg(e.message, 'err');
     } finally { $('fp-reset').disabled = false; }
+  });
+
+
+  var MODULES = [], ROLES = [], EDITING = null;
+
+  async function ensureModules() {
+    if (MODULES.length) return;
+    try { MODULES = await call('/hrms/modules'); } catch (e) { MODULES = []; }
+  }
+
+  function roleModsLabel(r) {
+    if (r.isSuperadmin) return 'Every module, no restrictions.';
+    if (!r.modules || !r.modules.length) return 'No modules selected yet.';
+    var names = r.modules.map(function (k) {
+      var m = MODULES.filter(function (x) { return x.key === k; })[0];
+      return m ? m.label : k;
+    });
+    if (names.length <= 4) return names.join(', ');
+    return names.slice(0, 4).join(', ') + ' +' + (names.length - 4) + ' more';
+  }
+
+  async function loadRoles() {
+    await ensureModules();
+    $('role-list').innerHTML = '<div class="empty-note">Loading\u2026</div>';
+    try {
+      ROLES = await call('/hrms/roles');
+    } catch (e) {
+      $('role-list').innerHTML = '<div class="empty-note">' + esc(e.message) + '</div>';
+      return;
+    }
+    $('role-list').innerHTML = ROLES.map(function (r) {
+      var badge = r.isSuperadmin ? pill('p-on', 'All access') : pill('p-off', r.modules.length + ' modules');
+      var staff = r.staff === 1 ? '1 person' : r.staff + ' people';
+      return '<div class="rolecard">' +
+        '<div class="rolehead"><div>' +
+          '<div class="rolename">' + esc(r.name) + '</div>' +
+          '<div class="rolemods">' + esc(roleModsLabel(r)) + '</div>' +
+        '</div><div style="display:flex;align-items:center;gap:10px">' +
+          badge + '<span class="count">' + staff + '</span>' +
+          (r.isSuperadmin ? '' : '<button class="btn btn-ghost btn-xs" data-role="' + r.id + '">Edit</button>') +
+        '</div></div></div>';
+    }).join('');
+    Array.prototype.forEach.call($('role-list').querySelectorAll('[data-role]'), function (b) {
+      b.addEventListener('click', function () { openRole(parseInt(b.getAttribute('data-role'), 10)); });
+    });
+  }
+
+  function renderModulePicker(selected) {
+    var groups = [];
+    MODULES.forEach(function (m) { if (groups.indexOf(m.group) < 0) groups.push(m.group); });
+    $('role-modules').innerHTML = groups.map(function (g) {
+      var items = MODULES.filter(function (m) { return m.group === g; }).map(function (m) {
+        var on = selected.indexOf(m.key) >= 0 ? ' checked' : '';
+        return '<label class="modchk"><input type="checkbox" value="' + esc(m.key) + '"' + on + '>' +
+               '<span>' + esc(m.label) + '</span></label>';
+      }).join('');
+      return '<div class="modgrp">' + esc(g) + '</div><div class="rolegrid">' + items + '</div>';
+    }).join('');
+    Array.prototype.forEach.call($('role-modules').querySelectorAll('input'), function (c) {
+      c.addEventListener('change', countMods);
+    });
+    countMods();
+  }
+
+  function pickedMods() {
+    return Array.prototype.slice
+      .call($('role-modules').querySelectorAll('input:checked'))
+      .map(function (c) { return c.value; });
+  }
+
+  function countMods() {
+    $('role-count').textContent = pickedMods().length + ' of ' + MODULES.length + ' selected';
+  }
+
+  function showRolePage(which) {
+    show($('page-roles'), which === 'list');
+    show($('page-roleedit'), which === 'edit');
+  }
+
+  async function openRole(id) {
+    await ensureModules();
+    EDITING = id || null;
+    var r = ROLES.filter(function (x) { return x.id === id; })[0];
+    $('role-title').textContent = r ? 'Edit role' : 'New role';
+    $('role-name').value = r ? r.name : '';
+    $('role-msg').textContent = '';
+    show($('role-del'), !!r);
+    renderModulePicker(r ? r.modules.slice() : []);
+    showRolePage('edit');
+  }
+
+  $('role-new').addEventListener('click', function () { openRole(0); });
+  $('role-back').addEventListener('click', function () { showRolePage('list'); loadRoles(); });
+  $('role-all').addEventListener('click', function () {
+    Array.prototype.forEach.call($('role-modules').querySelectorAll('input'), function (c) { c.checked = true; });
+    countMods();
+  });
+  $('role-none').addEventListener('click', function () {
+    Array.prototype.forEach.call($('role-modules').querySelectorAll('input'), function (c) { c.checked = false; });
+    countMods();
+  });
+
+  $('role-save').addEventListener('click', async function () {
+    var name = ($('role-name').value || '').trim();
+    if (name.length < 2) {
+      $('role-msg').textContent = 'Give the role a name.';
+      $('role-msg').className = 'msg err';
+      return;
+    }
+    $('role-save').disabled = true;
+    try {
+      await call('/hrms/roles', { method: 'POST', body: { id: EDITING || 0, name: name, modules: pickedMods() } });
+      await loadRoles();
+      showRolePage('list');
+    } catch (e) {
+      $('role-msg').textContent = e.message;
+      $('role-msg').className = 'msg err';
+    } finally { $('role-save').disabled = false; }
+  });
+
+  $('role-del').addEventListener('click', async function () {
+    if (!EDITING) return;
+    if (!confirm('Delete this role?')) return;
+    $('role-del').disabled = true;
+    try {
+      await call('/hrms/roles/' + EDITING, { method: 'DELETE' });
+      await loadRoles();
+      showRolePage('list');
+    } catch (e) {
+      $('role-msg').textContent = e.message;
+      $('role-msg').className = 'msg err';
+    } finally { $('role-del').disabled = false; }
+  });
+
+  async function fillRolePicker(u) {
+    await ensureModules();
+    if (!ROLES.length) { try { ROLES = await call('/hrms/roles'); } catch (e) { ROLES = []; } }
+    var cur = u.roleId || 0;
+    $('pf-role').innerHTML = '<option value="0">No role (no desktop access)</option>' +
+      ROLES.map(function (r) {
+        return '<option value="' + r.id + '"' + (r.id === cur ? ' selected' : '') + '>' +
+               esc(r.name) + (r.isSuperadmin ? ' — all access' : '') + '</option>';
+      }).join('');
+  }
+
+  $('pf-role').addEventListener('change', async function () {
+    if (!PFID) return;
+    var v = parseInt($('pf-role').value, 10) || 0;
+    $('pf-rolemsg').textContent = '';
+    try {
+      await call('/hrms/profiles/' + PFID + '/role', { method: 'POST', body: { roleId: v } });
+      $('pf-rolemsg').textContent = 'Role updated.';
+      $('pf-rolemsg').className = 'msg ok';
+      await loadProfiles();
+    } catch (e) {
+      $('pf-rolemsg').textContent = e.message;
+      $('pf-rolemsg').className = 'msg err';
+    }
   });
 
   $('pf-q').addEventListener('input', renderProfiles);

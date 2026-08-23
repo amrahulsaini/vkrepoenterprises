@@ -472,7 +472,7 @@ internal static class AgencyPortal
             await using var conn = new MySqlConnection(masterConn);
             await conn.OpenAsync();
             await using var cmd = new MySqlCommand(
-                "SELECT status, COALESCE(approved_name,''), COALESCE(approved_user_id,0), expires_at, COALESCE(fail_reason,'') " +
+                "SELECT status, COALESCE(approved_name,''), COALESCE(approved_user_id,0), expires_at, COALESCE(fail_reason,''), slug " +
                 "FROM auth_challenges WHERE id=@i AND agency_id=@a LIMIT 1;", conn);
             cmd.Parameters.AddWithValue("@i", id);
             cmd.Parameters.AddWithValue("@a", ag.id);
@@ -483,12 +483,35 @@ internal static class AgencyPortal
             if ((status == "pending" || status == "scanned") && rdr.GetDateTime(3) < DateTime.UtcNow)
                 status = "expired";
 
+            long approvedId = rdr.GetInt64(2);
+            string chalSlug = rdr.GetString(5);
+            string[] mods = Array.Empty<string>();
+            string roleName = "";
+
+            if (status == "approved" && approvedId > 0)
+            {
+                await using var tconn = new MySqlConnection(TenantContext.BuildTenantConn(mysqlHost, mysqlPort, chalSlug));
+                await tconn.OpenAsync();
+                await using var rc = new MySqlCommand(
+                    "SELECT r.is_superadmin, COALESCE(r.modules,''), r.name FROM app_users u " +
+                    "JOIN roles r ON r.id = u.role_id WHERE u.id=@u LIMIT 1;", tconn);
+                rc.Parameters.AddWithValue("@u", approvedId);
+                await using var rr = await rc.ExecuteReaderAsync();
+                if (await rr.ReadAsync())
+                {
+                    mods = Modules.Effective(rr.GetInt32(0) == 1, rr.GetString(1));
+                    roleName = rr.GetString(2);
+                }
+            }
+
             return Results.Ok(new
             {
                 status,
                 name = rdr.GetString(1),
-                userId = rdr.GetInt64(2),
-                failReason = rdr.GetString(4)
+                userId = approvedId,
+                failReason = rdr.GetString(4),
+                role = roleName,
+                modules = mods
             });
         });
 
@@ -522,11 +545,15 @@ internal static class AgencyPortal
             await conn.OpenAsync();
 
             long id = 0; string name = "", hash = "";
-            bool active = false, stopped = false, blacklisted = false, fpRequired = false;
+            bool active = false, stopped = false, blacklisted = false, fpRequired = false, isSuper = false;
+            string modulesCsv = "", roleName = "";
             await using (var cmd = new MySqlCommand(@"
                 SELECT id, COALESCE(name,''), COALESCE(profile_password_hash,''),
                        COALESCE(is_active,0), COALESCE(is_stopped,0), COALESCE(is_blacklisted,0),
-                       COALESCE(fingerprint_required,0)
+                       COALESCE(fingerprint_required,0),
+                       (SELECT r.is_superadmin FROM roles r WHERE r.id = app_users.role_id),
+                       (SELECT COALESCE(r.modules,'') FROM roles r WHERE r.id = app_users.role_id),
+                       (SELECT r.name FROM roles r WHERE r.id = app_users.role_id)
                   FROM app_users WHERE RIGHT(REPLACE(COALESCE(mobile,''),' ',''),10) = @m LIMIT 1;", conn)
             { CommandTimeout = 15 })
             {
@@ -537,6 +564,9 @@ internal static class AgencyPortal
                     id = rdr.GetInt64(0); name = rdr.GetString(1); hash = rdr.GetString(2);
                     active = rdr.GetInt32(3) == 1; stopped = rdr.GetInt32(4) == 1; blacklisted = rdr.GetInt32(5) == 1;
                     fpRequired = rdr.GetInt32(6) == 1;
+                    isSuper = !rdr.IsDBNull(7) && rdr.GetInt32(7) == 1;
+                    modulesCsv = rdr.IsDBNull(8) ? "" : rdr.GetString(8);
+                    roleName = rdr.IsDBNull(9) ? "" : rdr.GetString(9);
                 }
             }
 
@@ -548,7 +578,8 @@ internal static class AgencyPortal
                 return Results.Json(new { code = "fingerprint_required",
                     message = "This profile signs in with a fingerprint." }, statusCode: 409);
 
-            return Results.Ok(new { ok = true, userId = id, name });
+            return Results.Ok(new { ok = true, userId = id, name, role = roleName,
+                modules = Modules.Effective(isSuper, modulesCsv) });
         });
 
         app.MapGet("/api/agency/hrms/attendance", async (HttpContext ctx, string? date) =>
@@ -662,6 +693,154 @@ internal static class AgencyPortal
             return Results.Ok(new { ok = true });
         });
 
+        app.MapGet("/api/agency/hrms/modules", async (HttpContext ctx) =>
+        {
+            var slug = await HrmsSessionSlug(masterConn, ctx);
+            if (slug is null) return Results.Json(new { message = "Session expired." }, statusCode: 401);
+            return Results.Ok(Modules.All.Select(m => new { key = m.Key, label = m.Label, group = m.Group }));
+        });
+
+        app.MapGet("/api/agency/hrms/roles", async (HttpContext ctx) =>
+        {
+            var slug = await HrmsSessionSlug(masterConn, ctx);
+            if (slug is null) return Results.Json(new { message = "Session expired." }, statusCode: 401);
+
+            await using var conn = new MySqlConnection(TenantContext.BuildTenantConn(mysqlHost, mysqlPort, slug));
+            await conn.OpenAsync();
+            await using var cmd = new MySqlCommand(
+                "SELECT r.id, r.name, r.is_superadmin, COALESCE(r.modules,''), " +
+                "(SELECT COUNT(*) FROM app_users u WHERE u.role_id = r.id) " +
+                "FROM roles r ORDER BY r.is_superadmin DESC, r.name ASC;", conn);
+            var list = new List<object>();
+            await using var rdr = await cmd.ExecuteReaderAsync();
+            while (await rdr.ReadAsync())
+            {
+                bool su = rdr.GetInt32(2) == 1;
+                list.Add(new
+                {
+                    id = rdr.GetInt32(0),
+                    name = rdr.GetString(1),
+                    isSuperadmin = su,
+                    modules = Modules.Effective(su, rdr.GetString(3)),
+                    staff = rdr.GetInt64(4)
+                });
+            }
+            return Results.Ok(list);
+        });
+
+        app.MapPost("/api/agency/hrms/roles", async (HttpContext ctx, HttpRequest req) =>
+        {
+            var slug = await HrmsSessionSlug(masterConn, ctx);
+            if (slug is null) return Results.Json(new { message = "Session expired." }, statusCode: 401);
+
+            using var doc = await System.Text.Json.JsonDocument.ParseAsync(req.Body);
+            var root = doc.RootElement;
+
+            int id = root.TryGetProperty("id", out var idEl) && idEl.TryGetInt32(out var i) ? i : 0;
+            string name = root.TryGetProperty("name", out var nEl) ? (nEl.GetString() ?? "").Trim() : "";
+            if (name.Length is < 2 or > 80)
+                return Results.BadRequest(new { message = "Give the role a name of 2 to 80 characters." });
+
+            var keys = new List<string>();
+            if (root.TryGetProperty("modules", out var mEl) && mEl.ValueKind == System.Text.Json.JsonValueKind.Array)
+                keys.AddRange(mEl.EnumerateArray()
+                    .Where(e => e.ValueKind == System.Text.Json.JsonValueKind.String)
+                    .Select(e => e.GetString() ?? ""));
+            string modules = Modules.Normalise(keys);
+
+            await using var conn = new MySqlConnection(TenantContext.BuildTenantConn(mysqlHost, mysqlPort, slug));
+            await conn.OpenAsync();
+
+            if (id > 0)
+            {
+                await using var chk = new MySqlCommand("SELECT is_superadmin FROM roles WHERE id=@i LIMIT 1", conn);
+                chk.Parameters.AddWithValue("@i", id);
+                var v = await chk.ExecuteScalarAsync();
+                if (v is null) return Results.NotFound(new { message = "Role not found." });
+                if (Convert.ToInt32(v) == 1)
+                    return Results.Json(new { message = "The Super Admin role always has every module and cannot be edited." },
+                        statusCode: 409);
+
+                await using var upd = new MySqlCommand(
+                    "UPDATE roles SET name=@n, modules=@m, updated_at=@t WHERE id=@i AND is_superadmin=0", conn);
+                upd.Parameters.AddWithValue("@n", name);
+                upd.Parameters.AddWithValue("@m", modules);
+                upd.Parameters.AddWithValue("@t", IstNow());
+                upd.Parameters.AddWithValue("@i", id);
+                try { await upd.ExecuteNonQueryAsync(); }
+                catch (MySqlException e) when (e.Number == 1062)
+                { return Results.Conflict(new { message = "Another role already uses that name." }); }
+                return Results.Ok(new { ok = true, id });
+            }
+
+            await using var ins = new MySqlCommand(
+                "INSERT INTO roles (name, is_superadmin, modules, created_at) VALUES (@n, 0, @m, @t); SELECT LAST_INSERT_ID();", conn);
+            ins.Parameters.AddWithValue("@n", name);
+            ins.Parameters.AddWithValue("@m", modules);
+            ins.Parameters.AddWithValue("@t", IstNow());
+            try
+            {
+                var newId = Convert.ToInt32(await ins.ExecuteScalarAsync());
+                return Results.Ok(new { ok = true, id = newId });
+            }
+            catch (MySqlException e) when (e.Number == 1062)
+            { return Results.Conflict(new { message = "A role with that name already exists." }); }
+        });
+
+        app.MapDelete("/api/agency/hrms/roles/{id:int}", async (HttpContext ctx, int id) =>
+        {
+            var slug = await HrmsSessionSlug(masterConn, ctx);
+            if (slug is null) return Results.Json(new { message = "Session expired." }, statusCode: 401);
+
+            await using var conn = new MySqlConnection(TenantContext.BuildTenantConn(mysqlHost, mysqlPort, slug));
+            await conn.OpenAsync();
+
+            await using (var chk = new MySqlCommand(
+                "SELECT is_superadmin, (SELECT COUNT(*) FROM app_users u WHERE u.role_id=@i) FROM roles WHERE id=@i LIMIT 1", conn))
+            {
+                chk.Parameters.AddWithValue("@i", id);
+                await using var rdr = await chk.ExecuteReaderAsync();
+                if (!await rdr.ReadAsync()) return Results.NotFound(new { message = "Role not found." });
+                if (rdr.GetInt32(0) == 1)
+                    return Results.Json(new { message = "The Super Admin role cannot be deleted." }, statusCode: 409);
+                if (rdr.GetInt64(1) > 0)
+                    return Results.Json(new { message = "Move that role's staff to another role first." }, statusCode: 409);
+            }
+
+            await using var del = new MySqlCommand("DELETE FROM roles WHERE id=@i AND is_superadmin=0", conn);
+            del.Parameters.AddWithValue("@i", id);
+            await del.ExecuteNonQueryAsync();
+            return Results.Ok(new { ok = true });
+        });
+
+        app.MapPost("/api/agency/hrms/profiles/{id:long}/role", async (HttpContext ctx, long id, HttpRequest req) =>
+        {
+            var slug = await HrmsSessionSlug(masterConn, ctx);
+            if (slug is null) return Results.Json(new { message = "Session expired." }, statusCode: 401);
+
+            using var doc = await System.Text.Json.JsonDocument.ParseAsync(req.Body);
+            int roleId = doc.RootElement.TryGetProperty("roleId", out var rEl) && rEl.TryGetInt32(out var r) ? r : 0;
+
+            await using var conn = new MySqlConnection(TenantContext.BuildTenantConn(mysqlHost, mysqlPort, slug));
+            await conn.OpenAsync();
+
+            if (roleId > 0)
+            {
+                await using var chk = new MySqlCommand("SELECT COUNT(*) FROM roles WHERE id=@r", conn);
+                chk.Parameters.AddWithValue("@r", roleId);
+                if (Convert.ToInt64(await chk.ExecuteScalarAsync()) == 0)
+                    return Results.NotFound(new { message = "That role no longer exists." });
+            }
+
+            await using var cmd = new MySqlCommand("UPDATE app_users SET role_id=@r WHERE id=@id", conn);
+            cmd.Parameters.AddWithValue("@r", roleId > 0 ? roleId : (object)DBNull.Value);
+            cmd.Parameters.AddWithValue("@id", id);
+            if (await cmd.ExecuteNonQueryAsync() == 0)
+                return Results.NotFound(new { message = "Profile not found." });
+
+            return Results.Ok(new { ok = true, roleId });
+        });
+
         app.MapGet("/api/agency/hrms/profiles", async (HttpContext ctx) =>
         {
             var a = await HrmsSessionSlug(masterConn, ctx);
@@ -719,7 +898,9 @@ internal static class AgencyPortal
                        created_at, last_seen, COALESCE(kyc_reg_location,''),
                        (profile_password_hash IS NOT NULL AND profile_password_hash <> '') AS has_pw,
                        profile_password_set_at, COALESCE(profile_password_by,''), COALESCE(device_id,''),
-                       COALESCE(pfp,''), COALESCE(fingerprint_required,0)
+                       COALESCE(pfp,''), COALESCE(fingerprint_required,0),
+                       COALESCE(role_id,0),
+                       (SELECT r.name FROM roles r WHERE r.id = app_users.role_id)
                   FROM app_users WHERE id=@id LIMIT 1;", conn) { CommandTimeout = 20 };
             cmd.Parameters.AddWithValue("@id", id);
             await using var rdr = await cmd.ExecuteReaderAsync();
@@ -742,6 +923,8 @@ internal static class AgencyPortal
                 passwordBy = rdr.GetString(25), hasDevice = rdr.GetString(26).Length > 0,
                 pfpUrl = PfpUrl(rdr.GetString(27)),
                 fingerprintRequired = rdr.GetInt32(28) == 1,
+                roleId = rdr.GetInt32(29),
+                roleName = rdr.IsDBNull(30) ? "" : rdr.GetString(30),
             });
         });
 
