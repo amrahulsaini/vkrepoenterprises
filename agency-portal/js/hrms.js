@@ -169,7 +169,36 @@
 
   var INDIA = [22.9734, 78.6569];
 
-  function ensureMap() {
+  function loadScript(src) {
+    return new Promise(function (resolve, reject) {
+      var el = document.createElement('script');
+      el.src = src;
+      el.async = true;
+      el.onload = resolve;
+      el.onerror = function () { reject(new Error('blocked')); };
+      document.head.appendChild(el);
+    });
+  }
+
+  // Google imagery is sharper over Indian towns, which is the whole reason the
+  // pin is placed by eye. It is used through the official Maps JavaScript API,
+  // not by pulling their tile servers directly.
+  var GMAPS = null;
+  async function googleTilesReady() {
+    if (GMAPS !== null) return GMAPS;
+    var key = ME && ME.mapsKey;
+    if (!key) { GMAPS = false; return false; }
+    try {
+      await loadScript('https://maps.googleapis.com/maps/api/js?v=weekly&key=' + encodeURIComponent(key));
+      await loadScript('https://unpkg.com/leaflet.gridlayer.googlemutant@0.14.1/dist/Leaflet.GoogleMutant.js');
+      GMAPS = !!(L.gridLayer && L.gridLayer.googleMutant && window.google && window.google.maps);
+    } catch (e) {
+      GMAPS = false;
+    }
+    return GMAPS;
+  }
+
+  async function ensureMap() {
     if (MAP || typeof L === 'undefined') { if (MAP) MAP.invalidateSize(); return; }
 
     var start = (ME && ME.geoLat != null) ? [Number(ME.geoLat), Number(ME.geoLng)] : INDIA;
@@ -177,13 +206,19 @@
 
     MAP = L.map('geo-map', { zoomControl: true, attributionControl: true }).setView(start, zoom);
 
-    TILES.map = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19, attribution: '&copy; OpenStreetMap'
-    });
-    // Aerial imagery, so the pin can go on the actual roof rather than a road name.
-    TILES.sat = L.tileLayer(
-      'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-      { maxZoom: 19, attribution: '&copy; Esri' });
+    // Whatever happens to the key - removed, over quota, Google unreachable -
+    // the page still has a working map rather than a dead grey box.
+    if (await googleTilesReady()) {
+      TILES.map = L.gridLayer.googleMutant({ type: 'roadmap', maxZoom: 21 });
+      TILES.sat = L.gridLayer.googleMutant({ type: 'hybrid',  maxZoom: 21 });
+    } else {
+      TILES.map = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19, attribution: '&copy; OpenStreetMap'
+      });
+      TILES.sat = L.tileLayer(
+        'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+        { maxZoom: 19, attribution: '&copy; Esri' });
+    }
     TILES.map.addTo(MAP);
 
     MAP.on('click', function (e) { place(e.latlng.lat, e.latlng.lng, false); });
