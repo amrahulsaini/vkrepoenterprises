@@ -153,12 +153,112 @@
     $('qr-msg').className = 'msg' + (kind ? ' ' + kind : '');
   }
 
+  function geoMsg(t, kind) {
+    $('geo-msg').textContent = t || '';
+    $('geo-msg').className = 'msg' + (kind ? ' ' + kind : '');
+  }
+
+  function metres(v) {
+    return v >= 1000 ? (v / 1000).toFixed(v % 1000 === 0 ? 0 : 1) + ' km' : v + ' m';
+  }
+
+  function paintGeo() {
+    var has = ME && ME.geoLat != null && ME.geoLng != null;
+    var r = (ME && ME.geoRadiusM) || 200;
+
+    $('geo-radius').value = r;
+    $('geo-radius-v').textContent = metres(r);
+    show($('geo-clear'), !!has);
+
+    if (!has) {
+      $('geo-current').className = 'callout bad';
+      $('geo-current').innerHTML = '<b>No boundary set.</b> Until you set one, location is not ' +
+        'checked and a sign-in can be approved from anywhere.';
+      return;
+    }
+    $('geo-current').className = 'callout';
+    $('geo-current').innerHTML = '<b>' + esc(ME.geoLabel || 'Office') + '</b> &mdash; ' +
+      esc(Number(ME.geoLat).toFixed(5)) + ', ' + esc(Number(ME.geoLng).toFixed(5)) +
+      '. Staff may approve within ' + metres(r) + ' of this point.';
+  }
+
+  async function saveGeo(body) {
+    geoMsg('Saving\u2026');
+    try {
+      var r = await call('/hrms/geofence', { method: 'POST', body: body });
+      var me = await call('/hrms/me');
+      ME.geoLat = me.geoLat; ME.geoLng = me.geoLng;
+      ME.geoRadiusM = me.geoRadiusM; ME.geoLabel = me.geoLabel;
+      paintGeo();
+      show($('geo-fields'), false);
+      geoMsg(r.cleared ? 'Boundary removed.' : 'Boundary saved.', 'ok');
+    } catch (e) {
+      geoMsg(e.message, 'err');
+    }
+  }
+
+  $('geo-here').addEventListener('click', function () {
+    if (!navigator.geolocation) { geoMsg('This browser cannot read a location.', 'err'); return; }
+    geoMsg('Reading this computer\u2019s location\u2026');
+    navigator.geolocation.getCurrentPosition(function (pos) {
+      saveGeo({
+        lat: String(pos.coords.latitude),
+        lng: String(pos.coords.longitude),
+        radius: String($('geo-radius').value),
+        label: (ME && ME.geoLabel) || ''
+      });
+    }, function (err) {
+      geoMsg(err.code === 1
+        ? 'Location was blocked. Allow it for this site, or enter coordinates instead.'
+        : 'Could not read a location here. Enter coordinates instead.', 'err');
+    }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
+  });
+
+  $('geo-manual').addEventListener('click', function () {
+    var on = $('geo-fields').classList.contains('hidden');
+    show($('geo-fields'), on);
+    if (on && ME) {
+      $('geo-lat').value = ME.geoLat != null ? ME.geoLat : '';
+      $('geo-lng').value = ME.geoLng != null ? ME.geoLng : '';
+      $('geo-label').value = ME.geoLabel || '';
+      $('geo-lat').focus();
+    }
+  });
+
+  $('geo-save').addEventListener('click', function () {
+    saveGeo({
+      lat: ($('geo-lat').value || '').trim(),
+      lng: ($('geo-lng').value || '').trim(),
+      radius: String($('geo-radius').value),
+      label: ($('geo-label').value || '').trim()
+    });
+  });
+
+  $('geo-clear').addEventListener('click', function () {
+    if (!confirm('Remove the boundary? Sign-ins will be approved from anywhere.')) return;
+    saveGeo({ clear: 'true' });
+  });
+
+  $('geo-radius').addEventListener('input', function () {
+    $('geo-radius-v').textContent = metres(parseInt($('geo-radius').value, 10));
+  });
+
+  $('geo-radius').addEventListener('change', function () {
+    if (!ME || ME.geoLat == null) { if (ME) ME.geoRadiusM = parseInt($('geo-radius').value, 10); return; }
+    saveGeo({
+      lat: String(ME.geoLat), lng: String(ME.geoLng),
+      radius: String($('geo-radius').value), label: ME.geoLabel || ''
+    });
+  });
+
   function loadQrSettings() {
     var cur = (ME && ME.qrProximity) || 'warn';
     Array.prototype.forEach.call(document.getElementsByName('qrprox'), function (r) {
       r.checked = (r.value === cur);
     });
     qrMsg('');
+    geoMsg('');
+    paintGeo();
     loadQrAttempts();
   }
 
@@ -174,22 +274,26 @@
     }
 
     $('qr-rows').innerHTML = rows.map(function (a) {
-      var conn = a.proximity === 'match'    ? pill('p-on', 'Office')
-               : a.proximity === 'mismatch' ? pill('p-red', 'Elsewhere')
-               : pill('p-off', 'Unknown');
+      var where = a.proximity === 'match'
+                    ? pill('p-on', a.distanceM != null ? 'At office \u00b7 ' + metres(a.distanceM) : 'At office')
+                : a.proximity === 'mismatch'
+                    ? pill('p-red', a.distanceM != null ? metres(a.distanceM) + ' away' : 'Outside')
+                : pill('p-off', 'Not known');
       var result = a.status === 'approved' ? pill('p-on', 'Signed in')
                  : a.status === 'denied'
-                   ? pill('p-red', a.failReason === 'wrong_person' ? 'Wrong person'
-                                 : a.failReason === 'too_far'      ? 'Blocked'
-                                 : a.failReason === 'bad_signature'? 'Bad fingerprint'
-                                 : a.failReason === 'no_role'      ? 'No role'
+                   ? pill('p-red', a.failReason === 'wrong_person'  ? 'Wrong person'
+                                 : a.failReason === 'outside_area'  ? 'Outside boundary'
+                                 : a.failReason === 'mock_gps'      ? 'Fake location'
+                                 : a.failReason === 'no_location'   ? 'No location'
+                                 : a.failReason === 'bad_signature' ? 'Bad fingerprint'
+                                 : a.failReason === 'no_role'       ? 'No role'
                                  : 'Refused')
                    : pill('p-off', a.status);
       return '<div class="trow" style="grid-template-columns:1.4fr 1fr 1fr 1fr;cursor:default">' +
         '<div style="min-width:0"><div class="n">' + esc(a.name || a.mobile || 'Unknown') + '</div>' +
         '<div class="m">' + esc(a.at) + '</div></div>' +
         '<div style="font-size:12.5px;color:var(--muted)">' + esc(a.device || '\u2014') + '</div>' +
-        '<div>' + conn + '</div><div>' + result + '</div></div>';
+        '<div>' + where + '</div><div>' + result + '</div></div>';
     }).join('');
   }
 
@@ -200,7 +304,7 @@
       try {
         await call('/hrms/qr-proximity', { method: 'POST', body: { mode: radio.value } });
         if (ME) ME.qrProximity = radio.value;
-        qrMsg(radio.value === 'block' ? 'Sign-ins from outside the office are now refused.'
+        qrMsg(radio.value === 'block' ? 'Sign-ins from outside the boundary are now refused.'
             : radio.value === 'warn'  ? 'Recording only. Nothing is refused.'
             : 'Location is no longer checked.', 'ok');
       } catch (e) {

@@ -711,31 +711,73 @@
         </div>
 
         <div class="sec" style="margin-top:0">
-          <div class="st">Fingerprint sign-in</div>
+          <div class="st">Office boundary</div>
           <div class="panel">
-            <h4>Where a fingerprint sign-in may be approved from</h4>
+            <h4>Where staff may approve a desktop sign-in</h4>
             <p class="ph">The desktop shows a QR code and the staff member approves it on their
-               phone. A photo of that code can be sent to someone elsewhere, so CRMRS compares
-               the internet connection the desktop is on with the one the phone is on. They match
-               whenever both are in the office &mdash; on the office Wi-Fi or plugged into it by
-               cable. They differ when the phone is at home, or on mobile data instead of the
-               office Wi-Fi.</p>
+               phone. A photo of that code can be sent to someone at home, so CRMRS checks where
+               the phone actually is. Set your office location and how far around it counts as
+               &ldquo;at work&rdquo;. This one boundary applies to every profile in the agency.</p>
 
+            <div id="geo-current" class="callout">No boundary set yet.</div>
+
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">
+              <button class="btn btn-accent btn-xs" id="geo-here">Use my current location</button>
+              <button class="btn btn-ghost btn-xs" id="geo-manual">Enter coordinates</button>
+              <button class="btn btn-ghost btn-xs hidden" id="geo-clear">Remove boundary</button>
+            </div>
+            <p class="ph" style="margin:9px 0 0">Open HRMS on a computer inside the office and
+               press &ldquo;Use my current location&rdquo;, or paste the coordinates from Google Maps.</p>
+
+            <div id="geo-fields" class="hidden" style="margin-top:14px">
+              <div class="duo">
+                <div>
+                  <div class="modgrp">Latitude</div>
+                  <input class="field" id="geo-lat" placeholder="28.4595" inputmode="decimal">
+                </div>
+                <div>
+                  <div class="modgrp">Longitude</div>
+                  <input class="field" id="geo-lng" placeholder="77.0266" inputmode="decimal">
+                </div>
+              </div>
+              <div class="modgrp" style="margin-top:12px">Name for this place (optional)</div>
+              <input class="field" id="geo-label" maxlength="190" placeholder="Head office, Rewari">
+              <button class="btn btn-accent btn-xs" id="geo-save" style="margin-top:12px">Save boundary</button>
+            </div>
+
+            <hr class="split">
+
+            <h4>How far around it counts as at work</h4>
+            <p class="ph">GPS indoors is commonly 20&ndash;50 m out, so a circle under 100 m will
+               reject people sitting at their own desk. 200 m suits most offices.</p>
+            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+              <input type="range" id="geo-radius" min="50" max="2000" step="50" value="200" style="flex:1;min-width:200px;accent-color:var(--orange)">
+              <span class="count" id="geo-radius-v">200 m</span>
+            </div>
+
+            <div class="msg" id="geo-msg"></div>
+          </div>
+        </div>
+
+        <div class="sec">
+          <div class="st">What happens outside the boundary</div>
+          <div class="panel">
             <label class="modchk" style="background:var(--paper-2);margin-bottom:8px">
               <input type="radio" name="qrprox" value="block">
-              <span><b>Block</b> &mdash; refuse a sign-in from anywhere but the office connection.</span>
+              <span><b>Refuse the sign-in</b> &mdash; they are told how far from the office they are.</span>
             </label>
             <label class="modchk" style="background:var(--paper-2);margin-bottom:8px">
               <input type="radio" name="qrprox" value="warn">
-              <span><b>Record only</b> &mdash; allow it, but log where it came from. Start here.</span>
+              <span><b>Allow, but record it</b> &mdash; nothing is refused. Start here for a week
+                    and watch the list below.</span>
             </label>
             <label class="modchk" style="background:var(--paper-2)">
               <input type="radio" name="qrprox" value="off">
-              <span><b>Off</b> &mdash; do not check location at all.</span>
+              <span><b>Do not check at all</b></span>
             </label>
 
             <div class="callout" style="margin-top:14px">Whoever the desktop asked for is always
-              the only person who can approve, whatever this is set to. That is not optional.</div>
+              the only person who can approve, whatever this is set to. That part is never off.</div>
             <div class="msg" id="qr-msg"></div>
           </div>
         </div>
@@ -743,7 +785,7 @@
         <div class="sec">
           <div class="st">Recent desktop sign-ins</div>
           <div class="tbl">
-            <div class="thead" style="grid-template-columns:1.4fr 1fr 1fr 1fr"><span>Who</span><span>Computer</span><span>Connection</span><span>Result</span></div>
+            <div class="thead" style="grid-template-columns:1.4fr 1fr 1fr 1fr"><span>Who</span><span>Computer</span><span>Where</span><span>Result</span></div>
             <div id="qr-rows"></div>
           </div>
         </div>
@@ -786,6 +828,6 @@
   </div>
 </aside>
 
-<script src="/js/hrms.js?v=16"></script>
+<script src="/js/hrms.js?v=17"></script>
 </body>
 </html>

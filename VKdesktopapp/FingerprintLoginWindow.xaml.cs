@@ -109,8 +109,11 @@ public partial class FingerprintLoginWindow : Window
                         "no_role"       => "No role has been assigned to this profile. Ask your administrator to set one in HRMS.",
                         "wrong_person"  => "That phone belongs to someone else. This code was made for "
                                            + (_mobile.Length > 0 ? _mobile : "another number") + ".",
-                        "too_far"       => "That phone is not on the office internet connection. "
-                                           + "Connect it to the office Wi-Fi and get a new code.",
+                        "outside_area"  => "That phone is outside the area your agency allows "
+                                           + "sign-ins from. Sign in from the office.",
+                        "mock_gps"       => "That phone is reporting a fake location.",
+                        "no_location"    => "That phone would not share its location. Turn location "
+                                           + "on for CRMRS and get a new code.",
                         _               => "That sign-in was refused. Get a new code and try again.",
                     };
                     break;

@@ -1162,6 +1162,52 @@ internal static class AgencyPortal
             return Results.Ok(new { ok = true, mode });
         });
 
+        // The circle staff must be inside to approve a desktop sign-in.
+        app.MapPost("/api/agency/hrms/geofence", async (HttpContext ctx, HttpRequest req) =>
+        {
+            var slug = await HrmsSessionSlug(masterConn, ctx);
+            if (slug is null) return Results.Json(new { message = "Session expired." }, statusCode: 401);
+
+            var dto = await ReadJsonAsync(req);
+
+            if ((dto.GetValueOrDefault("clear") ?? "") == "true")
+            {
+                await using var wipe = new MySqlConnection(masterConn);
+                await wipe.OpenAsync();
+                await using var wc = new MySqlCommand(
+                    "UPDATE agencies SET geo_lat=NULL, geo_lng=NULL, geo_label='' WHERE slug=@s;", wipe);
+                wc.Parameters.AddWithValue("@s", slug);
+                await wc.ExecuteNonQueryAsync();
+                return Results.Ok(new { ok = true, cleared = true });
+            }
+
+            if (!double.TryParse(dto.GetValueOrDefault("lat"), System.Globalization.NumberStyles.Float,
+                                 System.Globalization.CultureInfo.InvariantCulture, out double lat) ||
+                !double.TryParse(dto.GetValueOrDefault("lng"), System.Globalization.NumberStyles.Float,
+                                 System.Globalization.CultureInfo.InvariantCulture, out double lng) ||
+                lat < -90 || lat > 90 || lng < -180 || lng > 180 || (lat == 0 && lng == 0))
+                return Results.BadRequest(new { message = "That is not a valid location." });
+
+            if (!int.TryParse(dto.GetValueOrDefault("radius"), out int radius)) radius = 200;
+            if (radius < 50) radius = 50;
+            if (radius > 5000) radius = 5000;
+
+            string label = (dto.GetValueOrDefault("label") ?? "").Trim();
+            if (label.Length > 190) label = label.Substring(0, 190);
+
+            await using var conn = new MySqlConnection(masterConn);
+            await conn.OpenAsync();
+            await using var cmd = new MySqlCommand(
+                "UPDATE agencies SET geo_lat=@la, geo_lng=@lo, geo_radius_m=@r, geo_label=@lb WHERE slug=@s;", conn);
+            cmd.Parameters.AddWithValue("@la", lat);
+            cmd.Parameters.AddWithValue("@lo", lng);
+            cmd.Parameters.AddWithValue("@r", radius);
+            cmd.Parameters.AddWithValue("@lb", label);
+            cmd.Parameters.AddWithValue("@s", slug);
+            await cmd.ExecuteNonQueryAsync();
+            return Results.Ok(new { ok = true, lat, lng, radius, label });
+        });
+
         // The last few desktop fingerprint sign-ins, so an agency can see what
         // enforcing would have blocked before they turn it on.
         app.MapGet("/api/agency/hrms/qr-attempts", async (HttpContext ctx) =>
@@ -1174,7 +1220,7 @@ internal static class AgencyPortal
             await using var cmd = new MySqlCommand(@"
                 SELECT COALESCE(approved_name,''), COALESCE(claim_mobile,''), status,
                        COALESCE(fail_reason,''), COALESCE(proximity,'unknown'),
-                       COALESCE(device_label,''), created_at
+                       COALESCE(device_label,''), created_at, distance_m
                   FROM auth_challenges
                  WHERE agency_id = @a
                  ORDER BY created_at DESC LIMIT 25;", conn);
@@ -1191,6 +1237,7 @@ internal static class AgencyPortal
                     proximity  = rdr.GetString(4),
                     device     = rdr.GetString(5),
                     at         = rdr.GetDateTime(6).AddMinutes(330).ToString("dd MMM, HH:mm"),
+                    distanceM  = rdr.IsDBNull(7) ? (int?)null : rdr.GetInt32(7),
                 });
             return Results.Ok(rows);
         });
@@ -4048,7 +4095,8 @@ internal static class AgencyPortal
             SELECT a.id, a.name, a.slug, COALESCE(a.logo_path,''), a.email1,
                    COALESCE(a.email2,''), a.mobile1, COALESCE(a.mobile2,''),
                    COALESCE(a.address,''), a.status, a.created_at, a.approved_at,
-                   a.hrms_enabled_at, s.expires_at, COALESCE(a.qr_proximity,'warn')
+                   a.hrms_enabled_at, s.expires_at, COALESCE(a.qr_proximity,'warn'),
+                   a.geo_lat, a.geo_lng, COALESCE(a.geo_radius_m,200), COALESCE(a.geo_label,'')
               FROM hrms_sessions s
               JOIN agencies a ON a.id = s.agency_id
              WHERE s.token_hash = @t AND s.revoked = 0 AND s.expires_at > UTC_TIMESTAMP()
@@ -4079,6 +4127,10 @@ internal static class AgencyPortal
             sessionExpiresAt = rdr.GetDateTime(13).ToString("yyyy-MM-ddTHH:mm:ss") + "Z",
             sessionHours     = 12,
             qrProximity      = rdr.GetString(14),
+            geoLat           = rdr.IsDBNull(15) ? (double?)null : rdr.GetDouble(15),
+            geoLng           = rdr.IsDBNull(16) ? (double?)null : rdr.GetDouble(16),
+            geoRadiusM       = rdr.GetInt32(17),
+            geoLabel         = rdr.GetString(18),
         };
     }
 

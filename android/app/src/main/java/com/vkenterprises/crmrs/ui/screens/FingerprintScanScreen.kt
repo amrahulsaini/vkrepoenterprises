@@ -28,6 +28,7 @@ import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.common.InputImage
 import com.vkenterprises.crmrs.data.api.ApiService
 import com.vkenterprises.crmrs.security.BiometricGate
+import com.vkenterprises.crmrs.utils.getCurrentLocation
 import com.vkenterprises.crmrs.security.FingerprintKey
 import kotlinx.coroutines.launch
 import java.util.concurrent.Executors
@@ -176,9 +177,26 @@ fun FingerprintScanScreen(api: ApiService, onDone: () -> Unit) {
                                     return@launch
                                 }
                                 val payload = FingerprintKey.finish(signed, "$challenge:$nonce")
-                                val ok = api.fpApprove(
-                                    mapOf("challengeId" to challenge, "signature" to payload)
-                                )
+
+                                // Where the phone is decides whether this is
+                                // allowed, so read it now rather than trusting
+                                // a fix taken minutes ago somewhere else.
+                                status = "Checking your location..."
+                                val loc = getCurrentLocation(ctx)
+                                val body = HashMap<String, Any?>()
+                                body["challengeId"] = challenge
+                                body["signature"] = payload
+                                if (loc != null) {
+                                    body["lat"] = loc.latitude
+                                    body["lng"] = loc.longitude
+                                    body["accuracy"] = loc.accuracy.toDouble()
+                                    body["mock"] =
+                                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S)
+                                            loc.isMock
+                                        else
+                                            @Suppress("DEPRECATION") loc.isFromMockProvider
+                                }
+                                val ok = api.fpApprove(body)
                                 if (ok.isSuccessful) {
                                     status = "Approved. The desktop is opening."
                                     confirming = false

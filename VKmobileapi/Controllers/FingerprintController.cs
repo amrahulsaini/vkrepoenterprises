@@ -191,7 +191,25 @@ public class FingerprintController : ControllerBase
         });
     }
 
-    public record ApproveBody(string? ChallengeId, string? Signature);
+    public record ApproveBody(
+        string? ChallengeId, string? Signature,
+        double? Lat, double? Lng, double? Accuracy, bool? Mock);
+
+    /// Metres between two points on the earth. Good to a few metres at the
+    /// distances a geofence cares about.
+    private static double MetresBetween(double lat1, double lng1, double lat2, double lng2)
+    {
+        const double R = 6371000.0;
+        double p1 = lat1 * Math.PI / 180.0, p2 = lat2 * Math.PI / 180.0;
+        double dp = (lat2 - lat1) * Math.PI / 180.0;
+        double dl = (lng2 - lng1) * Math.PI / 180.0;
+        double a = Math.Sin(dp / 2) * Math.Sin(dp / 2) +
+                   Math.Cos(p1) * Math.Cos(p2) * Math.Sin(dl / 2) * Math.Sin(dl / 2);
+        return R * 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
+    }
+
+    private static string Away(double metres) =>
+        metres >= 1000 ? (metres / 1000.0).ToString("0.#") + " km" : ((int)metres) + " m";
 
     [HttpPost("approve")]
     public async Task<IActionResult> Approve([FromBody] ApproveBody body)
@@ -203,13 +221,15 @@ public class FingerprintController : ControllerBase
         if (cid.Length == 0 || sig.Length == 0)
             return BadRequest(new { success = false, message = "Missing request or signature." });
 
-        string nonce, slug, status, desktopIp, policy;
+        string nonce, slug, status, policy;
         long claimUserId;
+        double? fenceLat = null, fenceLng = null;
+        int fenceRadius = 200;
         await using var master = DbFactory.CreateMaster();
         await master.OpenAsync();
         await using (var cmd = new MySqlCommand(
             "SELECT c.nonce, c.slug, c.status, c.expires_at, COALESCE(c.claim_user_id,0), " +
-            "COALESCE(c.desktop_ip,''), COALESCE(a.qr_proximity,'warn') " +
+            "COALESCE(a.qr_proximity,'warn'), a.geo_lat, a.geo_lng, COALESCE(a.geo_radius_m,200) " +
             "FROM auth_challenges c JOIN agencies a ON a.id = c.agency_id WHERE c.id=@i LIMIT 1;", master))
         {
             cmd.Parameters.AddWithValue("@i", cid);
@@ -221,7 +241,10 @@ public class FingerprintController : ControllerBase
                 return StatusCode(410, new { success = false, code = "expired", message = "This request has expired." });
             if (status == "approved" || status == "denied")
                 return Conflict(new { success = false, code = "used", message = "This request has already been used." });
-            claimUserId = rdr.GetInt64(4); desktopIp = rdr.GetString(5); policy = rdr.GetString(6);
+            claimUserId = rdr.GetInt64(4); policy = rdr.GetString(5);
+            if (!rdr.IsDBNull(6)) fenceLat = rdr.GetDouble(6);
+            if (!rdr.IsDBNull(7)) fenceLng = rdr.GetDouble(7);
+            fenceRadius = rdr.GetInt32(8);
         }
 
         if (!string.Equals(slug, s.Slug, StringComparison.OrdinalIgnoreCase))
@@ -235,29 +258,60 @@ public class FingerprintController : ControllerBase
                 message = "This sign-in was started for a different person." });
         }
 
-        // Same office internet connection, in or out. This is the check that a
-        // forwarded screenshot cannot satisfy from someone's home.
-        string phoneIp = ClientIp();
-        bool near = desktopIp.Length > 0 && phoneIp.Length > 0 &&
-                    string.Equals(desktopIp, phoneIp, StringComparison.OrdinalIgnoreCase);
-        string verdict = desktopIp.Length == 0 || phoneIp.Length == 0
-            ? "unknown" : (near ? "match" : "mismatch");
+        // Inside the agency's circle, or not. This is the check a photograph of
+        // the QR cannot satisfy from someone's home.
+        bool fenced   = fenceLat.HasValue && fenceLng.HasValue && policy != "off";
+        bool haveFix  = body?.Lat is double && body?.Lng is double &&
+                        !(body.Lat == 0 && body.Lng == 0);
+        bool mocked   = body?.Mock == true;
+        int? distance = null;
+        string verdict = "unknown";
+        string refusal = "";
+
+        if (fenced)
+        {
+            if (mocked)
+            {
+                verdict = "mismatch";
+                refusal = "Your phone is reporting a fake location. Turn off any mock-location app.";
+            }
+            else if (!haveFix)
+            {
+                verdict = "unknown";
+                refusal = "CRMRS could not read your location. Turn location on for CRMRS and try again.";
+            }
+            else
+            {
+                double m = MetresBetween(fenceLat!.Value, fenceLng!.Value, body!.Lat!.Value, body.Lng!.Value);
+                // A poor fix should not fail someone standing at their desk, so
+                // the phone's own accuracy widens the circle it is judged against.
+                double allow = fenceRadius + Math.Min(body.Accuracy ?? 0, 100);
+                distance = (int)Math.Round(m);
+                verdict = m <= allow ? "match" : "mismatch";
+                if (verdict == "mismatch")
+                    refusal = "You are " + Away(m) + " from the office. Sign in from there.";
+            }
+        }
 
         await using (var mark = new MySqlCommand(
-            "UPDATE auth_challenges SET phone_ip=@p, proximity=@v WHERE id=@i;", master))
+            "UPDATE auth_challenges SET phone_ip=@p, proximity=@v, phone_lat=@la, phone_lng=@lo, " +
+            "phone_acc=@ac, distance_m=@d, mock_gps=@mk WHERE id=@i;", master))
         {
-            mark.Parameters.AddWithValue("@p", phoneIp);
+            mark.Parameters.AddWithValue("@p", ClientIp());
             mark.Parameters.AddWithValue("@v", verdict);
+            mark.Parameters.AddWithValue("@la", haveFix ? body!.Lat : (object)DBNull.Value);
+            mark.Parameters.AddWithValue("@lo", haveFix ? body!.Lng : (object)DBNull.Value);
+            mark.Parameters.AddWithValue("@ac", body?.Accuracy is double a2 ? (int)a2 : (object)DBNull.Value);
+            mark.Parameters.AddWithValue("@d", distance ?? (object)DBNull.Value);
+            mark.Parameters.AddWithValue("@mk", mocked ? 1 : 0);
             mark.Parameters.AddWithValue("@i", cid);
             await mark.ExecuteNonQueryAsync();
         }
 
-        if (verdict == "mismatch" && policy == "block")
+        if (refusal.Length > 0 && policy == "block")
         {
-            await Refuse(master, cid, "too_far");
-            return StatusCode(403, new { success = false, code = "too_far",
-                message = "You are not on the same internet connection as that computer. " +
-                          "Connect to the office Wi-Fi and scan again." });
+            await Refuse(master, cid, mocked ? "mock_gps" : verdict == "unknown" ? "no_location" : "outside_area");
+            return StatusCode(403, new { success = false, code = "outside_area", message = refusal });
         }
 
         string pub = "", keyId = "", name = "";
@@ -311,7 +365,7 @@ public class FingerprintController : ControllerBase
                 return Conflict(new { success = false, code = "used", message = "This request has already been used." });
         }
 
-        return Ok(new { success = true, name, proximity = verdict });
+        return Ok(new { success = true, name, proximity = verdict, distanceM = distance });
     }
 
     private static async Task Refuse(MySqlConnection master, string cid, string reason)
