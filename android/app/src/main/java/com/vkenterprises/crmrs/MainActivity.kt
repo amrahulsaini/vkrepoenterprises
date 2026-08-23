@@ -1,7 +1,6 @@
 package com.vkenterprises.crmrs
 
 import android.os.Bundle
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Box
@@ -25,7 +24,7 @@ import com.vkenterprises.crmrs.viewmodel.SettingsViewModel
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
-class MainActivity : ComponentActivity() {
+class MainActivity : androidx.fragment.app.FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -178,6 +177,16 @@ fun VKNavHost() {
 
         composable(Screen.RepoKits.route) {
             RepoKitsScreen(authVm, navController)
+        }
+
+        composable(Screen.Fingerprint.route) {
+            val api = com.vkenterprises.crmrs.data.api.ApiClient.api
+            FingerprintScreen(api = api, onBack = { navController.popBackStack() })
+        }
+
+        composable(Screen.FingerprintScan.route) {
+            val api = com.vkenterprises.crmrs.data.api.ApiClient.api
+            FingerprintScanScreen(api = api, onDone = { navController.popBackStack() })
         }
 
         composable(Screen.Settings.route) {

@@ -68,6 +68,31 @@ fun SettingsScreen(
 
             if (isAdmin) {
                 item {
+                    androidx.compose.material3.ListItem(
+                        headlineContent = { Text("Fingerprint sign-in") },
+                        supportingContent = { Text("Use your fingerprint to sign in on the CRMRS desktop") },
+                        leadingContent = {
+                            Icon(androidx.compose.material.icons.Icons.Filled.Fingerprint, contentDescription = null)
+                        },
+                        modifier = Modifier.clickable {
+                            nav.navigate(com.vkenterprises.crmrs.navigation.Screen.Fingerprint.route)
+                        }
+                    )
+                }
+                item {
+                    androidx.compose.material3.ListItem(
+                        headlineContent = { Text("Scan desktop code") },
+                        supportingContent = { Text("Approve a CRMRS desktop sign-in") },
+                        leadingContent = {
+                            Icon(androidx.compose.material.icons.Icons.Filled.QrCodeScanner, contentDescription = null)
+                        },
+                        modifier = Modifier.clickable {
+                            nav.navigate(com.vkenterprises.crmrs.navigation.Screen.FingerprintScan.route)
+                        }
+                    )
+                }
+
+                item {
                     SectionCard(title = "Admin Tools") {
                         Button(
                             onClick = { nav.navigate(Screen.LiveUsers.route) },
