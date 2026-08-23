@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using System.Windows;
 using System.Windows.Input;
@@ -9,6 +10,7 @@ public partial class ProfileLoginWindow : Window
 {
     public string SignedInName { get; private set; } = "";
     public string SignedInMobile { get; private set; } = "";
+    public bool NeedsFingerprint { get; private set; }
 
     public ProfileLoginWindow(string mode)
     {
@@ -51,6 +53,13 @@ public partial class ProfileLoginWindow : Window
                 SignedInName = r.Name;
                 SignedInMobile = mobile;
                 DialogResult = true;
+                Close();
+                return;
+            }
+            if (r.Error != null && r.Error.Contains("fingerprint", StringComparison.OrdinalIgnoreCase))
+            {
+                NeedsFingerprint = true;
+                DialogResult = false;
                 Close();
                 return;
             }

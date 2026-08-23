@@ -636,6 +636,26 @@ internal static class DesktopApiClient
     internal record GateStampResult(string Stamp);
 
     /// The password is checked on the server; it is never returned to the app.
+    internal record AuthChallengeResult(string Id, string PairCode, string Qr, int ExpiresInSeconds);
+    internal record AuthChallengeStatus(string Status, string Name, long UserId, string FailReason);
+
+    internal static async Task<AuthChallengeResult> CreateAuthChallengeAsync(string mode, string deviceLabel)
+    {
+        var resp = await Send(HttpMethod.Post, "api/agency/desktop/auth-challenge",
+            new { Mode = mode, DeviceLabel = deviceLabel });
+        resp.EnsureSuccessStatusCode();
+        return (await resp.Content.ReadFromJsonAsync<AuthChallengeResult>(_json))
+               ?? throw new Exception("Bad response from server.");
+    }
+
+    internal static async Task<AuthChallengeStatus> PollAuthChallengeAsync(string id)
+    {
+        var resp = await Send(HttpMethod.Get, "api/agency/desktop/auth-challenge/" + id);
+        resp.EnsureSuccessStatusCode();
+        return (await resp.Content.ReadFromJsonAsync<AuthChallengeStatus>(_json))
+               ?? new AuthChallengeStatus("pending", "", 0, "");
+    }
+
     internal record ProfileLoginResult(bool Ok, long UserId, string Name);
     internal record ProfileRequiredResult(bool Required, long Profiles);
 

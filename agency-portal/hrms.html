@@ -283,6 +283,13 @@
     font-size:9.5px;font-weight:750;letter-spacing:1px;text-transform:uppercase;color:var(--muted-2);
   }
   .btn-xs{padding:7px 13px;font-size:12.5px;border-radius:8px}
+  .fpbox{margin-top:14px;padding:16px;border:1px solid var(--line);
+         border-radius:var(--radius-sm);background:var(--paper-2)}
+  .fpkey{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+         font-size:12px;color:var(--ink-2);word-break:break-all}
+  .sw{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:12px}
+  .swlbl{font-size:13px;font-weight:600}
+  .swsub{font-size:11.5px;color:var(--muted);margin-top:2px}
   .pwbox{margin-top:16px;padding:16px;border:1px solid var(--line);
          border-radius:var(--radius-sm);background:var(--paper-2)}
   .empty-note{
@@ -555,6 +562,22 @@
       </div>
       <div class="msg" id="pf-msg"></div>
     </div>
+    <div class="fpbox">
+      <div class="k" style="font-size:9.5px;font-weight:750;letter-spacing:1px;text-transform:uppercase;color:var(--muted-2);margin-bottom:9px">Fingerprint</div>
+      <div id="fp-state" style="font-size:12.5px;color:var(--muted)"></div>
+      <div id="fp-detail" style="margin-top:8px"></div>
+      <div class="sw">
+        <div>
+          <div class="swlbl">Require fingerprint</div>
+          <div class="swsub">Sign in by scanning the desktop QR instead of typing a password.</div>
+        </div>
+        <span id="fp-badge" class="pill p-off">Off</span>
+        <button class="btn btn-accent btn-xs" id="fp-toggle">Turn on</button>
+      </div>
+      <button class="btn btn-ghost btn-xs hidden" id="fp-reset" style="width:100%;margin-top:10px;">Reset fingerprint (lost or new phone)</button>
+      <div class="msg" id="fp-msg"></div>
+    </div>
+
     <div id="pf-rows2" style="margin-top:6px"></div>
   </div>
 </aside>
@@ -582,6 +605,6 @@
   </div>
 </aside>
 
-<script src="/js/hrms.js?v=10"></script>
+<script src="/js/hrms.js?v=11"></script>
 </body>
 </html>

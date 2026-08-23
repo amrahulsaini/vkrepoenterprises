@@ -17,7 +17,18 @@ public static class ProfileGate
         if (!required) return true;
 
         var w = new ProfileLoginWindow(mode) { Owner = owner };
-        if (w.ShowDialog() != true) return false;
+        var res = w.ShowDialog();
+
+        if (res != true && w.NeedsFingerprint)
+        {
+            var f = new FingerprintLoginWindow(mode) { Owner = owner };
+            if (f.ShowDialog() != true) return false;
+            App.ProfileUser = new App.ProfileSession { Name = f.SignedInName, Mobile = f.SignedInMobile };
+            Stamp(owner);
+            return true;
+        }
+
+        if (res != true) return false;
 
         App.ProfileUser = new App.ProfileSession { Name = w.SignedInName, Mobile = w.SignedInMobile };
         Stamp(owner);

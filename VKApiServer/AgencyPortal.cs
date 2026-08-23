@@ -500,7 +500,8 @@ internal static class AgencyPortal
             await using var conn = new MySqlConnection(TenantContext.BuildTenantConn(mysqlHost, mysqlPort, ag.slug));
             await conn.OpenAsync();
             await using var cmd = new MySqlCommand(
-                "SELECT COUNT(*) FROM app_users WHERE profile_password_hash IS NOT NULL AND profile_password_hash <> ''", conn)
+                "SELECT COUNT(*) FROM app_users WHERE (profile_password_hash IS NOT NULL AND profile_password_hash <> '') " +
+                "OR COALESCE(fingerprint_required,0)=1", conn)
             { CommandTimeout = 15 };
             long n = Convert.ToInt64(await cmd.ExecuteScalarAsync());
             return Results.Ok(new { required = n > 0, profiles = n });
@@ -521,10 +522,11 @@ internal static class AgencyPortal
             await conn.OpenAsync();
 
             long id = 0; string name = "", hash = "";
-            bool active = false, stopped = false, blacklisted = false;
+            bool active = false, stopped = false, blacklisted = false, fpRequired = false;
             await using (var cmd = new MySqlCommand(@"
                 SELECT id, COALESCE(name,''), COALESCE(profile_password_hash,''),
-                       COALESCE(is_active,0), COALESCE(is_stopped,0), COALESCE(is_blacklisted,0)
+                       COALESCE(is_active,0), COALESCE(is_stopped,0), COALESCE(is_blacklisted,0),
+                       COALESCE(fingerprint_required,0)
                   FROM app_users WHERE RIGHT(REPLACE(COALESCE(mobile,''),' ',''),10) = @m LIMIT 1;", conn)
             { CommandTimeout = 15 })
             {
@@ -534,6 +536,7 @@ internal static class AgencyPortal
                 {
                     id = rdr.GetInt64(0); name = rdr.GetString(1); hash = rdr.GetString(2);
                     active = rdr.GetInt32(3) == 1; stopped = rdr.GetInt32(4) == 1; blacklisted = rdr.GetInt32(5) == 1;
+                    fpRequired = rdr.GetInt32(6) == 1;
                 }
             }
 
@@ -541,6 +544,9 @@ internal static class AgencyPortal
                 return Results.Json(new { message = "Wrong mobile number or password." }, statusCode: 401);
             if (blacklisted || stopped || !active)
                 return Results.Json(new { message = "This profile is not allowed to sign in." }, statusCode: 403);
+            if (fpRequired)
+                return Results.Json(new { code = "fingerprint_required",
+                    message = "This profile signs in with a fingerprint." }, statusCode: 409);
 
             return Results.Ok(new { ok = true, userId = id, name });
         });
@@ -667,7 +673,9 @@ internal static class AgencyPortal
                 SELECT id, COALESCE(name,''), COALESCE(mobile,''), COALESCE(is_active,0),
                        COALESCE(is_admin,0), COALESCE(is_blacklisted,0), COALESCE(kyc_status,''),
                        last_seen, (profile_password_hash IS NOT NULL AND profile_password_hash <> '') AS has_pw,
-                       profile_password_set_at, COALESCE(pfp,'')
+                       profile_password_set_at, COALESCE(pfp,''),
+                       COALESCE(fingerprint_required,0),
+                       (SELECT COUNT(*) FROM device_keys k WHERE k.user_id=app_users.id AND k.revoked=0)
                   FROM app_users ORDER BY COALESCE(name,'') ASC, id ASC LIMIT 1000;", conn)
             { CommandTimeout = 30 };
             var list = new List<object>();
@@ -687,6 +695,8 @@ internal static class AgencyPortal
                     hasPassword = rdr.GetInt64(8) == 1,
                     passwordSetAt = rdr.IsDBNull(9) ? null : rdr.GetDateTime(9).ToString("yyyy-MM-dd HH:mm"),
                     pfpUrl = PfpUrl(rdr.GetString(10)),
+                    fingerprintRequired = rdr.GetInt32(11) == 1,
+                    fingerprintEnrolled = rdr.GetInt64(12) > 0,
                 });
             }
             return Results.Ok(list);
@@ -709,7 +719,7 @@ internal static class AgencyPortal
                        created_at, last_seen, COALESCE(kyc_reg_location,''),
                        (profile_password_hash IS NOT NULL AND profile_password_hash <> '') AS has_pw,
                        profile_password_set_at, COALESCE(profile_password_by,''), COALESCE(device_id,''),
-                       COALESCE(pfp,'')
+                       COALESCE(pfp,''), COALESCE(fingerprint_required,0)
                   FROM app_users WHERE id=@id LIMIT 1;", conn) { CommandTimeout = 20 };
             cmd.Parameters.AddWithValue("@id", id);
             await using var rdr = await cmd.ExecuteReaderAsync();
@@ -731,7 +741,80 @@ internal static class AgencyPortal
                 hasPassword = rdr.GetInt64(23) == 1, passwordSetAt = D(24),
                 passwordBy = rdr.GetString(25), hasDevice = rdr.GetString(26).Length > 0,
                 pfpUrl = PfpUrl(rdr.GetString(27)),
+                fingerprintRequired = rdr.GetInt32(28) == 1,
             });
+        });
+
+        app.MapGet("/api/agency/hrms/profiles/{id:long}/fingerprint", async (HttpContext ctx, long id) =>
+        {
+            var slug = await HrmsSessionSlug(masterConn, ctx);
+            if (slug is null) return Results.Json(new { message = "Session expired." }, statusCode: 401);
+
+            await using var conn = new MySqlConnection(TenantContext.BuildTenantConn(mysqlHost, mysqlPort, slug));
+            await conn.OpenAsync();
+            await using var cmd = new MySqlCommand(
+                "SELECT key_id, device_label, enrolled_at, last_used_at FROM device_keys " +
+                "WHERE user_id=@u AND revoked=0 ORDER BY id DESC LIMIT 1;", conn);
+            cmd.Parameters.AddWithValue("@u", id);
+            await using var rdr = await cmd.ExecuteReaderAsync();
+            if (!await rdr.ReadAsync())
+                return Results.Ok(new { enrolled = false });
+
+            return Results.Ok(new
+            {
+                enrolled = true,
+                keyId = rdr.GetString(0),
+                device = rdr.GetString(1),
+                enrolledAt = rdr.GetDateTime(2).ToString("yyyy-MM-dd HH:mm"),
+                lastUsedAt = rdr.IsDBNull(3) ? null : rdr.GetDateTime(3).ToString("yyyy-MM-dd HH:mm")
+            });
+        });
+
+        app.MapPost("/api/agency/hrms/profiles/{id:long}/fingerprint", async (HttpContext ctx, long id, HttpRequest req) =>
+        {
+            var slug = await HrmsSessionSlug(masterConn, ctx);
+            if (slug is null) return Results.Json(new { message = "Session expired." }, statusCode: 401);
+
+            var dto = await ReadJsonAsync(req);
+            bool required = (dto.GetValueOrDefault("required") ?? "").Trim().ToLowerInvariant() is "1" or "true";
+
+            await using var conn = new MySqlConnection(TenantContext.BuildTenantConn(mysqlHost, mysqlPort, slug));
+            await conn.OpenAsync();
+
+            if (required)
+            {
+                await using var chk = new MySqlCommand(
+                    "SELECT COUNT(*) FROM device_keys WHERE user_id=@u AND revoked=0", conn);
+                chk.Parameters.AddWithValue("@u", id);
+                if (Convert.ToInt64(await chk.ExecuteScalarAsync()) == 0)
+                    return Results.Json(new { code = "not_enrolled",
+                        message = "This person has not set up a fingerprint on their phone yet." }, statusCode: 409);
+            }
+
+            await using var cmd = new MySqlCommand(
+                "UPDATE app_users SET fingerprint_required=@r WHERE id=@id", conn);
+            cmd.Parameters.AddWithValue("@r", required ? 1 : 0);
+            cmd.Parameters.AddWithValue("@id", id);
+            if (await cmd.ExecuteNonQueryAsync() == 0)
+                return Results.NotFound(new { message = "Profile not found." });
+
+            return Results.Ok(new { ok = true, fingerprintRequired = required });
+        });
+
+        app.MapDelete("/api/agency/hrms/profiles/{id:long}/fingerprint", async (HttpContext ctx, long id) =>
+        {
+            var slug = await HrmsSessionSlug(masterConn, ctx);
+            if (slug is null) return Results.Json(new { message = "Session expired." }, statusCode: 401);
+
+            await using var conn = new MySqlConnection(TenantContext.BuildTenantConn(mysqlHost, mysqlPort, slug));
+            await conn.OpenAsync();
+            await using var cmd = new MySqlCommand(
+                "UPDATE device_keys SET revoked=1, revoked_at=@t WHERE user_id=@u AND revoked=0; " +
+                "UPDATE app_users SET fingerprint_required=0 WHERE id=@u;", conn);
+            cmd.Parameters.AddWithValue("@t", IstNow());
+            cmd.Parameters.AddWithValue("@u", id);
+            await cmd.ExecuteNonQueryAsync();
+            return Results.Ok(new { ok = true, enrolled = false, fingerprintRequired = false });
         });
 
         app.MapPost("/api/agency/hrms/profiles/{id:long}/password", async (HttpContext ctx, long id, HttpRequest req) =>

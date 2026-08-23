@@ -181,7 +181,8 @@
                  : !u.isActive     ? pill('p-off', 'Inactive')
                  : pill('p-on', 'Active');
       var kyc = u.kycStatus ? pill(u.kycStatus === 'verified' ? 'p-on' : 'p-off', u.kycStatus) : pill('p-off', 'None');
-      var login = u.hasPassword ? pill('p-on', 'Set') : pill('p-off', 'Not set');
+      var login = u.fingerprintRequired ? pill('p-on', 'Fingerprint')
+                : (u.hasPassword ? pill('p-on', 'Password') : pill('p-off', 'Not set'));
       return '<div class="trow" data-id="' + u.id + '">' +
         '<div class="who2">' + avatar(u, false) +
         '<div style="min-width:0"><div class="n">' + esc(u.name || 'Unnamed') + '</div>' +
@@ -213,6 +214,7 @@
     PFID = id;
     $('pf-pw').value = '';
     $('pf-msg').textContent = '';
+    fpMsg('');
     $('pf-rows2').innerHTML = '';
     openPfDrawer(true);
     try {
@@ -221,6 +223,7 @@
         (u.pfpUrl ? '<img src="' + esc(u.pfpUrl) + '" alt="">' : '');
       $('pf-name').textContent = u.name || 'Unnamed';
       $('pf-mobile').textContent = u.mobile || '';
+      loadFp(u);
       $('pf-pwstate').textContent = u.hasPassword
         ? 'Set' + (u.passwordSetAt ? ' on ' + u.passwordSetAt : '') + '. Entering a new one replaces it.'
         : 'Not set. This person cannot open a desktop mode until you set one.';
@@ -342,6 +345,73 @@
   $('pf-back').addEventListener('click', function () {
     show($('page-desktop'), false);
     show($('page-profiles'), true);
+  });
+
+
+  var FPREQ = false;
+
+  function fpMsg(t, kind) {
+    $('fp-msg').textContent = t || '';
+    $('fp-msg').className = 'msg' + (kind ? ' ' + kind : '');
+  }
+
+  function renderFp(u, key) {
+    FPREQ = !!u.fingerprintRequired;
+    $('fp-badge').textContent = FPREQ ? 'Required' : 'Off';
+    $('fp-badge').className = 'pill ' + (FPREQ ? 'p-on' : 'p-off');
+    $('fp-toggle').textContent = FPREQ ? 'Turn off' : 'Turn on';
+    $('fp-toggle').className = 'btn btn-xs ' + (FPREQ ? 'btn-ghost' : 'btn-accent');
+    show($('fp-reset'), !!(key && key.enrolled));
+
+    if (key && key.enrolled) {
+      $('fp-state').textContent = 'Set up on this person\u2019s phone.';
+      $('fp-detail').innerHTML =
+        row('Device', key.device || 'Unknown device') +
+        row('Key ID', key.keyId) +
+        row('Enrolled', key.enrolledAt) +
+        row('Last used', key.lastUsedAt);
+    } else {
+      $('fp-state').textContent = 'Not set up. The staff member turns this on in the CRMRS app on their phone.';
+      $('fp-detail').innerHTML = '';
+    }
+  }
+
+  async function loadFp(u) {
+    try {
+      var key = await call('/hrms/profiles/' + u.id + '/fingerprint');
+      renderFp(u, key);
+    } catch (e) {
+      renderFp(u, null);
+    }
+  }
+
+  $('fp-toggle').addEventListener('click', async function () {
+    if (!PFID) return;
+    var next = !FPREQ;
+    $('fp-toggle').disabled = true;
+    fpMsg('');
+    try {
+      await call('/hrms/profiles/' + PFID + '/fingerprint', { method: 'POST', body: { required: next ? 'true' : 'false' } });
+      fpMsg(next ? 'Fingerprint is now required.' : 'Fingerprint is no longer required.', 'ok');
+      await loadProfiles();
+      await openProfile(PFID);
+    } catch (e) {
+      fpMsg(e.message, 'err');
+    } finally { $('fp-toggle').disabled = false; }
+  });
+
+  $('fp-reset').addEventListener('click', async function () {
+    if (!PFID) return;
+    if (!confirm('Reset this fingerprint? They will sign in with their password until they set it up again on a phone.')) return;
+    $('fp-reset').disabled = true;
+    try {
+      await call('/hrms/profiles/' + PFID + '/fingerprint', { method: 'DELETE' });
+      fpMsg('Fingerprint reset. Password sign-in is active again.', 'ok');
+      await loadProfiles();
+      await openProfile(PFID);
+    } catch (e) {
+      fpMsg(e.message, 'err');
+    } finally { $('fp-reset').disabled = false; }
   });
 
   $('pf-q').addEventListener('input', renderProfiles);
