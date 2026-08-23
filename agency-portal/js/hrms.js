@@ -187,11 +187,12 @@
       var kyc = u.kycStatus ? pill(u.kycStatus === 'verified' ? 'p-on' : 'p-off', u.kycStatus) : pill('p-off', 'None');
       var login = u.fingerprintRequired ? pill('p-on', 'Fingerprint')
                 : (u.hasPassword ? pill('p-on', 'Password') : pill('p-off', 'Not set'));
+      var roleCell = u.roleName ? pill('p-on', u.roleName) : pill('p-off', 'No role');
       return '<div class="trow" data-id="' + u.id + '">' +
         '<div class="who2">' + avatar(u, false) +
         '<div style="min-width:0"><div class="n">' + esc(u.name || 'Unnamed') + '</div>' +
         '<div class="m">' + esc(u.mobile || '') + '</div></div></div>' +
-        '<div>' + login + '</div><div>' + kyc + '</div><div>' + status + '</div></div>';
+        '<div>' + login + '</div><div>' + roleCell + '</div><div>' + status + '</div></div>';
     }).join('');
 
     Array.prototype.forEach.call($('pf-rows').querySelectorAll('.trow'), function (r) {
@@ -551,6 +552,30 @@
     } finally { $('role-del').disabled = false; }
   });
 
+  function describeRole(id) {
+    var r = ROLES.filter(function (x) { return x.id === id; })[0];
+    if (!r) {
+      $('pf-rolemods').innerHTML =
+        '<span style="color:#b3261e">No role assigned \u2014 this person cannot open anything on the desktop.</span>';
+      return;
+    }
+    if (r.isSuperadmin) {
+      $('pf-rolemods').innerHTML = 'Every module, no restrictions.';
+      return;
+    }
+    if (!r.modules.length) {
+      $('pf-rolemods').innerHTML =
+        '<span style="color:#b3261e">This role has no modules ticked yet.</span>';
+      return;
+    }
+    var names = r.modules.map(function (k) {
+      var m = MODULES.filter(function (x) { return x.key === k; })[0];
+      return esc(m ? m.label : k);
+    });
+    $('pf-rolemods').innerHTML =
+      '<b>' + names.length + ' of ' + MODULES.length + ':</b> ' + names.join(' \u00b7 ');
+  }
+
   async function fillRolePicker(u) {
     await ensureModules();
     if (!ROLES.length) { try { ROLES = await call('/hrms/roles'); } catch (e) { ROLES = []; } }
@@ -560,6 +585,7 @@
         return '<option value="' + r.id + '"' + (r.id === cur ? ' selected' : '') + '>' +
                esc(r.name) + (r.isSuperadmin ? ' — all access' : '') + '</option>';
       }).join('');
+    describeRole(cur);
   }
 
   $('pf-role').addEventListener('change', async function () {
@@ -570,6 +596,7 @@
       await call('/hrms/profiles/' + PFID + '/role', { method: 'POST', body: { roleId: v } });
       $('pf-rolemsg').textContent = 'Role updated.';
       $('pf-rolemsg').className = 'msg ok';
+      describeRole(v);
       await loadProfiles();
     } catch (e) {
       $('pf-rolemsg').textContent = e.message;
