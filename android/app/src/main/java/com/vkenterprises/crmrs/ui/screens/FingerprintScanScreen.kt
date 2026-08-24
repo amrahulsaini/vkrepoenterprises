@@ -27,6 +27,7 @@ import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.common.InputImage
 import com.vkenterprises.crmrs.data.api.ApiService
+import com.vkenterprises.crmrs.data.models.FpApproveRequest
 import com.vkenterprises.crmrs.security.BiometricGate
 import com.vkenterprises.crmrs.utils.getCurrentLocation
 import com.vkenterprises.crmrs.security.FingerprintKey
@@ -183,24 +184,25 @@ fun FingerprintScanScreen(api: ApiService, onDone: () -> Unit) {
                                 // a fix taken minutes ago somewhere else.
                                 status = "Checking your location..."
                                 val loc = getCurrentLocation(ctx)
-                                val body = HashMap<String, Any?>()
-                                body["challengeId"] = challenge
-                                body["signature"] = payload
-                                // Tells the server this build checks location at
-                                // all, so an older one is not judged as a phone
-                                // that refused to share it.
-                                body["geoTried"] = true
-                                if (loc != null) {
-                                    body["lat"] = loc.latitude
-                                    body["lng"] = loc.longitude
-                                    body["accuracy"] = loc.accuracy.toDouble()
-                                    body["mock"] =
-                                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S)
-                                            loc.isMock
-                                        else
-                                            @Suppress("DEPRECATION") loc.isFromMockProvider
-                                }
-                                val ok = api.fpApprove(body)
+                                // geoTried marks this as a build that checks
+                                // location, so an older one is not judged as a
+                                // phone that refused to share it.
+                                val ok = api.fpApprove(
+                                    FpApproveRequest(
+                                        challengeId = challenge,
+                                        signature = payload,
+                                        geoTried = true,
+                                        lat = loc?.latitude,
+                                        lng = loc?.longitude,
+                                        accuracy = loc?.accuracy?.toDouble(),
+                                        mock = loc?.let {
+                                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S)
+                                                it.isMock
+                                            else
+                                                @Suppress("DEPRECATION") it.isFromMockProvider
+                                        }
+                                    )
+                                )
                                 if (ok.isSuccessful) {
                                     status = "Approved. The desktop is opening."
                                     confirming = false

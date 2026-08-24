@@ -2,6 +2,20 @@ package com.vkenterprises.crmrs.data.models
 
 import com.google.gson.annotations.SerializedName
 
+/// Approving a desktop sign-in. Kotlin turns Map<String, Any?> into
+/// java.util.Map<String, ?> and Retrofit rejects the wildcard, so the body is
+/// a class rather than a map. Null fields are dropped, so a phone with no fix
+/// still sends geoTried and is judged as a build that tried.
+data class FpApproveRequest(
+    val challengeId: String,
+    val signature: String,
+    val geoTried: Boolean = true,
+    val lat: Double? = null,
+    val lng: Double? = null,
+    val accuracy: Double? = null,
+    val mock: Boolean? = null
+)
+
 data class RegisterRequest(
     val mobile: String,
     val name: String,
