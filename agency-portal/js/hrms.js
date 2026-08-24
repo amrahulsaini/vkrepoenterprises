@@ -141,10 +141,357 @@
   }
 
   var LABELS = {
-    dashboard:'Dashboard', departments:'Departments',
-    payroll:'Payroll', documents:'Documents', roles:'Roles',
-    reports:'Reports'
+    dashboard:'Dashboard', departments:'Departments', roles:'Roles'
   };
+
+  function money(v) {
+    var n = Number(v || 0);
+    return '\u20b9' + n.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  }
+
+  function emMsg(t, k) { $('em-msg').textContent = t || ''; $('em-msg').className = 'msg' + (k ? ' ' + k : ''); }
+  function salMsg(t, k) { $('sal-msg').textContent = t || ''; $('sal-msg').className = 'msg' + (k ? ' ' + k : ''); }
+  function advMsg(t, k) { $('adv-msg').textContent = t || ''; $('adv-msg').className = 'msg' + (k ? ' ' + k : ''); }
+  function docMsg(t, k) { $('doc-msg').textContent = t || ''; $('doc-msg').className = 'msg' + (k ? ' ' + k : ''); }
+
+  async function loadEmployment(id) {
+    var e;
+    try { e = await call('/hrms/profiles/' + id + '/employment'); } catch (err) { return; }
+    $('em-hired').value = e.hiredOn || '';
+    $('em-confirmed').value = e.confirmedOn || '';
+    $('em-exit').value = e.exitOn || '';
+    $('em-desig').value = e.designation || '';
+    $('em-dept').value = e.department || '';
+    $('em-type').value = e.employmentType || 'full_time';
+    $('em-dob').value = e.dateOfBirth || '';
+    $('em-start').value = e.shiftStart || '';
+    $('em-end').value = e.shiftEnd || '';
+    $('em-ename').value = e.emergencyName || '';
+    $('em-ephone').value = e.emergencyPhone || '';
+    $('em-blood').value = e.bloodGroup || '';
+    emMsg('');
+  }
+
+  $('em-save').addEventListener('click', async function () {
+    if (!PFID) return;
+    $('em-save').disabled = true;
+    emMsg('Saving\u2026');
+    try {
+      await call('/hrms/profiles/' + PFID + '/employment', {
+        method: 'PUT',
+        body: {
+          hiredOn: $('em-hired').value, confirmedOn: $('em-confirmed').value,
+          exitOn: $('em-exit').value, designation: $('em-desig').value,
+          department: $('em-dept').value, employmentType: $('em-type').value,
+          dateOfBirth: $('em-dob').value, shiftStart: $('em-start').value,
+          shiftEnd: $('em-end').value, emergencyName: $('em-ename').value,
+          emergencyPhone: $('em-ephone').value, bloodGroup: $('em-blood').value
+        }
+      });
+      emMsg('Saved. They will see this in the desktop app.', 'ok');
+    } catch (e) { emMsg(e.message, 'err'); }
+    finally { $('em-save').disabled = false; }
+  });
+
+  async function loadSalary(id) {
+    var d;
+    try { d = await call('/hrms/profiles/' + id + '/salary'); } catch (e) { return; }
+
+    var cur = d.history[0];
+    if (!cur) {
+      $('sal-current').className = 'callout bad';
+      $('sal-current').innerHTML = '<b>No pay structure set.</b> Payroll will skip this person ' +
+        'until one exists.';
+    } else {
+      $('sal-current').className = 'callout';
+      $('sal-current').innerHTML = '<b>' + money(cur.gross) + ' a month</b> from ' +
+        esc(fmtDay(cur.effectiveFrom)) + ' &mdash; basic ' + money(cur.basic) +
+        ', HRA ' + money(cur.hra) + ', other ' +
+        money(cur.conveyance + cur.medical + cur.specialAllowance + cur.otherAllowance) + '.' +
+        (d.history.length > 1 ? ' ' + (d.history.length - 1) + ' earlier kept.' : '');
+      $('sal-basic').value = cur.basic; $('sal-hra').value = cur.hra;
+      $('sal-conv').value = cur.conveyance; $('sal-med').value = cur.medical;
+      $('sal-spec').value = cur.specialAllowance; $('sal-oth').value = cur.otherAllowance;
+      $('sal-pf').checked = cur.pf; $('sal-esic').checked = cur.esic; $('sal-pt').checked = cur.pt;
+    }
+
+    var open = d.advances.filter(function (a) { return a.status === 'open'; });
+    $('sal-adv').innerHTML = open.length
+      ? open.map(function (a) {
+          return '<div class="callout">Advance ' + money(a.amount) + ' given ' +
+            esc(fmtDay(a.givenOn)) + ' &mdash; <b>' + money(a.outstanding) + ' still owed</b>, ' +
+            money(a.perMonth) + ' recovered each month.</div>';
+        }).join('')
+      : '<p class="ph" style="margin:0">No advance outstanding.</p>';
+  }
+
+  $('sal-save').addEventListener('click', async function () {
+    if (!PFID) return;
+    if (!$('sal-from').value) { salMsg('Choose when this pay starts.', 'err'); return; }
+    $('sal-save').disabled = true;
+    salMsg('Saving\u2026');
+    try {
+      await call('/hrms/profiles/' + PFID + '/salary', {
+        method: 'POST',
+        body: {
+          effectiveFrom: $('sal-from').value, basic: $('sal-basic').value,
+          hra: $('sal-hra').value, conveyance: $('sal-conv').value,
+          medical: $('sal-med').value, specialAllowance: $('sal-spec').value,
+          otherAllowance: $('sal-oth').value,
+          pf: $('sal-pf').checked ? 'true' : 'false',
+          esic: $('sal-esic').checked ? 'true' : 'false',
+          pt: $('sal-pt').checked ? 'true' : 'false'
+        }
+      });
+      salMsg('Saved.', 'ok');
+      await loadSalary(PFID);
+    } catch (e) { salMsg(e.message, 'err'); }
+    finally { $('sal-save').disabled = false; }
+  });
+
+  $('adv-save').addEventListener('click', async function () {
+    if (!PFID) return;
+    $('adv-save').disabled = true;
+    advMsg('Saving\u2026');
+    try {
+      await call('/hrms/profiles/' + PFID + '/advances', {
+        method: 'POST',
+        body: {
+          amount: $('adv-amt').value, perMonth: $('adv-per').value,
+          reason: $('adv-reason').value, givenOn: istToday()
+        }
+      });
+      $('adv-amt').value = ''; $('adv-per').value = ''; $('adv-reason').value = '';
+      advMsg('Recorded. It will be recovered from pay.', 'ok');
+      await loadSalary(PFID);
+    } catch (e) { advMsg(e.message, 'err'); }
+    finally { $('adv-save').disabled = false; }
+  });
+
+  async function loadDocs(id) {
+    var docs;
+    try { docs = await call('/hrms/profiles/' + id + '/documents'); } catch (e) { return; }
+    $('doc-rows').innerHTML = docs.length
+      ? docs.map(function (d) {
+          return '<div class="hrow" style="grid-template-columns:1fr 150px 130px 100px">' +
+            '<span><b>' + esc(d.title) + '</b><div class="m">' + esc(d.fileName) + '</div></span>' +
+            '<span style="color:var(--muted)">' + esc(d.uploadedAt) + '</span>' +
+            '<span>' + (d.expiresOn
+                ? (d.expired ? pill('p-red', 'Expired') : pill('p-off', fmtDay(d.expiresOn)))
+                : '<span style="color:var(--muted-2)">&mdash;</span>') + '</span>' +
+            '<span><a class="btn btn-ghost btn-xs" href="' + esc(d.url) + '" target="_blank">Open</a> ' +
+            '<button class="btn btn-ghost btn-xs" data-doc="' + d.id + '">Remove</button></span>' +
+          '</div>';
+        }).join('')
+      : '<p class="ph" style="margin:0">No documents yet.</p>';
+
+    Array.prototype.forEach.call($('doc-rows').querySelectorAll('[data-doc]'), function (b) {
+      b.addEventListener('click', async function () {
+        if (!confirm('Remove this document?')) return;
+        b.disabled = true;
+        try { await call('/hrms/documents/' + b.getAttribute('data-doc'), { method: 'DELETE' }); await loadDocs(id); }
+        catch (e) { b.disabled = false; alert(e.message); }
+      });
+    });
+  }
+
+  $('doc-upload').addEventListener('click', async function () {
+    if (!PFID) return;
+    var f = $('doc-file').files[0];
+    if (!f) { docMsg('Choose a file.', 'err'); return; }
+    if (f.size > 15 * 1024 * 1024) { docMsg('That file is larger than 15 MB.', 'err'); return; }
+
+    var fd = new FormData();
+    fd.append('file', f);
+    fd.append('title', $('doc-title').value || f.name);
+    fd.append('expiresOn', $('doc-expires').value || '');
+
+    $('doc-upload').disabled = true;
+    docMsg('Uploading\u2026');
+    try {
+      var r = await fetch(API + '/hrms/profiles/' + PFID + '/documents', {
+        method: 'POST', headers: { 'X-Hrms-Token': token() }, body: fd
+      });
+      var data = {};
+      try { data = await r.json(); } catch (e) {}
+      if (!r.ok) throw new Error(data.message || 'Upload failed.');
+      $('doc-file').value = ''; $('doc-title').value = ''; $('doc-expires').value = '';
+      docMsg('Uploaded.', 'ok');
+      await loadDocs(PFID);
+    } catch (e) { docMsg(e.message, 'err'); }
+    finally { $('doc-upload').disabled = false; }
+  });
+
+  async function loadAllDocs() {
+    $('ad-rows').innerHTML = '<div class="empty-note" style="border:0">Loading\u2026</div>';
+    if (!PROFILES.length) { try { PROFILES = await call('/hrms/profiles'); } catch (e) {} }
+
+    var out = [];
+    for (var i = 0; i < PROFILES.length; i++) {
+      var u = PROFILES[i];
+      var docs = [];
+      try { docs = await call('/hrms/profiles/' + u.id + '/documents'); } catch (e) {}
+      docs.forEach(function (d) {
+        out.push('<div class="hrow" style="grid-template-columns:1.4fr 1fr 130px 130px">' +
+          '<span><b>' + esc(u.name || 'Unnamed') + '</b><div class="m">' + esc(u.mobile || '') + '</div></span>' +
+          '<span>' + esc(d.title) + '<div class="m">' + esc(d.uploadedAt) + '</div></span>' +
+          '<span>' + (d.expiresOn
+              ? (d.expired ? pill('p-red', 'Expired') : pill('p-off', fmtDay(d.expiresOn)))
+              : '<span style="color:var(--muted-2)">&mdash;</span>') + '</span>' +
+          '<span><a class="btn btn-ghost btn-xs" href="' + esc(d.url) + '" target="_blank">Open</a></span>' +
+        '</div>');
+      });
+    }
+    $('ad-rows').innerHTML = out.length ? out.join('')
+      : '<div class="empty-note" style="border:0">No documents have been uploaded yet.</div>';
+  }
+
+  var PAYROLL = null;
+
+  function prMsg(t, k) { $('pr-msg').textContent = t || ''; $('pr-msg').className = 'msg' + (k ? ' ' + k : ''); }
+
+  async function loadPayroll() {
+    var mm = ($('pr-month').value || istToday().slice(0, 7)).split('-');
+    prMsg('');
+    $('pr-rows').innerHTML = '<div class="empty-note" style="border:0">Loading\u2026</div>';
+    try {
+      PAYROLL = await call('/hrms/payroll?year=' + mm[0] + '&month=' + parseInt(mm[1], 10));
+    } catch (e) {
+      $('pr-rows').innerHTML = '<div class="empty-note" style="border:0">' + esc(e.message) + '</div>';
+      return;
+    }
+
+    $('pr-state').textContent = PAYROLL.status === 'none' ? 'Not calculated yet'
+      : PAYROLL.status === 'draft' ? 'Draft \u00b7 calculated ' + PAYROLL.generatedAt
+      : 'Finalised \u00b7 ' + PAYROLL.generatedAt;
+    show($('pr-final'), PAYROLL.status === 'draft');
+    $('pr-run').textContent = PAYROLL.status === 'none' ? 'Calculate' : 'Calculate again';
+    $('pr-run').disabled = PAYROLL.status === 'finalised';
+
+    $('pr-totals').innerHTML = PAYROLL.slips.length
+      ? '<div class="b"><div class="n">' + PAYROLL.totals.staff + '</div><div class="l">Staff</div></div>' +
+        '<div class="b"><div class="n">' + money(PAYROLL.totals.gross) + '</div><div class="l">Gross</div></div>' +
+        '<div class="b"><div class="n">' + money(PAYROLL.totals.deductions) + '</div><div class="l">Deductions</div></div>' +
+        '<div class="b ok"><div class="n">' + money(PAYROLL.totals.net) + '</div><div class="l">Net payable</div></div>'
+      : '';
+
+    if (!PAYROLL.slips.length) {
+      $('pr-rows').innerHTML = '<div class="empty-note" style="border:0">' +
+        'Nothing calculated for ' + esc(PAYROLL.label) + ' yet. Press Calculate.</div>';
+      return;
+    }
+
+    $('pr-rows').innerHTML = PAYROLL.slips.map(function (p) {
+      return '<div class="trow" style="grid-template-columns:1.3fr 90px 90px 90px 110px 110px 110px 120px;cursor:default">' +
+        '<div style="min-width:0"><div class="n">' + esc(p.name || 'Unnamed') + '</div>' +
+        '<div class="m">' + esc(p.mobile || '') + '</div></div>' +
+        '<div>' + p.workingDays + '</div>' +
+        '<div>' + p.presentDays + '</div>' +
+        '<div>' + (p.lopDays > 0 ? '<b style="color:#b3261e">' + p.lopDays + '</b>' : '0') + '</div>' +
+        '<div>' + money(p.gross) + '</div>' +
+        '<div>' + money(p.deductions) + '</div>' +
+        '<div>' + (p.advance > 0 ? money(p.advance) : '\u2014') + '</div>' +
+        '<div><b>' + money(p.netPay) + '</b></div></div>';
+    }).join('');
+  }
+
+  $('pr-month').addEventListener('change', loadPayroll);
+
+  $('pr-run').addEventListener('click', async function () {
+    var mm = ($('pr-month').value || istToday().slice(0, 7)).split('-');
+    $('pr-run').disabled = true;
+    prMsg('Working it out\u2026');
+    try {
+      var r = await call('/hrms/payroll/generate', {
+        method: 'POST', body: { year: mm[0], month: String(parseInt(mm[1], 10)) }
+      });
+      prMsg(r.generated + ' payslip' + (r.generated === 1 ? '' : 's') + ' calculated' +
+            (r.skipped ? ', ' + r.skipped + ' skipped for having no pay structure' : '') + '.', 'ok');
+      await loadPayroll();
+    } catch (e) { prMsg(e.message, 'err'); }
+    finally { $('pr-run').disabled = false; }
+  });
+
+  $('pr-final').addEventListener('click', async function () {
+    if (!PAYROLL || !PAYROLL.runId) return;
+    if (!confirm('Finalise ' + PAYROLL.label + '?\n\nAdvances will be recovered and staff will ' +
+                 'see their payslip. It cannot be calculated again after this.')) return;
+    $('pr-final').disabled = true;
+    try {
+      await call('/hrms/payroll/' + PAYROLL.runId + '/finalise', { method: 'POST' });
+      prMsg('Finalised. Staff can see this month in the desktop app.', 'ok');
+      await loadPayroll();
+    } catch (e) { prMsg(e.message, 'err'); }
+    finally { $('pr-final').disabled = false; }
+  });
+
+  var REPORT = null;
+
+  async function loadReport() {
+    var kind = $('rp-kind').value;
+    show($('rp-month'), kind === 'attendance');
+    $('rp-wrap').innerHTML = '<div class="empty-note">Loading\u2026</div>';
+
+    try {
+      if (kind === 'attendance') {
+        REPORT = await call('/hrms/reports/attendance?month=' + ($('rp-month').value || istToday().slice(0, 7)));
+        $('rp-label').textContent = REPORT.label;
+        $('rp-wrap').innerHTML = tableFrom(
+          ['Staff', 'Designation', 'Working', 'Present', 'Half day', 'Leave', 'Absent', 'Late', 'Hours'],
+          REPORT.rows.map(function (r) {
+            return [r.name, r.designation, r.workingDays, r.present, r.halfday,
+                    r.leave, r.absent, r.late, r.workedHours];
+          }));
+      } else {
+        REPORT = await call('/hrms/reports/leave?year=' + new Date().getFullYear());
+        $('rp-label').textContent = REPORT.year;
+        var head = ['Staff'].concat(REPORT.types).concat(['Approved', 'Waiting', 'Rejected']);
+        $('rp-wrap').innerHTML = tableFrom(head, REPORT.rows.map(function (r) {
+          var row = [r.name];
+          REPORT.types.forEach(function (t) { row.push(r['t_' + t] || 0); });
+          row.push(r.approved, r.pending, r.rejected);
+          return row;
+        }));
+      }
+    } catch (e) {
+      $('rp-wrap').innerHTML = '<div class="empty-note">' + esc(e.message) + '</div>';
+    }
+  }
+
+  function tableFrom(head, rows) {
+    if (!rows.length) return '<div class="empty-note">Nothing to report.</div>';
+    var cols = 'grid-template-columns:1.4fr repeat(' + (head.length - 1) + ',minmax(90px,1fr))';
+    return '<div class="tbl" style="min-width:720px">' +
+      '<div class="thead" style="' + cols + '">' +
+        head.map(function (h) { return '<span>' + esc(h) + '</span>'; }).join('') + '</div>' +
+      rows.map(function (r) {
+        return '<div class="hrow" style="' + cols + '">' +
+          r.map(function (c, i) {
+            return '<span>' + (i === 0 ? '<b>' + esc(c) + '</b>' : esc(c)) + '</span>';
+          }).join('') + '</div>';
+      }).join('') + '</div>';
+  }
+
+  $('rp-kind').addEventListener('change', loadReport);
+  $('rp-month').addEventListener('change', loadReport);
+
+  $('rp-csv').addEventListener('click', function () {
+    var t = $('rp-wrap').querySelector('.tbl');
+    if (!t) return;
+    var lines = [];
+    Array.prototype.forEach.call(t.children, function (row) {
+      var cells = Array.prototype.map.call(row.children, function (c) {
+        return '"' + (c.textContent || '').replace(/"/g, '""') + '"';
+      });
+      lines.push(cells.join(','));
+    });
+    var blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = $('rp-kind').value + '-' + ($('rp-label').textContent || '') + '.csv';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
 
   var LEAVE = [];
 
@@ -739,6 +1086,7 @@
 
   var PAGES = ['page-profiles','page-desktop','page-staff','page-attendance',
                'page-roles','page-roleedit','page-leave','page-holidays',
+               'page-payroll','page-documents','page-reports',
                'page-settings','page-stub'];
 
   function only(id) {
@@ -761,6 +1109,29 @@
       only('page-attendance');
       if (!$('at-date').value) $('at-date').value = istToday();
       loadAttendance();
+      return;
+    }
+
+    if (r[0] === 'payroll') {
+      markNav('payroll');
+      only('page-payroll');
+      if (!$('pr-month').value) $('pr-month').value = istToday().slice(0, 7);
+      loadPayroll();
+      return;
+    }
+
+    if (r[0] === 'documents') {
+      markNav('documents');
+      only('page-documents');
+      loadAllDocs();
+      return;
+    }
+
+    if (r[0] === 'reports') {
+      markNav('reports');
+      only('page-reports');
+      if (!$('rp-month').value) $('rp-month').value = istToday().slice(0, 7);
+      loadReport();
       return;
     }
 
@@ -920,6 +1291,9 @@
       if (urlSlug && urlSlug !== want) go(['desktop', want], true);
       staffPills(u);
       CURRENT_PROFILE = u;
+      loadEmployment(id);
+      loadSalary(id);
+      loadDocs(id);
       loadFp(u);
       fillRolePicker(u);
       $('pf-custom').checked = !!u.hasOverride;

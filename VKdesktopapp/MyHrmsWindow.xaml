@@ -241,6 +241,46 @@
                 </Grid>
             </TabItem>
 
+            <TabItem Header="Salary slips">
+                <Border Style="{StaticResource Card}" Margin="0,14,0,0" Padding="0">
+                    <DataGrid Name="gridPayslips" AutoGenerateColumns="False" IsReadOnly="True"
+                              HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                              HorizontalGridLinesBrush="#FFF0F0F2" BorderThickness="0"
+                              RowHeight="36" FontSize="13" Background="White"
+                              RowBackground="White" AlternatingRowBackground="#FFFCFCFD">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Month" Binding="{Binding Label}" Width="150" />
+                            <DataGridTextColumn Header="Paid days" Binding="{Binding PaidDays}" Width="90" />
+                            <DataGridTextColumn Header="Lost pay" Binding="{Binding LopDays}" Width="90" />
+                            <DataGridTextColumn Header="Gross" Binding="{Binding Gross}" Width="110" />
+                            <DataGridTextColumn Header="PF" Binding="{Binding Pf}" Width="90" />
+                            <DataGridTextColumn Header="ESIC" Binding="{Binding Esic}" Width="90" />
+                            <DataGridTextColumn Header="Prof. tax" Binding="{Binding Pt}" Width="90" />
+                            <DataGridTextColumn Header="Advance" Binding="{Binding Advance}" Width="100" />
+                            <DataGridTextColumn Header="Net pay" Binding="{Binding NetPay}" Width="*" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Border>
+            </TabItem>
+
+            <TabItem Header="My documents">
+                <Border Style="{StaticResource Card}" Margin="0,14,0,0" Padding="0">
+                    <DataGrid Name="gridDocs" AutoGenerateColumns="False" IsReadOnly="True"
+                              HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                              HorizontalGridLinesBrush="#FFF0F0F2" BorderThickness="0"
+                              RowHeight="36" FontSize="13.5" Background="White"
+                              RowBackground="White" AlternatingRowBackground="#FFFCFCFD"
+                              SelectionChanged="gridDocs_SelectionChanged">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Document" Binding="{Binding Title}" Width="*" />
+                            <DataGridTextColumn Header="File" Binding="{Binding FileName}" Width="240" />
+                            <DataGridTextColumn Header="Added" Binding="{Binding UploadedAt}" Width="130" />
+                            <DataGridTextColumn Header="Expires" Binding="{Binding Expires}" Width="130" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Border>
+            </TabItem>
+
             <TabItem Header="Holidays">
                 <Border Style="{StaticResource Card}" Margin="0,14,0,0" Padding="0">
                     <DataGrid Name="gridHolidays" AutoGenerateColumns="False" IsReadOnly="True"

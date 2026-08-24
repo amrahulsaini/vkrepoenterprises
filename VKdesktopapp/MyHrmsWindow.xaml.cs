@@ -47,6 +47,28 @@ public partial class MyHrmsWindow : Window
         public string Kind { get; init; } = "";
     }
 
+    public sealed class DocRow
+    {
+        public string Title { get; init; } = "";
+        public string FileName { get; init; } = "";
+        public string UploadedAt { get; init; } = "";
+        public string Expires { get; init; } = "";
+        public string Url { get; init; } = "";
+    }
+
+    public sealed class SlipRow
+    {
+        public string Label { get; init; } = "";
+        public string PaidDays { get; init; } = "";
+        public string LopDays { get; init; } = "";
+        public string Gross { get; init; } = "";
+        public string Pf { get; init; } = "";
+        public string Esic { get; init; } = "";
+        public string Pt { get; init; } = "";
+        public string Advance { get; init; } = "";
+        public string NetPay { get; init; } = "";
+    }
+
     public sealed class TypeItem
     {
         public int Id { get; init; }
@@ -64,6 +86,8 @@ public partial class MyHrmsWindow : Window
             await LoadMonthAsync();
             await LoadLeavesAsync();
             await LoadHolidaysAsync();
+            await LoadPayslipsAsync();
+            await LoadDocsAsync();
         };
     }
 
@@ -278,6 +302,61 @@ public partial class MyHrmsWindow : Window
                 Name = x.Name,
                 Kind = x.Optional ? "Optional" : "Public holiday",
             }).ToList();
+    }
+
+    private static string Money(decimal v) =>
+        "₹" + Math.Round(v, 0).ToString("#,0", CultureInfo.GetCultureInfo("en-IN"));
+
+    private async System.Threading.Tasks.Task LoadPayslipsAsync()
+    {
+        var slips = await DesktopApiClient.MyPayslipsAsync();
+        if (slips == null) return;
+        gridPayslips.ItemsSource = slips.Select(p => new SlipRow
+        {
+            Label = p.Label,
+            PaidDays = p.PaidDays.ToString("0.#"),
+            LopDays = p.LopDays > 0 ? p.LopDays.ToString("0.#") : "",
+            Gross = Money(p.Gross),
+            Pf = p.Pf > 0 ? Money(p.Pf) : "",
+            Esic = p.Esic > 0 ? Money(p.Esic) : "",
+            Pt = p.Pt > 0 ? Money(p.Pt) : "",
+            Advance = p.Advance > 0 ? Money(p.Advance) : "",
+            NetPay = Money(p.NetPay),
+        }).ToList();
+    }
+
+    private async System.Threading.Tasks.Task LoadDocsAsync()
+    {
+        var docs = await DesktopApiClient.MyDocumentsAsync();
+        if (docs == null) return;
+        gridDocs.ItemsSource = docs.Select(d => new DocRow
+        {
+            Title = d.Title,
+            FileName = d.FileName,
+            UploadedAt = d.UploadedAt,
+            Expires = string.IsNullOrWhiteSpace(d.ExpiresOn) ? "" : PrettyDate(d.ExpiresOn),
+            Url = d.Url,
+        }).ToList();
+    }
+
+    private void gridDocs_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (gridDocs.SelectedItem is not DocRow row) return;
+        gridDocs.SelectedItem = null;
+        if (string.IsNullOrWhiteSpace(row.Url)) return;
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = row.Url,
+                UseShellExecute = true,
+            });
+        }
+        catch
+        {
+            MessageBox.Show("Could not open that document.", "Documents",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
     }
 
     private async void btnPrevMonth_Click(object sender, RoutedEventArgs e)

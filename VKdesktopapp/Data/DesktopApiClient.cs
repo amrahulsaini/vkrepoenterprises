@@ -712,6 +712,22 @@ internal static class DesktopApiClient
     internal record MeHoliday(string Date, string Day, string Name, bool Optional, bool Past);
     internal record MeHolidays(int Year, MeHoliday[] Holidays);
 
+    internal record MeDoc(long Id, string Title, string Kind, string Url, string FileName,
+                          string ExpiresOn, string UploadedAt);
+
+    internal record MePayslip(string Label, decimal WorkingDays, decimal PresentDays,
+                              decimal PaidLeaveDays, decimal LopDays, decimal PaidDays,
+                              decimal Basic, decimal Hra, decimal Conveyance, decimal Medical,
+                              decimal SpecialAllowance, decimal OtherAllowance, decimal Incentive,
+                              decimal Gross, decimal Pf, decimal Esic, decimal Pt,
+                              decimal Advance, decimal Deductions, decimal NetPay);
+
+    internal static Task<MeDoc[]?> MyDocumentsAsync() =>
+        MeGet<MeDoc[]>("api/agency/me/documents");
+
+    internal static Task<MePayslip[]?> MyPayslipsAsync() =>
+        MeGet<MePayslip[]>("api/agency/me/payslips");
+
     internal static Task<MeProfile?> MyProfileAsync() =>
         MeGet<MeProfile>("api/agency/me/profile");
 

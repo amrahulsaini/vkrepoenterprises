@@ -481,10 +481,10 @@
         <button class="nav" data-page="leave"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M8 2.5v4M16 2.5v4M3 9.5h18M12 13v4M10 15h4"/></svg><span>Leave</span><span class="soon hidden" id="leave-count"></span></button>
         <button class="nav" data-page="holidays"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M8 2.5v4M16 2.5v4M3 9.5h18"/><circle cx="12" cy="15" r="2"/></svg><span>Holidays</span></button>
       <div class="grp">Finance</div>
-        <button class="nav" data-page="payroll" disabled><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5.5" width="19" height="13" rx="2"/><circle cx="12" cy="12" r="2.8"/><path d="M6 12h.01M18 12h.01"/></svg><span>Payroll</span><span class="soon">Soon</span></button>
+        <button class="nav" data-page="payroll"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5.5" width="19" height="13" rx="2"/><circle cx="12" cy="12" r="2.8"/><path d="M6 12h.01M18 12h.01"/></svg><span>Payroll</span></button>
       <div class="grp">Records</div>
-        <button class="nav" data-page="documents" disabled><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2.5H7a2 2 0 0 0-2 2v15a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7.5Z"/><path d="M14 2.5v5h5"/><path d="M9 13h6M9 17h4"/></svg><span>Documents</span><span class="soon">Soon</span></button>
-        <button class="nav" data-page="reports" disabled><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m7 15 3.5-4 3 2.5L20 7"/></svg><span>Reports</span><span class="soon">Soon</span></button>
+        <button class="nav" data-page="documents"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2.5H7a2 2 0 0 0-2 2v15a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7.5Z"/><path d="M14 2.5v5h5"/><path d="M9 13h6M9 17h4"/></svg><span>Documents</span></button>
+        <button class="nav" data-page="reports"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m7 15 3.5-4 3 2.5L20 7"/></svg><span>Reports</span></button>
       <div class="side-foot">
         <div class="grp">System</div>
           <button class="nav" data-page="settings"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-2.87 1.2V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 7 19.4a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 2.6 15a1.7 1.7 0 0 0-1.6-1H1a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 2.6 9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 7 4.6h.09A1.7 1.7 0 0 0 8 3V3a2 2 0 1 1 4 0v.09A1.7 1.7 0 0 0 15 4.6a1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9v.09a1.7 1.7 0 0 0 1.6 1.6H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1Z"/></svg><span>Settings</span></button>
@@ -649,6 +649,156 @@
               <button class="btn btn-ghost btn-xs hidden" id="fp-reset" style="width:100%;margin-top:10px;">Reset fingerprint (lost or new phone)</button>
               <div class="msg" id="fp-msg"></div>
             </div>
+          </div>
+        </div>
+
+        <div class="sec">
+          <div class="st">Employment</div>
+          <div class="panel">
+            <div class="duo">
+              <div>
+                <div class="modgrp">Date of hiring</div>
+                <input class="field" id="em-hired" type="date">
+              </div>
+              <div>
+                <div class="modgrp">Confirmed on</div>
+                <input class="field" id="em-confirmed" type="date">
+              </div>
+            </div>
+            <div class="duo" style="margin-top:12px">
+              <div>
+                <div class="modgrp">Designation</div>
+                <input class="field" id="em-desig" maxlength="120" placeholder="e.g. Field Executive">
+              </div>
+              <div>
+                <div class="modgrp">Department</div>
+                <input class="field" id="em-dept" maxlength="120" placeholder="e.g. Recovery">
+              </div>
+            </div>
+            <div class="duo" style="margin-top:12px">
+              <div>
+                <div class="modgrp">Employment type</div>
+                <select class="field" id="em-type">
+                  <option value="full_time">Full time</option>
+                  <option value="probation">Probation</option>
+                  <option value="part_time">Part time</option>
+                  <option value="contract">Contract</option>
+                </select>
+              </div>
+              <div>
+                <div class="modgrp">Date of birth</div>
+                <input class="field" id="em-dob" type="date">
+              </div>
+            </div>
+            <div class="duo" style="margin-top:12px">
+              <div>
+                <div class="modgrp">Shift starts</div>
+                <input class="field" id="em-start" type="time">
+              </div>
+              <div>
+                <div class="modgrp">Shift ends</div>
+                <input class="field" id="em-end" type="time">
+              </div>
+            </div>
+            <p class="ph" style="margin:10px 0 0">Leave the shift blank to use the agency working hours.</p>
+            <div class="duo" style="margin-top:12px">
+              <div>
+                <div class="modgrp">Emergency contact</div>
+                <input class="field" id="em-ename" maxlength="190">
+              </div>
+              <div>
+                <div class="modgrp">Emergency phone</div>
+                <input class="field" id="em-ephone" maxlength="20">
+              </div>
+            </div>
+            <div class="duo" style="margin-top:12px">
+              <div>
+                <div class="modgrp">Blood group</div>
+                <input class="field" id="em-blood" maxlength="8" placeholder="e.g. O+">
+              </div>
+              <div>
+                <div class="modgrp">Last working day (if leaving)</div>
+                <input class="field" id="em-exit" type="date">
+              </div>
+            </div>
+            <button class="btn btn-accent btn-xs" id="em-save" style="margin-top:16px">Save employment</button>
+            <div class="msg" id="em-msg"></div>
+          </div>
+        </div>
+
+        <div class="sec">
+          <div class="st">Salary</div>
+          <div class="panel">
+            <h4>Current pay structure</h4>
+            <div id="sal-current" class="callout" style="margin-top:10px"></div>
+            <hr class="split">
+            <h4>Set a new structure</h4>
+            <p class="ph">A new structure takes effect from the date you choose. Older ones are kept,
+               so payroll for a past month still uses the pay that applied then.</p>
+            <div class="duo">
+              <div>
+                <div class="modgrp">Effective from</div>
+                <input class="field" id="sal-from" type="date">
+              </div>
+              <div>
+                <div class="modgrp">Basic</div>
+                <input class="field" id="sal-basic" type="number" min="0" step="1">
+              </div>
+            </div>
+            <div class="duo" style="margin-top:12px">
+              <div><div class="modgrp">HRA</div><input class="field" id="sal-hra" type="number" min="0" step="1"></div>
+              <div><div class="modgrp">Conveyance</div><input class="field" id="sal-conv" type="number" min="0" step="1"></div>
+            </div>
+            <div class="duo" style="margin-top:12px">
+              <div><div class="modgrp">Medical</div><input class="field" id="sal-med" type="number" min="0" step="1"></div>
+              <div><div class="modgrp">Special allowance</div><input class="field" id="sal-spec" type="number" min="0" step="1"></div>
+            </div>
+            <div class="duo" style="margin-top:12px">
+              <div><div class="modgrp">Other allowance</div><input class="field" id="sal-oth" type="number" min="0" step="1"></div>
+              <div></div>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">
+              <label class="modchk" style="background:var(--paper-2)"><input type="checkbox" id="sal-pf" checked><span>PF applies</span></label>
+              <label class="modchk" style="background:var(--paper-2)"><input type="checkbox" id="sal-esic" checked><span>ESIC applies</span></label>
+              <label class="modchk" style="background:var(--paper-2)"><input type="checkbox" id="sal-pt" checked><span>Professional tax applies</span></label>
+            </div>
+            <button class="btn btn-accent btn-xs" id="sal-save" style="margin-top:16px">Save structure</button>
+            <div class="msg" id="sal-msg"></div>
+
+            <hr class="split">
+            <h4>Advance</h4>
+            <div id="sal-adv"></div>
+            <div class="duo" style="margin-top:12px">
+              <div><div class="modgrp">Amount</div><input class="field" id="adv-amt" type="number" min="0" step="1"></div>
+              <div><div class="modgrp">Recover per month</div><input class="field" id="adv-per" type="number" min="0" step="1"></div>
+            </div>
+            <div class="modgrp" style="margin-top:12px">Reason</div>
+            <input class="field" id="adv-reason" maxlength="400">
+            <button class="btn btn-ghost btn-xs" id="adv-save" style="margin-top:12px">Give advance</button>
+            <div class="msg" id="adv-msg"></div>
+          </div>
+        </div>
+
+        <div class="sec">
+          <div class="st">Documents</div>
+          <div class="panel">
+            <div id="doc-rows"></div>
+            <hr class="split">
+            <div class="duo">
+              <div>
+                <div class="modgrp">Title</div>
+                <input class="field" id="doc-title" maxlength="190" placeholder="e.g. Offer letter">
+              </div>
+              <div>
+                <div class="modgrp">Expires on (optional)</div>
+                <input class="field" id="doc-expires" type="date">
+              </div>
+            </div>
+            <div class="modgrp" style="margin-top:12px">File (PDF, image, Word or Excel, up to 15 MB)</div>
+            <input class="field" id="doc-file" type="file"
+                   accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.xls,.xlsx">
+            <button class="btn btn-accent btn-xs" id="doc-upload" style="margin-top:14px">Upload document</button>
+            <div class="msg" id="doc-msg"></div>
           </div>
         </div>
 
@@ -937,6 +1087,61 @@
         </div>
       </div>
 
+      <div id="page-payroll" class="hidden">
+        <div class="head">
+          <div>
+            <h1 class="t">Payroll</h1>
+            <p class="s">Pay is worked out from attendance, approved leave, holidays and each
+               person&rsquo;s salary structure.</p>
+          </div>
+        </div>
+        <div class="toolbar">
+          <input class="field" id="pr-month" type="month" style="max-width:180px">
+          <button class="btn btn-accent btn-xs" id="pr-run">Calculate</button>
+          <button class="btn btn-ghost btn-xs hidden" id="pr-final">Finalise month</button>
+          <span class="count" id="pr-state"></span>
+        </div>
+        <div class="stat" id="pr-totals"></div>
+        <div class="tbl">
+          <div class="thead" style="grid-template-columns:1.3fr 90px 90px 90px 110px 110px 110px 120px"><span>Staff</span><span>Working</span><span>Present</span><span>LOP</span><span>Gross</span><span>Deductions</span><span>Advance</span><span>Net pay</span></div>
+          <div id="pr-rows"></div>
+        </div>
+        <div class="msg" id="pr-msg"></div>
+      </div>
+
+      <div id="page-documents" class="hidden">
+        <div class="head">
+          <div>
+            <h1 class="t">Documents</h1>
+            <p class="s">Files kept against each staff member. Open somebody from Desktop profiles
+               to add or remove theirs.</p>
+          </div>
+        </div>
+        <div class="tbl">
+          <div class="thead" style="grid-template-columns:1.4fr 1fr 130px 130px"><span>Staff</span><span>Document</span><span>Expires</span><span></span></div>
+          <div id="ad-rows"></div>
+        </div>
+      </div>
+
+      <div id="page-reports" class="hidden">
+        <div class="head">
+          <div>
+            <h1 class="t">Reports</h1>
+            <p class="s">Attendance by month and leave by year, across everyone.</p>
+          </div>
+        </div>
+        <div class="toolbar">
+          <select class="field" id="rp-kind" style="max-width:220px">
+            <option value="attendance">Attendance by month</option>
+            <option value="leave">Leave by year</option>
+          </select>
+          <input class="field" id="rp-month" type="month" style="max-width:180px">
+          <button class="btn btn-ghost btn-xs" id="rp-csv">Download CSV</button>
+          <span class="count" id="rp-label"></span>
+        </div>
+        <div id="rp-wrap" style="overflow-x:auto"></div>
+      </div>
+
       <div id="page-stub" class="hidden">
         <div class="head">
           <div>
@@ -975,6 +1180,6 @@
 </aside>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="/js/hrms.js?v=24"></script>
+<script src="/js/hrms.js?v=25"></script>
 </body>
 </html>
