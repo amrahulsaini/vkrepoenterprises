@@ -108,6 +108,21 @@ CREATE TABLE IF NOT EXISTS attendance (
   CONSTRAINT fk_att_user FOREIGN KEY (user_id) REFERENCES app_users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+-- Every desktop sign-in. The first of a day marks the person present in
+-- `attendance` with source='login', so turning up is recorded by turning up
+-- rather than by somebody pressing a button. See dbschema/desktop_logins.sql.
+CREATE TABLE IF NOT EXISTS desktop_logins (
+  id           BIGINT AUTO_INCREMENT PRIMARY KEY,
+  user_id      BIGINT       NOT NULL,
+  at           DATETIME     NOT NULL,
+  work_date    DATE         NOT NULL,
+  method       ENUM('password','fingerprint') NOT NULL DEFAULT 'password',
+  device_label VARCHAR(160) NOT NULL DEFAULT '',
+  INDEX idx_dl_user_day (user_id, work_date),
+  INDEX idx_dl_day (work_date),
+  CONSTRAINT fk_dl_user FOREIGN KEY (user_id) REFERENCES app_users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
 CREATE TABLE IF NOT EXISTS roles (
   id            INT AUTO_INCREMENT PRIMARY KEY,
   name          VARCHAR(80)  NOT NULL,
