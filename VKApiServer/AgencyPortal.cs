@@ -738,6 +738,949 @@ internal static class AgencyPortal
             });
         });
 
+        app.MapGet("/api/agency/hrms/profiles/{id:long}/employment", async (HttpContext ctx, long id) =>
+        {
+            var slug = await HrmsSessionSlug(masterConn, ctx);
+            if (slug is null) return Results.Json(new { message = "Session expired." }, statusCode: 401);
+
+            await using var conn = new MySqlConnection(TenantContext.BuildTenantConn(mysqlHost, mysqlPort, slug));
+            await conn.OpenAsync();
+            await EnsureEmploymentRow(conn, id);
+
+            await using var cmd = new MySqlCommand(
+                "SELECT hired_on, confirmed_on, exit_on, designation, department, employment_type, " +
+                "COALESCE(reports_to,0), shift_start, shift_end, COALESCE(weekly_offs,''), " +
+                "emergency_name, emergency_phone, blood_group, date_of_birth " +
+                "FROM hrms_employment WHERE user_id=@u LIMIT 1;", conn);
+            cmd.Parameters.AddWithValue("@u", id);
+            await using var r = await cmd.ExecuteReaderAsync();
+            if (!await r.ReadAsync()) return Results.NotFound(new { message = "Not found." });
+
+            string? D(int i) => r.IsDBNull(i) ? null : r.GetDateTime(i).ToString("yyyy-MM-dd");
+            string T(int i) => r.IsDBNull(i) ? "" : r.GetTimeSpan(i).ToString(@"hh\:mm");
+
+            return Results.Ok(new
+            {
+                hiredOn = D(0), confirmedOn = D(1), exitOn = D(2),
+                designation = r.GetString(3), department = r.GetString(4),
+                employmentType = r.GetString(5), reportsTo = r.GetInt64(6),
+                shiftStart = T(7), shiftEnd = T(8), weeklyOffs = r.GetString(9),
+                emergencyName = r.GetString(10), emergencyPhone = r.GetString(11),
+                bloodGroup = r.GetString(12), dateOfBirth = D(13),
+            });
+        });
+
+        app.MapPut("/api/agency/hrms/profiles/{id:long}/employment", async (HttpContext ctx, long id, HttpRequest req) =>
+        {
+            var slug = await HrmsSessionSlug(masterConn, ctx);
+            if (slug is null) return Results.Json(new { message = "Session expired." }, statusCode: 401);
+
+            var dto = await ReadJsonAsync(req);
+            string type = (dto.GetValueOrDefault("employmentType") ?? "full_time").Trim();
+            if (type is not ("full_time" or "part_time" or "contract" or "probation")) type = "full_time";
+
+            object Dt(string k)
+            {
+                var v = ParseIstDate(dto.GetValueOrDefault(k));
+                return v.HasValue ? v.Value : (object)DBNull.Value;
+            }
+            object Tm(string k)
+            {
+                var raw = (dto.GetValueOrDefault(k) ?? "").Trim();
+                return TimeSpan.TryParse(raw, out var t) ? t : (object)DBNull.Value;
+            }
+            string Str(string k, int max)
+            {
+                var v = (dto.GetValueOrDefault(k) ?? "").Trim();
+                return v.Length > max ? v.Substring(0, max) : v;
+            }
+
+            var offs = new List<int>();
+            foreach (var part in (dto.GetValueOrDefault("weeklyOffs") ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries))
+                if (int.TryParse(part.Trim(), out int wd) && wd >= 0 && wd <= 6 && !offs.Contains(wd)) offs.Add(wd);
+            long.TryParse(dto.GetValueOrDefault("reportsTo") ?? "0", out long boss);
+
+            await using var conn = new MySqlConnection(TenantContext.BuildTenantConn(mysqlHost, mysqlPort, slug));
+            await conn.OpenAsync();
+            await EnsureEmploymentRow(conn, id);
+
+            await using var cmd = new MySqlCommand(@"
+                UPDATE hrms_employment SET
+                    hired_on=@h, confirmed_on=@c, exit_on=@x, designation=@dg, department=@dp,
+                    employment_type=@et, reports_to=@rt, shift_start=@ss, shift_end=@se,
+                    weekly_offs=@wo, emergency_name=@en, emergency_phone=@ep,
+                    blood_group=@bg, date_of_birth=@db
+                 WHERE user_id=@u;", conn);
+            cmd.Parameters.AddWithValue("@h", Dt("hiredOn"));
+            cmd.Parameters.AddWithValue("@c", Dt("confirmedOn"));
+            cmd.Parameters.AddWithValue("@x", Dt("exitOn"));
+            cmd.Parameters.AddWithValue("@dg", Str("designation", 120));
+            cmd.Parameters.AddWithValue("@dp", Str("department", 120));
+            cmd.Parameters.AddWithValue("@et", type);
+            cmd.Parameters.AddWithValue("@rt", boss > 0 ? boss : (object)DBNull.Value);
+            cmd.Parameters.AddWithValue("@ss", Tm("shiftStart"));
+            cmd.Parameters.AddWithValue("@se", Tm("shiftEnd"));
+            cmd.Parameters.AddWithValue("@wo", offs.Count > 0 ? string.Join(",", offs) : (object)DBNull.Value);
+            cmd.Parameters.AddWithValue("@en", Str("emergencyName", 190));
+            cmd.Parameters.AddWithValue("@ep", Str("emergencyPhone", 20));
+            cmd.Parameters.AddWithValue("@bg", Str("bloodGroup", 8));
+            cmd.Parameters.AddWithValue("@db", Dt("dateOfBirth"));
+            cmd.Parameters.AddWithValue("@u", id);
+            await cmd.ExecuteNonQueryAsync();
+            return Results.Ok(new { ok = true });
+        });
+
+        app.MapGet("/api/agency/hrms/profiles/{id:long}/documents", async (HttpContext ctx, long id) =>
+        {
+            var slug = await HrmsSessionSlug(masterConn, ctx);
+            if (slug is null) return Results.Json(new { message = "Session expired." }, statusCode: 401);
+
+            await using var conn = new MySqlConnection(TenantContext.BuildTenantConn(mysqlHost, mysqlPort, slug));
+            await conn.OpenAsync();
+            await using var cmd = new MySqlCommand(
+                "SELECT id, title, kind, file_path, file_name, size_bytes, expires_on, uploaded_at, uploaded_by " +
+                "FROM hrms_documents WHERE user_id=@u ORDER BY uploaded_at DESC;", conn);
+            cmd.Parameters.AddWithValue("@u", id);
+            var list = new List<object>();
+            await using var r = await cmd.ExecuteReaderAsync();
+            while (await r.ReadAsync())
+            {
+                var exp = r.IsDBNull(6) ? (DateTime?)null : r.GetDateTime(6);
+                list.Add(new
+                {
+                    id = r.GetInt64(0), title = r.GetString(1), kind = r.GetString(2),
+                    url = $"https://api.crmrecoverysoftware.com/agency-uploads/{r.GetString(3).TrimStart('/')}",
+                    fileName = r.GetString(4), sizeBytes = r.GetInt64(5),
+                    expiresOn = exp?.ToString("yyyy-MM-dd"),
+                    expired = exp.HasValue && exp.Value.Date < IstToday(),
+                    uploadedAt = r.GetDateTime(7).ToString("dd MMM yyyy"),
+                    uploadedBy = r.GetString(8),
+                });
+            }
+            return Results.Ok(list);
+        });
+
+        app.MapPost("/api/agency/hrms/profiles/{id:long}/documents", async (HttpContext ctx, long id, HttpRequest req) =>
+        {
+            var slug = await HrmsSessionSlug(masterConn, ctx);
+            if (slug is null) return Results.Json(new { message = "Session expired." }, statusCode: 401);
+            if (!req.HasFormContentType)
+                return Results.BadRequest(new { message = "Attach a file." });
+
+            var form = await req.ReadFormAsync();
+            var file = form.Files.Count > 0 ? form.Files[0] : null;
+            if (file is null || file.Length == 0)
+                return Results.BadRequest(new { message = "Attach a file." });
+            if (file.Length > 15 * 1024 * 1024)
+                return Results.BadRequest(new { message = "That file is larger than 15 MB." });
+
+            string title = (form["title"].ToString() ?? "").Trim();
+            if (title.Length < 2) title = Path.GetFileNameWithoutExtension(file.FileName);
+            if (title.Length > 190) title = title.Substring(0, 190);
+            string kind = (form["kind"].ToString() ?? "other").Trim().ToLowerInvariant();
+            if (kind.Length == 0 || kind.Length > 40) kind = "other";
+
+            var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+            if (ext.Length > 8 || ext.Length == 0) ext = ".bin";
+            if (ext is not (".pdf" or ".jpg" or ".jpeg" or ".png" or ".webp" or ".doc" or ".docx" or ".xls" or ".xlsx"))
+                return Results.BadRequest(new { message = "Only PDF, image, Word or Excel files." });
+
+            var relDir = Path.Combine("hrms-docs", slug);
+            var absDir = Path.Combine(LOGO_DIR, relDir);
+            Directory.CreateDirectory(absDir);
+            var fname = $"{id}-{Guid.NewGuid():N}{ext}";
+            await using (var fs = File.Create(Path.Combine(absDir, fname)))
+                await file.CopyToAsync(fs);
+
+            DateTime? expires = ParseIstDate(form["expiresOn"].ToString());
+
+            await using var conn = new MySqlConnection(TenantContext.BuildTenantConn(mysqlHost, mysqlPort, slug));
+            await conn.OpenAsync();
+            await using var cmd = new MySqlCommand(
+                "INSERT INTO hrms_documents (user_id, title, kind, file_path, file_name, size_bytes, expires_on, uploaded_at, uploaded_by) " +
+                "VALUES (@u, @t, @k, @p, @n, @s, @e, @a, 'HRMS');", conn);
+            cmd.Parameters.AddWithValue("@u", id);
+            cmd.Parameters.AddWithValue("@t", title);
+            cmd.Parameters.AddWithValue("@k", kind);
+            cmd.Parameters.AddWithValue("@p", (relDir + "/" + fname).Replace('\\', '/'));
+            cmd.Parameters.AddWithValue("@n", file.FileName.Length > 190 ? file.FileName.Substring(0, 190) : file.FileName);
+            cmd.Parameters.AddWithValue("@s", file.Length);
+            cmd.Parameters.AddWithValue("@e", expires.HasValue ? expires.Value : (object)DBNull.Value);
+            cmd.Parameters.AddWithValue("@a", IstNow());
+            await cmd.ExecuteNonQueryAsync();
+            return Results.Ok(new { ok = true });
+        });
+
+        app.MapDelete("/api/agency/hrms/documents/{docId:long}", async (HttpContext ctx, long docId) =>
+        {
+            var slug = await HrmsSessionSlug(masterConn, ctx);
+            if (slug is null) return Results.Json(new { message = "Session expired." }, statusCode: 401);
+
+            await using var conn = new MySqlConnection(TenantContext.BuildTenantConn(mysqlHost, mysqlPort, slug));
+            await conn.OpenAsync();
+
+            string rel = "";
+            await using (var find = new MySqlCommand("SELECT file_path FROM hrms_documents WHERE id=@i LIMIT 1;", conn))
+            {
+                find.Parameters.AddWithValue("@i", docId);
+                if (await find.ExecuteScalarAsync() is string fp) rel = fp;
+            }
+            await using (var del = new MySqlCommand("DELETE FROM hrms_documents WHERE id=@i;", conn))
+            {
+                del.Parameters.AddWithValue("@i", docId);
+                await del.ExecuteNonQueryAsync();
+            }
+            if (rel.Length > 0)
+            {
+                try { File.Delete(Path.Combine(LOGO_DIR, rel.Replace('/', Path.DirectorySeparatorChar))); }
+                catch { }
+            }
+            return Results.Ok(new { ok = true });
+        });
+
+        app.MapGet("/api/agency/me/documents", async (HttpContext ctx) =>
+        {
+            var me = MeFromToken(ctx);
+            if (me is not { } who) return Results.Json(new { message = "Sign in again." }, statusCode: 401);
+
+            await using var conn = new MySqlConnection(TenantContext.BuildTenantConn(mysqlHost, mysqlPort, who.slug));
+            await conn.OpenAsync();
+            await using var cmd = new MySqlCommand(
+                "SELECT id, title, kind, file_path, file_name, expires_on, uploaded_at " +
+                "FROM hrms_documents WHERE user_id=@u ORDER BY uploaded_at DESC;", conn);
+            cmd.Parameters.AddWithValue("@u", who.userId);
+            var list = new List<object>();
+            await using var r = await cmd.ExecuteReaderAsync();
+            while (await r.ReadAsync())
+                list.Add(new
+                {
+                    id = r.GetInt64(0), title = r.GetString(1), kind = r.GetString(2),
+                    url = $"https://api.crmrecoverysoftware.com/agency-uploads/{r.GetString(3).TrimStart('/')}",
+                    fileName = r.GetString(4),
+                    expiresOn = r.IsDBNull(5) ? "" : r.GetDateTime(5).ToString("yyyy-MM-dd"),
+                    uploadedAt = r.GetDateTime(6).ToString("dd MMM yyyy"),
+                });
+            return Results.Ok(list);
+        });
+
+        app.MapGet("/api/agency/hrms/profiles/{id:long}/salary", async (HttpContext ctx, long id) =>
+        {
+            var slug = await HrmsSessionSlug(masterConn, ctx);
+            if (slug is null) return Results.Json(new { message = "Session expired." }, statusCode: 401);
+
+            await using var conn = new MySqlConnection(TenantContext.BuildTenantConn(mysqlHost, mysqlPort, slug));
+            await conn.OpenAsync();
+
+            var history = new List<object>();
+            await using (var cmd = new MySqlCommand(
+                "SELECT id, effective_from, basic, hra, conveyance, medical, special_allowance, " +
+                "other_allowance, pf_applicable, esic_applicable, pt_applicable " +
+                "FROM hrms_salary_structure WHERE user_id=@u ORDER BY effective_from DESC;", conn))
+            {
+                cmd.Parameters.AddWithValue("@u", id);
+                await using var r = await cmd.ExecuteReaderAsync();
+                while (await r.ReadAsync())
+                {
+                    decimal b = r.GetDecimal(2), h = r.GetDecimal(3), c = r.GetDecimal(4),
+                            m = r.GetDecimal(5), sp = r.GetDecimal(6), o = r.GetDecimal(7);
+                    history.Add(new
+                    {
+                        id = r.GetInt64(0),
+                        effectiveFrom = r.GetDateTime(1).ToString("yyyy-MM-dd"),
+                        basic = b, hra = h, conveyance = c, medical = m,
+                        specialAllowance = sp, otherAllowance = o,
+                        gross = b + h + c + m + sp + o,
+                        pf = r.GetInt32(8) == 1, esic = r.GetInt32(9) == 1, pt = r.GetInt32(10) == 1,
+                    });
+                }
+            }
+
+            var advances = new List<object>();
+            await using (var cmd = new MySqlCommand(
+                "SELECT id, amount, recovered, per_month, given_on, reason, status " +
+                "FROM hrms_advances WHERE user_id=@u ORDER BY given_on DESC;", conn))
+            {
+                cmd.Parameters.AddWithValue("@u", id);
+                await using var r = await cmd.ExecuteReaderAsync();
+                while (await r.ReadAsync())
+                    advances.Add(new
+                    {
+                        id = r.GetInt64(0), amount = r.GetDecimal(1), recovered = r.GetDecimal(2),
+                        outstanding = r.GetDecimal(1) - r.GetDecimal(2),
+                        perMonth = r.GetDecimal(3),
+                        givenOn = r.GetDateTime(4).ToString("yyyy-MM-dd"),
+                        reason = r.GetString(5), status = r.GetString(6),
+                    });
+            }
+
+            return Results.Ok(new { history, advances });
+        });
+
+        app.MapPost("/api/agency/hrms/profiles/{id:long}/salary", async (HttpContext ctx, long id, HttpRequest req) =>
+        {
+            var slug = await HrmsSessionSlug(masterConn, ctx);
+            if (slug is null) return Results.Json(new { message = "Session expired." }, statusCode: 401);
+
+            var dto = await ReadJsonAsync(req);
+            var from = ParseIstDate(dto.GetValueOrDefault("effectiveFrom"));
+            if (from is null) return Results.BadRequest(new { message = "Choose when this pay starts." });
+
+            decimal N(string k)
+            {
+                decimal.TryParse(dto.GetValueOrDefault(k) ?? "0",
+                    System.Globalization.NumberStyles.Any,
+                    System.Globalization.CultureInfo.InvariantCulture, out var v);
+                return v < 0 ? 0 : Math.Round(v, 2);
+            }
+            bool B(string k) => (dto.GetValueOrDefault(k) ?? "") != "false";
+
+            decimal basic = N("basic");
+            if (basic <= 0) return Results.BadRequest(new { message = "Basic pay must be more than zero." });
+
+            await using var conn = new MySqlConnection(TenantContext.BuildTenantConn(mysqlHost, mysqlPort, slug));
+            await conn.OpenAsync();
+            await using var cmd = new MySqlCommand(@"
+                INSERT INTO hrms_salary_structure
+                    (user_id, effective_from, basic, hra, conveyance, medical, special_allowance,
+                     other_allowance, pf_applicable, esic_applicable, pt_applicable, created_by)
+                VALUES (@u, @f, @b, @h, @c, @m, @s, @o, @pf, @es, @pt, 'HRMS')
+                ON DUPLICATE KEY UPDATE basic=VALUES(basic), hra=VALUES(hra),
+                    conveyance=VALUES(conveyance), medical=VALUES(medical),
+                    special_allowance=VALUES(special_allowance), other_allowance=VALUES(other_allowance),
+                    pf_applicable=VALUES(pf_applicable), esic_applicable=VALUES(esic_applicable),
+                    pt_applicable=VALUES(pt_applicable);", conn);
+            cmd.Parameters.AddWithValue("@u", id);
+            cmd.Parameters.AddWithValue("@f", from.Value);
+            cmd.Parameters.AddWithValue("@b", basic);
+            cmd.Parameters.AddWithValue("@h", N("hra"));
+            cmd.Parameters.AddWithValue("@c", N("conveyance"));
+            cmd.Parameters.AddWithValue("@m", N("medical"));
+            cmd.Parameters.AddWithValue("@s", N("specialAllowance"));
+            cmd.Parameters.AddWithValue("@o", N("otherAllowance"));
+            cmd.Parameters.AddWithValue("@pf", B("pf") ? 1 : 0);
+            cmd.Parameters.AddWithValue("@es", B("esic") ? 1 : 0);
+            cmd.Parameters.AddWithValue("@pt", B("pt") ? 1 : 0);
+            await cmd.ExecuteNonQueryAsync();
+            return Results.Ok(new { ok = true });
+        });
+
+        app.MapPost("/api/agency/hrms/profiles/{id:long}/advances", async (HttpContext ctx, long id, HttpRequest req) =>
+        {
+            var slug = await HrmsSessionSlug(masterConn, ctx);
+            if (slug is null) return Results.Json(new { message = "Session expired." }, statusCode: 401);
+
+            var dto = await ReadJsonAsync(req);
+            decimal.TryParse(dto.GetValueOrDefault("amount") ?? "0",
+                System.Globalization.NumberStyles.Any,
+                System.Globalization.CultureInfo.InvariantCulture, out decimal amount);
+            decimal.TryParse(dto.GetValueOrDefault("perMonth") ?? "0",
+                System.Globalization.NumberStyles.Any,
+                System.Globalization.CultureInfo.InvariantCulture, out decimal per);
+            if (amount <= 0) return Results.BadRequest(new { message = "Enter the advance amount." });
+            if (per <= 0) per = amount;
+
+            var given = ParseIstDate(dto.GetValueOrDefault("givenOn")) ?? IstToday();
+            string reason = (dto.GetValueOrDefault("reason") ?? "").Trim();
+            if (reason.Length > 400) reason = reason.Substring(0, 400);
+
+            await using var conn = new MySqlConnection(TenantContext.BuildTenantConn(mysqlHost, mysqlPort, slug));
+            await conn.OpenAsync();
+            await using var cmd = new MySqlCommand(
+                "INSERT INTO hrms_advances (user_id, amount, per_month, given_on, reason, created_by) " +
+                "VALUES (@u, @a, @p, @g, @r, 'HRMS');", conn);
+            cmd.Parameters.AddWithValue("@u", id);
+            cmd.Parameters.AddWithValue("@a", Math.Round(amount, 2));
+            cmd.Parameters.AddWithValue("@p", Math.Round(per, 2));
+            cmd.Parameters.AddWithValue("@g", given);
+            cmd.Parameters.AddWithValue("@r", reason);
+            await cmd.ExecuteNonQueryAsync();
+            return Results.Ok(new { ok = true });
+        });
+
+        app.MapPost("/api/agency/hrms/profiles/{id:long}/incentive", async (HttpContext ctx, long id, HttpRequest req) =>
+        {
+            var slug = await HrmsSessionSlug(masterConn, ctx);
+            if (slug is null) return Results.Json(new { message = "Session expired." }, statusCode: 401);
+
+            var dto = await ReadJsonAsync(req);
+            if (!int.TryParse(dto.GetValueOrDefault("year"), out int year) ||
+                !int.TryParse(dto.GetValueOrDefault("month"), out int month) ||
+                month < 1 || month > 12)
+                return Results.BadRequest(new { message = "Pick the month." });
+            decimal.TryParse(dto.GetValueOrDefault("amount") ?? "0",
+                System.Globalization.NumberStyles.Any,
+                System.Globalization.CultureInfo.InvariantCulture, out decimal amount);
+            string note = (dto.GetValueOrDefault("note") ?? "").Trim();
+            if (note.Length > 400) note = note.Substring(0, 400);
+
+            await using var conn = new MySqlConnection(TenantContext.BuildTenantConn(mysqlHost, mysqlPort, slug));
+            await conn.OpenAsync();
+            await using var cmd = new MySqlCommand(
+                "INSERT INTO hrms_incentives (user_id, year, month, amount, note, added_by) " +
+                "VALUES (@u, @y, @m, @a, @n, 'HRMS') " +
+                "ON DUPLICATE KEY UPDATE amount=VALUES(amount), note=VALUES(note);", conn);
+            cmd.Parameters.AddWithValue("@u", id);
+            cmd.Parameters.AddWithValue("@y", year);
+            cmd.Parameters.AddWithValue("@m", month);
+            cmd.Parameters.AddWithValue("@a", Math.Round(amount, 2));
+            cmd.Parameters.AddWithValue("@n", note);
+            await cmd.ExecuteNonQueryAsync();
+            return Results.Ok(new { ok = true });
+        });
+
+        app.MapGet("/api/agency/hrms/payroll", async (HttpContext ctx, int? year, int? month) =>
+        {
+            var slug = await HrmsSessionSlug(masterConn, ctx);
+            if (slug is null) return Results.Json(new { message = "Session expired." }, statusCode: 401);
+
+            int y = year ?? IstToday().Year, m = month ?? IstToday().Month;
+            await using var conn = new MySqlConnection(TenantContext.BuildTenantConn(mysqlHost, mysqlPort, slug));
+            await conn.OpenAsync();
+
+            long runId = 0; string status = "none", genAt = "";
+            await using (var cmd = new MySqlCommand(
+                "SELECT id, status, generated_at FROM hrms_payroll_runs WHERE year=@y AND month=@m LIMIT 1;", conn))
+            {
+                cmd.Parameters.AddWithValue("@y", y);
+                cmd.Parameters.AddWithValue("@m", m);
+                await using var r = await cmd.ExecuteReaderAsync();
+                if (await r.ReadAsync())
+                {
+                    runId = r.GetInt64(0); status = r.GetString(1);
+                    genAt = r.GetDateTime(2).ToString("dd MMM yyyy, HH:mm");
+                }
+            }
+
+            var slips = new List<object>();
+            decimal totGross = 0, totNet = 0, totDed = 0;
+            if (runId > 0)
+            {
+                await using var cmd = new MySqlCommand(@"
+                    SELECT p.id, p.user_id, COALESCE(u.name,''), COALESCE(u.mobile,''),
+                           p.working_days, p.present_days, p.paid_leave_days, p.lop_days, p.paid_days,
+                           p.gross, p.pf_employee, p.esic_employee, p.professional_tax,
+                           p.advance_recovered, p.incentive, p.total_deduction, p.net_pay
+                      FROM hrms_payslips p JOIN app_users u ON u.id = p.user_id
+                     WHERE p.run_id=@r ORDER BY COALESCE(u.name,'');", conn);
+                cmd.Parameters.AddWithValue("@r", runId);
+                await using var r = await cmd.ExecuteReaderAsync();
+                while (await r.ReadAsync())
+                {
+                    totGross += r.GetDecimal(9); totDed += r.GetDecimal(15); totNet += r.GetDecimal(16);
+                    slips.Add(new
+                    {
+                        id = r.GetInt64(0), userId = r.GetInt64(1),
+                        name = r.GetString(2), mobile = r.GetString(3),
+                        workingDays = r.GetDecimal(4), presentDays = r.GetDecimal(5),
+                        paidLeaveDays = r.GetDecimal(6), lopDays = r.GetDecimal(7),
+                        paidDays = r.GetDecimal(8), gross = r.GetDecimal(9),
+                        pf = r.GetDecimal(10), esic = r.GetDecimal(11), pt = r.GetDecimal(12),
+                        advance = r.GetDecimal(13), incentive = r.GetDecimal(14),
+                        deductions = r.GetDecimal(15), netPay = r.GetDecimal(16),
+                    });
+                }
+            }
+
+            return Results.Ok(new
+            {
+                year = y, month = m,
+                label = new DateTime(y, m, 1).ToString("MMMM yyyy"),
+                runId, status, generatedAt = genAt, slips,
+                totals = new { gross = totGross, deductions = totDed, net = totNet, staff = slips.Count },
+            });
+        });
+
+        app.MapPost("/api/agency/hrms/payroll/generate", async (HttpContext ctx, HttpRequest req) =>
+        {
+            var slug = await HrmsSessionSlug(masterConn, ctx);
+            if (slug is null) return Results.Json(new { message = "Session expired." }, statusCode: 401);
+
+            var dto = await ReadJsonAsync(req);
+            if (!int.TryParse(dto.GetValueOrDefault("year"), out int y) ||
+                !int.TryParse(dto.GetValueOrDefault("month"), out int m) || m < 1 || m > 12)
+                return Results.BadRequest(new { message = "Pick the month." });
+
+            var first = new DateTime(y, m, 1);
+            var last = first.AddMonths(1).AddDays(-1);
+            if (first > IstToday()) return Results.BadRequest(new { message = "That month has not started." });
+
+            await using var conn = new MySqlConnection(TenantContext.BuildTenantConn(mysqlHost, mysqlPort, slug));
+            await conn.OpenAsync();
+
+            await using (var chk = new MySqlCommand(
+                "SELECT status FROM hrms_payroll_runs WHERE year=@y AND month=@m LIMIT 1;", conn))
+            {
+                chk.Parameters.AddWithValue("@y", y);
+                chk.Parameters.AddWithValue("@m", m);
+                if (await chk.ExecuteScalarAsync() is string st && st == "finalised")
+                    return Results.BadRequest(new { message = "That month is finalised and cannot be run again." });
+            }
+
+            string defOffs = "0";
+            decimal pfEmpPct = 12m, pfErPct = 13m, esicEmpPct = 0.75m, esicErPct = 3.25m, ptAmt = 200m;
+            int pfCeil = 15000, esicCeil = 21000;
+            bool pfLimit = true, ptOn = true;
+            await using (var cmd = new MySqlCommand(
+                "SELECT weekly_offs, pf_employee_pct, pf_employer_pct, pf_wage_ceiling, pf_limit_to_ceiling, " +
+                "esic_employee_pct, esic_employer_pct, esic_wage_ceiling, pt_amount, pt_enabled " +
+                "FROM hrms_settings WHERE id=1 LIMIT 1;", conn))
+            {
+                await using var r = await cmd.ExecuteReaderAsync();
+                if (await r.ReadAsync())
+                {
+                    defOffs = r.GetString(0);
+                    pfEmpPct = r.GetDecimal(1); pfErPct = r.GetDecimal(2);
+                    pfCeil = r.GetInt32(3); pfLimit = r.GetInt32(4) == 1;
+                    esicEmpPct = r.GetDecimal(5); esicErPct = r.GetDecimal(6);
+                    esicCeil = r.GetInt32(7); ptAmt = r.GetDecimal(8); ptOn = r.GetInt32(9) == 1;
+                }
+            }
+
+            var holidays = new HashSet<DateTime>();
+            await using (var cmd = new MySqlCommand(
+                "SELECT holiday_date FROM hrms_holidays WHERE holiday_date BETWEEN @a AND @b;", conn))
+            {
+                cmd.Parameters.AddWithValue("@a", first);
+                cmd.Parameters.AddWithValue("@b", last);
+                await using var r = await cmd.ExecuteReaderAsync();
+                while (await r.ReadAsync()) holidays.Add(r.GetDateTime(0).Date);
+            }
+
+            long runId;
+            await using (var cmd = new MySqlCommand(
+                "INSERT INTO hrms_payroll_runs (year, month, status, generated_at, generated_by) " +
+                "VALUES (@y, @m, 'draft', @t, 'HRMS') " +
+                "ON DUPLICATE KEY UPDATE status='draft', generated_at=VALUES(generated_at); " +
+                "SELECT id FROM hrms_payroll_runs WHERE year=@y AND month=@m LIMIT 1;", conn))
+            {
+                cmd.Parameters.AddWithValue("@y", y);
+                cmd.Parameters.AddWithValue("@m", m);
+                cmd.Parameters.AddWithValue("@t", IstNow());
+                runId = Convert.ToInt64(await cmd.ExecuteScalarAsync());
+            }
+
+            await using (var wipe = new MySqlCommand("DELETE FROM hrms_payslips WHERE run_id=@r;", conn))
+            {
+                wipe.Parameters.AddWithValue("@r", runId);
+                await wipe.ExecuteNonQueryAsync();
+            }
+
+            var staff = new List<(long id, string offs)>();
+            await using (var cmd = new MySqlCommand(
+                "SELECT u.id, COALESCE(e.weekly_offs,'') FROM app_users u " +
+                "LEFT JOIN hrms_employment e ON e.user_id=u.id " +
+                "WHERE COALESCE(u.is_blacklisted,0)=0 AND (e.exit_on IS NULL OR e.exit_on >= @a);", conn))
+            {
+                cmd.Parameters.AddWithValue("@a", first);
+                await using var r = await cmd.ExecuteReaderAsync();
+                while (await r.ReadAsync()) staff.Add((r.GetInt64(0), r.GetString(1)));
+            }
+
+            int made = 0, skipped = 0;
+            foreach (var (uid, ownOffs) in staff)
+            {
+                decimal basic = 0, hra = 0, conv = 0, med = 0, spec = 0, oth = 0;
+                bool pfOn = true, esicOn = true, ptApplies = true;
+                bool hasStructure = false;
+                await using (var cmd = new MySqlCommand(
+                    "SELECT basic, hra, conveyance, medical, special_allowance, other_allowance, " +
+                    "pf_applicable, esic_applicable, pt_applicable FROM hrms_salary_structure " +
+                    "WHERE user_id=@u AND effective_from <= @d ORDER BY effective_from DESC LIMIT 1;", conn))
+                {
+                    cmd.Parameters.AddWithValue("@u", uid);
+                    cmd.Parameters.AddWithValue("@d", last);
+                    await using var r = await cmd.ExecuteReaderAsync();
+                    if (await r.ReadAsync())
+                    {
+                        hasStructure = true;
+                        basic = r.GetDecimal(0); hra = r.GetDecimal(1); conv = r.GetDecimal(2);
+                        med = r.GetDecimal(3); spec = r.GetDecimal(4); oth = r.GetDecimal(5);
+                        pfOn = r.GetInt32(6) == 1; esicOn = r.GetInt32(7) == 1; ptApplies = r.GetInt32(8) == 1;
+                    }
+                }
+                if (!hasStructure) { skipped++; continue; }
+
+                var offs = new HashSet<int>();
+                foreach (var part in (ownOffs.Length > 0 ? ownOffs : defOffs)
+                                     .Split(',', StringSplitOptions.RemoveEmptyEntries))
+                    if (int.TryParse(part.Trim(), out int wd)) offs.Add(wd);
+
+                var present = new Dictionary<DateTime, string>();
+                await using (var cmd = new MySqlCommand(
+                    "SELECT work_date, COALESCE(status,'present') FROM attendance " +
+                    "WHERE user_id=@u AND work_date BETWEEN @a AND @b;", conn))
+                {
+                    cmd.Parameters.AddWithValue("@u", uid);
+                    cmd.Parameters.AddWithValue("@a", first);
+                    cmd.Parameters.AddWithValue("@b", last);
+                    await using var r = await cmd.ExecuteReaderAsync();
+                    while (await r.ReadAsync()) present[r.GetDateTime(0).Date] = r.GetString(1);
+                }
+
+                var paidLeave = new HashSet<DateTime>();
+                var unpaidLeave = new HashSet<DateTime>();
+                await using (var cmd = new MySqlCommand(
+                    "SELECT r.from_date, r.to_date, t.is_paid FROM hrms_leave_requests r " +
+                    "JOIN hrms_leave_types t ON t.id=r.leave_type_id " +
+                    "WHERE r.user_id=@u AND r.status='approved' AND r.to_date >= @a AND r.from_date <= @b;", conn))
+                {
+                    cmd.Parameters.AddWithValue("@u", uid);
+                    cmd.Parameters.AddWithValue("@a", first);
+                    cmd.Parameters.AddWithValue("@b", last);
+                    await using var r = await cmd.ExecuteReaderAsync();
+                    while (await r.ReadAsync())
+                    {
+                        var f = r.GetDateTime(0).Date; var t2 = r.GetDateTime(1).Date; bool paid = r.GetInt32(2) == 1;
+                        for (var d = f; d <= t2; d = d.AddDays(1))
+                        {
+                            if (d < first || d > last) continue;
+                            if (paid) paidLeave.Add(d); else unpaidLeave.Add(d);
+                        }
+                    }
+                }
+
+                decimal working = 0, presentDays = 0, paidLeaveDays = 0, weekoffDays = 0, holidayDays = 0;
+                var upTo = last > IstToday() ? IstToday() : last;
+                for (var d = first; d <= last; d = d.AddDays(1))
+                {
+                    if (holidays.Contains(d)) { holidayDays++; continue; }
+                    if (offs.Contains((int)d.DayOfWeek)) { weekoffDays++; continue; }
+                    working++;
+                    if (d > upTo) continue;
+                    if (paidLeave.Contains(d)) { paidLeaveDays++; continue; }
+                    if (unpaidLeave.Contains(d)) continue;
+                    if (present.TryGetValue(d, out var st))
+                        presentDays += st == "halfday" ? 0.5m : 1m;
+                }
+
+                decimal lop = Math.Max(0, working - presentDays - paidLeaveDays);
+                decimal paidDays = Math.Max(0, working - lop);
+                decimal ratio = working > 0 ? paidDays / working : 0;
+
+                decimal R(decimal v) => Math.Round(v * ratio, 2);
+                decimal pBasic = R(basic), pHra = R(hra), pConv = R(conv),
+                        pMed = R(med), pSpec = R(spec), pOth = R(oth);
+
+                decimal incentive = 0;
+                await using (var cmd = new MySqlCommand(
+                    "SELECT amount FROM hrms_incentives WHERE user_id=@u AND year=@y AND month=@m LIMIT 1;", conn))
+                {
+                    cmd.Parameters.AddWithValue("@u", uid);
+                    cmd.Parameters.AddWithValue("@y", y);
+                    cmd.Parameters.AddWithValue("@m", m);
+                    if (await cmd.ExecuteScalarAsync() is decimal inc) incentive = inc;
+                }
+
+                decimal gross = pBasic + pHra + pConv + pMed + pSpec + pOth + incentive;
+
+                decimal pfBase = pfLimit ? Math.Min(pBasic, pfCeil * ratio) : pBasic;
+                decimal pfEmp = pfOn ? Math.Round(pfBase * pfEmpPct / 100m, 2) : 0;
+                decimal pfEr = pfOn ? Math.Round(pfBase * pfErPct / 100m, 2) : 0;
+
+                decimal esicEmp = 0, esicEr = 0;
+                if (esicOn && gross > 0 && gross <= esicCeil)
+                {
+                    esicEmp = Math.Round(gross * esicEmpPct / 100m, 2);
+                    esicEr = Math.Round(gross * esicErPct / 100m, 2);
+                }
+
+                decimal pt = (ptOn && ptApplies && paidDays > 0) ? ptAmt : 0;
+
+                decimal advance = 0;
+                var advIds = new List<(long id, decimal take, decimal recovered, decimal amount)>();
+                await using (var cmd = new MySqlCommand(
+                    "SELECT id, amount, recovered, per_month FROM hrms_advances " +
+                    "WHERE user_id=@u AND status='open' ORDER BY given_on;", conn))
+                {
+                    cmd.Parameters.AddWithValue("@u", uid);
+                    await using var r = await cmd.ExecuteReaderAsync();
+                    while (await r.ReadAsync())
+                    {
+                        decimal amt = r.GetDecimal(1), rec = r.GetDecimal(2), per = r.GetDecimal(3);
+                        decimal take = Math.Min(per <= 0 ? amt : per, amt - rec);
+                        if (take <= 0) continue;
+                        advance += take;
+                        advIds.Add((r.GetInt64(0), take, rec, amt));
+                    }
+                }
+
+                decimal totalDed = pfEmp + esicEmp + pt + advance;
+                decimal net = Math.Round(gross - totalDed, 2);
+
+                await using (var cmd = new MySqlCommand(@"
+                    INSERT INTO hrms_payslips
+                        (run_id, user_id, working_days, present_days, paid_leave_days, weekoff_days,
+                         holiday_days, lop_days, paid_days, basic, hra, conveyance, medical,
+                         special_allowance, other_allowance, incentive, gross, pf_employee, pf_employer,
+                         esic_employee, esic_employer, professional_tax, advance_recovered,
+                         total_deduction, net_pay)
+                    VALUES (@r, @u, @wd, @pd, @pl, @wo, @hd, @lop, @paid, @b, @h, @c, @m, @s, @o,
+                            @inc, @g, @pfe, @pfr, @ese, @esr, @pt, @adv, @td, @net);", conn))
+                {
+                    cmd.Parameters.AddWithValue("@r", runId);
+                    cmd.Parameters.AddWithValue("@u", uid);
+                    cmd.Parameters.AddWithValue("@wd", working);
+                    cmd.Parameters.AddWithValue("@pd", presentDays);
+                    cmd.Parameters.AddWithValue("@pl", paidLeaveDays);
+                    cmd.Parameters.AddWithValue("@wo", weekoffDays);
+                    cmd.Parameters.AddWithValue("@hd", holidayDays);
+                    cmd.Parameters.AddWithValue("@lop", lop);
+                    cmd.Parameters.AddWithValue("@paid", paidDays);
+                    cmd.Parameters.AddWithValue("@b", pBasic);
+                    cmd.Parameters.AddWithValue("@h", pHra);
+                    cmd.Parameters.AddWithValue("@c", pConv);
+                    cmd.Parameters.AddWithValue("@m", pMed);
+                    cmd.Parameters.AddWithValue("@s", pSpec);
+                    cmd.Parameters.AddWithValue("@o", pOth);
+                    cmd.Parameters.AddWithValue("@inc", incentive);
+                    cmd.Parameters.AddWithValue("@g", gross);
+                    cmd.Parameters.AddWithValue("@pfe", pfEmp);
+                    cmd.Parameters.AddWithValue("@pfr", pfEr);
+                    cmd.Parameters.AddWithValue("@ese", esicEmp);
+                    cmd.Parameters.AddWithValue("@esr", esicEr);
+                    cmd.Parameters.AddWithValue("@pt", pt);
+                    cmd.Parameters.AddWithValue("@adv", advance);
+                    cmd.Parameters.AddWithValue("@td", totalDed);
+                    cmd.Parameters.AddWithValue("@net", net);
+                    await cmd.ExecuteNonQueryAsync();
+                }
+                made++;
+            }
+
+            return Results.Ok(new { ok = true, runId, generated = made, skipped });
+        });
+
+        app.MapPost("/api/agency/hrms/payroll/{runId:long}/finalise", async (HttpContext ctx, long runId) =>
+        {
+            var slug = await HrmsSessionSlug(masterConn, ctx);
+            if (slug is null) return Results.Json(new { message = "Session expired." }, statusCode: 401);
+
+            await using var conn = new MySqlConnection(TenantContext.BuildTenantConn(mysqlHost, mysqlPort, slug));
+            await conn.OpenAsync();
+
+            await using (var upd = new MySqlCommand(
+                "UPDATE hrms_payroll_runs SET status='finalised', finalised_at=@t " +
+                "WHERE id=@r AND status='draft';", conn))
+            {
+                upd.Parameters.AddWithValue("@t", IstNow());
+                upd.Parameters.AddWithValue("@r", runId);
+                if (await upd.ExecuteNonQueryAsync() == 0)
+                    return Results.BadRequest(new { message = "That run is already finalised." });
+            }
+
+            await using (var adv = new MySqlCommand(@"
+                UPDATE hrms_advances a
+                  JOIN hrms_payslips p ON p.user_id = a.user_id AND p.run_id = @r
+                   SET a.recovered = LEAST(a.amount, a.recovered + LEAST(
+                         CASE WHEN a.per_month <= 0 THEN a.amount ELSE a.per_month END,
+                         a.amount - a.recovered))
+                 WHERE a.status='open' AND p.advance_recovered > 0;", conn))
+            {
+                adv.Parameters.AddWithValue("@r", runId);
+                await adv.ExecuteNonQueryAsync();
+            }
+
+            await using (var close = new MySqlCommand(
+                "UPDATE hrms_advances SET status='closed' WHERE status='open' AND recovered >= amount;", conn))
+                await close.ExecuteNonQueryAsync();
+
+            return Results.Ok(new { ok = true });
+        });
+
+        app.MapGet("/api/agency/me/payslips", async (HttpContext ctx) =>
+        {
+            var me = MeFromToken(ctx);
+            if (me is not { } who) return Results.Json(new { message = "Sign in again." }, statusCode: 401);
+
+            await using var conn = new MySqlConnection(TenantContext.BuildTenantConn(mysqlHost, mysqlPort, who.slug));
+            await conn.OpenAsync();
+            await using var cmd = new MySqlCommand(@"
+                SELECT r.year, r.month, p.working_days, p.present_days, p.paid_leave_days, p.lop_days,
+                       p.paid_days, p.basic, p.hra, p.conveyance, p.medical, p.special_allowance,
+                       p.other_allowance, p.incentive, p.gross, p.pf_employee, p.esic_employee,
+                       p.professional_tax, p.advance_recovered, p.total_deduction, p.net_pay
+                  FROM hrms_payslips p JOIN hrms_payroll_runs r ON r.id = p.run_id
+                 WHERE p.user_id=@u AND r.status='finalised'
+                 ORDER BY r.year DESC, r.month DESC LIMIT 24;", conn);
+            cmd.Parameters.AddWithValue("@u", who.userId);
+            var list = new List<object>();
+            await using var r2 = await cmd.ExecuteReaderAsync();
+            while (await r2.ReadAsync())
+                list.Add(new
+                {
+                    label = new DateTime(r2.GetInt32(0), r2.GetInt32(1), 1).ToString("MMMM yyyy"),
+                    workingDays = r2.GetDecimal(2), presentDays = r2.GetDecimal(3),
+                    paidLeaveDays = r2.GetDecimal(4), lopDays = r2.GetDecimal(5),
+                    paidDays = r2.GetDecimal(6), basic = r2.GetDecimal(7), hra = r2.GetDecimal(8),
+                    conveyance = r2.GetDecimal(9), medical = r2.GetDecimal(10),
+                    specialAllowance = r2.GetDecimal(11), otherAllowance = r2.GetDecimal(12),
+                    incentive = r2.GetDecimal(13), gross = r2.GetDecimal(14),
+                    pf = r2.GetDecimal(15), esic = r2.GetDecimal(16), pt = r2.GetDecimal(17),
+                    advance = r2.GetDecimal(18), deductions = r2.GetDecimal(19), netPay = r2.GetDecimal(20),
+                });
+            return Results.Ok(list);
+        });
+
+        app.MapGet("/api/agency/hrms/reports/attendance", async (HttpContext ctx, string? month) =>
+        {
+            var slug = await HrmsSessionSlug(masterConn, ctx);
+            if (slug is null) return Results.Json(new { message = "Session expired." }, statusCode: 401);
+
+            var first = ParseIstMonth(month) ?? new DateTime(IstToday().Year, IstToday().Month, 1);
+            var last = first.AddMonths(1).AddDays(-1);
+            var upTo = last > IstToday() ? IstToday() : last;
+
+            await using var conn = new MySqlConnection(TenantContext.BuildTenantConn(mysqlHost, mysqlPort, slug));
+            await conn.OpenAsync();
+
+            string defOffs = "0";
+            await using (var cmd = new MySqlCommand("SELECT weekly_offs FROM hrms_settings WHERE id=1;", conn))
+                if (await cmd.ExecuteScalarAsync() is string w) defOffs = w;
+
+            var holidays = new HashSet<DateTime>();
+            await using (var cmd = new MySqlCommand(
+                "SELECT holiday_date FROM hrms_holidays WHERE holiday_date BETWEEN @a AND @b;", conn))
+            {
+                cmd.Parameters.AddWithValue("@a", first);
+                cmd.Parameters.AddWithValue("@b", last);
+                await using var r = await cmd.ExecuteReaderAsync();
+                while (await r.ReadAsync()) holidays.Add(r.GetDateTime(0).Date);
+            }
+
+            var rows = new List<object>();
+            await using var main = new MySqlCommand(@"
+                SELECT u.id, COALESCE(u.name,''), COALESCE(u.mobile,''), COALESCE(e.weekly_offs,''),
+                       COALESCE(e.designation,'')
+                  FROM app_users u LEFT JOIN hrms_employment e ON e.user_id=u.id
+                 WHERE COALESCE(u.is_blacklisted,0)=0
+                 ORDER BY COALESCE(u.name,'');", conn);
+            var staff = new List<(long id, string name, string mobile, string offs, string desig)>();
+            await using (var r = await main.ExecuteReaderAsync())
+                while (await r.ReadAsync())
+                    staff.Add((r.GetInt64(0), r.GetString(1), r.GetString(2), r.GetString(3), r.GetString(4)));
+
+            foreach (var st in staff)
+            {
+                var offs = new HashSet<int>();
+                foreach (var part in (st.offs.Length > 0 ? st.offs : defOffs)
+                                     .Split(',', StringSplitOptions.RemoveEmptyEntries))
+                    if (int.TryParse(part.Trim(), out int wd)) offs.Add(wd);
+
+                int present = 0, half = 0, late = 0, worked = 0;
+                await using (var cmd = new MySqlCommand(
+                    "SELECT COALESCE(status,'present'), COALESCE(late_minutes,0), COALESCE(worked_minutes,0) " +
+                    "FROM attendance WHERE user_id=@u AND work_date BETWEEN @a AND @b;", conn))
+                {
+                    cmd.Parameters.AddWithValue("@u", st.id);
+                    cmd.Parameters.AddWithValue("@a", first);
+                    cmd.Parameters.AddWithValue("@b", last);
+                    await using var r = await cmd.ExecuteReaderAsync();
+                    while (await r.ReadAsync())
+                    {
+                        if (r.GetString(0) == "halfday") half++; else present++;
+                        if (r.GetInt32(1) > 0) late++;
+                        worked += r.GetInt32(2);
+                    }
+                }
+
+                int leaveDays = 0;
+                await using (var cmd = new MySqlCommand(
+                    "SELECT r.from_date, r.to_date FROM hrms_leave_requests r " +
+                    "WHERE r.user_id=@u AND r.status='approved' AND r.to_date >= @a AND r.from_date <= @b;", conn))
+                {
+                    cmd.Parameters.AddWithValue("@u", st.id);
+                    cmd.Parameters.AddWithValue("@a", first);
+                    cmd.Parameters.AddWithValue("@b", last);
+                    await using var r = await cmd.ExecuteReaderAsync();
+                    while (await r.ReadAsync())
+                    {
+                        var f = r.GetDateTime(0).Date; var t = r.GetDateTime(1).Date;
+                        for (var d = f; d <= t; d = d.AddDays(1))
+                            if (d >= first && d <= last && !holidays.Contains(d) && !offs.Contains((int)d.DayOfWeek))
+                                leaveDays++;
+                    }
+                }
+
+                int working = 0;
+                for (var d = first; d <= last; d = d.AddDays(1))
+                    if (!holidays.Contains(d) && !offs.Contains((int)d.DayOfWeek)) working++;
+
+                int elapsed = 0;
+                for (var d = first; d <= upTo; d = d.AddDays(1))
+                    if (!holidays.Contains(d) && !offs.Contains((int)d.DayOfWeek)) elapsed++;
+
+                int absent = Math.Max(0, elapsed - present - half - leaveDays);
+
+                rows.Add(new
+                {
+                    id = st.id, name = st.name, mobile = st.mobile, designation = st.desig,
+                    workingDays = working, present, halfday = half, leave = leaveDays,
+                    absent, late, workedHours = Math.Round(worked / 60.0, 1),
+                });
+            }
+
+            return Results.Ok(new
+            {
+                month = first.ToString("yyyy-MM"),
+                label = first.ToString("MMMM yyyy"),
+                rows,
+            });
+        });
+
+        app.MapGet("/api/agency/hrms/reports/leave", async (HttpContext ctx, int? year) =>
+        {
+            var slug = await HrmsSessionSlug(masterConn, ctx);
+            if (slug is null) return Results.Json(new { message = "Session expired." }, statusCode: 401);
+
+            int y = year ?? IstToday().Year;
+            await using var conn = new MySqlConnection(TenantContext.BuildTenantConn(mysqlHost, mysqlPort, slug));
+            await conn.OpenAsync();
+
+            var types = new List<string>();
+            await using (var cmd = new MySqlCommand(
+                "SELECT name FROM hrms_leave_types WHERE active=1 ORDER BY id;", conn))
+            {
+                await using var r = await cmd.ExecuteReaderAsync();
+                while (await r.ReadAsync()) types.Add(r.GetString(0));
+            }
+
+            await using var main = new MySqlCommand(@"
+                SELECT u.id, COALESCE(u.name,''), COALESCE(u.mobile,''), t.name,
+                       SUM(CASE WHEN r.status='approved' THEN r.days ELSE 0 END),
+                       SUM(CASE WHEN r.status='pending'  THEN r.days ELSE 0 END),
+                       SUM(CASE WHEN r.status='rejected' THEN r.days ELSE 0 END)
+                  FROM hrms_leave_requests r
+                  JOIN app_users u ON u.id = r.user_id
+                  JOIN hrms_leave_types t ON t.id = r.leave_type_id
+                 WHERE YEAR(r.from_date) = @y
+                 GROUP BY u.id, t.name ORDER BY COALESCE(u.name,'');", conn);
+            main.Parameters.AddWithValue("@y", y);
+
+            var byUser = new Dictionary<long, Dictionary<string, object>>();
+            await using (var r = await main.ExecuteReaderAsync())
+                while (await r.ReadAsync())
+                {
+                    long uid = r.GetInt64(0);
+                    if (!byUser.TryGetValue(uid, out var row))
+                    {
+                        row = new Dictionary<string, object>
+                        {
+                            ["id"] = uid, ["name"] = r.GetString(1), ["mobile"] = r.GetString(2),
+                            ["approved"] = 0m, ["pending"] = 0m, ["rejected"] = 0m,
+                        };
+                        foreach (var t in types) row["t_" + t] = 0m;
+                        byUser[uid] = row;
+                    }
+                    decimal ap = r.GetDecimal(4), pe = r.GetDecimal(5), re = r.GetDecimal(6);
+                    row["t_" + r.GetString(3)] = ap;
+                    row["approved"] = (decimal)row["approved"] + ap;
+                    row["pending"] = (decimal)row["pending"] + pe;
+                    row["rejected"] = (decimal)row["rejected"] + re;
+                }
+
+            return Results.Ok(new { year = y, types, rows = byUser.Values });
+        });
+
         app.MapGet("/api/agency/hrms/leave-requests", async (HttpContext ctx, string? status) =>
         {
             var slug = await HrmsSessionSlug(masterConn, ctx);
