@@ -1275,6 +1275,50 @@ internal static class AgencyPortal
             return Results.Ok(new { ok = true, lat, lng, radius, label });
         });
 
+        // Where staff phones last reported from. A laptop has no GPS and guesses
+        // the office from its network, which lands tens of metres out; the phones
+        // already send a real fix on every heartbeat, so the office can be placed
+        // from one of those instead of from a guess.
+        app.MapGet("/api/agency/hrms/staff-locations", async (HttpContext ctx) =>
+        {
+            var slug = await HrmsSessionSlug(masterConn, ctx);
+            if (slug is null) return Results.Json(new { message = "Session expired." }, statusCode: 401);
+
+            await using var conn = new MySqlConnection(TenantContext.BuildTenantConn(mysqlHost, mysqlPort, slug));
+            await conn.OpenAsync();
+            await using var cmd = new MySqlCommand(@"
+                SELECT id, COALESCE(name,''), COALESCE(mobile,''), last_lat, last_lng, last_seen
+                  FROM app_users
+                 WHERE last_lat IS NOT NULL AND last_lng IS NOT NULL
+                   AND last_seen IS NOT NULL
+                   AND last_seen > DATE_SUB(NOW(), INTERVAL 14 DAY)
+                 ORDER BY last_seen DESC
+                 LIMIT 60;", conn) { CommandTimeout = 15 };
+
+            var rows = new List<object>();
+            await using var rdr = await cmd.ExecuteReaderAsync();
+            while (await rdr.ReadAsync())
+            {
+                var seen = rdr.GetDateTime(5);
+                var age = DateTime.Now - seen;
+                string ago = age.TotalMinutes < 2   ? "just now"
+                           : age.TotalMinutes < 60  ? (int)age.TotalMinutes + " min ago"
+                           : age.TotalHours   < 24  ? (int)age.TotalHours + " h ago"
+                                                    : (int)age.TotalDays + " d ago";
+                rows.Add(new
+                {
+                    id     = rdr.GetInt64(0),
+                    name   = rdr.GetString(1),
+                    mobile = rdr.GetString(2),
+                    lat    = rdr.GetDouble(3),
+                    lng    = rdr.GetDouble(4),
+                    ago,
+                    seen   = seen.ToString("dd MMM, HH:mm"),
+                });
+            }
+            return Results.Ok(rows);
+        });
+
         // The last few desktop fingerprint sign-ins, so an agency can see what
         // enforcing would have blocked before they turn it on.
         app.MapGet("/api/agency/hrms/qr-attempts", async (HttpContext ctx) =>

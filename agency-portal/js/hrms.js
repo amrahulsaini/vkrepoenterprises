@@ -328,6 +328,73 @@
     setTimeout(function () { if (coordsFrom(box.value)) runSearch(); }, 0);
   });
 
+  var PHONES = [], PHONEDOTS = [];
+
+  // Staff phones already send a real fix on every heartbeat. Showing them makes
+  // the office obvious: half a dozen people sitting within a few metres of each
+  // other is the building, and no network guess will ever find that.
+  async function loadPhones() {
+    $('geo-phonelist').innerHTML = '<div class="empty-note" style="border:0">Loading\u2026</div>';
+    try {
+      PHONES = await call('/hrms/staff-locations');
+    } catch (e) {
+      $('geo-phonelist').innerHTML = '<div class="empty-note" style="border:0">' + esc(e.message) + '</div>';
+      return;
+    }
+
+    if (!PHONES.length) {
+      $('geo-phonelist').innerHTML = '<div class="empty-note" style="border:0">' +
+        'No staff phone has reported a location in the last 14 days.</div>';
+      return;
+    }
+
+    $('geo-phonelist').innerHTML = PHONES.map(function (u, i) {
+      return '<div class="phrow" data-i="' + i + '">' +
+        '<div style="min-width:0"><div class="nm">' + esc(u.name || u.mobile || 'Unnamed') + '</div>' +
+        '<div class="mt">' + esc(u.mobile) + '</div></div>' +
+        '<span class="ago">' + esc(u.ago) + '</span></div>';
+    }).join('');
+
+    Array.prototype.forEach.call($('geo-phonelist').querySelectorAll('.phrow'), function (r) {
+      r.addEventListener('click', function () {
+        var u = PHONES[parseInt(r.getAttribute('data-i'), 10)];
+        Array.prototype.forEach.call($('geo-phonelist').querySelectorAll('.phrow'),
+          function (o) { o.classList.remove('here'); });
+        r.classList.add('here');
+        place(u.lat, u.lng, true);
+        if (!($('geo-label').value || '').trim()) $('geo-label').value = 'Office';
+        geoMsg('Pin moved to where ' + (u.name || u.mobile) + '\u2019s phone was ' + u.ago +
+               '. Nudge it if you need to, then press Save boundary.', 'ok');
+      });
+    });
+
+    drawPhoneDots();
+  }
+
+  function drawPhoneDots() {
+    if (!MAP) return;
+    PHONEDOTS.forEach(function (d) { MAP.removeLayer(d); });
+    PHONEDOTS = [];
+    PHONES.forEach(function (u) {
+      var dot = L.circleMarker([u.lat, u.lng], {
+        radius: 5, color: '#0d0d0f', weight: 1.5, fillColor: '#ffffff', fillOpacity: 0.95
+      }).addTo(MAP);
+      dot.bindTooltip((u.name || u.mobile) + ' \u00b7 ' + u.ago, { direction: 'top' });
+      dot.on('click', function () { place(u.lat, u.lng, true); });
+      PHONEDOTS.push(dot);
+    });
+    if (PHONES.length && !PICKED) {
+      MAP.fitBounds(L.latLngBounds(PHONES.map(function (u) { return [u.lat, u.lng]; })).pad(0.3));
+    }
+  }
+
+  $('geo-phones').addEventListener('click', function () {
+    if (!MAP) { geoMsg('The map has not loaded. Check your connection and reload.', 'err'); return; }
+    var on = $('geo-phonebox').classList.contains('hidden');
+    show($('geo-phonebox'), on);
+    if (on) loadPhones();
+  });
+
   // Only ever recentres the map. A desktop fix is far too rough to save.
   $('geo-here').addEventListener('click', function () {
     if (!MAP) { geoMsg('The map has not loaded. Check your connection and reload.', 'err'); return; }
@@ -335,7 +402,8 @@
     geoMsg('Finding roughly where this computer is\u2026');
     navigator.geolocation.getCurrentPosition(function (pos) {
       MAP.setView([pos.coords.latitude, pos.coords.longitude], 16);
-      geoMsg('This is only a rough guess from your network. Drag the pin onto your building.', 'ok');
+      geoMsg('Only a rough guess from your network, often tens of metres out. ' +
+             'Use a phone location for an accurate one.', 'ok');
     }, function () {
       geoMsg('Could not find you. Search for the place instead.', 'err');
     }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });

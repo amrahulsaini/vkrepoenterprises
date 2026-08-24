@@ -342,6 +342,13 @@
   .layerbtn button.on{background:var(--ink);color:#fff}
   .crosshint{position:absolute;z-index:600;left:10px;bottom:10px;background:rgba(13,13,15,.78);
     color:#fff;font-size:11.5px;padding:6px 10px;border-radius:7px;pointer-events:none}
+  .phrow{display:flex;align-items:center;gap:11px;padding:9px 10px;border:1px solid var(--line);
+    border-radius:9px;background:var(--paper);cursor:pointer;margin-bottom:7px}
+  .phrow:hover{border-color:var(--orange)}
+  .phrow .nm{font-size:13px;font-weight:650}
+  .phrow .mt{font-size:11.5px;color:var(--muted)}
+  .phrow .ago{margin-left:auto;font-size:11.5px;color:var(--muted-2);white-space:nowrap}
+  .phrow.here{border-color:var(--orange);background:var(--orange-wash)}
   .empty-note{
     border:1px dashed var(--line);border-radius:var(--radius);padding:30px;
     text-align:center;color:var(--muted);font-size:13.5px;background:var(--paper);
@@ -741,7 +748,18 @@
                 <input class="field" id="geo-search" autocomplete="off"
                        placeholder="Search a place, or paste coordinates / a Google Maps link">
               </div>
+              <button class="btn btn-accent btn-xs" id="geo-phones">Use a phone location</button>
               <button class="btn btn-ghost btn-xs" id="geo-here">Find me</button>
+            </div>
+
+            <div id="geo-phonebox" class="hidden" style="margin-top:12px">
+              <div class="panel" style="padding:14px;box-shadow:none;background:var(--paper-2)">
+                <h4 style="font-size:13px">Place the office from a staff phone</h4>
+                <p class="ph" style="margin:5px 0 10px">A phone has a real GPS chip; this computer
+                   does not, and guesses from the network. Pick someone who is standing in the
+                   office and the pin moves to where their phone last reported.</p>
+                <div id="geo-phonelist"></div>
+              </div>
             </div>
 
             <div class="mapwrap">
@@ -855,6 +873,6 @@
 </aside>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="/js/hrms.js?v=20"></script>
+<script src="/js/hrms.js?v=21"></script>
 </body>
 </html>
