@@ -81,12 +81,6 @@ fun FingerprintScanScreen(api: ApiService, onDone: () -> Unit) {
     var forMobile by remember { mutableStateOf("") }
     var dialogError by remember { mutableStateOf("") }
 
-    // The analyser fires on every camera frame, and the code stays in view the
-    // whole time. Clearing `handled` on a failure therefore re-read the same
-    // code immediately, hammering the server and rewriting the status text
-    // dozens of times a second, which is what the flicker was. A code that has
-    // been refused is refused for good, so it is remembered and skipped; only a
-    // network wobble is worth retrying, and then at walking pace.
     val settled = remember { mutableStateListOf<String>() }
     var retryAt by remember { mutableStateOf(0L) }
 
@@ -108,7 +102,6 @@ fun FingerprintScanScreen(api: ApiService, onDone: () -> Unit) {
                         403 -> serverMessage(r) ?: "That code belongs to a different agency."
                         else -> serverMessage(r) ?: "That code is not valid."
                     }
-                    // None of these become valid by looking again.
                     settled.add(id)
                     handled = false
                     return@launch
@@ -204,14 +197,8 @@ fun FingerprintScanScreen(api: ApiService, onDone: () -> Unit) {
                                 }
                                 val payload = FingerprintKey.finish(signed, "$challenge:$nonce")
 
-                                // Where the phone is decides whether this is
-                                // allowed, so read it now rather than trusting
-                                // a fix taken minutes ago somewhere else.
                                 status = "Checking your location..."
                                 val loc = getCurrentLocation(ctx)
-                                // geoTried marks this as a build that checks
-                                // location, so an older one is not judged as a
-                                // phone that refused to share it.
                                 val ok = api.fpApprove(
                                     FpApproveRequest(
                                         challengeId = challenge,
@@ -234,8 +221,6 @@ fun FingerprintScanScreen(api: ApiService, onDone: () -> Unit) {
                                     confirming = false
                                     onDone()
                                 } else {
-                                    // The server marks a refused challenge denied,
-                                    // so this code is spent either way.
                                     settled.add(challenge)
                                     status = serverMessage(ok)
                                         ?: ("Could not approve (" + ok.code() + ").")
@@ -251,8 +236,6 @@ fun FingerprintScanScreen(api: ApiService, onDone: () -> Unit) {
             },
             dismissButton = {
                 TextButton(enabled = !busy, onClick = {
-                    // Saying no means no: without remembering that, the code
-                    // still in front of the camera reopens this instantly.
                     settled.add(challenge)
                     confirming = false
                     handled = false

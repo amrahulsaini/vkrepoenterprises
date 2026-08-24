@@ -7,14 +7,8 @@ namespace CRMRSDesktopApp;
 
 public static class ProfileGate
 {
-    /// Set when the person asked to sign in to a different agency instead of
-    /// signing in as a profile. Only the startup gate offers that.
     public static bool ChangeAgencyRequested { get; private set; }
 
-    /// standalone: this is the gate the app opens with, so there is no window
-    /// behind it to fall back to. It centres on the screen, takes a taskbar
-    /// entry of its own, and carries the agency identity and "Change agency"
-    /// that would otherwise live on the window behind.
     public static async Task<bool> EnsureAsync(Window owner, string mode, bool standalone = false)
     {
         ChangeAgencyRequested = false;
@@ -28,9 +22,6 @@ public static class ProfileGate
 
         if (!standalone && !owner.IsVisible) owner.Show();
 
-        // Backing out of the fingerprint scan returns to the mobile step rather
-        // than dropping the person out of the app, so they can still try the
-        // password or a different number.
         while (true)
         {
             var w = new ProfileLoginWindow(mode, standalone) { Owner = owner };
@@ -58,8 +49,6 @@ public static class ProfileGate
         }
     }
 
-    /// A modal window centres on its owner and hides from the taskbar, which
-    /// only makes sense while that owner is on screen.
     private static void Detach(Window w, bool standalone)
     {
         if (!standalone) return;

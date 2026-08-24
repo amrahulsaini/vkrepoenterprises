@@ -80,8 +80,6 @@ public partial class ProfileLoginWindow : Window
         btnOk.IsEnabled = true;
         btnOk.Content = "Continue";
 
-        // Everything wrong with this profile is said here, while the person is
-        // still at the keyboard, rather than after they have fetched a phone.
         if (m is { Found: false })
         {
             Fail("No profile has that mobile number. Check the number, or ask your administrator to add you in HRMS.");
@@ -107,8 +105,6 @@ public partial class ProfileLoginWindow : Window
 
     private void ShowMethodStep(DesktopApiClient.ProfileMethods? m)
     {
-        // A failed lookup must not stop a sign-in, so offer both and let the
-        // server have the final word as it did before.
         bool knowMethods = m is not null;
         bool hasPassword = !knowMethods || m!.HasPassword;
         bool enrolled    = !knowMethods || m!.FingerprintEnrolled;
@@ -169,8 +165,6 @@ public partial class ProfileLoginWindow : Window
         txtMobile.SelectAll();
     }
 
-    /// The phone decides who signs in, so the fingerprint route needs no
-    /// password at all: hand straight over to the QR window.
     private void btnFingerprint_Click(object sender, RoutedEventArgs e)
     {
         ChoseFingerprint = true;

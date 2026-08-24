@@ -1,16 +1,3 @@
--- Every desktop sign-in, and the attendance mark that follows from it.
---
--- Attendance was a button somebody in HRMS had to press. But signing in to the
--- desktop already proves a person turned up, so the first sign-in of the day
--- marks them present by itself. `source` separates the two: 'login' was earned
--- by signing in, 'hrms' was entered by hand.
---
--- Every sign-in is kept, not just the first, so the day reads as it happened:
--- how many times somebody signed in, when they first arrived and when they
--- last came back. work_date is stored alongside `at` so a day can be counted
--- without a function over the timestamp defeating the index.
---
--- Idempotent: safe to re-run.
 
 CREATE TABLE IF NOT EXISTS desktop_logins (
     id           BIGINT AUTO_INCREMENT PRIMARY KEY,

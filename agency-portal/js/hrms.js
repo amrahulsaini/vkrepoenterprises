@@ -5,8 +5,6 @@
   var KEY  = 'crmrs_hrms_' + slug;
   var ROOT = '/hrms/' + encodeURIComponent(slug);
 
-  // Every view has its own address under /hrms/<agency>/… so a person can be
-  // linked to, reloaded onto, and reached with the browser's back button.
   function route() {
     var rest = location.pathname.slice(ROOT.length).replace(/^\/+|\/+$/g, '');
     return rest ? rest.split('/').map(decodeURIComponent) : [];
@@ -162,12 +160,8 @@
     return v >= 1000 ? (v / 1000).toFixed(v % 1000 === 0 ? 0 : 1) + ' km' : v + ' m';
   }
 
-  // The office is placed by eye on a map rather than read from the browser,
-  // because a desktop has no GPS: it guesses from its IP or the Wi-Fi around
-  // it and is routinely kilometres out, which is useless for a 200m circle.
   var MAP = null, PIN = null, RING = null, TILES = {}, PICKED = null;
 
-  // Mirrors the cap the server applies to a phone's reported accuracy.
   var GPS_SLACK = 50;
 
   var INDIA = [22.9734, 78.6569];
@@ -183,9 +177,6 @@
     });
   }
 
-  // Google imagery is sharper over Indian towns, which is the whole reason the
-  // pin is placed by eye. It is used through the official Maps JavaScript API,
-  // not by pulling their tile servers directly.
   var GMAPS = null;
   async function googleTilesReady() {
     if (GMAPS !== null) return GMAPS;
@@ -209,8 +200,6 @@
 
     MAP = L.map('geo-map', { zoomControl: true, attributionControl: true }).setView(start, zoom);
 
-    // Whatever happens to the key - removed, over quota, Google unreachable -
-    // the page still has a working map rather than a dead grey box.
     if (await googleTilesReady()) {
       TILES.map = L.gridLayer.googleMutant({ type: 'roadmap', maxZoom: 21 });
       TILES.sat = L.gridLayer.googleMutant({ type: 'hybrid',  maxZoom: 21 });
@@ -276,8 +265,6 @@
   $('geo-lyr-map').addEventListener('click', function () { setLayer('map'); });
   $('geo-lyr-sat').addEventListener('click', function () { setLayer('sat'); });
 
-  // Accepts "28.4595, 77.0266" and the shapes a Google Maps link comes in,
-  // so a spot found in Google Maps can be pasted straight across.
   function coordsFrom(text) {
     var t = String(text || '').trim();
     var m = t.match(/^(-?\d{1,3}(?:\.\d+)?)\s*[, ]\s*(-?\d{1,3}(?:\.\d+)?)$/);
@@ -330,9 +317,6 @@
 
   var PHONES = [], PHONEDOTS = [];
 
-  // Staff phones already send a real fix on every heartbeat. Showing them makes
-  // the office obvious: half a dozen people sitting within a few metres of each
-  // other is the building, and no network guess will ever find that.
   async function loadPhones() {
     $('geo-phonelist').innerHTML = '<div class="empty-note" style="border:0">Loading\u2026</div>';
     try {
@@ -395,7 +379,6 @@
     if (on) loadPhones();
   });
 
-  // Only ever recentres the map. A desktop fix is far too rough to save.
   $('geo-here').addEventListener('click', function () {
     if (!MAP) { geoMsg('The map has not loaded. Check your connection and reload.', 'err'); return; }
     if (!navigator.geolocation) { geoMsg('This browser cannot find you.', 'err'); return; }
@@ -461,9 +444,6 @@
     saveGeo({ clear: 'true' });
   });
 
-  // A phone cannot be located more precisely than its own fix, so a tight
-  // circle is judged with that slack added. Saying so here stops a 20 m circle
-  // being read as a promise of 20 m precision.
   function radiusNote(v) {
     var el = $('geo-radius-note');
     if (v <= 30) {
@@ -626,7 +606,6 @@
     });
   });
 
-
   var PROFILES = [], PFID = null, CURRENT_PROFILE = null;
 
   function initials(n) {
@@ -722,8 +701,6 @@
       $('pf-name').textContent = u.name || 'Unnamed';
       $('pf-mobile').textContent = u.mobile || '';
       document.title = (u.name || 'Staff') + ' \u2014 HRMS \u2014 CRMRS';
-      // A renamed person keeps the same id, so correct the address in place
-      // rather than leaving a stale name in it.
       var want = staffSlug(u);
       if (urlSlug && urlSlug !== want) go(['desktop', want], true);
       staffPills(u);
@@ -776,7 +753,6 @@
     } finally { btn.disabled = false; }
   }
 
-
   var ATT = null;
 
   function istToday() {
@@ -798,8 +774,6 @@
         ? '<button class="btn btn-ghost btn-xs" data-un="' + u.id + '">Marked · undo</button>'
         : '<button class="btn btn-accent btn-xs" data-at="' + u.id + '">Mark present</button>';
 
-      // Signing in is itself proof of turning up, so say which of the two
-      // this was rather than showing a bare time.
       var when;
       if (!u.marked) {
         when = '<span style="color:var(--muted-2)">&mdash;</span>';
@@ -873,7 +847,6 @@
   $('pf-back').addEventListener('click', function () { go([]); render(); });
   $('st-back').addEventListener('click', function () { go(['desktop']); render(); });
 
-
   var FPREQ = false;
 
   function fpMsg(t, kind) {
@@ -939,7 +912,6 @@
       fpMsg(e.message, 'err');
     } finally { $('fp-reset').disabled = false; }
   });
-
 
   var MODULES = [], ROLES = [], EDITING = null;
 
@@ -1151,7 +1123,6 @@
       $('pf-rolemsg').className = 'msg err';
     }
   });
-
 
   function renderUserModules(selected) {
     var groups = [];

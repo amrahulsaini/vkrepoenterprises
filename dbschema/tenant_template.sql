@@ -108,9 +108,6 @@ CREATE TABLE IF NOT EXISTS attendance (
   CONSTRAINT fk_att_user FOREIGN KEY (user_id) REFERENCES app_users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
--- Every desktop sign-in. The first of a day marks the person present in
--- `attendance` with source='login', so turning up is recorded by turning up
--- rather than by somebody pressing a button. See dbschema/desktop_logins.sql.
 CREATE TABLE IF NOT EXISTS desktop_logins (
   id           BIGINT AUTO_INCREMENT PRIMARY KEY,
   user_id      BIGINT       NOT NULL,
@@ -793,7 +790,6 @@ CREATE TABLE IF NOT EXISTS `billing_member_finances` (
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
-
 
 -- confirm_captures — "Send Confirm" photos captured by field agents.
 CREATE TABLE IF NOT EXISTS confirm_captures (

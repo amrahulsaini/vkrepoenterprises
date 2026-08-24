@@ -6,8 +6,6 @@ using System.Windows.Media.Imaging;
 
 namespace CRMRSDesktopApp;
 
-/// The signed-in agency's name and logo, cached on disk so every sign-in
-/// window can show who is being signed in to before the server has answered.
 internal static class AgencyBranding
 {
     private static string Dir => Path.Combine(

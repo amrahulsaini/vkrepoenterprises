@@ -24,10 +24,6 @@ public partial class LoginWindow : Window
         };
     }
 
-    /// The agency sign in lasts 7 days on this computer. While it holds, this
-    /// window is the agency's identity card, not a login form: the person about
-    /// to sign in should see who they are signing in to, and reach the form
-    /// only by deliberately choosing "Change agency".
     private void ShowAgencyCard()
     {
         pnlAgencyForm.Visibility = Visibility.Collapsed;
@@ -113,8 +109,6 @@ public partial class LoginWindow : Window
         finally { btnChangeAgency.IsEnabled = true; }
     }
 
-    /// Drops this computer's 7-day agency session and puts the agency sign-in
-    /// form back on screen, so a different agency can sign in here.
     private async Task ChangeAgencyAsync()
     {
         lblStatus.Text = "Signing out...";
@@ -302,9 +296,6 @@ public partial class LoginWindow : Window
 
         if (profileGated)
         {
-            // The profile dialog carries the agency logo, name and "Change
-            // agency" itself, so this window has nothing left to show behind
-            // it and would only read as a second sign in.
             ShowAgencyCard();
             lblStatus.Text = "";
             Hide();

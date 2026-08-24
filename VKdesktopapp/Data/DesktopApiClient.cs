@@ -75,7 +75,6 @@ internal static class DesktopApiClient
     private static readonly JsonSerializerOptions _json =
         new() { PropertyNameCaseInsensitive = true };
 
-
     internal static async Task<List<FinanceDto>> GetFinancesAsync()
     {
         var resp = await Send(HttpMethod.Get, "api/mgr/finances");
@@ -230,7 +229,6 @@ internal static class DesktopApiClient
         resp.EnsureSuccessStatusCode();
     }
 
-
     internal static async Task<List<BranchDto>> GetBranchesByFinanceAsync(int financeId)
     {
         var resp = await Send(HttpMethod.Get, $"api/mgr/branches?financeId={financeId}");
@@ -298,7 +296,6 @@ internal static class DesktopApiClient
         var resp = await Send(HttpMethod.Delete, $"api/mgr/branches/{id}");
         resp.EnsureSuccessStatusCode();
     }
-
 
     internal static async Task<MgrUsersResponseDto> GetUsersWithStatsAsync()
     {
@@ -661,9 +658,6 @@ internal static class DesktopApiClient
         bool Found, string Name, bool Allowed, string BlockReason,
         bool HasPassword, bool FingerprintRequired, bool FingerprintEnrolled);
 
-    /// Asked before anything is offered, so the app never shows a QR code to
-    /// someone with no fingerprint enrolled. A lookup that fails must not stop
-    /// a sign-in, so the caller gets null and falls back to offering both.
     internal static async Task<ProfileMethods?> ProfileMethodsAsync(string mobile)
     {
         try
@@ -799,14 +793,12 @@ internal static class DesktopApiClient
         resp.EnsureSuccessStatusCode();
     }
 
-
     internal static async Task<DashboardStatsDto> GetDashboardStatsAsync()
     {
         var resp = await Send(HttpMethod.Get, "api/mgr/dashboard-stats");
         resp.EnsureSuccessStatusCode();
         return (await resp.Content.ReadFromJsonAsync<DashboardStatsDto>(_json))!;
     }
-
 
     internal static async Task<List<DeviceRequestDto>> GetDeviceRequestsAsync()
     {
@@ -827,7 +819,6 @@ internal static class DesktopApiClient
         resp.EnsureSuccessStatusCode();
     }
 
-
     internal static async Task<List<LiveUserDto>> GetLiveUsersAsync(string? since = null)
     {
         var url = string.IsNullOrWhiteSpace(since)
@@ -837,7 +828,6 @@ internal static class DesktopApiClient
         resp.EnsureSuccessStatusCode();
         return (await resp.Content.ReadFromJsonAsync<List<LiveUserDto>>(_json))!;
     }
-
 
     internal static async Task<List<SearchLogRow>> GetSearchLogsAsync(
         string? fromDate = null, string? toDate = null,
@@ -854,7 +844,6 @@ internal static class DesktopApiClient
         resp.EnsureSuccessStatusCode();
         return (await resp.Content.ReadFromJsonAsync<List<SearchLogRow>>(_json))!;
     }
-
 
     internal static async Task<(int Inserted, double ElapsedSeconds)> UploadRecordsAsync(
         int branchId, List<UploadRecord> records,
@@ -1030,7 +1019,6 @@ internal static class DesktopApiClient
         return (await resp.Content.ReadFromJsonAsync<ColumnTypeDto>(_json))!;
     }
 
-
     internal record ExportUserRow(long Id, string Name, string Mobile, string? Address, string? Pincode,
         bool IsActive, bool IsAdmin, bool IsStopped, bool IsBlacklisted,
         decimal Balance, string CreatedAt, string? SubEnd);
@@ -1048,7 +1036,6 @@ internal static class DesktopApiClient
         string ExecutiveName, string Pos, string Toss, string Remark, string Region, string Area, string CreatedOn);
 
     internal record ExportPage<T>(long Total, int Page, int Size, bool HasMore, List<T> Rows);
-
 
     internal static async Task<List<ExportUserRow>> ExportUsersAsync()
     {
@@ -1084,7 +1071,6 @@ internal static class DesktopApiClient
         resp.EnsureSuccessStatusCode();
         return (await resp.Content.ReadFromJsonAsync<ExportPage<ExportVehicleRow>>(_json))!;
     }
-
 
     internal static async Task<ExportPage<ExportVehicleRow>> ExportBranchRecordsPageAsync(
         int branchId, int page, int size = 5000)
@@ -1217,7 +1203,6 @@ internal static class DesktopApiClient
         }
         catch { return -1; }
     }
-
 
     private static bool IsTransientNet(Exception ex)
     {

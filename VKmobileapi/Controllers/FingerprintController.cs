@@ -18,9 +18,6 @@ public class FingerprintController : ControllerBase
 
     private static DateTime IstNow() => DateTime.UtcNow.AddMinutes(330);
 
-    /// Behind the local OpenLiteSpeed proxy the connection is always loopback,
-    /// so the forwarded header carries the real client. Safe to trust only
-    /// because the proxy is on this machine — nothing remote reaches Kestrel.
     private string ClientIp()
     {
         var direct = HttpContext.Connection.RemoteIpAddress;
@@ -165,8 +162,6 @@ public class FingerprintController : ControllerBase
         if (!string.Equals(slug, s.Slug, StringComparison.OrdinalIgnoreCase))
             return StatusCode(403, new { success = false, code = "wrong_agency", message = "This sign-in belongs to a different agency." });
 
-        // Say no while they are still looking at the scanner, rather than after
-        // they have put a finger on the sensor for nothing.
         if (claimUserId > 0 && claimUserId != s.UserId)
             return StatusCode(403, new { success = false, code = "wrong_person",
                 message = "This sign-in was started for a different person. Ask them to scan it, " +
@@ -195,8 +190,6 @@ public class FingerprintController : ControllerBase
         string? ChallengeId, string? Signature,
         double? Lat, double? Lng, double? Accuracy, bool? Mock, bool? GeoTried);
 
-    /// Metres between two points on the earth. Good to a few metres at the
-    /// distances a geofence cares about.
     private static double MetresBetween(double lat1, double lng1, double lat2, double lng2)
     {
         const double R = 6371000.0;
@@ -250,7 +243,6 @@ public class FingerprintController : ControllerBase
         if (!string.Equals(slug, s.Slug, StringComparison.OrdinalIgnoreCase))
             return StatusCode(403, new { success = false, message = "This sign-in belongs to a different agency." });
 
-        // Whoever the desktop asked for is the only person who can answer.
         if (claimUserId > 0 && claimUserId != s.UserId)
         {
             await Refuse(master, cid, "wrong_person");
@@ -258,17 +250,11 @@ public class FingerprintController : ControllerBase
                 message = "This sign-in was started for a different person." });
         }
 
-        // Inside the agency's circle, or not. This is the check a photograph of
-        // the QR cannot satisfy from someone's home.
         bool fenced   = fenceLat.HasValue && fenceLng.HasValue && policy != "off";
         bool haveFix  = body?.Lat is double && body?.Lng is double &&
                         !(body.Lat == 0 && body.Lng == 0);
         bool mocked   = body?.Mock == true;
 
-        // An app built before this feature sends no location and cannot be
-        // asked for one. Refusing it would lock out every phone that has not
-        // updated yet, which is not a location failure and must not read as
-        // one. Only a build that says it tried can be held to the boundary.
         bool clientChecks = body?.GeoTried == true || haveFix;
 
         int? distance = null;
@@ -294,10 +280,6 @@ public class FingerprintController : ControllerBase
             else
             {
                 double m = MetresBetween(fenceLat!.Value, fenceLng!.Value, body!.Lat!.Value, body.Lng!.Value);
-                // A poor fix should not fail someone standing at their desk, so
-                // the phone's own accuracy widens the circle it is judged against.
-                // Capped, or a phone reporting a useless fix would widen a tight
-                // circle until it meant nothing.
                 double allow = fenceRadius + Math.Min(body.Accuracy ?? 0, 50);
                 distance = (int)Math.Round(m);
                 verdict = m <= allow ? "match" : "mismatch";

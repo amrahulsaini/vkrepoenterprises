@@ -436,9 +436,6 @@ internal static class AgencyPortal
             string id = NewChallengeId(), nonce = NewNonce(), pair = NewPairCode();
             var now = DateTime.UtcNow;
 
-            // The mobile number typed on the desktop names who this sign-in is
-            // for. Without it the challenge is anonymous and anyone enrolled in
-            // the agency can approve it and be signed in instead.
             string claimMobile = new string((dto.GetValueOrDefault("mobile") ?? "").Where(char.IsDigit).ToArray());
             if (claimMobile.Length > 10) claimMobile = claimMobile.Substring(claimMobile.Length - 10);
             long claimUserId = 0;
@@ -501,9 +498,6 @@ internal static class AgencyPortal
                 "FROM auth_challenges WHERE id=@i AND agency_id=@a LIMIT 1;", conn);
             cmd.Parameters.AddWithValue("@i", id);
             cmd.Parameters.AddWithValue("@a", ag.id);
-            // Everything is read out and the reader closed before anything else
-            // touches this connection: MySqlConnector allows one open reader at a
-            // time, and the claim below runs on the same connection.
             string status, approvedName, chalSlug, fail;
             long approvedId;
             await using (var rdr = await cmd.ExecuteReaderAsync())
@@ -546,8 +540,6 @@ internal static class AgencyPortal
                 fail = "no_role";
             }
 
-            // The desktop polls every two seconds, so the approval is seen many
-            // times. Claiming the flag is what makes one arrival count once.
             if (status == "approved" && approvedId > 0)
             {
                 bool mine;
@@ -609,10 +601,6 @@ internal static class AgencyPortal
             });
         });
 
-        // What this person can actually sign in with, asked before anything is
-        // offered. Without it the desktop cheerfully shows a QR code to someone
-        // who has no fingerprint enrolled, and the refusal only arrives after
-        // they have fetched their phone and scanned it.
         app.MapGet("/api/agency/desktop/profile-login/methods", async (HttpContext ctx, string? mobile) =>
         {
             var agency = VerifyAgencyBearer(ctx);
@@ -1243,10 +1231,6 @@ internal static class AgencyPortal
             return Results.Ok(a);
         });
 
-        // Whether a fingerprint sign-in must come from the office's own internet
-        // connection. 'warn' records the verdict without acting on it, which is
-        // the safe default: a phone on mobile data leaves through a different
-        // address and would otherwise be refused.
         app.MapPost("/api/agency/hrms/qr-proximity", async (HttpContext ctx, HttpRequest req) =>
         {
             var slug = await HrmsSessionSlug(masterConn, ctx);
@@ -1267,7 +1251,6 @@ internal static class AgencyPortal
             return Results.Ok(new { ok = true, mode });
         });
 
-        // The circle staff must be inside to approve a desktop sign-in.
         app.MapPost("/api/agency/hrms/geofence", async (HttpContext ctx, HttpRequest req) =>
         {
             var slug = await HrmsSessionSlug(masterConn, ctx);
@@ -1313,10 +1296,6 @@ internal static class AgencyPortal
             return Results.Ok(new { ok = true, lat, lng, radius, label });
         });
 
-        // Where staff phones last reported from. A laptop has no GPS and guesses
-        // the office from its network, which lands tens of metres out; the phones
-        // already send a real fix on every heartbeat, so the office can be placed
-        // from one of those instead of from a guess.
         app.MapGet("/api/agency/hrms/staff-locations", async (HttpContext ctx) =>
         {
             var slug = await HrmsSessionSlug(masterConn, ctx);
@@ -1357,8 +1336,6 @@ internal static class AgencyPortal
             return Results.Ok(rows);
         });
 
-        // The last few desktop fingerprint sign-ins, so an agency can see what
-        // enforcing would have blocked before they turn it on.
         app.MapGet("/api/agency/hrms/qr-attempts", async (HttpContext ctx) =>
         {
             var a = await HrmsSessionAgencyId(masterConn, ctx);
@@ -4170,12 +4147,6 @@ internal static class AgencyPortal
 
     private static readonly TimeSpan IstOffset = TimeSpan.FromMinutes(330);
 
-    /// Records a desktop sign-in and, if this is the first of the day, marks
-    /// the person present. Turning up and signing in is the same event, so
-    /// attendance should not need a second person to press a button.
-    ///
-    /// A hand-entered mark is never overwritten: ON DUPLICATE KEY touches only
-    /// marked_at's absence, so 'leave' or 'halfday' set in HRMS survives.
     private static async Task RecordDesktopLoginAsync(
         MySqlConnection conn, long userId, string method, string deviceLabel)
     {
@@ -4320,8 +4291,6 @@ internal static class AgencyPortal
             geoLng           = rdr.IsDBNull(16) ? (double?)null : rdr.GetDouble(16),
             geoRadiusM       = rdr.GetInt32(17),
             geoLabel         = rdr.GetString(18),
-            // Handed only to a signed-in HRMS session rather than baked into the
-            // page, so the key never sits in the repo or on an anonymous URL.
             mapsKey          = Env("GOOGLE_MAPS_KEY", ""),
         };
     }
@@ -4359,10 +4328,6 @@ internal static class AgencyPortal
         return Convert.ToBase64String(bytes).Replace('+', '-').Replace('/', '_').TrimEnd('=');
     }
 
-    /// The caller's public address. Behind the local OpenLiteSpeed proxy the
-    /// connection itself is always 127.0.0.1, so the forwarded header is the
-    /// only source of the real client. Trusted precisely because the proxy is
-    /// local: a remote client cannot reach Kestrel to forge one.
     internal static string ClientIp(HttpContext ctx)
     {
         var direct = ctx.Connection.RemoteIpAddress;
@@ -4373,7 +4338,6 @@ internal static class AgencyPortal
             string fwd = ctx.Request.Headers["X-Forwarded-For"].ToString();
             if (!string.IsNullOrWhiteSpace(fwd))
             {
-                // Left-most is the original client; the proxy appends to the right.
                 var first = fwd.Split(',')[0].Trim();
                 if (first.Length > 0) return Normalise(first);
             }
