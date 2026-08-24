@@ -634,7 +634,7 @@ internal static class DesktopApiClient
 
     /// The password is checked on the server; it is never returned to the app.
     internal record AuthChallengeResult(string Id, string PairCode, string Qr, int ExpiresInSeconds);
-    internal record AuthChallengeStatus(string Status, string Name, long UserId, string FailReason, string Role, string[] Modules);
+    internal record AuthChallengeStatus(string Status, string Name, long UserId, string FailReason, string Role, string[] Modules, string ProfileToken);
 
     internal static async Task<AuthChallengeResult> CreateAuthChallengeAsync(
         string mode, string deviceLabel, string mobile)
@@ -651,8 +651,92 @@ internal static class DesktopApiClient
         var resp = await Send(HttpMethod.Get, "api/agency/desktop/auth-challenge/" + id);
         resp.EnsureSuccessStatusCode();
         return (await resp.Content.ReadFromJsonAsync<AuthChallengeStatus>(_json))
-               ?? new AuthChallengeStatus("pending", "", 0, "", "", Array.Empty<string>());
+               ?? new AuthChallengeStatus("pending", "", 0, "", "", Array.Empty<string>(), "");
     }
+
+    internal static string ProfileToken { get; set; } = "";
+
+    private static async Task<T?> MeGet<T>(string path)
+    {
+        var req = new HttpRequestMessage(HttpMethod.Get, App.ApiBaseUrl.TrimEnd('/') + "/" + path.TrimStart('/'));
+        req.Headers.Add("X-Profile-Token", ProfileToken);
+        if (!string.IsNullOrEmpty(App.ApiKey)) req.Headers.TryAddWithoutValidation("X-Api-Key", App.ApiKey);
+        using var resp = await App.HttpClient.SendAsync(req);
+        if (!resp.IsSuccessStatusCode) return default;
+        return await resp.Content.ReadFromJsonAsync<T>(_json);
+    }
+
+    private static async Task<(bool ok, string error)> MePost(string path, object body)
+    {
+        var req = new HttpRequestMessage(HttpMethod.Post, App.ApiBaseUrl.TrimEnd('/') + "/" + path.TrimStart('/'))
+        {
+            Content = JsonContent.Create(body)
+        };
+        req.Headers.Add("X-Profile-Token", ProfileToken);
+        if (!string.IsNullOrEmpty(App.ApiKey)) req.Headers.TryAddWithoutValidation("X-Api-Key", App.ApiKey);
+        using var resp = await App.HttpClient.SendAsync(req);
+        if (resp.IsSuccessStatusCode) return (true, "");
+        string msg = "That did not work.";
+        try
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
+            if (doc.RootElement.TryGetProperty("message", out var m)) msg = m.GetString() ?? msg;
+        }
+        catch { }
+        return (false, msg);
+    }
+
+    internal record MeProfile(
+        long Id, string Name, string Mobile, string Address, string Pincode, string PfpUrl,
+        bool IsActive, string AccountNumber, string Ifsc, decimal Balance,
+        string KycStatus, string KycName, string KycAadhaarLast4, string KycDob, string KycGender,
+        string KycPan, string KycBankHolder, bool KycAadhaarVerified, bool KycPanVerified,
+        bool KycBankVerified, string JoinedApp, string Role, string HiredOn, string ConfirmedOn,
+        string DateOfBirth, string Designation, string Department, string EmploymentType,
+        string EmergencyName, string EmergencyPhone, string BloodGroup, string ShiftStart,
+        string ShiftEnd, string WeeklyOffs, int GraceMinutes, string ReportsTo);
+
+    internal record MeDay(string Date, string Day, string Status, string Note, string CheckIn,
+                          string CheckOut, int Logins, int WorkedMinutes, int LateMinutes);
+    internal record MeSummary(int Present, int Absent, int Halfday, int Leave, int Weekoff,
+                              int Holiday, int Late, int WorkedMinutes, int FullDayMinutes);
+    internal record MeMonth(string Month, string Label, MeDay[] Days, MeSummary Summary);
+
+    internal record MeLeaveType(int Id, string Code, string Name, decimal Quota, bool IsPaid,
+                                decimal Entitled, decimal Used, decimal Balance);
+    internal record MeLeaveRequest(long Id, string Type, string From, string To, decimal Days,
+                                   string HalfDay, string Reason, string Status, string AppliedAt,
+                                   string DecidedBy, string DecidedAt, string DecisionNote);
+    internal record MeLeaves(int Year, MeLeaveType[] Types, MeLeaveRequest[] Requests);
+
+    internal record MeHoliday(string Date, string Day, string Name, bool Optional, bool Past);
+    internal record MeHolidays(int Year, MeHoliday[] Holidays);
+
+    internal static Task<MeProfile?> MyProfileAsync() =>
+        MeGet<MeProfile>("api/agency/me/profile");
+
+    internal static Task<MeMonth?> MyAttendanceAsync(string month) =>
+        MeGet<MeMonth>("api/agency/me/attendance?month=" + Uri.EscapeDataString(month));
+
+    internal static Task<MeLeaves?> MyLeavesAsync() =>
+        MeGet<MeLeaves>("api/agency/me/leaves");
+
+    internal static Task<MeHolidays?> MyHolidaysAsync(int year) =>
+        MeGet<MeHolidays>("api/agency/me/holidays?year=" + year);
+
+    internal static Task<(bool ok, string error)> ApplyLeaveAsync(
+        int leaveTypeId, DateTime from, DateTime to, string halfDay, string reason) =>
+        MePost("api/agency/me/leaves", new
+        {
+            LeaveTypeId = leaveTypeId.ToString(),
+            From = from.ToString("yyyy-MM-dd"),
+            To = to.ToString("yyyy-MM-dd"),
+            HalfDay = halfDay,
+            Reason = reason
+        });
+
+    internal static Task<(bool ok, string error)> CancelLeaveAsync(long id) =>
+        MePost("api/agency/me/leaves/" + id + "/cancel", new { });
 
     internal record ProfileMethods(
         bool Found, string Name, bool Allowed, string BlockReason,
@@ -670,7 +754,7 @@ internal static class DesktopApiClient
         catch { return null; }
     }
 
-    internal record ProfileLoginResult(bool Ok, long UserId, string Name, string Role, string[] Modules);
+    internal record ProfileLoginResult(bool Ok, long UserId, string Name, string Role, string[] Modules, string ProfileToken);
     internal record ProfileRequiredResult(bool Required, long Profiles);
 
     internal static async Task<bool> ProfileLoginRequiredAsync()
@@ -693,6 +777,7 @@ internal static class DesktopApiClient
             var resp = await Send(HttpMethod.Post, "api/agency/desktop/profile-login",
                 new { Mobile = mobile, Password = password });
             var r = await resp.Content.ReadFromJsonAsync<ProfileLoginResult>(_json);
+            ProfileToken = r?.ProfileToken ?? "";
             return (true, r?.Name ?? "", "", false, r?.Modules ?? Array.Empty<string>(), r?.Role ?? "");
         }
         catch (HttpRequestException ex)

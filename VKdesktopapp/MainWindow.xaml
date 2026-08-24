@@ -202,6 +202,14 @@
                            FontSize="11" FontWeight="Bold" Foreground="White"
                            HorizontalAlignment="Center" VerticalAlignment="Center" />
             </Border>
+            <Button Name="btnMyHrms" Click="btnMyHrms_Click"
+                    Grid.Row="8" Width="64" Height="56"
+                    Background="Transparent" BorderThickness="0"
+                    VerticalAlignment="Bottom" Margin="0,0,0,112"
+                    Content="&#x1F464;" FontFamily="{StaticResource FontBody}" FontSize="20"
+                    Foreground="{StaticResource Gray400}" Cursor="Hand"
+                    Visibility="Collapsed"
+                    ToolTip="My HRMS - attendance, leave and profile" />
             <Button Name="btnSettings" Click="btnSettings_Click"
                     Grid.Row="9" Width="64" Height="56"
                     Background="Transparent" BorderThickness="0"

@@ -44,6 +44,9 @@ public partial class MainWindow : Window
             if (!await ProfileGate.EnsureAsync(this, "Super Admin")) { Close(); return; }
             ProfileGate.Stamp(this);
             ApplyModulePermissions();
+            btnMyHrms.Visibility =
+                App.SignedAppUser?.HrmsEnabled == true && Data.DesktopApiClient.ProfileToken.Length > 0
+                    ? Visibility.Visible : Visibility.Collapsed;
         };
 
         _homePage = new HomePage();
@@ -111,6 +114,12 @@ public partial class MainWindow : Window
         btnConfirmations.Foreground = brush;
         btnReports.Foreground = brush;
         btnDirectData.Foreground = brush;
+    }
+
+    private void btnMyHrms_Click(object sender, RoutedEventArgs e)
+    {
+        var w = new MyHrmsWindow { Owner = this };
+        w.ShowDialog();
     }
 
     private void btnSettings_Click(object sender, RoutedEventArgs e)

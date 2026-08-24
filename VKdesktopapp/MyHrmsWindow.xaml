@@ -1,0 +1,262 @@
+<Window x:Class="CRMRSDesktopApp.MyHrmsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="My HRMS" Height="720" Width="1060"
+        WindowStartupLocation="CenterOwner" Background="#FFF7F7F8">
+    <Window.Resources>
+        <Style x:Key="Card" TargetType="Border">
+            <Setter Property="Background" Value="White" />
+            <Setter Property="BorderBrush" Value="#FFE4E4E7" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Padding" Value="18" />
+        </Style>
+        <Style x:Key="Lbl" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="10" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Foreground" Value="#FF9A9AA3" />
+            <Setter Property="Margin" Value="0,0,0,3" />
+        </Style>
+        <Style x:Key="Val" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="13.5" />
+            <Setter Property="Foreground" Value="#FF0D0D0F" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="Margin" Value="0,0,0,14" />
+        </Style>
+        <Style x:Key="Accent" TargetType="Button">
+            <Setter Property="Background" Value="#FFFF5500" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="14,8" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="22">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0" Style="{StaticResource Card}" Margin="0,0,0,16">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <Border Grid.Column="0" Width="62" Height="62" CornerRadius="14"
+                        Background="#FFF7F7F8" BorderBrush="#FFE4E4E7" BorderThickness="1">
+                    <TextBlock Name="lblInitials" Text="--" FontSize="22" FontWeight="Bold"
+                               Foreground="#FF6B6B74"
+                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Border>
+                <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="15,0,0,0">
+                    <TextBlock Name="lblName" Text="Loading..." FontSize="21" FontWeight="Bold"
+                               Foreground="#FF0D0D0F" />
+                    <TextBlock Name="lblSub" Text="" FontSize="12.5" Foreground="#FF6B6B74"
+                               Margin="0,3,0,0" />
+                </StackPanel>
+                <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                    <TextBlock Style="{StaticResource Lbl}" Text="WORKING SINCE"
+                               HorizontalAlignment="Right" />
+                    <TextBlock Name="lblHired" Text="--" FontSize="15" FontWeight="Bold"
+                               Foreground="#FFCC3C00" HorizontalAlignment="Right" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <TabControl Grid.Row="1" Name="tabs" Background="Transparent" BorderThickness="0">
+            <TabItem Header="My profile">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,14,0,0">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+
+                        <Border Grid.Column="0" Style="{StaticResource Card}" Margin="0,0,8,0"
+                                VerticalAlignment="Top">
+                            <StackPanel>
+                                <TextBlock Text="Employment" FontSize="15" FontWeight="Bold"
+                                           Margin="0,0,0,14" />
+                                <TextBlock Style="{StaticResource Lbl}" Text="DATE OF HIRING" />
+                                <TextBlock Name="pHired" Style="{StaticResource Val}" Text="--" />
+                                <TextBlock Style="{StaticResource Lbl}" Text="DESIGNATION" />
+                                <TextBlock Name="pDesig" Style="{StaticResource Val}" Text="--" />
+                                <TextBlock Style="{StaticResource Lbl}" Text="DEPARTMENT" />
+                                <TextBlock Name="pDept" Style="{StaticResource Val}" Text="--" />
+                                <TextBlock Style="{StaticResource Lbl}" Text="EMPLOYMENT TYPE" />
+                                <TextBlock Name="pType" Style="{StaticResource Val}" Text="--" />
+                                <TextBlock Style="{StaticResource Lbl}" Text="ROLE ON DESKTOP" />
+                                <TextBlock Name="pRole" Style="{StaticResource Val}" Text="--" />
+                                <TextBlock Style="{StaticResource Lbl}" Text="SHIFT" />
+                                <TextBlock Name="pShift" Style="{StaticResource Val}" Text="--" />
+                                <TextBlock Style="{StaticResource Lbl}" Text="WEEKLY OFF" />
+                                <TextBlock Name="pOff" Style="{StaticResource Val}" Text="--" />
+                            </StackPanel>
+                        </Border>
+
+                        <StackPanel Grid.Column="1" Margin="8,0,0,0">
+                            <Border Style="{StaticResource Card}" Margin="0,0,0,16">
+                                <StackPanel>
+                                    <TextBlock Text="Personal" FontSize="15" FontWeight="Bold"
+                                               Margin="0,0,0,14" />
+                                    <TextBlock Style="{StaticResource Lbl}" Text="MOBILE" />
+                                    <TextBlock Name="pMobile" Style="{StaticResource Val}" Text="--" />
+                                    <TextBlock Style="{StaticResource Lbl}" Text="DATE OF BIRTH" />
+                                    <TextBlock Name="pDob" Style="{StaticResource Val}" Text="--" />
+                                    <TextBlock Style="{StaticResource Lbl}" Text="BLOOD GROUP" />
+                                    <TextBlock Name="pBlood" Style="{StaticResource Val}" Text="--" />
+                                    <TextBlock Style="{StaticResource Lbl}" Text="ADDRESS" />
+                                    <TextBlock Name="pAddr" Style="{StaticResource Val}" Text="--" />
+                                    <TextBlock Style="{StaticResource Lbl}" Text="EMERGENCY CONTACT" />
+                                    <TextBlock Name="pEmerg" Style="{StaticResource Val}" Text="--" />
+                                </StackPanel>
+                            </Border>
+
+                            <Border Style="{StaticResource Card}">
+                                <StackPanel>
+                                    <TextBlock Text="KYC and bank" FontSize="15" FontWeight="Bold"
+                                               Margin="0,0,0,14" />
+                                    <TextBlock Style="{StaticResource Lbl}" Text="KYC STATUS" />
+                                    <TextBlock Name="pKyc" Style="{StaticResource Val}" Text="--" />
+                                    <TextBlock Style="{StaticResource Lbl}" Text="NAME ON AADHAAR" />
+                                    <TextBlock Name="pKycName" Style="{StaticResource Val}" Text="--" />
+                                    <TextBlock Style="{StaticResource Lbl}" Text="AADHAAR" />
+                                    <TextBlock Name="pAadhaar" Style="{StaticResource Val}" Text="--" />
+                                    <TextBlock Style="{StaticResource Lbl}" Text="PAN" />
+                                    <TextBlock Name="pPan" Style="{StaticResource Val}" Text="--" />
+                                    <TextBlock Style="{StaticResource Lbl}" Text="BANK ACCOUNT" />
+                                    <TextBlock Name="pBank" Style="{StaticResource Val}" Text="--" />
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </Grid>
+                </ScrollViewer>
+            </TabItem>
+
+            <TabItem Header="My attendance">
+                <Grid Margin="0,14,0,0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,14">
+                        <Button Name="btnPrevMonth" Content="&#x2190; Previous" Padding="12,7"
+                                Cursor="Hand" Click="btnPrevMonth_Click" />
+                        <TextBlock Name="lblMonth" Text="--" FontSize="16" FontWeight="Bold"
+                                   VerticalAlignment="Center" Margin="14,0" MinWidth="170"
+                                   TextAlignment="Center" />
+                        <Button Name="btnNextMonth" Content="Next &#x2192;" Padding="12,7"
+                                Cursor="Hand" Click="btnNextMonth_Click" />
+                    </StackPanel>
+
+                    <Border Grid.Row="1" Style="{StaticResource Card}" Margin="0,0,0,14" Padding="14">
+                        <StackPanel Name="pnlSummary" Orientation="Horizontal" />
+                    </Border>
+
+                    <Border Grid.Row="2" Style="{StaticResource Card}" Padding="0">
+                        <DataGrid Name="gridDays" AutoGenerateColumns="False" IsReadOnly="True"
+                                  HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                                  HorizontalGridLinesBrush="#FFF0F0F2" BorderThickness="0"
+                                  RowHeight="34" FontSize="13" Background="White"
+                                  RowBackground="White" AlternatingRowBackground="#FFFCFCFD">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Date" Binding="{Binding Date}" Width="110" />
+                                <DataGridTextColumn Header="Day" Binding="{Binding Day}" Width="70" />
+                                <DataGridTextColumn Header="Status" Binding="{Binding StatusText}" Width="120" />
+                                <DataGridTextColumn Header="First in" Binding="{Binding CheckIn}" Width="90" />
+                                <DataGridTextColumn Header="Last out" Binding="{Binding CheckOut}" Width="90" />
+                                <DataGridTextColumn Header="Sign-ins" Binding="{Binding Logins}" Width="80" />
+                                <DataGridTextColumn Header="Hours" Binding="{Binding Hours}" Width="90" />
+                                <DataGridTextColumn Header="Late by" Binding="{Binding LateText}" Width="90" />
+                                <DataGridTextColumn Header="Note" Binding="{Binding Note}" Width="*" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="Leave">
+                <Grid Margin="0,14,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="320" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <Border Grid.Column="0" Style="{StaticResource Card}" Margin="0,0,8,0"
+                            VerticalAlignment="Top">
+                        <StackPanel>
+                            <TextBlock Text="Apply for leave" FontSize="15" FontWeight="Bold"
+                                       Margin="0,0,0,14" />
+                            <TextBlock Style="{StaticResource Lbl}" Text="LEAVE TYPE" />
+                            <ComboBox Name="cmbLeaveType" Height="32" Margin="0,0,0,12"
+                                      DisplayMemberPath="Display" />
+                            <TextBlock Style="{StaticResource Lbl}" Text="FROM" />
+                            <DatePicker Name="dpFrom" Height="32" Margin="0,0,0,12" />
+                            <TextBlock Style="{StaticResource Lbl}" Text="TO" />
+                            <DatePicker Name="dpTo" Height="32" Margin="0,0,0,12" />
+                            <CheckBox Name="chkHalf" Content="Half day" Margin="0,0,0,12" />
+                            <TextBlock Style="{StaticResource Lbl}" Text="REASON" />
+                            <TextBox Name="txtReason" Height="76" AcceptsReturn="True"
+                                     TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"
+                                     Margin="0,0,0,14" />
+                            <Button Name="btnApply" Content="Send request"
+                                    Style="{StaticResource Accent}" Click="btnApply_Click" />
+                            <TextBlock Name="lblLeaveMsg" TextWrapping="Wrap" FontSize="12"
+                                       Margin="0,10,0,0" />
+                        </StackPanel>
+                    </Border>
+
+                    <Grid Grid.Column="1" Margin="8,0,0,0">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+                        <Border Grid.Row="0" Style="{StaticResource Card}" Margin="0,0,0,14" Padding="14">
+                            <StackPanel Name="pnlBalances" Orientation="Horizontal" />
+                        </Border>
+                        <Border Grid.Row="1" Style="{StaticResource Card}" Padding="0">
+                            <DataGrid Name="gridLeaves" AutoGenerateColumns="False" IsReadOnly="True"
+                                      HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                                      HorizontalGridLinesBrush="#FFF0F0F2" BorderThickness="0"
+                                      RowHeight="36" FontSize="13" Background="White"
+                                      RowBackground="White" AlternatingRowBackground="#FFFCFCFD"
+                                      SelectionChanged="gridLeaves_SelectionChanged">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Type" Binding="{Binding Type}" Width="130" />
+                                    <DataGridTextColumn Header="From" Binding="{Binding From}" Width="100" />
+                                    <DataGridTextColumn Header="To" Binding="{Binding To}" Width="100" />
+                                    <DataGridTextColumn Header="Days" Binding="{Binding Days}" Width="60" />
+                                    <DataGridTextColumn Header="Status" Binding="{Binding StatusText}" Width="100" />
+                                    <DataGridTextColumn Header="Reason" Binding="{Binding Reason}" Width="*" />
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Border>
+                    </Grid>
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="Holidays">
+                <Border Style="{StaticResource Card}" Margin="0,14,0,0" Padding="0">
+                    <DataGrid Name="gridHolidays" AutoGenerateColumns="False" IsReadOnly="True"
+                              HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                              HorizontalGridLinesBrush="#FFF0F0F2" BorderThickness="0"
+                              RowHeight="36" FontSize="13.5" Background="White"
+                              RowBackground="White" AlternatingRowBackground="#FFFCFCFD">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Date" Binding="{Binding Date}" Width="130" />
+                            <DataGridTextColumn Header="Day" Binding="{Binding Day}" Width="90" />
+                            <DataGridTextColumn Header="Holiday" Binding="{Binding Name}" Width="*" />
+                            <DataGridTextColumn Header="Kind" Binding="{Binding Kind}" Width="120" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Border>
+            </TabItem>
+        </TabControl>
+    </Grid>
+</Window>

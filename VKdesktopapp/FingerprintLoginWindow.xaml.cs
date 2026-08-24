@@ -89,6 +89,7 @@ public partial class FingerprintLoginWindow : Window
             {
                 case "approved":
                     _poll.Stop();
+                    DesktopApiClient.ProfileToken = r.ProfileToken ?? "";
                     SignedInName = r.Name ?? "";
                     SignedInMobile = "";
                     Modules = r.Modules ?? System.Array.Empty<string>();
