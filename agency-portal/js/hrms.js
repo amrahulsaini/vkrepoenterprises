@@ -142,9 +142,208 @@
 
   var LABELS = {
     dashboard:'Dashboard', departments:'Departments',
-    leave:'Leave', payroll:'Payroll', documents:'Documents', roles:'Roles',
+    payroll:'Payroll', documents:'Documents', roles:'Roles',
     reports:'Reports'
   };
+
+  var LEAVE = [];
+
+  function leavePill(st) {
+    return st === 'pending'   ? pill('p-off', 'Waiting')
+         : st === 'approved'  ? pill('p-on', 'Approved')
+         : st === 'rejected'  ? pill('p-red', 'Rejected')
+                              : pill('p-off', 'Cancelled');
+  }
+
+  function span(a, b) {
+    return a === b ? fmtDay(a) : fmtDay(a) + ' \u2013 ' + fmtDay(b);
+  }
+
+  function fmtDay(iso) {
+    var d = new Date(iso + 'T00:00:00');
+    if (isNaN(d)) return iso;
+    return d.toLocaleDateString([], { day:'2-digit', month:'short', year:'numeric' });
+  }
+
+  async function loadLeave() {
+    var want = $('lv-filter').value || 'pending';
+    $('lv-rows').innerHTML = '<div class="empty-note">Loading\u2026</div>';
+    try {
+      LEAVE = await call('/hrms/leave-requests?status=' + encodeURIComponent(want));
+    } catch (e) {
+      $('lv-rows').innerHTML = '<div class="empty-note">' + esc(e.message) + '</div>';
+      return;
+    }
+
+    $('lv-count').textContent = LEAVE.length
+      ? LEAVE.length + (LEAVE.length === 1 ? ' request' : ' requests') : '';
+
+    if (!LEAVE.length) {
+      $('lv-rows').innerHTML = '<div class="empty-note">' +
+        (want === 'pending' ? 'Nothing waiting for a decision.' : 'No requests here.') + '</div>';
+      return;
+    }
+
+    $('lv-rows').innerHTML = LEAVE.map(function (r, i) {
+      var acts = r.status === 'pending'
+        ? '<input class="field" id="lv-note-' + i + '" placeholder="Note (optional)" style="flex:1;min-width:180px">' +
+          '<button class="btn btn-accent btn-xs" data-ok="' + i + '">Approve</button>' +
+          '<button class="btn btn-ghost btn-xs" data-no="' + i + '">Reject</button>'
+        : '<span class="count">' + esc(r.decidedBy || '') +
+          (r.decidedAt ? ' \u00b7 ' + esc(r.decidedAt) : '') +
+          (r.decisionNote ? ' \u00b7 ' + esc(r.decisionNote) : '') + '</span>';
+
+      return '<div class="lvcard">' +
+        '<div class="lvhead">' + avatar(r, false) +
+          '<div style="min-width:0"><div class="n" style="font-size:14px;font-weight:700">' +
+            esc(r.name || 'Unnamed') + '</div>' +
+          '<div class="m">' + esc(r.mobile || '') + '</div></div>' +
+          '<div style="margin-left:auto;display:flex;gap:8px;align-items:center">' +
+            pill(r.isPaid ? 'p-on' : 'p-off', r.type) +
+            '<b style="font-size:13.5px">' + esc(r.days) + (r.days == 1 ? ' day' : ' days') + '</b>' +
+            leavePill(r.status) +
+          '</div>' +
+        '</div>' +
+        '<div class="lvwhen">' + esc(span(r.from, r.to)) +
+          (r.halfDay !== 'none' ? ' \u00b7 half day' : '') +
+          ' \u00b7 asked ' + esc(r.appliedAt) + '</div>' +
+        '<div class="lvreason">' + esc(r.reason) + '</div>' +
+        '<div class="lvacts">' + acts + '</div>' +
+      '</div>';
+    }).join('');
+
+    Array.prototype.forEach.call($('lv-rows').querySelectorAll('[data-ok]'), function (b) {
+      b.addEventListener('click', function () { decide(b.getAttribute('data-ok'), 'approved', b); });
+    });
+    Array.prototype.forEach.call($('lv-rows').querySelectorAll('[data-no]'), function (b) {
+      b.addEventListener('click', function () { decide(b.getAttribute('data-no'), 'rejected', b); });
+    });
+  }
+
+  async function decide(i, decision, btn) {
+    var r = LEAVE[parseInt(i, 10)];
+    if (!r) return;
+    if (decision === 'rejected' &&
+        !confirm('Reject ' + (r.name || 'this request') + '\u2019s leave?')) return;
+
+    var noteEl = $('lv-note-' + i);
+    btn.disabled = true;
+    try {
+      await call('/hrms/leave-requests/' + r.id, {
+        method: 'POST',
+        body: { decision: decision, note: noteEl ? noteEl.value : '' }
+      });
+      await loadLeave();
+    } catch (e) {
+      btn.disabled = false;
+      alert(e.message);
+    }
+  }
+
+  $('lv-filter').addEventListener('change', loadLeave);
+
+  function holMsg(t, kind) {
+    $('hol-msg').textContent = t || '';
+    $('hol-msg').className = 'msg' + (kind ? ' ' + kind : '');
+  }
+
+  async function loadHolidays() {
+    var y = new Date().getFullYear();
+    $('hol-year-label').textContent = y;
+    $('hol-rows').innerHTML = '<div class="empty-note" style="border:0">Loading\u2026</div>';
+    var data;
+    try { data = await call('/hrms/holidays?year=' + y); }
+    catch (e) { $('hol-rows').innerHTML = '<div class="empty-note" style="border:0">' + esc(e.message) + '</div>'; return; }
+
+    if (!data.holidays.length) {
+      $('hol-rows').innerHTML = '<div class="empty-note" style="border:0">' +
+        'No holidays set for ' + y + ' yet.</div>';
+      return;
+    }
+
+    $('hol-rows').innerHTML = data.holidays.map(function (h) {
+      return '<div class="hrow">' +
+        '<span style="font-variant-numeric:tabular-nums">' + esc(fmtDay(h.date)) + '</span>' +
+        '<span style="color:var(--muted)">' + esc(h.day) + '</span>' +
+        '<span><b>' + esc(h.name) + '</b></span>' +
+        '<span>' + pill(h.optional ? 'p-off' : 'p-on', h.optional ? 'Optional' : 'Public') + '</span>' +
+        '<span><button class="btn btn-ghost btn-xs" data-del="' + h.id + '">Remove</button></span>' +
+      '</div>';
+    }).join('');
+
+    Array.prototype.forEach.call($('hol-rows').querySelectorAll('[data-del]'), function (b) {
+      b.addEventListener('click', async function () {
+        if (!confirm('Remove this holiday?')) return;
+        b.disabled = true;
+        try { await call('/hrms/holidays/' + b.getAttribute('data-del'), { method: 'DELETE' }); await loadHolidays(); }
+        catch (e) { b.disabled = false; alert(e.message); }
+      });
+    });
+  }
+
+  $('hol-add').addEventListener('click', async function () {
+    var d = ($('hol-date').value || '').trim();
+    var n = ($('hol-name').value || '').trim();
+    if (!d) { holMsg('Pick a date.', 'err'); return; }
+    if (n.length < 2) { holMsg('Name the holiday.', 'err'); return; }
+    $('hol-add').disabled = true;
+    try {
+      await call('/hrms/holidays', {
+        method: 'POST',
+        body: { date: d, name: n, optional: $('hol-optional').checked ? 'true' : 'false' }
+      });
+      $('hol-name').value = '';
+      $('hol-optional').checked = false;
+      holMsg('Added.', 'ok');
+      await loadHolidays();
+    } catch (e) { holMsg(e.message, 'err'); }
+    finally { $('hol-add').disabled = false; }
+  });
+
+  var DAYNAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+
+  function wpMsg(t, kind) {
+    $('wp-msg').textContent = t || '';
+    $('wp-msg').className = 'msg' + (kind ? ' ' + kind : '');
+  }
+
+  async function loadWorkPolicy() {
+    var p;
+    try { p = await call('/hrms/work-policy'); } catch (e) { return; }
+    $('wp-start').value = p.shiftStart || '09:30';
+    $('wp-end').value = p.shiftEnd || '18:30';
+    $('wp-grace').value = p.graceMinutes;
+    $('wp-half').value = p.halfDayMinutes;
+
+    var on = (p.weeklyOffs || '').split(',').filter(function (x) { return x !== ''; });
+    $('wp-days').innerHTML = DAYNAMES.map(function (nm, i) {
+      var checked = on.indexOf(String(i)) >= 0 ? ' checked' : '';
+      return '<label class="modchk"><input type="checkbox" value="' + i + '"' + checked + '>' +
+             '<span>' + nm + '</span></label>';
+    }).join('');
+  }
+
+  $('wp-save').addEventListener('click', async function () {
+    var offs = Array.prototype.slice
+      .call($('wp-days').querySelectorAll('input:checked'))
+      .map(function (c) { return c.value; }).join(',');
+    $('wp-save').disabled = true;
+    wpMsg('Saving\u2026');
+    try {
+      await call('/hrms/work-policy', {
+        method: 'PUT',
+        body: {
+          shiftStart: $('wp-start').value,
+          shiftEnd: $('wp-end').value,
+          graceMinutes: $('wp-grace').value,
+          halfDayMinutes: $('wp-half').value,
+          weeklyOffs: offs
+        }
+      });
+      wpMsg('Saved. Attendance will use these from now on.', 'ok');
+    } catch (e) { wpMsg(e.message, 'err'); }
+    finally { $('wp-save').disabled = false; }
+  });
 
   function qrMsg(t, kind) {
     $('qr-msg').textContent = t || '';
@@ -480,6 +679,7 @@
     });
     qrMsg('');
     geoMsg('');
+    loadWorkPolicy();
     paintGeo();
     setTimeout(ensureMap, 0);
     loadQrAttempts();
@@ -538,7 +738,8 @@
   });
 
   var PAGES = ['page-profiles','page-desktop','page-staff','page-attendance',
-               'page-roles','page-roleedit','page-settings','page-stub'];
+               'page-roles','page-roleedit','page-leave','page-holidays',
+               'page-settings','page-stub'];
 
   function only(id) {
     PAGES.forEach(function (p) { show($(p), p === id); });
@@ -560,6 +761,20 @@
       only('page-attendance');
       if (!$('at-date').value) $('at-date').value = istToday();
       loadAttendance();
+      return;
+    }
+
+    if (r[0] === 'leave') {
+      markNav('leave');
+      only('page-leave');
+      loadLeave();
+      return;
+    }
+
+    if (r[0] === 'holidays') {
+      markNav('holidays');
+      only('page-holidays');
+      loadHolidays();
       return;
     }
 

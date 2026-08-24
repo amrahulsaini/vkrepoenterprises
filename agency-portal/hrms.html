@@ -349,6 +349,16 @@
   .phrow .mt{font-size:11.5px;color:var(--muted)}
   .phrow .ago{margin-left:auto;font-size:11.5px;color:var(--muted-2);white-space:nowrap}
   .phrow.here{border-color:var(--orange);background:var(--orange-wash)}
+  .lvcard{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);
+    padding:16px 18px;margin-bottom:12px;box-shadow:var(--shadow)}
+  .lvhead{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .lvwhen{font-size:13px;color:var(--muted);margin-top:6px}
+  .lvreason{font-size:13.5px;margin-top:10px;line-height:1.55;background:var(--paper-2);
+    border-radius:9px;padding:10px 12px}
+  .lvacts{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;align-items:center}
+  .hrow{display:grid;grid-template-columns:150px 90px 1fr 130px 90px;gap:12px;align-items:center;
+    padding:12px 18px;border-bottom:1px solid var(--paper-2);font-size:13.5px}
+  .hrow:last-child{border-bottom:0}
   .empty-note{
     border:1px dashed var(--line);border-radius:var(--radius);padding:30px;
     text-align:center;color:var(--muted);font-size:13.5px;background:var(--paper);
@@ -468,7 +478,8 @@
         <button class="nav" data-page="roles"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M10 21v-5h4v5"/></svg><span>Roles</span></button>
         <button class="nav" data-page="departments" disabled><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M10 21v-5h4v5"/></svg><span>Departments</span><span class="soon">Soon</span></button>
         <button class="nav" data-page="attendance"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M8 2.5v4M16 2.5v4M3 9.5h18"/><path d="m9 14.5 2 2 4-4"/></svg><span>Attendance</span></button>
-        <button class="nav" data-page="leave" disabled><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M8 2.5v4M16 2.5v4M3 9.5h18M12 13v4M10 15h4"/></svg><span>Leave</span><span class="soon">Soon</span></button>
+        <button class="nav" data-page="leave"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M8 2.5v4M16 2.5v4M3 9.5h18M12 13v4M10 15h4"/></svg><span>Leave</span><span class="soon hidden" id="leave-count"></span></button>
+        <button class="nav" data-page="holidays"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M8 2.5v4M16 2.5v4M3 9.5h18"/><circle cx="12" cy="15" r="2"/></svg><span>Holidays</span></button>
       <div class="grp">Finance</div>
         <button class="nav" data-page="payroll" disabled><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5.5" width="19" height="13" rx="2"/><circle cx="12" cy="12" r="2.8"/><path d="M6 12h.01M18 12h.01"/></svg><span>Payroll</span><span class="soon">Soon</span></button>
       <div class="grp">Records</div>
@@ -723,6 +734,63 @@
         </div>
       </div>
 
+      <div id="page-leave" class="hidden">
+        <div class="head">
+          <div>
+            <h1 class="t">Leave</h1>
+            <p class="s">Requests staff have sent from the desktop app.</p>
+          </div>
+        </div>
+        <div class="toolbar">
+          <select class="field" id="lv-filter" style="max-width:200px">
+            <option value="pending">Waiting for a decision</option>
+            <option value="approved">Approved</option>
+            <option value="rejected">Rejected</option>
+            <option value="all">Everything</option>
+          </select>
+          <span class="count" id="lv-count"></span>
+        </div>
+        <div id="lv-rows"></div>
+      </div>
+
+      <div id="page-holidays" class="hidden">
+        <div class="head">
+          <div>
+            <h1 class="t">Holidays</h1>
+            <p class="s">Days the office is closed. Staff see these in the app, and
+               attendance counts them as a holiday rather than an absence.</p>
+          </div>
+        </div>
+        <div class="sec" style="margin-top:0">
+          <div class="st">Add a holiday</div>
+          <div class="panel">
+            <div class="duo">
+              <div>
+                <div class="modgrp">Date</div>
+                <input class="field" id="hol-date" type="date">
+              </div>
+              <div>
+                <div class="modgrp">Name</div>
+                <input class="field" id="hol-name" maxlength="190" placeholder="e.g. Diwali">
+              </div>
+            </div>
+            <label class="modchk" style="margin-top:12px;background:var(--paper-2)">
+              <input type="checkbox" id="hol-optional">
+              <span>Optional holiday &mdash; staff may choose to work</span>
+            </label>
+            <button class="btn btn-accent btn-xs" id="hol-add" style="margin-top:14px">Add holiday</button>
+            <div class="msg" id="hol-msg"></div>
+          </div>
+        </div>
+        <div class="sec">
+          <div class="st"><span id="hol-year-label">This year</span></div>
+          <div class="tbl">
+            <div class="thead" style="grid-template-columns:150px 90px 1fr 130px 90px"><span>Date</span><span>Day</span><span>Holiday</span><span>Kind</span><span></span></div>
+            <div id="hol-rows"></div>
+          </div>
+        </div>
+      </div>
+
       <div id="page-settings" class="hidden">
         <div class="head">
           <div>
@@ -732,6 +800,39 @@
         </div>
 
         <div class="sec" style="margin-top:0">
+          <div class="st">Working hours</div>
+          <div class="panel">
+            <h4>Shift, grace and weekly off</h4>
+            <p class="ph">Attendance uses these to work out hours and how late somebody was.
+               A sign-in after the shift start plus the grace counts as late.</p>
+            <div class="duo">
+              <div>
+                <div class="modgrp">Shift starts</div>
+                <input class="field" id="wp-start" type="time">
+              </div>
+              <div>
+                <div class="modgrp">Shift ends</div>
+                <input class="field" id="wp-end" type="time">
+              </div>
+            </div>
+            <div class="duo" style="margin-top:12px">
+              <div>
+                <div class="modgrp">Grace (minutes)</div>
+                <input class="field" id="wp-grace" type="number" min="0" max="180">
+              </div>
+              <div>
+                <div class="modgrp">Half day after (minutes worked)</div>
+                <input class="field" id="wp-half" type="number" min="30" max="720">
+              </div>
+            </div>
+            <div class="modgrp" style="margin-top:14px">Weekly off</div>
+            <div id="wp-days" class="rolegrid"></div>
+            <button class="btn btn-accent btn-xs" id="wp-save" style="margin-top:16px">Save working hours</button>
+            <div class="msg" id="wp-msg"></div>
+          </div>
+        </div>
+
+        <div class="sec">
           <div class="st">Office boundary</div>
           <div class="panel">
             <h4>Where staff may approve a desktop sign-in</h4>
@@ -874,6 +975,6 @@
 </aside>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="/js/hrms.js?v=23"></script>
+<script src="/js/hrms.js?v=24"></script>
 </body>
 </html>
