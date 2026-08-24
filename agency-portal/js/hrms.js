@@ -804,9 +804,11 @@
       if (!u.marked) {
         when = '<span style="color:var(--muted-2)">&mdash;</span>';
       } else if (u.source === 'login') {
-        when = esc(u.markedAt) + '<div class="m" style="font-variant-numeric:normal">Signed in</div>';
+        when = esc(u.markedAt) +
+          '<div class="m" style="font-variant-numeric:normal">Signed in to desktop</div>';
       } else {
-        when = esc(u.markedAt) + '<div class="m" style="font-variant-numeric:normal">By hand</div>';
+        when = esc(u.markedAt) +
+          '<div class="m" style="font-variant-numeric:normal">Marked here in HRMS</div>';
       }
 
       var n = u.logins || 0;
