@@ -501,15 +501,25 @@ internal static class AgencyPortal
                 "FROM auth_challenges WHERE id=@i AND agency_id=@a LIMIT 1;", conn);
             cmd.Parameters.AddWithValue("@i", id);
             cmd.Parameters.AddWithValue("@a", ag.id);
-            await using var rdr = await cmd.ExecuteReaderAsync();
-            if (!await rdr.ReadAsync()) return Results.NotFound(new { message = "Unknown request." });
+            // Everything is read out and the reader closed before anything else
+            // touches this connection: MySqlConnector allows one open reader at a
+            // time, and the claim below runs on the same connection.
+            string status, approvedName, chalSlug, fail;
+            long approvedId;
+            await using (var rdr = await cmd.ExecuteReaderAsync())
+            {
+                if (!await rdr.ReadAsync()) return Results.NotFound(new { message = "Unknown request." });
 
-            string status = rdr.GetString(0);
-            if ((status == "pending" || status == "scanned") && rdr.GetDateTime(3) < DateTime.UtcNow)
-                status = "expired";
+                status       = rdr.GetString(0);
+                approvedName = rdr.GetString(1);
+                approvedId   = rdr.GetInt64(2);
+                fail         = rdr.GetString(4);
+                chalSlug     = rdr.GetString(5);
 
-            long approvedId = rdr.GetInt64(2);
-            string chalSlug = rdr.GetString(5);
+                if ((status == "pending" || status == "scanned") && rdr.GetDateTime(3) < DateTime.UtcNow)
+                    status = "expired";
+            }
+
             string[] mods = Array.Empty<string>();
             string roleName = "";
 
@@ -530,7 +540,6 @@ internal static class AgencyPortal
                 }
             }
 
-            string fail = rdr.GetString(4);
             if (status == "approved" && mods.Length == 0)
             {
                 status = "denied";
@@ -560,7 +569,7 @@ internal static class AgencyPortal
             return Results.Ok(new
             {
                 status,
-                name = rdr.GetString(1),
+                name = approvedName,
                 userId = approvedId,
                 failReason = fail,
                 role = roleName,
