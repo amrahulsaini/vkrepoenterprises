@@ -79,10 +79,22 @@ fun FingerprintScanScreen(api: ApiService, onDone: () -> Unit) {
     var confirming by remember { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
     var forMobile by remember { mutableStateOf("") }
+    var dialogError by remember { mutableStateOf("") }
+
+    // The analyser fires on every camera frame, and the code stays in view the
+    // whole time. Clearing `handled` on a failure therefore re-read the same
+    // code immediately, hammering the server and rewriting the status text
+    // dozens of times a second, which is what the flicker was. A code that has
+    // been refused is refused for good, so it is remembered and skipped; only a
+    // network wobble is worth retrying, and then at walking pace.
+    val settled = remember { mutableStateListOf<String>() }
+    var retryAt by remember { mutableStateOf(0L) }
 
     fun onCode(raw: String?) {
-        if (handled) return
+        if (handled || confirming) return
         val id = challengeIdFrom(raw) ?: return
+        if (settled.contains(id)) return
+        if (System.currentTimeMillis() < retryAt) return
         handled = true
         status = "Reading the request..."
         scope.launch {
@@ -94,8 +106,10 @@ fun FingerprintScanScreen(api: ApiService, onDone: () -> Unit) {
                         410 -> "That code has expired. Get a new one on the desktop."
                         409 -> "That code has already been used."
                         403 -> serverMessage(r) ?: "That code belongs to a different agency."
-                        else -> "That code is not valid."
+                        else -> serverMessage(r) ?: "That code is not valid."
                     }
+                    // None of these become valid by looking again.
+                    settled.add(id)
                     handled = false
                     return@launch
                 }
@@ -105,9 +119,11 @@ fun FingerprintScanScreen(api: ApiService, onDone: () -> Unit) {
                 mode = b["mode"] as? String ?: ""
                 device = b["deviceLabel"] as? String ?: ""
                 forMobile = b["forMobile"] as? String ?: ""
+                dialogError = ""
                 confirming = true
             } catch (e: Exception) {
-                status = e.message ?: "Could not read that code."
+                status = "Could not reach the server. Retrying in a moment..."
+                retryAt = System.currentTimeMillis() + 3000
                 handled = false
             }
         }
@@ -127,6 +143,14 @@ fun FingerprintScanScreen(api: ApiService, onDone: () -> Unit) {
                             append(" ?")
                         }
                     )
+                    if (dialogError.isNotBlank()) {
+                        Spacer(Modifier.height(10.dp))
+                        Text(
+                            dialogError,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
                     if (forMobile.isNotBlank()) {
                         Spacer(Modifier.height(8.dp))
                         Text(
@@ -160,8 +184,9 @@ fun FingerprintScanScreen(api: ApiService, onDone: () -> Unit) {
                         scope.launch {
                             try {
                                 if (!FingerprintKey.exists()) {
-                                    status = "Set up fingerprint on this phone first."
-                                    confirming = false; handled = false; busy = false
+                                    dialogError = "No fingerprint is set up on this phone. " +
+                                        "Set it up in Profile first, then scan again."
+                                    busy = false
                                     return@launch
                                 }
                                 val sig = FingerprintKey.signatureForPrompt()
@@ -173,8 +198,8 @@ fun FingerprintScanScreen(api: ApiService, onDone: () -> Unit) {
                                 )
                                 val signed = res.signature
                                 if (!res.ok || signed == null) {
-                                    status = res.error ?: "Cancelled."
-                                    confirming = false; handled = false; busy = false
+                                    dialogError = res.error ?: "Fingerprint cancelled."
+                                    busy = false
                                     return@launch
                                 }
                                 val payload = FingerprintKey.finish(signed, "$challenge:$nonce")
@@ -204,17 +229,21 @@ fun FingerprintScanScreen(api: ApiService, onDone: () -> Unit) {
                                     )
                                 )
                                 if (ok.isSuccessful) {
+                                    settled.add(challenge)
                                     status = "Approved. The desktop is opening."
                                     confirming = false
                                     onDone()
                                 } else {
+                                    // The server marks a refused challenge denied,
+                                    // so this code is spent either way.
+                                    settled.add(challenge)
                                     status = serverMessage(ok)
                                         ?: ("Could not approve (" + ok.code() + ").")
-                                    confirming = false; handled = false
+                                    confirming = false
+                                    handled = false
                                 }
                             } catch (e: Exception) {
-                                status = e.message ?: "Approval failed."
-                                confirming = false; handled = false
+                                dialogError = "Could not reach the server. Try again."
                             } finally { busy = false }
                         }
                     }
@@ -222,8 +251,13 @@ fun FingerprintScanScreen(api: ApiService, onDone: () -> Unit) {
             },
             dismissButton = {
                 TextButton(enabled = !busy, onClick = {
-                    confirming = false; handled = false
-                    status = "Cancelled. Point the camera at the code."
+                    // Saying no means no: without remembering that, the code
+                    // still in front of the camera reopens this instantly.
+                    settled.add(challenge)
+                    confirming = false
+                    handled = false
+                    dialogError = ""
+                    status = "Cancelled. Get a new code on the desktop to try again."
                 }) { Text("Cancel") }
             }
         )

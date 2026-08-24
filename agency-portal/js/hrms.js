@@ -797,12 +797,34 @@
       var right = u.marked
         ? '<button class="btn btn-ghost btn-xs" data-un="' + u.id + '">Marked · undo</button>'
         : '<button class="btn btn-accent btn-xs" data-at="' + u.id + '">Mark present</button>';
-      var when = u.marked ? esc(u.markedAt) : '<span style="color:var(--muted-2)">&mdash;</span>';
+
+      // Signing in is itself proof of turning up, so say which of the two
+      // this was rather than showing a bare time.
+      var when;
+      if (!u.marked) {
+        when = '<span style="color:var(--muted-2)">&mdash;</span>';
+      } else if (u.source === 'login') {
+        when = esc(u.markedAt) + '<div class="m" style="font-variant-numeric:normal">Signed in</div>';
+      } else {
+        when = esc(u.markedAt) + '<div class="m" style="font-variant-numeric:normal">By hand</div>';
+      }
+
+      var n = u.logins || 0;
+      var sess = n === 0
+        ? '<span style="color:var(--muted-2)">&mdash;</span>'
+        : '<b>' + n + (n === 1 ? ' sign-in' : ' sign-ins') + '</b>' +
+          (u.firstLogin
+            ? '<div class="m" style="font-variant-numeric:tabular-nums">' +
+              esc(u.firstLogin) + (u.lastLogin && u.lastLogin !== u.firstLogin ? ' – ' + esc(u.lastLogin) : '') +
+              '</div>'
+            : '');
+
       return '<div class="arow">' +
         '<div class="who2">' + avatar(u, false) +
         '<div style="min-width:0"><div class="n">' + esc(u.name || 'Unnamed') + '</div>' +
         '<div class="m">' + esc(u.mobile || '') + '</div></div></div>' +
         '<div style="font-size:13px;font-variant-numeric:tabular-nums">' + when + '</div>' +
+        '<div style="font-size:13px">' + sess + '</div>' +
         '<div>' + right + '</div></div>';
     }).join('');
 

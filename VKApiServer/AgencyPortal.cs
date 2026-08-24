@@ -537,6 +537,26 @@ internal static class AgencyPortal
                 fail = "no_role";
             }
 
+            // The desktop polls every two seconds, so the approval is seen many
+            // times. Claiming the flag is what makes one arrival count once.
+            if (status == "approved" && approvedId > 0)
+            {
+                bool mine;
+                await using (var claim = new MySqlCommand(
+                    "UPDATE auth_challenges SET login_recorded=1 WHERE id=@i AND login_recorded=0;", conn))
+                {
+                    claim.Parameters.AddWithValue("@i", id);
+                    mine = await claim.ExecuteNonQueryAsync() == 1;
+                }
+                if (mine)
+                {
+                    await using var tc = new MySqlConnection(
+                        TenantContext.BuildTenantConn(mysqlHost, mysqlPort, chalSlug));
+                    await tc.OpenAsync();
+                    await RecordDesktopLoginAsync(tc, approvedId, "fingerprint", "");
+                }
+            }
+
             return Results.Ok(new
             {
                 status,
@@ -700,6 +720,9 @@ internal static class AgencyPortal
 
             var effective = Modules.Effective(isSuper, overrideCsv ?? modulesCsv);
 
+            if (effective.Length > 0)
+                await RecordDesktopLoginAsync(conn, id, "password", "");
+
             if (effective.Length == 0)
                 return Results.Json(new
                 {
@@ -727,7 +750,10 @@ internal static class AgencyPortal
                 SELECT u.id, COALESCE(u.name,''), COALESCE(u.mobile,''), COALESCE(u.pfp,''),
                        COALESCE(u.is_active,0), COALESCE(u.is_blacklisted,0),
                        a.id, a.marked_at, COALESCE(a.status,''), COALESCE(a.source,''),
-                       COALESCE(a.location,''), COALESCE(a.marked_by,'')
+                       COALESCE(a.location,''), COALESCE(a.marked_by,''),
+                       (SELECT COUNT(*)  FROM desktop_logins l WHERE l.user_id=u.id AND l.work_date=@d),
+                       (SELECT MIN(l.at) FROM desktop_logins l WHERE l.user_id=u.id AND l.work_date=@d),
+                       (SELECT MAX(l.at) FROM desktop_logins l WHERE l.user_id=u.id AND l.work_date=@d)
                   FROM app_users u
              LEFT JOIN attendance a ON a.user_id = u.id AND a.work_date = @d
               ORDER BY COALESCE(u.name,'') ASC, u.id ASC LIMIT 1000;", conn) { CommandTimeout = 30 };
@@ -754,6 +780,9 @@ internal static class AgencyPortal
                     source = marked ? rdr.GetString(9) : "",
                     location = marked ? rdr.GetString(10) : "",
                     markedBy = marked ? rdr.GetString(11) : "",
+                    logins = rdr.GetInt64(12),
+                    firstLogin = rdr.IsDBNull(13) ? null : rdr.GetDateTime(13).ToString("HH:mm"),
+                    lastLogin = rdr.IsDBNull(14) ? null : rdr.GetDateTime(14).ToString("HH:mm"),
                 });
             }
 
@@ -4131,6 +4160,46 @@ internal static class AgencyPortal
     }
 
     private static readonly TimeSpan IstOffset = TimeSpan.FromMinutes(330);
+
+    /// Records a desktop sign-in and, if this is the first of the day, marks
+    /// the person present. Turning up and signing in is the same event, so
+    /// attendance should not need a second person to press a button.
+    ///
+    /// A hand-entered mark is never overwritten: ON DUPLICATE KEY touches only
+    /// marked_at's absence, so 'leave' or 'halfday' set in HRMS survives.
+    private static async Task RecordDesktopLoginAsync(
+        MySqlConnection conn, long userId, string method, string deviceLabel)
+    {
+        var now = IstNow();
+        var day = now.Date;
+
+        try
+        {
+            await using var ins = new MySqlCommand(
+                "INSERT INTO desktop_logins (user_id, at, work_date, method, device_label) " +
+                "VALUES (@u, @t, @d, @m, @l);", conn);
+            ins.Parameters.AddWithValue("@u", userId);
+            ins.Parameters.AddWithValue("@t", now);
+            ins.Parameters.AddWithValue("@d", day);
+            ins.Parameters.AddWithValue("@m", method);
+            ins.Parameters.AddWithValue("@l", deviceLabel ?? "");
+            await ins.ExecuteNonQueryAsync();
+        }
+        catch { /* a missing table must never block a sign-in */ }
+
+        try
+        {
+            await using var att = new MySqlCommand(
+                "INSERT INTO attendance (user_id, work_date, marked_at, status, source, marked_by) " +
+                "VALUES (@u, @d, @t, 'present', 'login', 'Signed in') " +
+                "ON DUPLICATE KEY UPDATE id = id;", conn);
+            att.Parameters.AddWithValue("@u", userId);
+            att.Parameters.AddWithValue("@d", day);
+            att.Parameters.AddWithValue("@t", now);
+            await att.ExecuteNonQueryAsync();
+        }
+        catch { }
+    }
 
     private static DateTime IstNow() => DateTime.UtcNow + IstOffset;
 

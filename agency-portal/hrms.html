@@ -274,12 +274,12 @@
            color:var(--muted-2);margin-top:3px}
   .stat .b.ok .n{color:var(--orange-ink)}
   .arow{
-    display:grid;grid-template-columns:1fr 128px 150px;gap:12px;align-items:center;
+    display:grid;grid-template-columns:1fr 118px 132px 150px;gap:12px;align-items:center;
     padding:13px 18px;border-bottom:1px solid var(--paper-2);
   }
   .arow:last-child{border-bottom:0}
   .ahead{
-    display:grid;grid-template-columns:1fr 128px 150px;gap:12px;
+    display:grid;grid-template-columns:1fr 118px 132px 150px;gap:12px;
     padding:11px 18px;background:var(--paper-2);border-bottom:1px solid var(--line);
     font-size:9.5px;font-weight:750;letter-spacing:1px;text-transform:uppercase;color:var(--muted-2);
   }
@@ -653,7 +653,8 @@
         <div class="head">
           <div>
             <h1 class="t">Attendance</h1>
-            <p class="s">One mark per person per day, on the Indian calendar (IST).</p>
+            <p class="s">Signing in to the desktop marks a person present by itself.
+             One mark per person per day, on the Indian calendar (IST).</p>
           </div>
         </div>
 
@@ -670,7 +671,7 @@
         </div>
 
         <div class="tbl">
-          <div class="ahead"><span>Staff</span><span>Marked at</span><span>Attendance</span></div>
+          <div class="ahead"><span>Staff</span><span>Marked at</span><span>Sign-ins today</span><span>Attendance</span></div>
           <div id="at-rows"></div>
         </div>
       </div>
@@ -873,6 +874,6 @@
 </aside>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="/js/hrms.js?v=21"></script>
+<script src="/js/hrms.js?v=22"></script>
 </body>
 </html>
