@@ -56,6 +56,7 @@ import kotlinx.coroutines.withContext
 import kotlin.coroutines.resume
 import java.text.SimpleDateFormat
 import java.util.Locale
+import com.vkenterprises.crmrs.ui.theme.RobotoFamily
 
 private val RC_REGEX = Regex(
     "^([A-Z]{2}[0-9]{2}[A-Z]{1,3}[0-9]{4}|[A-Z]{2}[0-9]{5,7}|[0-9]{2}BH[0-9]{4}[A-Z]{1,2})$"
@@ -318,17 +319,14 @@ fun VehicleDetailScreen(
                     )
                 }
                 uniqueBranches.forEachIndexed { idx, entry ->
-                    val isSelected = idx == selectedBranchIdx
                     Card(
                         onClick  = {
                             selectedBranchIdx = idx
                             showBranchSheet = false
                         },
                         shape    = RoundedCornerShape(10.dp),
-                        colors   = CardDefaults.cardColors(
-                            containerColor = if (isSelected) Color(0xFFFFF8E1)
-                                             else MaterialTheme.colorScheme.surfaceVariant
-                        ),
+                        colors   = CardDefaults.cardColors(containerColor = Color.White),
+                        border   = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
@@ -1096,7 +1094,7 @@ private fun SRow(
         Text(
             label,
             fontSize   = 14.sp,
-            fontFamily = FontFamily.Default,
+            fontFamily = RobotoFamily,
             fontWeight = FontWeight.Normal,
             color      = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier   = Modifier.width(if (sel) 104.dp else 128.dp)
@@ -1104,7 +1102,7 @@ private fun SRow(
         Text(
             ":",
             fontSize   = 14.sp,
-            fontFamily = FontFamily.Default,
+            fontFamily = RobotoFamily,
             fontWeight = FontWeight.Normal,
             color      = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier   = Modifier.padding(end = 8.dp)
@@ -1122,7 +1120,7 @@ private fun SRow(
             style = MaterialTheme.typography.bodyMedium.copy(
                 color      = baseColor,
                 fontWeight = if (display.isBlank()) FontWeight.Normal else FontWeight.Black,
-                fontFamily = FontFamily.Default
+                fontFamily = RobotoFamily
             ),
             onTextLayout = { textLayout = it },
             modifier = Modifier
@@ -1257,7 +1255,7 @@ private fun DetailRow(
         verticalAlignment = Alignment.CenterVertically) {
         Text(label,
             style      = MaterialTheme.typography.bodySmall,
-            fontFamily = FontFamily.SansSerif,
+            fontFamily = RobotoFamily,
             color      = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier   = Modifier.weight(0.38f))
         Row(
@@ -1278,7 +1276,7 @@ private fun DetailRow(
             Text(shown,
                 style      = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Black,
-                fontFamily = FontFamily.Default,
+                fontFamily = RobotoFamily,
                 color      = if (isPhone && !value.isNullOrBlank()) primary else baseColor,
                 textDecoration = if (isPhone && !value.isNullOrBlank()) TextDecoration.Underline else null)
             if (isPhone && !value.isNullOrBlank()) {

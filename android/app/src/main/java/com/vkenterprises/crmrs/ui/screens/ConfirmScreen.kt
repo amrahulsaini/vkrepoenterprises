@@ -43,6 +43,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import com.vkenterprises.crmrs.ui.theme.RobotoFamily
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class, ExperimentalComposeUiApi::class)
 @Composable
@@ -464,7 +465,7 @@ fun ConfirmScreen(
                     Text(
                         buildMessage(),
                         style      = MaterialTheme.typography.bodySmall,
-                        fontFamily = FontFamily.Monospace,
+                        fontFamily = RobotoFamily,
                         lineHeight = 18.sp
                     )
                 }
@@ -581,7 +582,7 @@ private fun ContactCheckRow(
                 phone,
                 style      = MaterialTheme.typography.labelSmall,
                 color      = MaterialTheme.colorScheme.primary,
-                fontFamily = FontFamily.Monospace
+                fontFamily = RobotoFamily
             )
         }
     }
@@ -608,7 +609,7 @@ private fun SummaryRow(
             shown,
             style      = MaterialTheme.typography.bodySmall,
             fontWeight = FontWeight.Medium,
-            fontFamily = if (mono) FontFamily.Monospace else FontFamily.Default,
+            fontFamily = if (mono) RobotoFamily else RobotoFamily,
             modifier   = Modifier.weight(0.65f)
         )
     }

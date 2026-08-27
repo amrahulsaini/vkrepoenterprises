@@ -40,7 +40,6 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
 import androidx.core.content.ContextCompat
-import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -54,6 +53,7 @@ import com.vkenterprises.crmrs.BuildConfig
 import com.vkenterprises.crmrs.R
 import com.vkenterprises.crmrs.data.models.SearchResult
 import com.vkenterprises.crmrs.navigation.Screen
+import com.vkenterprises.crmrs.ui.theme.RobotoFamily
 import com.vkenterprises.crmrs.viewmodel.AuthViewModel
 import com.vkenterprises.crmrs.viewmodel.SearchMode
 import com.vkenterprises.crmrs.viewmodel.SearchViewModel
@@ -61,11 +61,6 @@ import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 
 internal const val SUPPORT_CONTACT = "8380903923"
-
-internal val RobotoFamily = FontFamily(
-    Font(R.font.roboto_bold,  FontWeight.Bold),
-    Font(R.font.roboto_black, FontWeight.Black)
-)
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class, ExperimentalComposeUiApi::class)
 @Composable
@@ -544,7 +539,7 @@ fun HomeScreen(
                             Text(
                                 "\"${ui.lastQuery}\"",
                                 style = MaterialTheme.typography.labelSmall,
-                                fontFamily = FontFamily.Monospace,
+                                fontFamily = RobotoFamily,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
                             )
                         }
@@ -1025,7 +1020,7 @@ private fun VehicleListRow(item: SearchResult, mode: SearchMode, showHyphens: Bo
             rcOrChassis,
             style = MaterialTheme.typography.bodyLarge,
             fontWeight = FontWeight.Black,
-            fontFamily = FontFamily.Default,
+            fontFamily = RobotoFamily,
             maxLines = if (mode == SearchMode.CHASSIS) 2 else 1,
             softWrap = mode == SearchMode.CHASSIS,
             overflow = if (mode == SearchMode.CHASSIS) TextOverflow.Visible else TextOverflow.Ellipsis,
@@ -1035,7 +1030,7 @@ private fun VehicleListRow(item: SearchResult, mode: SearchMode, showHyphens: Bo
             model,
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.Bold,
-            fontFamily = FontFamily.SansSerif,
+            fontFamily = RobotoFamily,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             color = MaterialTheme.colorScheme.onSurfaceVariant,

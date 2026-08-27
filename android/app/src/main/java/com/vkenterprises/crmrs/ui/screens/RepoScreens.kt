@@ -43,6 +43,7 @@ import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import com.vkenterprises.crmrs.ui.theme.RobotoFamily
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -199,7 +200,7 @@ fun RepoSearchScreen(
                         singleLine = true,
                         shape = RoundedCornerShape(8.dp),
                         textStyle = MaterialTheme.typography.bodyMedium.copy(
-                            fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, letterSpacing = 3.sp),
+                            fontFamily = RobotoFamily, fontWeight = FontWeight.Bold, letterSpacing = 3.sp),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedContainerColor = MaterialTheme.colorScheme.surface,
                             unfocusedContainerColor = MaterialTheme.colorScheme.surface),

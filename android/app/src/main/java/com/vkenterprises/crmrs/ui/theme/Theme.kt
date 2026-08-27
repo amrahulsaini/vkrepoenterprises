@@ -38,7 +38,7 @@ fun VKTheme(
 ) {
     MaterialTheme(
         colorScheme = if (darkTheme) DarkColors else LightColors,
-        typography  = Typography(),
+        typography  = VKTypography,
         content     = content
     )
 }

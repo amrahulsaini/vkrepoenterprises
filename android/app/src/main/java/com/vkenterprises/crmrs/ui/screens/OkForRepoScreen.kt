@@ -39,6 +39,7 @@ import com.vkenterprises.crmrs.viewmodel.AuthViewModel
 import com.vkenterprises.crmrs.viewmodel.SearchViewModel
 import coil.compose.AsyncImage
 import kotlinx.coroutines.launch
+import com.vkenterprises.crmrs.ui.theme.RobotoFamily
 
 @OptIn(
     ExperimentalMaterial3Api::class,
@@ -526,7 +527,7 @@ private fun RepoSummaryRow(label: String, value: String?) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
         Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(value.orEmpty().ifBlank { "—" }, style = MaterialTheme.typography.bodySmall,
-            fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+            fontWeight = FontWeight.Bold, fontFamily = RobotoFamily)
     }
 }
 

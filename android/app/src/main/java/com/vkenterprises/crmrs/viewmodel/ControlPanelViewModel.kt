@@ -246,8 +246,8 @@ class ControlPanelViewModel @Inject constructor(
             _ui.update { it.copy(addError = "Start date, end date and amount are required") }
             return
         }
-        if (st.subs.isNotEmpty()) {
-            _ui.update { it.copy(addError = "This user already has a plan — delete it first") }
+        if (st.subs.any { sub -> sub.isActive }) {
+            _ui.update { it.copy(addError = "This user already has an active plan. Add a new plan once the current one expires, or delete the active plan first.") }
             return
         }
         viewModelScope.launch {

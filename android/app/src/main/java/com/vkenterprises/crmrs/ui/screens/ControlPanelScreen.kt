@@ -32,6 +32,7 @@ import com.vkenterprises.crmrs.viewmodel.ControlPanelViewModel
 import java.time.Instant
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
+import com.vkenterprises.crmrs.ui.theme.RobotoFamily
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -261,7 +262,7 @@ private fun UserDetail(vm: ControlPanelViewModel, ui: com.vkenterprises.crmrs.vi
                             style = MaterialTheme.typography.titleMedium)
                         Text(user.mobile, style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontFamily = FontFamily.Monospace)
+                            fontFamily = RobotoFamily)
                         if (!user.address.isNullOrBlank())
                             Text(user.address, style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -397,7 +398,7 @@ private fun UserDetail(vm: ControlPanelViewModel, ui: com.vkenterprises.crmrs.vi
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         SectionTitle("Subscription Plan", padBottom = false)
-                        if (ui.subs.isEmpty() && !ui.subsLoading)
+                        if (!ui.subsLoading)
                             TextButton(onClick = { vm.showAddDialog() }) {
                                 Icon(Icons.Default.Add, null, Modifier.size(16.dp))
                                 Text("Add Plan")
@@ -405,26 +406,51 @@ private fun UserDetail(vm: ControlPanelViewModel, ui: com.vkenterprises.crmrs.vi
                     }
                     when {
                         ui.subsLoading -> CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
-                        ui.subs.isEmpty() -> Text("No active plan.",
+                        ui.subs.isEmpty() -> Text("No plans yet.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        else -> ui.subs.forEach { s ->
-                            Row(
-                                Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column(Modifier.weight(1f)) {
-                                    Text("${s.startDate}  →  ${s.endDate}",
-                                        fontWeight = FontWeight.SemiBold,
-                                        style = MaterialTheme.typography.bodySmall)
-                                    Text("₹${s.amount}" + (s.notes?.let { "  •  $it" } ?: ""),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                }
-                                IconButton(onClick = { vm.deleteSubscription(s.id) }) {
-                                    Icon(Icons.Default.Delete, null,
-                                        tint = MaterialTheme.colorScheme.error)
+                        else -> {
+                            if (ui.subs.none { it.isActive }) {
+                                Text("No active plan — you can add a new one.",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.error)
+                            }
+                            ui.subs.sortedByDescending { it.endDate }.forEach { s ->
+                                Row(
+                                    Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(Modifier.weight(1f)) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
+                                            Text("${s.startDate}  →  ${s.endDate}",
+                                                fontWeight = FontWeight.SemiBold,
+                                                style = MaterialTheme.typography.bodySmall)
+                                            val chipColor = if (s.isActive) Color(0xFF2E7D32) else Color(0xFF9E9E9E)
+                                            Surface(
+                                                shape = RoundedCornerShape(4.dp),
+                                                color = chipColor.copy(alpha = 0.12f)
+                                            ) {
+                                                Text(
+                                                    if (s.isActive) "ACTIVE" else "EXPIRED",
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = chipColor,
+                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp)
+                                                )
+                                            }
+                                        }
+                                        Text("₹${s.amount}" + (s.notes?.let { "  •  $it" } ?: ""),
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
+                                    IconButton(onClick = { vm.deleteSubscription(s.id) }) {
+                                        Icon(Icons.Default.Delete, null,
+                                            tint = MaterialTheme.colorScheme.error)
+                                    }
                                 }
                             }
                         }
@@ -465,13 +491,13 @@ private fun InfoRow(label: String, value: String?, mono: Boolean = false) {
         Text(label,
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            fontFamily = FontFamily.SansSerif,
+            fontFamily = RobotoFamily,
             modifier = Modifier.weight(0.4f))
         Text(
             value?.takeIf { it.isNotBlank() } ?: "—",
             style = MaterialTheme.typography.bodySmall,
             fontWeight = FontWeight.Bold,
-            fontFamily = if (mono) FontFamily.Monospace else FontFamily.SansSerif,
+            fontFamily = if (mono) RobotoFamily else RobotoFamily,
             modifier = Modifier.weight(0.6f)
         )
     }

@@ -34,6 +34,7 @@ import com.vkenterprises.crmrs.utils.compressImageToBase64
 import com.vkenterprises.crmrs.utils.createCameraImageUri
 import com.vkenterprises.crmrs.viewmodel.TaskManagerUiState
 import com.vkenterprises.crmrs.viewmodel.TaskManagerViewModel
+import com.vkenterprises.crmrs.ui.theme.RobotoFamily
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -235,7 +236,7 @@ private fun TaskRow(item: RepoTaskItem, onClick: () -> Unit) {
                     item.vehicleNo.ifBlank { item.chassisNo.ifBlank { "—" } },
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.Monospace
+                    fontFamily = RobotoFamily
                 )
                 StatusChip(billed, item.billingAction)
             }

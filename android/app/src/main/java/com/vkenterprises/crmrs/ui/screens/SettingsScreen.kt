@@ -32,6 +32,7 @@ import com.vkenterprises.crmrs.navigation.Screen
 import com.vkenterprises.crmrs.viewmodel.AuthViewModel
 import com.vkenterprises.crmrs.viewmodel.SearchViewModel
 import com.vkenterprises.crmrs.viewmodel.SettingsViewModel
+import com.vkenterprises.crmrs.ui.theme.RobotoFamily
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -279,7 +280,7 @@ fun SettingsScreen(
                                     Text(
                                         log.uploadedAt,
                                         style = MaterialTheme.typography.labelSmall,
-                                        fontFamily = FontFamily.Monospace,
+                                        fontFamily = RobotoFamily,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
@@ -424,7 +425,7 @@ private fun StatRow(label: String, value: Long) {
             value.formatStatCount(),
             style = MaterialTheme.typography.bodySmall,
             fontWeight = FontWeight.SemiBold,
-            fontFamily = FontFamily.Monospace
+            fontFamily = RobotoFamily
         )
     }
 }
