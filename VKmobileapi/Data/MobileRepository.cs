@@ -1633,14 +1633,14 @@ public class MobileRepository
         }
 
         int billed = 0;
-        // Demand fulfilment = billed submissions in this calendar month (any
-        // month length). Hold-for-collection / Collection-done are auto-billed
-        // when set, and OK-for-billing is billed when its bill is generated, so
-        // both fall out of this single billed_at check.
+        // Demand fulfilment = every submission made in this calendar month that
+        // was not cancelled. OK-for-billing counts the moment it is submitted;
+        // it no longer waits for an invoice to be generated.
         await using (var bc = new MySqlCommand(@"
             SELECT COUNT(*) FROM repo_submissions
-             WHERE submitted_by_user_id=@id AND bill_status='billed'
-               AND billed_at IS NOT NULL AND YEAR(billed_at)=@y AND MONTH(billed_at)=@m", conn))
+             WHERE submitted_by_user_id=@id
+               AND LOWER(COALESCE(billing_action,'immediate')) <> 'cancel'
+               AND YEAR(created_at)=@y AND MONTH(created_at)=@m", conn))
         {
             bc.Parameters.AddWithValue("@id", userId);
             bc.Parameters.AddWithValue("@y", year);

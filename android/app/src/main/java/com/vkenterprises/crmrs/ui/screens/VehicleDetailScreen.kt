@@ -538,10 +538,6 @@ private fun QuickSearchBar(
     val userId by authVm.userId.collectAsState(initial = -1L)
     val mode   = ui.mode
     val maxLen = if (mode == com.vkenterprises.crmrs.viewmodel.SearchMode.RC) 4 else 5
-    val placeholder = if (mode == com.vkenterprises.crmrs.viewmodel.SearchMode.RC)
-        "Search by last 4 digits of RC"
-    else
-        "Search by last 5 digits of Chassis"
 
     val focusRequester = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
@@ -556,38 +552,105 @@ private fun QuickSearchBar(
         }
     }
 
+    val fieldStyle = MaterialTheme.typography.bodyLarge.copy(
+        fontFamily = RobotoFamily,
+        fontWeight = FontWeight.Bold,
+        fontSize = 18.sp,
+        letterSpacing = 3.sp
+    )
+    val fieldContainer = if (surfaceColor == Color.Unspecified)
+        MaterialTheme.colorScheme.surface else Color.White
+    val fieldColors = OutlinedTextFieldDefaults.colors(
+        focusedContainerColor   = fieldContainer,
+        unfocusedContainerColor = fieldContainer
+    )
+
+    @Composable
+    fun fadedHint(text: String) = Text(
+        text,
+        fontFamily = RobotoFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 16.sp,
+        letterSpacing = 1.sp,
+        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
+    )
+
     Surface(
         color = if (surfaceColor == Color.Unspecified) MaterialTheme.colorScheme.surfaceVariant else surfaceColor,
         modifier = Modifier.fillMaxWidth()
     ) {
-        OutlinedTextField(
-            value = ui.inputText,
-            onValueChange = { raw ->
-                val digits = raw.filter { it.isDigit() }.take(maxLen)
-                searchVm.onInputChange(digits, userId)
-                if (digits.length == maxLen) onSubmit()
-            },
-            placeholder = { Text(placeholder, fontWeight = FontWeight.Bold, fontSize = 16.sp) },
-            leadingIcon = { Icon(Icons.Default.Search, null, Modifier.size(18.dp)) },
-            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                keyboardType = androidx.compose.ui.text.input.KeyboardType.Number
-            ),
-            singleLine = true,
-            shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedContainerColor   = if (surfaceColor == Color.Unspecified) MaterialTheme.colorScheme.surface else Color.White,
-                unfocusedContainerColor = if (surfaceColor == Color.Unspecified) MaterialTheme.colorScheme.surface else Color.White
-            ),
-            textStyle = MaterialTheme.typography.bodyMedium.copy(
-                fontFamily    = FontFamily.Monospace,
-                fontWeight    = FontWeight.Bold,
-                letterSpacing = 3.sp
-            ),
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 10.dp, vertical = 8.dp)
-                .focusRequester(focusRequester)
-        )
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            OutlinedTextField(
+                value = ui.inputText,
+                onValueChange = { raw ->
+                    val digits = raw.filter { it.isDigit() }.take(maxLen)
+                    searchVm.onInputChange(digits, userId)
+                    if (digits.length == maxLen) onSubmit()
+                },
+                placeholder = {
+                    fadedHint(if (mode == com.vkenterprises.crmrs.viewmodel.SearchMode.RC) "1234" else "Last 5 digits")
+                },
+                leadingIcon = { Icon(Icons.Default.Search, null, Modifier.size(18.dp)) },
+                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                    keyboardType = androidx.compose.ui.text.input.KeyboardType.Number
+                ),
+                singleLine = true,
+                modifier = Modifier.weight(1f).focusRequester(focusRequester),
+                shape = RoundedCornerShape(8.dp),
+                textStyle = fieldStyle,
+                colors = fieldColors
+            )
+            if (mode == com.vkenterprises.crmrs.viewmodel.SearchMode.RC) {
+                OutlinedTextField(
+                    value = ui.prefixInput,
+                    onValueChange = { searchVm.onPrefixChange(it) },
+                    placeholder = { fadedHint("ABCD") },
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                        keyboardType = androidx.compose.ui.text.input.KeyboardType.Text,
+                        capitalization = androidx.compose.ui.text.input.KeyboardCapitalization.Characters
+                    ),
+                    singleLine = true,
+                    modifier = Modifier.width(118.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    textStyle = fieldStyle,
+                    colors = fieldColors
+                )
+            }
+            Surface(
+                shape = RoundedCornerShape(50),
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.clickable {
+                    searchVm.setMode(
+                        if (mode == com.vkenterprises.crmrs.viewmodel.SearchMode.RC)
+                            com.vkenterprises.crmrs.viewmodel.SearchMode.CHASSIS
+                        else com.vkenterprises.crmrs.viewmodel.SearchMode.RC
+                    )
+                }
+            ) {
+                Row(
+                    Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(5.dp)
+                ) {
+                    Text(
+                        if (mode == com.vkenterprises.crmrs.viewmodel.SearchMode.RC) "RC" else "CH",
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp,
+                        letterSpacing = 0.5.sp
+                    )
+                    Icon(
+                        Icons.Default.SwapHoriz, "Switch mode",
+                        tint = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.size(14.dp)
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -773,7 +836,6 @@ private fun BasicDetailView(item: SearchResult, agentName: String, agentPhone: S
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary)
-            HorizontalDivider(color = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f))
             DetailRow("Vehicle No",    item.vehicleNo.displayRc(showHyphens), alwaysShow = true, upper = true,
                 invalid = item.vehicleNo.isNotBlank() && !item.vehicleNo.isValidRc())
             DetailRow("Chassis No",    item.chassisNo,    alwaysShow = true, upper = true)
@@ -786,7 +848,6 @@ private fun BasicDetailView(item: SearchResult, agentName: String, agentPhone: S
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary)
-            HorizontalDivider(color = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f))
             DetailRow("Agency Name", name)
             mobiles.forEachIndexed { i, m ->
                 DetailRow(if (i == 0) "Agency Mobile" else "Agency Mobile ${i + 1}", m, isPhone = true)
@@ -1025,7 +1086,7 @@ private fun SRow(
     }
 
     Row(
-        Modifier.fillMaxWidth().padding(vertical = 3.dp),
+        Modifier.fillMaxWidth().padding(vertical = 1.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         if (sel) {
@@ -1134,10 +1195,7 @@ private fun SLevelRow(
 
 @Composable
 private fun CSep() {
-    HorizontalDivider(
-        modifier = Modifier.padding(vertical = 6.dp),
-        color    = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-    )
+    Spacer(Modifier.height(6.dp))
 }
 
 @Composable

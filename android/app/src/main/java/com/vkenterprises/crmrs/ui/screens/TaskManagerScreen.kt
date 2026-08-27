@@ -6,6 +6,8 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -76,15 +78,20 @@ fun TaskManagerScreen(
             Column(Modifier.fillMaxSize()) {
                 MonthHeader(ui, onPrev = { vm.prevMonth() }, onNext = { vm.nextMonth() })
                 ProgressCard(ui)
+                StatusFilterBar(ui.statusFilter) { vm.setStatusFilter(it) }
 
+                val shown = ui.visibleItems
                 if (ui.loading) {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator()
                     }
-                } else if (ui.items.isEmpty()) {
+                } else if (shown.isEmpty()) {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Text(
-                            "No OK-for-Repo entries in ${ui.monthName} ${ui.year}.",
+                            if (ui.items.isEmpty())
+                                "No OK-for-Repo entries in ${ui.monthName} ${ui.year}."
+                            else
+                                "No ${STATUS_LABELS[ui.statusFilter] ?: "matching"} entries in ${ui.monthName} ${ui.year}.",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -95,7 +102,7 @@ fun TaskManagerScreen(
                         contentPadding = PaddingValues(12.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        items(ui.items, key = { it.id }) { item ->
+                        items(shown, key = { it.id }) { item ->
                             TaskRow(item) { vm.startEdit(item) }
                         }
                     }
@@ -109,6 +116,32 @@ fun TaskManagerScreen(
                     action = { TextButton(onClick = { vm.dismissMessages() }) { Text("OK") } }
                 ) { Text(it) }
             }
+        }
+    }
+}
+
+internal val STATUS_LABELS = mapOf(
+    "all"             to "All",
+    "immediate"       to "OK for billing",
+    "hold"            to "Hold for collection",
+    "collection_done" to "Collection done",
+    "cancel"          to "Cancel"
+)
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun StatusFilterBar(selected: String, onSelect: (String) -> Unit) {
+    FlowRow(
+        Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp)
+    ) {
+        STATUS_LABELS.forEach { (value, label) ->
+            FilterChip(
+                selected = selected == value,
+                onClick = { onSelect(value) },
+                label = { Text(label, style = MaterialTheme.typography.labelMedium) }
+            )
         }
     }
 }
@@ -224,10 +257,9 @@ private fun TaskRow(item: RepoTaskItem, onClick: () -> Unit) {
 private fun StatusChip(billed: Boolean, action: String) {
     val (label, color) = when {
         action.equals("cancel", true)          -> "CANCEL" to Color(0xFFC62828)
-        action.equals("hold", true)            -> "PENDING" to Color(0xFFF57F17)
+        action.equals("hold", true)            -> "HOLD" to Color(0xFFF57F17)
         action.equals("collection_done", true) -> "DONE" to Color(0xFF2E7D32)
-        billed                                  -> "DONE" to Color(0xFF2E7D32)
-        else                                    -> "PENDING" to Color(0xFFF57F17)
+        else                                    -> "DONE" to Color(0xFF2E7D32)
     }
     Surface(shape = RoundedCornerShape(6.dp), color = color.copy(alpha = 0.12f)) {
         Text(

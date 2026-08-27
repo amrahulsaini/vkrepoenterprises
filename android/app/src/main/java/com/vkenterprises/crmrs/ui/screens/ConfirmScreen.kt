@@ -2,6 +2,7 @@ package com.vkenterprises.crmrs.ui.screens
 
 import android.content.Intent
 import android.net.Uri
+import android.view.WindowManager
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -51,6 +52,12 @@ fun ConfirmScreen(
     nav: NavController
 ) {
     val context    = LocalContext.current
+
+    DisposableEffect(Unit) {
+        val window = context.findActivity()?.window
+        window?.setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE)
+        onDispose { window?.clearFlags(WindowManager.LayoutParams.FLAG_SECURE) }
+    }
 
     val imeVisible = WindowInsets.isImeVisible
     val keyboardController = LocalSoftwareKeyboardController.current

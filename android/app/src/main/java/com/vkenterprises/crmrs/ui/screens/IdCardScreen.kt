@@ -48,7 +48,7 @@ import kotlinx.coroutines.withContext
 
 private val BLOOD_GROUPS = listOf("A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-")
 
-private fun Context.findActivity(): Activity? {
+internal fun Context.findActivity(): Activity? {
     var c: Context? = this
     while (c is ContextWrapper) {
         if (c is Activity) return c

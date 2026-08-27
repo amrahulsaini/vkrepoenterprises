@@ -373,6 +373,21 @@ fun SettingsScreen(
                         color = MaterialTheme.colorScheme.primary,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.clickable { openSite() })
+                    Text("rahul@loopwar.dev",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center)
+                    Text(SUPPORT_CONTACT,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.clickable {
+                            runCatching {
+                                ctx.startActivity(
+                                    Intent(Intent.ACTION_DIAL, Uri.parse("tel:$SUPPORT_CONTACT"))
+                                )
+                            }
+                        })
                 }
             }
 

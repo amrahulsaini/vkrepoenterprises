@@ -27,9 +27,14 @@ data class TaskManagerUiState(
     val month: Int                  = LocalDate.now().monthValue,
     val editing: RepoTaskItem?      = null,
     val saving: Boolean             = false,
+    val statusFilter: String        = "all",
     val errorMsg: String?           = null,
     val savedMsg: String?           = null
 ) {
+    val visibleItems: List<RepoTaskItem>
+        get() = if (statusFilter == "all") items
+                else items.filter { it.billingAction.ifBlank { "immediate" }.equals(statusFilter, true) }
+
     val monthName: String
         get() = Month.of(month).getDisplayName(TextStyle.FULL, Locale.ENGLISH).uppercase()
 
@@ -117,6 +122,8 @@ class TaskManagerViewModel @Inject constructor(
         in 500..599 -> "The server couldn't save that right now. Please try again in a moment."
         else -> "Couldn't save. Please try again."
     }
+
+    fun setStatusFilter(value: String) = _ui.update { it.copy(statusFilter = value) }
 
     fun startEdit(item: RepoTaskItem) = _ui.update { it.copy(editing = item, savedMsg = null) }
     fun cancelEdit() = _ui.update { it.copy(editing = null) }

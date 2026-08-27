@@ -884,9 +884,9 @@ app.MapGet("/api/mgr/users", async (HttpContext ctx) =>
                    (SELECT bt.target FROM user_billing_targets bt
                      WHERE bt.user_id=u.id AND bt.year=YEAR(CURDATE()) AND bt.month=MONTH(CURDATE())) AS billing_target,
                    (SELECT COUNT(*) FROM repo_submissions rs
-                     WHERE rs.submitted_by_user_id = u.id AND rs.bill_status='billed'
-                       AND rs.billed_at IS NOT NULL
-                       AND YEAR(rs.billed_at)=YEAR(CURDATE()) AND MONTH(rs.billed_at)=MONTH(CURDATE())) AS billed_month
+                     WHERE rs.submitted_by_user_id = u.id
+                       AND LOWER(COALESCE(rs.billing_action,'immediate')) <> 'cancel'
+                       AND YEAR(rs.created_at)=YEAR(CURDATE()) AND MONTH(rs.created_at)=MONTH(CURDATE())) AS billed_month
             FROM app_users u ORDER BY u.created_at DESC";
         var users = new List<object>();
         string baseUrl = $"{ctx.Request.Scheme}://{ctx.Request.Host}";
@@ -1095,8 +1095,9 @@ app.MapGet("/api/mgr/users/{id:long}/billing-targets", async (HttpContext ctx, l
         int billed;
         await using (var cmd = new MySqlCommand(@"
             SELECT COUNT(*) FROM repo_submissions
-             WHERE submitted_by_user_id=@id AND bill_status='billed'
-               AND billed_at IS NOT NULL AND YEAR(billed_at)=@y AND MONTH(billed_at)=@m",
+             WHERE submitted_by_user_id=@id
+               AND LOWER(COALESCE(billing_action,'immediate')) <> 'cancel'
+               AND YEAR(created_at)=@y AND MONTH(created_at)=@m",
             conn) { CommandTimeout = 10 })
         {
             cmd.Parameters.AddWithValue("@id", id);

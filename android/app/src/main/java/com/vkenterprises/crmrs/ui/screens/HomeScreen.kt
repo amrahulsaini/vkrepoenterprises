@@ -60,7 +60,9 @@ import com.vkenterprises.crmrs.viewmodel.SearchViewModel
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 
-private val RobotoFamily = FontFamily(
+internal const val SUPPORT_CONTACT = "8380903923"
+
+internal val RobotoFamily = FontFamily(
     Font(R.font.roboto_bold,  FontWeight.Bold),
     Font(R.font.roboto_black, FontWeight.Black)
 )
@@ -796,7 +798,25 @@ private fun AgencyLandingPanel(
         Text("rahul@loopwar.dev",
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.outline)
-        Spacer(Modifier.height(8.dp))
+        val footerCtx = LocalContext.current
+        Text(SUPPORT_CONTACT,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.clickable {
+                runCatching {
+                    footerCtx.startActivity(
+                        Intent(Intent.ACTION_DIAL, android.net.Uri.parse("tel:$SUPPORT_CONTACT"))
+                    )
+                }
+            })
+        Spacer(Modifier.height(10.dp))
+        Image(
+            painter = painterResource(id = R.drawable.crmrs_logo),
+            contentDescription = "CRMRS",
+            contentScale = ContentScale.Fit,
+            modifier = Modifier.height(34.dp)
+        )
+        Spacer(Modifier.height(12.dp))
     }
 }
 
