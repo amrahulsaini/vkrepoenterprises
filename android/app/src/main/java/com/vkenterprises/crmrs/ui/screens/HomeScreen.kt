@@ -270,136 +270,8 @@ fun HomeScreen(
         }
     }
 
-    Scaffold(
-        topBar = {
-            if (ui.results.isEmpty() && ui.inputText.isEmpty() && !ui.isSearching)
-            TopAppBar(
-                title = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = Color.White,
-                            tonalElevation = 0.dp,
-                            shadowElevation = 0.dp,
-                            border = androidx.compose.foundation.BorderStroke(
-                                1.dp, MaterialTheme.colorScheme.outlineVariant
-                            ),
-                            modifier = Modifier.size(38.dp)
-                        ) {
-                            if (!agencyLogoUrl.isNullOrBlank()) {
-                                AsyncImage(
-                                    model = agencyLogoUrl,
-                                    contentDescription = dynAgencyName,
-                                    contentScale = ContentScale.Fit,
-                                    modifier = Modifier.fillMaxSize().padding(3.dp)
-                                )
-                            } else {
-                                Image(
-                                    painter = painterResource(id = R.drawable.agency_logo),
-                                    contentDescription = dynAgencyName,
-                                    contentScale = ContentScale.Fit,
-                                    modifier = Modifier.fillMaxSize().padding(3.dp)
-                                )
-                            }
-                        }
-                        Spacer(Modifier.width(10.dp))
-                        Column {
-                            Text(
-                                dynAgencyName,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 15.sp,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            if (userName.isNotEmpty())
-                                Text("Hello, $userName",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        }
-                    }
-                },
-                actions = {
-                    val pfpUrl by authVm.pfpUrl.collectAsState(initial = null)
-
-                    IconButton(onClick = { pendingOnlineModeChange = !ui.onlineOnly }) {
-                        Icon(
-                            imageVector       = if (ui.onlineOnly) Icons.Default.Cloud
-                                                else                Icons.Default.CloudOff,
-                            contentDescription = if (ui.onlineOnly) "Online mode (tap to go offline)"
-                                                 else                "Offline mode (tap to go online)",
-                            tint              = if (ui.onlineOnly) Color(0xFF388E3C)
-                                                else                Color(0xFFD32F2F)
-                        )
-                    }
-                    val syncHasUpdates = ui.syncHasUpdates
-                    val syncCompleted  = ui.syncCompleted
-                    val infiniteTransition = rememberInfiniteTransition(label = "syncPulse")
-                    val pulseAlpha by infiniteTransition.animateFloat(
-                        initialValue = 1f, targetValue = 0.3f,
-                        animationSpec = infiniteRepeatable(
-                            animation = tween(600, easing = FastOutSlowInEasing),
-                            repeatMode = RepeatMode.Reverse
-                        ), label = "pulseAlpha"
-                    )
-                    val syncIconTint = when {
-                        ui.isSyncing      -> MaterialTheme.colorScheme.primary
-                        syncHasUpdates    -> Color(0xFFD32F2F).copy(alpha = pulseAlpha)
-                        syncCompleted     -> Color(0xFF388E3C)
-                        else              -> MaterialTheme.colorScheme.onSurface
-                    }
-                    val syncIcon = if (syncCompleted && !syncHasUpdates)
-                        Icons.Default.CheckCircle else Icons.Default.CloudDownload
-                    IconButton(onClick = { searchVm.triggerSync() }) {
-                        Icon(syncIcon, contentDescription = "Download records", tint = syncIconTint)
-                    }
-                    IconButton(onClick = { nav.navigate(Screen.Profile.route) }) {
-                        if (!pfpUrl.isNullOrBlank()) {
-                            val req = coil.request.ImageRequest.Builder(LocalContext.current)
-                                .data(pfpUrl)
-                                .crossfade(true)
-                                .build()
-                            AsyncImage(
-                                model = req,
-                                contentDescription = null,
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier.size(30.dp).clip(CircleShape)
-                            )
-                        } else Icon(Icons.Default.AccountCircle, null)
-                    }
-                    IconButton(onClick = { nav.navigate(Screen.Settings.route) }) {
-                        Icon(Icons.Default.Settings, contentDescription = "Settings")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface)
-            )
-        }
-    ) { pad ->
+    Scaffold { pad ->
         Column(Modifier.padding(pad).fillMaxSize()) {
-
-            if (ui.isSyncing) {
-                val pct = if (ui.syncTotal > 0) (ui.syncCurrent.toFloat() / ui.syncTotal) else 0f
-                Surface(color = MaterialTheme.colorScheme.primaryContainer) {
-                    Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp)) {
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("Syncing vehicle data…",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer)
-                            Text("${ui.syncCurrent.toInt().formatCount()} / ${ui.syncTotal.toInt().formatCount()}",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer)
-                        }
-                        Spacer(Modifier.height(4.dp))
-                        LinearProgressIndicator(
-                            progress = { pct },
-                            modifier = Modifier.fillMaxWidth(),
-                            color = MaterialTheme.colorScheme.primary,
-                            trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
-                        )
-                    }
-                }
-            }
 
             Surface(
                 color = MaterialTheme.colorScheme.surfaceVariant,
@@ -491,6 +363,133 @@ fun HomeScreen(
                                 )
                             }
                         }
+                    }
+                }
+            }
+
+            if (ui.results.isEmpty() && !ui.isSearching) {
+                TopAppBar(
+                    title = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = Color.White,
+                                tonalElevation = 0.dp,
+                                shadowElevation = 0.dp,
+                                border = androidx.compose.foundation.BorderStroke(
+                                    1.dp, MaterialTheme.colorScheme.outlineVariant
+                                ),
+                                modifier = Modifier.size(38.dp)
+                            ) {
+                                if (!agencyLogoUrl.isNullOrBlank()) {
+                                    AsyncImage(
+                                        model = agencyLogoUrl,
+                                        contentDescription = dynAgencyName,
+                                        contentScale = ContentScale.Fit,
+                                        modifier = Modifier.fillMaxSize().padding(3.dp)
+                                    )
+                                } else {
+                                    Image(
+                                        painter = painterResource(id = R.drawable.agency_logo),
+                                        contentDescription = dynAgencyName,
+                                        contentScale = ContentScale.Fit,
+                                        modifier = Modifier.fillMaxSize().padding(3.dp)
+                                    )
+                                }
+                            }
+                            Spacer(Modifier.width(10.dp))
+                            Column {
+                                Text(
+                                    dynAgencyName,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 15.sp,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                if (userName.isNotEmpty())
+                                    Text("Hello, $userName",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            }
+                        }
+                    },
+                    actions = {
+                        val pfpUrl by authVm.pfpUrl.collectAsState(initial = null)
+
+                        IconButton(onClick = { pendingOnlineModeChange = !ui.onlineOnly }) {
+                            Icon(
+                                imageVector       = if (ui.onlineOnly) Icons.Default.Cloud
+                                                    else                Icons.Default.CloudOff,
+                                contentDescription = if (ui.onlineOnly) "Online mode (tap to go offline)"
+                                                     else                "Offline mode (tap to go online)",
+                                tint              = if (ui.onlineOnly) Color(0xFF388E3C)
+                                                    else                Color(0xFFD32F2F)
+                            )
+                        }
+                        val syncHasUpdates = ui.syncHasUpdates
+                        val syncCompleted  = ui.syncCompleted
+                        val infiniteTransition = rememberInfiniteTransition(label = "syncPulse")
+                        val pulseAlpha by infiniteTransition.animateFloat(
+                            initialValue = 1f, targetValue = 0.3f,
+                            animationSpec = infiniteRepeatable(
+                                animation = tween(600, easing = FastOutSlowInEasing),
+                                repeatMode = RepeatMode.Reverse
+                            ), label = "pulseAlpha"
+                        )
+                        val syncIconTint = when {
+                            ui.isSyncing      -> MaterialTheme.colorScheme.primary
+                            syncHasUpdates    -> Color(0xFFD32F2F).copy(alpha = pulseAlpha)
+                            syncCompleted     -> Color(0xFF388E3C)
+                            else              -> MaterialTheme.colorScheme.onSurface
+                        }
+                        val syncIcon = if (syncCompleted && !syncHasUpdates)
+                            Icons.Default.CheckCircle else Icons.Default.CloudDownload
+                        IconButton(onClick = { searchVm.triggerSync() }) {
+                            Icon(syncIcon, contentDescription = "Download records", tint = syncIconTint)
+                        }
+                        IconButton(onClick = { nav.navigate(Screen.Profile.route) }) {
+                            if (!pfpUrl.isNullOrBlank()) {
+                                val req = coil.request.ImageRequest.Builder(LocalContext.current)
+                                    .data(pfpUrl)
+                                    .crossfade(true)
+                                    .build()
+                                AsyncImage(
+                                    model = req,
+                                    contentDescription = null,
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.size(30.dp).clip(CircleShape)
+                                )
+                            } else Icon(Icons.Default.AccountCircle, null)
+                        }
+                        IconButton(onClick = { nav.navigate(Screen.Settings.route) }) {
+                            Icon(Icons.Default.Settings, contentDescription = "Settings")
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.surface)
+                )
+            }
+
+            if (ui.isSyncing) {
+                val pct = if (ui.syncTotal > 0) (ui.syncCurrent.toFloat() / ui.syncTotal) else 0f
+                Surface(color = MaterialTheme.colorScheme.primaryContainer) {
+                    Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp)) {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Syncing vehicle data…",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer)
+                            Text("${ui.syncCurrent.toInt().formatCount()} / ${ui.syncTotal.toInt().formatCount()}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer)
+                        }
+                        Spacer(Modifier.height(4.dp))
+                        LinearProgressIndicator(
+                            progress = { pct },
+                            modifier = Modifier.fillMaxWidth(),
+                            color = MaterialTheme.colorScheme.primary,
+                            trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
+                        )
                     }
                 }
             }

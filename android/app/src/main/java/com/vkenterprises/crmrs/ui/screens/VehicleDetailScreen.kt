@@ -158,6 +158,7 @@ fun VehicleDetailScreen(
     var showMoreMenu     by remember { mutableStateOf(false) }
     var showSelection    by remember { mutableStateOf(false) }
     var showBranchSheet  by remember { mutableStateOf(false) }
+    var popped by remember { mutableStateOf(false) }
     var selectedBranchIdx by remember { mutableStateOf(0) }
     val selChecked = remember { mutableStateMapOf<String, Boolean>() }
 
@@ -208,15 +209,10 @@ fun VehicleDetailScreen(
             if (uid != 0L) searchVm.fetchFullRecord(selectedId, uid)
         }
     }
-    val detailRecord: SearchResult? = when {
-        selectedId != null && ui.fullRecord?.id == selectedId -> ui.fullRecord
-        ui.fullRecord != null && branchRecord != null &&
-            (ui.fullRecord!!.vehicleNo == branchRecord.vehicleNo ||
-             ui.fullRecord!!.chassisNo == branchRecord.chassisNo) -> ui.fullRecord
-        else -> branchRecord
-    }
+    val detailRecord: SearchResult? =
+        if (selectedId != null && ui.fullRecordId == selectedId) ui.fullRecord else branchRecord
 
-    LaunchedEffect(item?.vehicleNo) {
+    LaunchedEffect(item?.id) {
         selectedBranchIdx = 0
         selChecked.clear()
         ALL_SEL_KEYS.forEach { selChecked[it] = true }
@@ -480,19 +476,32 @@ fun VehicleDetailScreen(
                 searchVm = searchVm,
                 authVm   = authVm,
                 surfaceColor = pageBg,
-                onSubmit = { nav.popBackStack() }
+                onSubmit = {
+                    if (!popped && nav.previousBackStackEntry != null) {
+                        popped = true
+                        nav.popBackStack()
+                    }
+                }
             )
 
             Row(
                 Modifier.fillMaxWidth().padding(start = 4.dp, end = 12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = { nav.popBackStack() }, modifier = Modifier.size(36.dp)) {
+                IconButton(
+                    onClick = {
+                        if (!popped && nav.previousBackStackEntry != null) {
+                            popped = true
+                            nav.popBackStack()
+                        }
+                    },
+                    modifier = Modifier.size(36.dp)
+                ) {
                     Icon(Icons.Default.ArrowBack, "Back", Modifier.size(20.dp))
                 }
                 Spacer(Modifier.width(4.dp))
                 Text(
-                    item?.vehicleNo?.displayRc(ui.showHyphens)?.ifBlank { null } ?: "Vehicle Detail",
+                    item.vehicleNo.displayRc(ui.showHyphens).ifBlank { "Vehicle Detail" },
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1
@@ -542,19 +551,6 @@ private fun QuickSearchBar(
     val mode   = ui.mode
     val maxLen = if (mode == com.vkenterprises.crmrs.viewmodel.SearchMode.RC) 4 else 5
 
-    val focusRequester = remember { FocusRequester() }
-    val keyboard = LocalSoftwareKeyboardController.current
-    LaunchedEffect(Unit) {
-        repeat(15) {
-            kotlinx.coroutines.delay(100)
-            val focused = runCatching { focusRequester.requestFocus() }.isSuccess
-            if (focused) {
-                keyboard?.show()
-                return@LaunchedEffect
-            }
-        }
-    }
-
     val fieldStyle = MaterialTheme.typography.bodyLarge.copy(
         fontFamily = RobotoFamily,
         fontWeight = FontWeight.Bold,
@@ -602,7 +598,7 @@ private fun QuickSearchBar(
                     keyboardType = androidx.compose.ui.text.input.KeyboardType.Number
                 ),
                 singleLine = true,
-                modifier = Modifier.weight(1f).focusRequester(focusRequester),
+                modifier = Modifier.weight(1f),
                 shape = RoundedCornerShape(8.dp),
                 textStyle = fieldStyle,
                 colors = fieldColors

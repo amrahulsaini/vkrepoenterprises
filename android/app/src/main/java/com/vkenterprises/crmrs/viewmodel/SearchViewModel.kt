@@ -27,6 +27,7 @@ data class SearchUiState(
     val allResults: List<SearchResult> = emptyList(),
     val selectedResult: SearchResult? = null,
     val fullRecord: SearchResult?     = null,
+    val fullRecordId: Long?           = null,
     val vehicleBranches: List<SearchResult> = emptyList(),
     val errorMsg: String?             = null,
     val isSearching: Boolean          = false,
@@ -73,6 +74,8 @@ class SearchViewModel @Inject constructor(
 
     private var searchJob: Job? = null
     private var syncJob: Job? = null
+    private var branchesJob: Job? = null
+    private var fullRecordJob: Job? = null
 
     val requiredLen get() = if (_ui.value.mode == SearchMode.RC) 4 else 5
 
@@ -180,23 +183,28 @@ class SearchViewModel @Inject constructor(
     }
 
     fun selectResult(result: SearchResult) {
-        _ui.update { it.copy(selectedResult = result, fullRecord = null, vehicleBranches = emptyList()) }
+        branchesJob?.cancel()
+        fullRecordJob?.cancel()
+        _ui.update { it.copy(selectedResult = result, fullRecord = null, fullRecordId = null, vehicleBranches = emptyList()) }
     }
 
     fun loadVehicleBranches(userId: Long) {
         val current = _ui.value.selectedResult ?: return
         val key = current.vehicleNo.trim().ifBlank { current.chassisNo.trim() }
         if (key.isBlank()) return
-        viewModelScope.launch {
+        branchesJob?.cancel()
+        branchesJob = viewModelScope.launch {
             val rows = withContext(Dispatchers.IO) { serverRepo.getVehicleBranches(key, userId) }
+            if (_ui.value.selectedResult?.id != current.id) return@launch
             if (rows.isNotEmpty()) _ui.update { it.copy(vehicleBranches = rows) }
         }
     }
 
     fun fetchFullRecord(id: Long, userId: Long) {
-        viewModelScope.launch {
+        fullRecordJob?.cancel()
+        fullRecordJob = viewModelScope.launch {
             val rec = withContext(Dispatchers.IO) { serverRepo.getRecord(id, userId) }
-            if (rec != null) _ui.update { it.copy(fullRecord = rec) }
+            if (rec != null) _ui.update { it.copy(fullRecord = rec, fullRecordId = id) }
         }
     }
 
@@ -272,7 +280,7 @@ class SearchViewModel @Inject constructor(
                 val match = result.data.firstOrNull {
                     it.vehicleNo == current.vehicleNo || it.chassisNo == current.chassisNo
                 }
-                if (match != null) {
+                if (match != null && _ui.value.selectedResult?.id == current.id) {
                     _ui.update { it.copy(selectedResult = match, results = result.data, allResults = result.data) }
                 }
             }
