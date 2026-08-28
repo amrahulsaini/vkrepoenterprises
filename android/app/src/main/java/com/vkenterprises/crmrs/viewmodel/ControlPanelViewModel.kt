@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 import javax.inject.Inject
 
 data class ControlPanelUiState(
@@ -228,13 +229,22 @@ class ControlPanelViewModel @Inject constructor(
         }
     }
 
-    fun showAddDialog() = _ui.update {
-        it.copy(showAddDialog = true, addStartDate = "", addEndDate = "",
-            addAmount = "", addNotes = "", addError = null)
+    fun showAddDialog() {
+        val today = LocalDate.now()
+        _ui.update {
+            it.copy(showAddDialog = true,
+                addStartDate = today.toString(),
+                addEndDate   = today.plusMonths(1).toString(),
+                addAmount = "", addNotes = "", addError = null)
+        }
     }
     fun hideAddDialog() = _ui.update { it.copy(showAddDialog = false, addError = null) }
-    fun onAddStartDate(v: String) = _ui.update { it.copy(addStartDate = v) }
-    fun onAddEndDate(v: String)   = _ui.update { it.copy(addEndDate = v) }
+
+    fun onAddStartDate(v: String) = _ui.update {
+        val end = runCatching { LocalDate.parse(v).plusMonths(1).toString() }.getOrDefault(it.addEndDate)
+        it.copy(addStartDate = v, addEndDate = end, addError = null)
+    }
+    fun onAddEndDate(v: String)   = _ui.update { it.copy(addEndDate = v, addError = null) }
     fun onAddAmount(v: String)    = _ui.update { it.copy(addAmount = v) }
     fun onAddNotes(v: String)     = _ui.update { it.copy(addNotes = v) }
 
@@ -248,6 +258,20 @@ class ControlPanelViewModel @Inject constructor(
         }
         if (st.subs.any { sub -> sub.isActive }) {
             _ui.update { it.copy(addError = "This user already has an active plan. Add a new plan once the current one expires, or delete the active plan first.") }
+            return
+        }
+        val start = runCatching { LocalDate.parse(st.addStartDate) }.getOrNull()
+        val end   = runCatching { LocalDate.parse(st.addEndDate) }.getOrNull()
+        if (start == null || end == null) {
+            _ui.update { it.copy(addError = "Enter valid dates (YYYY-MM-DD)") }
+            return
+        }
+        if (start.isBefore(LocalDate.now())) {
+            _ui.update { it.copy(addError = "Start date cannot be in the past") }
+            return
+        }
+        if (!end.isAfter(start)) {
+            _ui.update { it.copy(addError = "End date must be after the start date") }
             return
         }
         viewModelScope.launch {

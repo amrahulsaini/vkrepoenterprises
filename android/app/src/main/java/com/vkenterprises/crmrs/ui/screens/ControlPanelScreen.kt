@@ -661,9 +661,14 @@ private fun AddPlanDialog(vm: ControlPanelViewModel, ui: com.vkenterprises.crmrs
         )
     }
     if (pickingEnd) {
+        val startMin = remember(ui.addStartDate) {
+            runCatching { java.time.LocalDate.parse(ui.addStartDate).plusDays(1) }
+                .getOrDefault(java.time.LocalDate.now().plusDays(1))
+        }
         DateField.PickDialog(
             initial = ui.addEndDate,
             title   = "Pick end date",
+            minDate = startMin,
             onPick  = { picked -> vm.onAddEndDate(picked); pickingEnd = false },
             onCancel = { pickingEnd = false }
         )
@@ -735,6 +740,7 @@ private object DateField {
     fun PickDialog(
         initial: String,
         title: String,
+        minDate: java.time.LocalDate = java.time.LocalDate.now(),
         onPick: (String) -> Unit,
         onCancel: () -> Unit
     ) {
@@ -746,7 +752,20 @@ private object DateField {
                 else null
             }.getOrNull()
         }
-        val state = rememberDatePickerState(initialSelectedDateMillis = seedMillis)
+        val minMillis = remember(minDate) {
+            minDate.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
+        }
+        val selectable = remember(minMillis) {
+            object : SelectableDates {
+                override fun isSelectableDate(utcTimeMillis: Long) = utcTimeMillis >= minMillis
+                override fun isSelectableYear(year: Int) = year >= minDate.year
+            }
+        }
+        val state = rememberDatePickerState(
+            initialSelectedDateMillis = seedMillis,
+            yearRange = minDate.year..(minDate.year + 10),
+            selectableDates = selectable
+        )
         DatePickerDialog(
             onDismissRequest = onCancel,
             confirmButton = {

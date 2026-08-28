@@ -367,17 +367,6 @@ fun VehicleDetailScreen(
     val pageBg = if (isAdmin) MaterialTheme.colorScheme.background else Color.White
     Scaffold(
         containerColor = pageBg,
-        topBar = {
-            TopAppBar(
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = pageBg),
-                title = { Text(item?.vehicleNo?.displayRc(ui.showHyphens)?.ifBlank { null } ?: "Vehicle Detail", fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = { nav.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, null)
-                    }
-                }
-            )
-        },
         bottomBar = {
             if (isAdmin && item != null) {
                 Surface(shadowElevation = 8.dp, color = MaterialTheme.colorScheme.surface) {
@@ -493,6 +482,22 @@ fun VehicleDetailScreen(
                 surfaceColor = pageBg,
                 onSubmit = { nav.popBackStack() }
             )
+
+            Row(
+                Modifier.fillMaxWidth().padding(start = 4.dp, end = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = { nav.popBackStack() }, modifier = Modifier.size(36.dp)) {
+                    Icon(Icons.Default.ArrowBack, "Back", Modifier.size(20.dp))
+                }
+                Spacer(Modifier.width(4.dp))
+                Text(
+                    item?.vehicleNo?.displayRc(ui.showHyphens)?.ifBlank { null } ?: "Vehicle Detail",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1
+                )
+            }
 
             Column(
                 Modifier

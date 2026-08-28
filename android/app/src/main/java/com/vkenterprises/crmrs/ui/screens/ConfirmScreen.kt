@@ -279,13 +279,18 @@ fun ConfirmScreen(
         }
     }
 
-    // Non-admin "Send Confirm": the photo is mandatory. On tap we save the
+    // Non-admin "Send Confirm": the photo is optional. With one, we save the
     // capture to the server (confirm_captures) and then open WhatsApp with the
     // image + message. A server hiccup must not strand a field agent, so if the
     // save fails we still send — the photo is attached to WhatsApp regardless.
+    // With no photo we simply send the details as text.
     fun confirmWithPhoto() {
-        val uri = photoUri ?: return
         if (sending) return
+        val uri = photoUri
+        if (uri == null) {
+            sendWhatsApp()
+            return
+        }
         sending = true
         scope.launch {
             runCatching {
@@ -477,7 +482,7 @@ fun ConfirmScreen(
                     colors = CardDefaults.cardColors(containerColor = Color.White),
                     border = BorderStroke(
                         1.dp,
-                        if (photoUri == null) MaterialTheme.colorScheme.error.copy(alpha = 0.5f)
+                        if (photoUri == null) MaterialTheme.colorScheme.outlineVariant
                         else Color(0xFF16A34A).copy(alpha = 0.6f)
                     ),
                     modifier = Modifier.fillMaxWidth()
@@ -487,15 +492,15 @@ fun ConfirmScreen(
                             Icon(
                                 if (photoUri == null) Icons.Default.PhotoCamera else Icons.Default.CheckCircle,
                                 null,
-                                tint = if (photoUri == null) MaterialTheme.colorScheme.error else Color(0xFF16A34A),
+                                tint = if (photoUri == null) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF16A34A),
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(Modifier.width(6.dp))
                             Text(
-                                if (photoUri == null) "Vehicle photo required *" else "Vehicle photo captured",
+                                if (photoUri == null) "Vehicle photo (optional)" else "Vehicle photo captured",
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.Bold,
-                                color = if (photoUri == null) MaterialTheme.colorScheme.error else Color(0xFF16A34A)
+                                color = if (photoUri == null) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF16A34A)
                             )
                         }
                         if (photoUri != null) {
@@ -524,7 +529,7 @@ fun ConfirmScreen(
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Button(
                     onClick  = { if (isAdmin) sendWhatsApp() else confirmWithPhoto() },
-                    enabled  = isAdmin || (photoUri != null && !sending),
+                    enabled  = isAdmin || !sending,
                     modifier = Modifier.weight(1f).height(52.dp),
                     shape    = RoundedCornerShape(10.dp),
                     colors   = ButtonDefaults.buttonColors(
