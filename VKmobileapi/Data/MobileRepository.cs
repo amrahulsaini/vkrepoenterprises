@@ -1407,7 +1407,9 @@ public class MobileRepository
         const string sql = @"
             SELECT b.id, b.name, COALESCE(f.name,'') AS financer,
                    COALESCE(b.total_records,0),
-                   DATE_FORMAT(b.uploaded_at,'%Y-%m-%dT%H:%i:%s')
+                   DATE_FORMAT(b.uploaded_at,'%Y-%m-%dT%H:%i:%s'),
+                   COALESCE(b.contact1,''), COALESCE(b.contact2,''),
+                   COALESCE(b.contact3,''), COALESCE(b.address,'')
             FROM branches b
             LEFT JOIN finances f ON f.id = b.finance_id
             WHERE b.is_active = 1 AND b.uploaded_at IS NOT NULL
@@ -1418,7 +1420,8 @@ public class MobileRepository
         while (await r.ReadAsync())
             list.Add(new SyncBranch(
                 r.GetInt32(0), r.GetString(1), r.GetString(2),
-                r.GetInt64(3), r.IsDBNull(4) ? null : r.GetString(4)));
+                r.GetInt64(3), r.IsDBNull(4) ? null : r.GetString(4),
+                r.GetString(5), r.GetString(6), r.GetString(7), r.GetString(8)));
         return list;
     }
 
@@ -1434,7 +1437,22 @@ public class MobileRepository
                    COALESCE(vr.model,'')              AS model,
                    COALESCE(vr.customer_name,'')      AS customer_name,
                    COALESCE(RIGHT(vr.vehicle_no,4),'') AS last4,
-                   COALESCE(RIGHT(vr.chassis_no,5),'') AS last5
+                   COALESCE(RIGHT(vr.chassis_no,5),'') AS last5,
+                   COALESCE(vr.agreement_no,''), COALESCE(vr.customer_contact,''),
+                   COALESCE(vr.customer_address,''),
+                   COALESCE(vr.region,''), COALESCE(vr.area,''), COALESCE(vr.bucket,''),
+                   COALESCE(vr.gv,''), COALESCE(vr.od,''), COALESCE(vr.seasoning,''),
+                   COALESCE(vr.tbr_flag,''), COALESCE(vr.sec9_available,''),
+                   COALESCE(vr.sec17_available,''),
+                   COALESCE(vr.level1,''), COALESCE(vr.level1_contact,''),
+                   COALESCE(vr.level2,''), COALESCE(vr.level2_contact,''),
+                   COALESCE(vr.level3,''), COALESCE(vr.level3_contact,''),
+                   COALESCE(vr.level4,''), COALESCE(vr.level4_contact,''),
+                   COALESCE(vr.sender_mail1,''), COALESCE(vr.sender_mail2,''),
+                   COALESCE(vr.executive_name,''), COALESCE(vr.pos,''),
+                   COALESCE(vr.toss,''), COALESCE(vr.remark,''),
+                   COALESCE(vr.branch_name_raw,''),
+                   COALESCE(DATE_FORMAT(vr.created_at,'%d %b %Y, %h:%i %p'),'')
             FROM vehicle_records vr
             WHERE vr.branch_id = @bid
             ORDER BY vr.id
@@ -1447,7 +1465,11 @@ public class MobileRepository
         await using var r = await cmd.ExecuteReaderAsync();
         string S(int i) => r.IsDBNull(i) ? "" : r.GetString(i);
         while (await r.ReadAsync())
-            list.Add(new SyncRecord(r.GetInt64(0), S(1), S(2), S(3), S(4), S(5), S(6), S(7)));
+            list.Add(new SyncRecord(
+                r.GetInt64(0), S(1), S(2), S(3), S(4), S(5), S(6), S(7),
+                S(8), S(9), S(10), S(11), S(12), S(13), S(14), S(15), S(16), S(17),
+                S(18), S(19), S(20), S(21), S(22), S(23), S(24), S(25), S(26), S(27),
+                S(28), S(29), S(30), S(31), S(32), S(33), S(34), S(35)));
         return list;
     }
 

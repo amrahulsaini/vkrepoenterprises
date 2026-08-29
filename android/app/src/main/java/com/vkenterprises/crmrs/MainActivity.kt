@@ -5,7 +5,6 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -30,7 +29,7 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
         enableEdgeToEdge()
         setContent {
             VKTheme {
-                Box(Modifier.fillMaxSize().imePadding()) {
+                Box(Modifier.fillMaxSize()) {
                     VKNavHost()
                 }
             }

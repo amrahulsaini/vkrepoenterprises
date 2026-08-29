@@ -235,63 +235,17 @@ fun SettingsScreen(
                 }
             }
 
-            if (isAdmin) {
-                item {
-                    SectionCard(title = "Sync Logs (${ui.syncLogs.size} branches)") {
-                        OutlinedButton(
-                            onClick = { settingsVm.toggleLogs() },
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Icon(
-                                if (ui.showLogs) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                                null, Modifier.size(18.dp)
-                            )
-                            Spacer(Modifier.width(6.dp))
-                            Text(if (ui.showLogs) "Hide Logs" else "View All Logs")
-                        }
-                    }
-                }
-
-                if (ui.showLogs) {
-                    if (ui.syncLogs.isEmpty()) {
-                        item {
-                            Text("No sync logs. Sync has not run yet.",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(horizontal = 16.dp))
-                        }
-                    } else {
-                        items(ui.syncLogs) { log ->
-                            Surface(
-                                color = MaterialTheme.colorScheme.surfaceVariant,
-                                shape = MaterialTheme.shapes.small,
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Row(
-                                    Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(
-                                        "Branch #${log.branchId}",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        fontWeight = FontWeight.Medium
-                                    )
-                                    Text(
-                                        log.uploadedAt,
-                                        style = MaterialTheme.typography.labelSmall,
-                                        fontFamily = RobotoFamily,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
             item {
                 SectionCard(title = "Account") {
+                    OutlinedButton(
+                        onClick = { nav.navigate(Screen.Profile.route) },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.AccountCircle, null, Modifier.size(18.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text("My Account")
+                    }
+                    Spacer(Modifier.height(6.dp))
                     Button(
                         onClick = {
                             authVm.logout()

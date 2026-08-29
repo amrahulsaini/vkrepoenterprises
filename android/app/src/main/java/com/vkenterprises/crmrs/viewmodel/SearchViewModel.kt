@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vkenterprises.crmrs.data.api.ApiService
 import com.vkenterprises.crmrs.data.local.TenantDb
+import com.vkenterprises.crmrs.data.local.BranchSyncState
 import com.vkenterprises.crmrs.data.local.VehicleCache
 import com.vkenterprises.crmrs.data.models.SaveUserSettingsRequest
 import com.vkenterprises.crmrs.data.models.SearchResult
@@ -66,6 +67,7 @@ class SearchViewModel @Inject constructor(
     var lastScrolledToken = 0L
 
     private val vehicleDao get() = db.vehicleCacheDao()
+    private val branchStateDao get() = db.branchSyncStateDao()
 
     private val serverRepo = SearchRepository()
 
@@ -296,11 +298,15 @@ class SearchViewModel @Inject constructor(
                 if (mode == SearchMode.RC) vehicleDao.searchByLast4(q)
                 else vehicleDao.searchByLast5(q)
             }
+            val branchMeta = withContext(Dispatchers.IO) {
+                runCatching { branchStateDao.getAll().associateBy { it.branchId } }
+                    .getOrDefault(emptyMap())
+            }
             val all = if (mode == SearchMode.RC)
                 local.filter { it.vehicleNo.isValidRc() }
             else
                 local
-            val full     = all.map { it.toSearchResult() }
+            val full     = all.map { it.toSearchResult(branchMeta[it.branchId]) }
             val filtered = if (mode == SearchMode.RC)
                 full.filter { matchesPrefix(it.vehicleNo, statePrefix) } else full
             val unique = filtered.bestPerVehicle(mode)
@@ -368,15 +374,20 @@ private fun List<SearchResult>.bestPerVehicle(mode: SearchMode): List<SearchResu
     return groupBy(keyOf).values.map { group -> group.maxByOrNull { it.completenessScore() } ?: group.first() }
 }
 
-private fun VehicleCache.toSearchResult() = SearchResult(
+private fun VehicleCache.toSearchResult(branch: BranchSyncState? = null) = SearchResult(
     id = id, vehicleNo = vehicleNo, chassisNo = chassisNo, engineNo = engineNo,
-    model = model, agreementNo = "", customerName = customerName,
-    customerContact = "", customerAddress = "", financer = "", branchName = "",
-    firstContact = "", secondContact = "", thirdContact = "", address = "",
-    region = "", area = "", bucket = "", gv = "", od = "", seasoning = "",
-    tbrFlag = "", sec9 = "", sec17 = "", level1 = "", level1Contact = "",
-    level2 = "", level2Contact = "", level3 = "", level3Contact = "",
-    level4 = "", level4Contact = "", senderMail1 = "", senderMail2 = "",
-    executiveName = "", pos = "", toss = "", remark = "", branchFromExcel = "",
-    createdOn = ""
+    model = model, agreementNo = agreementNo, customerName = customerName,
+    customerContact = customerContact, customerAddress = customerAddress,
+    financer = branch?.financerName.orEmpty(), branchName = branch?.branchName.orEmpty(),
+    firstContact = branch?.contact1.orEmpty(), secondContact = branch?.contact2.orEmpty(),
+    thirdContact = branch?.contact3.orEmpty(), address = branch?.address.orEmpty(),
+    region = region, area = area, bucket = bucket, gv = gv, od = od, seasoning = seasoning,
+    tbrFlag = tbrFlag, sec9 = sec9, sec17 = sec17,
+    level1 = level1, level1Contact = level1Contact,
+    level2 = level2, level2Contact = level2Contact,
+    level3 = level3, level3Contact = level3Contact,
+    level4 = level4, level4Contact = level4Contact,
+    senderMail1 = senderMail1, senderMail2 = senderMail2,
+    executiveName = executiveName, pos = pos, toss = toss, remark = remark,
+    branchFromExcel = branchFromExcel, createdOn = createdOn
 )

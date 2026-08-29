@@ -183,7 +183,11 @@ public record SyncBranch(
     string  BranchName,
     string  FinancerName,
     long    TotalRecords,
-    string? UploadedAt);
+    string? UploadedAt,
+    string  Contact1,
+    string  Contact2,
+    string  Contact3,
+    string  Address);
 
 public record SyncBranchResponse(
     bool             Success,
@@ -199,7 +203,35 @@ public record SyncRecord(
     string Model,
     string CustomerName,
     string Last4,
-    string Last5);
+    string Last5,
+    string AgreementNo,
+    string CustomerContact,
+    string CustomerAddress,
+    string Region,
+    string Area,
+    string Bucket,
+    string Gv,
+    string Od,
+    string Seasoning,
+    string TbrFlag,
+    string Sec9,
+    string Sec17,
+    string Level1,
+    string Level1Contact,
+    string Level2,
+    string Level2Contact,
+    string Level3,
+    string Level3Contact,
+    string Level4,
+    string Level4Contact,
+    string SenderMail1,
+    string SenderMail2,
+    string ExecutiveName,
+    string Pos,
+    string Toss,
+    string Remark,
+    string BranchFromExcel,
+    string CreatedOn);
 
 public record SyncRecordsResponse(
     bool             Success,

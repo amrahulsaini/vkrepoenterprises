@@ -69,9 +69,22 @@ private fun String?.displayRc(showHyphens: Boolean): String =
 
 private val BRANCH_DATE_FMT = SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.US)
 
-private fun String.toBranchTime(): Long =
-    try { BRANCH_DATE_FMT.parse(trim())?.time ?: Long.MIN_VALUE }
+private val BRANCH_ISO_FMT = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US)
+
+private fun String.toBranchTime(): Long {
+    val t = trim()
+    if (t.isEmpty()) return Long.MIN_VALUE
+    val fmt = if (t.length >= 11 && t[4] == '-') BRANCH_ISO_FMT else BRANCH_DATE_FMT
+    return try { fmt.parse(t)?.time ?: Long.MIN_VALUE }
     catch (e: Exception) { Long.MIN_VALUE }
+}
+
+private val BRANCH_DATE_SHORT = SimpleDateFormat("dd MMM yy", Locale.US)
+
+private fun String.toShortBranchDate(): String {
+    val t = toBranchTime()
+    return if (t == Long.MIN_VALUE) trim() else BRANCH_DATE_SHORT.format(java.util.Date(t))
+}
 
 private data class BranchEntry(
     val branch: String,
@@ -192,14 +205,6 @@ fun VehicleDetailScreen(
          .sortedByDescending { it.createdOn.toBranchTime() }
     }
 
-    var branchSheetAutoShown by remember(item?.id) { mutableStateOf(false) }
-    LaunchedEffect(isAdmin, item?.id, ui.vehicleBranches) {
-        if (isAdmin && item != null && ui.vehicleBranches.isNotEmpty() && !branchSheetAutoShown) {
-            showBranchSheet     = true
-            branchSheetAutoShown = true
-        }
-    }
-
     val branchRecord: SearchResult? = uniqueBranches.getOrNull(selectedBranchIdx)?.record ?: item
 
     val selectedId = branchRecord?.id
@@ -212,7 +217,17 @@ fun VehicleDetailScreen(
     val detailRecord: SearchResult? =
         if (selectedId != null && ui.fullRecordId == selectedId) ui.fullRecord else branchRecord
 
+    var branchSheetAutoShown by remember(item?.id) { mutableStateOf(false) }
+    LaunchedEffect(isAdmin, item?.id, uniqueBranches.size) {
+        if (!isAdmin || item == null || branchSheetAutoShown) return@LaunchedEffect
+        if (uniqueBranches.isEmpty()) return@LaunchedEffect
+        branchSheetAutoShown = true
+        showBranchSheet      = true
+    }
+
     LaunchedEffect(item?.id) {
+        focusManager.clearFocus()
+        keyboardController?.hide()
         selectedBranchIdx = 0
         selChecked.clear()
         ALL_SEL_KEYS.forEach { selChecked[it] = true }
@@ -291,7 +306,13 @@ fun VehicleDetailScreen(
     }
 
     if (showBranchSheet && uniqueBranches.isNotEmpty()) {
-        ModalBottomSheet(onDismissRequest = { showBranchSheet = false }) {
+        ModalBottomSheet(
+            onDismissRequest = {
+                showBranchSheet = false
+                focusManager.clearFocus()
+                keyboardController?.hide()
+            }
+        ) {
             Column(
                 Modifier
                     .navigationBarsPadding()
@@ -319,6 +340,8 @@ fun VehicleDetailScreen(
                         onClick  = {
                             selectedBranchIdx = idx
                             showBranchSheet = false
+                            focusManager.clearFocus()
+                            keyboardController?.hide()
                         },
                         shape    = RoundedCornerShape(10.dp),
                         colors   = CardDefaults.cardColors(containerColor = Color.White),
@@ -339,7 +362,7 @@ fun VehicleDetailScreen(
                                     modifier   = Modifier.weight(1f)
                                 )
                                 Text(
-                                    entry.createdOn,
+                                    entry.createdOn.toShortBranchDate(),
                                     style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.SemiBold,
                                     color = Color(0xFFF57F17)
@@ -1098,7 +1121,7 @@ private fun SRow(
             fontFamily = RobotoFamily,
             fontWeight = FontWeight.Normal,
             color      = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier   = Modifier.width(if (sel) 104.dp else 128.dp)
+            modifier   = Modifier.width(if (sel) 88.dp else 112.dp)
         )
         Text(
             ":",
@@ -1106,7 +1129,7 @@ private fun SRow(
             fontFamily = RobotoFamily,
             fontWeight = FontWeight.Normal,
             color      = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier   = Modifier.padding(end = 8.dp)
+            modifier   = Modifier.padding(end = 5.dp)
         )
         var textLayout by remember(display) { mutableStateOf<TextLayoutResult?>(null) }
         fun dial(number: String) {
