@@ -52,6 +52,8 @@ data class VehicleCache(
     val createdOn: String = ""
 )
 
+data class BranchCount(val branchId: Int, val cnt: Long)
+
 @Entity(tableName = "branch_sync_state")
 data class BranchSyncState(
     @PrimaryKey val branchId: Int,
@@ -61,7 +63,8 @@ data class BranchSyncState(
     val contact1: String = "",
     val contact2: String = "",
     val contact3: String = "",
-    val address: String = ""
+    val address: String = "",
+    val completed: Boolean = false
 )
 
 @Dao
@@ -83,6 +86,9 @@ interface VehicleCacheDao {
 
     @Query("SELECT COUNT(*) FROM vehicle_cache WHERE branchId = :branchId")
     suspend fun countByBranch(branchId: Int): Long
+
+    @Query("SELECT branchId, COUNT(*) AS cnt FROM vehicle_cache GROUP BY branchId")
+    suspend fun countPerBranch(): List<BranchCount>
 
     @Query("DELETE FROM vehicle_cache")
     suspend fun deleteAll()
@@ -108,7 +114,7 @@ interface BranchSyncStateDao {
 
 @Database(
     entities = [VehicleCache::class, BranchSyncState::class],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 abstract class VKDatabase : RoomDatabase() {
@@ -157,5 +163,11 @@ val MIGRATION_2_3 = object : Migration(2, 3) {
         db.execSQL("ALTER TABLE branch_sync_state ADD COLUMN contact2 TEXT NOT NULL DEFAULT ''")
         db.execSQL("ALTER TABLE branch_sync_state ADD COLUMN contact3 TEXT NOT NULL DEFAULT ''")
         db.execSQL("ALTER TABLE branch_sync_state ADD COLUMN address TEXT NOT NULL DEFAULT ''")
+    }
+}
+
+val MIGRATION_3_4 = object : Migration(3, 4) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE branch_sync_state ADD COLUMN completed INTEGER NOT NULL DEFAULT 0")
     }
 }

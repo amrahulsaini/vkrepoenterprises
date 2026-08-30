@@ -44,6 +44,8 @@ data class SearchUiState(
     val syncTotal: Long               = 0L,
     val syncHasUpdates: Boolean       = false,
     val syncCompleted: Boolean        = false,
+    val syncPaused: Boolean           = false,
+    val offlineNotice: Boolean        = false,
     val onlineOnly: Boolean           = true,
     val showHyphens: Boolean          = true,
     val twoColumnView: Boolean        = true,
@@ -54,11 +56,19 @@ data class SearchUiState(
 
 @HiltViewModel
 class SearchViewModel @Inject constructor(
+    @dagger.hilt.android.qualifiers.ApplicationContext private val appContext: android.content.Context,
     private val db: TenantDb,
     private val syncRepo: SyncRepository,
     private val prefs: PreferencesManager,
     private val api: ApiService
 ) : ViewModel() {
+
+    private fun hasNetwork(): Boolean = runCatching {
+        val cm = appContext.getSystemService(android.content.Context.CONNECTIVITY_SERVICE)
+            as android.net.ConnectivityManager
+        val caps = cm.getNetworkCapabilities(cm.activeNetwork) ?: return false
+        caps.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET)
+    }.getOrDefault(true)
 
     var scrollIndex  = 0
         private set
@@ -103,7 +113,7 @@ class SearchViewModel @Inject constructor(
         }
         viewModelScope.launch(Dispatchers.IO) {
             while (true) {
-                kotlinx.coroutines.delay(60_000L)
+                kotlinx.coroutines.delay(15_000L)
                 val hasUpdates = runCatching { syncRepo.hasUpdates() }.getOrDefault(false)
                 _ui.update { it.copy(syncHasUpdates = hasUpdates) }
                 refreshOfflineCount()
@@ -116,16 +126,30 @@ class SearchViewModel @Inject constructor(
         _ui.update { it.copy(offlineCount = n) }
     }
 
+    fun pauseSync() {
+        syncJob?.cancel()
+        syncJob = null
+        _ui.update { it.copy(isSyncing = false, syncPaused = true) }
+    }
+
     fun triggerSync() {
         if (syncJob?.isActive == true) return
+        _ui.update { it.copy(syncCompleted = false, syncPaused = false, isSyncing = true, syncCurrent = 0L, syncTotal = 0L) }
         syncJob = viewModelScope.launch(Dispatchers.IO) {
-            _ui.update { it.copy(syncCompleted = false) }
             var success = false
             runCatching {
                 syncRepo.sync { p -> handleProgress(p) }
                 success = true
             }
-            _ui.update { it.copy(isSyncing = false, syncCompleted = success, syncHasUpdates = false) }
+            val stillPending = runCatching { syncRepo.hasUpdates() }.getOrDefault(false)
+            refreshOfflineCount()
+            _ui.update {
+                it.copy(
+                    isSyncing      = false,
+                    syncCompleted  = success && !stillPending,
+                    syncHasUpdates = stillPending
+                )
+            }
         }
     }
 
@@ -291,26 +315,24 @@ class SearchViewModel @Inject constructor(
 
     private suspend fun executeSearch(q: String, mode: SearchMode, userId: Long, statePrefix: String = "") {
         resetScroll()
-        _ui.update { it.copy(isSearching = true, errorMsg = null, searchToken = it.searchToken + 1) }
+        _ui.update { it.copy(isSearching = true, errorMsg = null, offlineNotice = false, searchToken = it.searchToken + 1) }
 
         if (!_ui.value.onlineOnly) {
-            val local = withContext(Dispatchers.IO) {
-                if (mode == SearchMode.RC) vehicleDao.searchByLast4(q)
-                else vehicleDao.searchByLast5(q)
+            val (unique, full) = localSearch(q, mode, statePrefix)
+            _ui.update {
+                it.copy(results = unique, allResults = full, lastQuery = q,
+                    errorMsg = null, offlineNotice = false, isSearching = false)
             }
-            val branchMeta = withContext(Dispatchers.IO) {
-                runCatching { branchStateDao.getAll().associateBy { it.branchId } }
-                    .getOrDefault(emptyMap())
+            return
+        }
+
+        if (!hasNetwork()) {
+            val (unique, full) = localSearch(q, mode, statePrefix)
+            _ui.update {
+                it.copy(results = unique, allResults = full, lastQuery = q,
+                    errorMsg = if (full.isEmpty()) "No internet connection." else null,
+                    offlineNotice = full.isNotEmpty(), isSearching = false)
             }
-            val all = if (mode == SearchMode.RC)
-                local.filter { it.vehicleNo.isValidRc() }
-            else
-                local
-            val full     = all.map { it.toSearchResult(branchMeta[it.branchId]) }
-            val filtered = if (mode == SearchMode.RC)
-                full.filter { matchesPrefix(it.vehicleNo, statePrefix) } else full
-            val unique = filtered.bestPerVehicle(mode)
-            _ui.update { it.copy(results = unique, allResults = full, lastQuery = q, errorMsg = null, isSearching = false) }
             return
         }
 
@@ -324,6 +346,9 @@ class SearchViewModel @Inject constructor(
         } catch (e: TimeoutCancellationException) {
             SearchResult2.Error("Search timed out — please check your connection and try again.")
         }
+        val fallback = if (result is SearchResult2.Error)
+            localSearch(q, mode, statePrefix) else null
+
         _ui.update {
             when (result) {
                 is SearchResult2.Success -> {
@@ -340,9 +365,39 @@ class SearchViewModel @Inject constructor(
                 is SearchResult2.AppStopped          -> it.copy(appStopped = true, appStoppedMsg = result.msg, isSearching = false)
                 is SearchResult2.Blacklisted         -> it.copy(blacklisted = true, blacklistedMsg = result.msg, isSearching = false)
                 is SearchResult2.Inactive            -> it.copy(inactive = true, inactiveMsg = result.msg, isSearching = false)
-                is SearchResult2.Error               -> it.copy(errorMsg = result.message, isSearching = false)
+                is SearchResult2.Error               ->
+                    if (fallback != null && fallback.second.isNotEmpty())
+                        it.copy(results = fallback.first, allResults = fallback.second,
+                            lastQuery = q, errorMsg = null, offlineNotice = true, isSearching = false)
+                    else
+                        it.copy(errorMsg = result.message, isSearching = false)
             }
         }
+    }
+
+    private suspend fun localSearch(
+        q: String,
+        mode: SearchMode,
+        statePrefix: String
+    ): Pair<List<SearchResult>, List<SearchResult>> {
+        val local = withContext(Dispatchers.IO) {
+            runCatching {
+                if (mode == SearchMode.RC) vehicleDao.searchByLast4(q)
+                else vehicleDao.searchByLast5(q)
+            }.getOrDefault(emptyList())
+        }
+        val branchMeta = withContext(Dispatchers.IO) {
+            runCatching { branchStateDao.getAll().associateBy { it.branchId } }
+                .getOrDefault(emptyMap())
+        }
+        val all = if (mode == SearchMode.RC)
+            local.filter { it.vehicleNo.isValidRc() }
+        else
+            local
+        val full     = all.map { it.toSearchResult(branchMeta[it.branchId]) }
+        val filtered = if (mode == SearchMode.RC)
+            full.filter { matchesPrefix(it.vehicleNo, statePrefix) } else full
+        return filtered.bestPerVehicle(mode) to full
     }
 
     fun clearResults() {

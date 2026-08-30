@@ -2,6 +2,7 @@ package com.vkenterprises.crmrs.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Job
 import com.vkenterprises.crmrs.data.api.ApiService
 import com.vkenterprises.crmrs.data.local.BranchSyncState
 import com.vkenterprises.crmrs.data.local.TenantDb
@@ -30,6 +31,7 @@ class SettingsViewModel @Inject constructor(
         val serverChassisRecords: Long = 0L,
         val isLoading: Boolean         = true,
         val isSyncing: Boolean         = false,
+        val syncPaused: Boolean        = false,
         val syncProgress: String?      = null,
         val statsError: String?        = null,
         val showLogs: Boolean          = false,
@@ -66,10 +68,19 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    private var syncJob: Job? = null
+
+    fun pauseSync() {
+        syncJob?.cancel()
+        syncJob = null
+        _ui.update { it.copy(isSyncing = false, syncPaused = true, syncProgress = "Paused — tap Sync to resume") }
+        viewModelScope.launch(Dispatchers.IO) { loadAll() }
+    }
+
     fun smartSync() {
         if (_ui.value.isSyncing) return
-        viewModelScope.launch(Dispatchers.IO) {
-            _ui.update { it.copy(isSyncing = true, syncProgress = "Checking for updates…", syncCompleted = false) }
+        syncJob = viewModelScope.launch(Dispatchers.IO) {
+            _ui.update { it.copy(isSyncing = true, syncPaused = false, syncProgress = "Checking for updates…", syncCompleted = false) }
             var success = false
             runCatching {
                 syncRepo.sync { p ->
@@ -85,15 +96,19 @@ class SettingsViewModel @Inject constructor(
             }.onFailure { e ->
                 _ui.update { it.copy(syncProgress = com.vkenterprises.crmrs.utils.NetworkError.friendly(e)) }
             }
-            _ui.update { it.copy(isSyncing = false, syncCompleted = success, syncHasUpdates = false) }
+            val stillPending = runCatching { syncRepo.hasUpdates() }.getOrDefault(false)
+            _ui.update {
+                it.copy(isSyncing = false, syncCompleted = success && !stillPending,
+                    syncHasUpdates = stillPending)
+            }
             loadAll()
         }
     }
 
     fun forceSync() {
         if (_ui.value.isSyncing) return
-        viewModelScope.launch(Dispatchers.IO) {
-            _ui.update { it.copy(isSyncing = true, syncProgress = "Starting…", syncCompleted = false) }
+        syncJob = viewModelScope.launch(Dispatchers.IO) {
+            _ui.update { it.copy(isSyncing = true, syncPaused = false, syncProgress = "Starting…", syncCompleted = false) }
             var success = false
             runCatching {
                 syncRepo.forceSync { p ->
@@ -109,7 +124,11 @@ class SettingsViewModel @Inject constructor(
             }.onFailure { e ->
                 _ui.update { it.copy(syncProgress = com.vkenterprises.crmrs.utils.NetworkError.friendly(e)) }
             }
-            _ui.update { it.copy(isSyncing = false, syncCompleted = success, syncHasUpdates = false) }
+            val stillPending = runCatching { syncRepo.hasUpdates() }.getOrDefault(false)
+            _ui.update {
+                it.copy(isSyncing = false, syncCompleted = success && !stillPending,
+                    syncHasUpdates = stillPending)
+            }
             loadAll()
         }
     }

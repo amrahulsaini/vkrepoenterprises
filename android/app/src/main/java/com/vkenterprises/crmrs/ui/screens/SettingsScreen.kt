@@ -113,71 +113,6 @@ fun SettingsScreen(
 
 
             item {
-                val infiniteTransition = rememberInfiniteTransition(label = "syncPulse")
-                val pulseAlpha by infiniteTransition.animateFloat(
-                    initialValue = 1f, targetValue = 0.35f,
-                    animationSpec = infiniteRepeatable(
-                        animation = tween(600, easing = FastOutSlowInEasing),
-                        repeatMode = RepeatMode.Reverse
-                    ), label = "pulseAlpha"
-                )
-                val syncBtnColor = when {
-                    ui.isSyncing       -> MaterialTheme.colorScheme.primary
-                    ui.syncHasUpdates  -> Color(0xFFD32F2F).copy(alpha = pulseAlpha)
-                    ui.syncCompleted   -> Color(0xFF388E3C)
-                    else               -> MaterialTheme.colorScheme.primary
-                }
-                val syncBtnLabel = when {
-                    ui.isSyncing      -> "Syncing…"
-                    ui.syncHasUpdates -> "New Updates Available — Tap to Sync"
-                    ui.syncCompleted  -> "Up to Date"
-                    else              -> "Sync Now (Check for Updates)"
-                }
-                val syncBtnIcon = when {
-                    ui.syncCompleted && !ui.syncHasUpdates -> Icons.Default.CheckCircle
-                    else -> Icons.Default.Sync
-                }
-
-                SectionCard(title = "Sync") {
-                    if (ui.syncProgress != null) {
-                        Text(
-                            ui.syncProgress!!,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(bottom = 8.dp)
-                        )
-                    }
-                    if (ui.isSyncing) {
-                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-                        Spacer(Modifier.height(8.dp))
-                    }
-                    Button(
-                        onClick = { settingsVm.smartSync() },
-                        enabled = !ui.isSyncing,
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(containerColor = syncBtnColor)
-                    ) {
-                        Icon(syncBtnIcon, null, Modifier.size(18.dp))
-                        Spacer(Modifier.width(6.dp))
-                        Text(syncBtnLabel)
-                    }
-                    Spacer(Modifier.height(6.dp))
-                    OutlinedButton(
-                        onClick = { settingsVm.forceSync() },
-                        enabled = !ui.isSyncing,
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = MaterialTheme.colorScheme.error
-                        )
-                    ) {
-                        Icon(Icons.Default.DeleteSweep, null, Modifier.size(18.dp))
-                        Spacer(Modifier.width(6.dp))
-                        Text("Force Full Re-download")
-                    }
-                }
-            }
-
-            item {
                 SectionCard(title = "Display") {
                     Row(
                         Modifier.fillMaxWidth().padding(vertical = 4.dp),
@@ -244,21 +179,6 @@ fun SettingsScreen(
                         Icon(Icons.Default.AccountCircle, null, Modifier.size(18.dp))
                         Spacer(Modifier.width(6.dp))
                         Text("My Account")
-                    }
-                    Spacer(Modifier.height(6.dp))
-                    Button(
-                        onClick = {
-                            authVm.logout()
-                            nav.navigate(Screen.Login.route) { popUpTo(0) { inclusive = true } }
-                        },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.error
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Icon(Icons.Default.Logout, null, Modifier.size(18.dp))
-                        Spacer(Modifier.width(6.dp))
-                        Text("Logout")
                     }
                 }
             }

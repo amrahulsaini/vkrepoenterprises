@@ -25,6 +25,7 @@ import androidx.compose.runtime.snapshots.SnapshotStateMap
 import androidx.compose.ui.*
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
@@ -527,8 +528,23 @@ fun VehicleDetailScreen(
                     item.vehicleNo.displayRc(ui.showHyphens).ifBlank { "Vehicle Detail" },
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    maxLines = 1
+                    maxLines = 1,
+                    modifier = Modifier.weight(1f)
                 )
+                if (isAdmin) {
+                    Text(
+                        "Select fields",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (showSelection) Color(0xFF6A1B9A)
+                                else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Switch(
+                        checked = showSelection,
+                        onCheckedChange = { showSelection = !showSelection },
+                        modifier = Modifier.scale(0.8f)
+                    )
+                }
             }
 
             Column(
@@ -536,20 +552,15 @@ fun VehicleDetailScreen(
                     .fillMaxWidth()
                     .weight(1f)
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 8.dp, vertical = 10.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                    .padding(horizontal = 8.dp, vertical = 2.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 if (isAdmin) {
                     AdminDetailView(
                         item              = detailRecord ?: item,
                         branchRecord      = detailRecord ?: item,
-                        uniqueBranches    = uniqueBranches,
-                        selectedBranchIdx = selectedBranchIdx,
-                        onBranchSelect    = { selectedBranchIdx = it },
                         showSelection     = showSelection,
-                        onToggleSelection = { showSelection = !showSelection },
                         selChecked        = selChecked,
-                        onShowBranchSheet = { showBranchSheet = true },
                         showHyphens       = ui.showHyphens
                     )
                 } else {
@@ -682,53 +693,10 @@ private fun QuickSearchBar(
 private fun AdminDetailView(
     item: SearchResult,
     branchRecord: SearchResult,
-    uniqueBranches: List<BranchEntry>,
-    selectedBranchIdx: Int,
-    onBranchSelect: (Int) -> Unit,
     showSelection: Boolean,
-    onToggleSelection: () -> Unit,
     selChecked: SnapshotStateMap<String, Boolean>,
-    onShowBranchSheet: () -> Unit,
     showHyphens: Boolean
 ) {
-    Row(
-        Modifier.fillMaxWidth().padding(bottom = 2.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        if (uniqueBranches.isNotEmpty()) {
-            AssistChip(
-                onClick = onShowBranchSheet,
-                label = {
-                    Text(
-                        "Found in ${uniqueBranches.size} finance" +
-                            if (uniqueBranches.size == 1) "" else "s",
-                        fontWeight = FontWeight.Bold
-                    )
-                },
-                leadingIcon = {
-                    Icon(Icons.Default.AccountBalance, null,
-                        tint = Color(0xFFF57F17), modifier = Modifier.size(16.dp))
-                },
-                colors = AssistChipDefaults.assistChipColors(
-                    labelColor = Color(0xFFF57F17),
-                    containerColor = Color(0xFFFFF8E1)
-                )
-            )
-        } else {
-            Spacer(Modifier)
-        }
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                "Select fields",
-                style = MaterialTheme.typography.labelSmall,
-                color = if (showSelection) Color(0xFF6A1B9A) else MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(Modifier.width(6.dp))
-            Switch(checked = showSelection, onCheckedChange = { onToggleSelection() })
-        }
-    }
-
     Column(Modifier.fillMaxWidth()) {
         Column(Modifier.fillMaxWidth()) {
 

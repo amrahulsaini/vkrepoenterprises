@@ -496,6 +496,13 @@ fun HomeScreen(
                     subEndDate    = subEnd,
                     offlineCount  = ui.offlineCount,
                     isAdmin       = isAdmin,
+                    syncHasUpdates = ui.syncHasUpdates,
+                    isSyncing      = ui.isSyncing,
+                    syncCurrent    = ui.syncCurrent,
+                    syncTotal      = ui.syncTotal,
+                    syncPaused     = ui.syncPaused,
+                    onSync         = { searchVm.triggerSync() },
+                    onPauseSync    = { searchVm.pauseSync() },
                     nav           = nav,
                     onOpenLetters = {
                         if (userId > 0) repoVm.loadHeadOffices(userId)
@@ -516,6 +523,13 @@ private fun AgencyLandingPanel(
     subEndDate: String?,
     offlineCount: Long,
     isAdmin: Boolean,
+    syncHasUpdates: Boolean,
+    isSyncing: Boolean,
+    syncCurrent: Long,
+    syncTotal: Long,
+    syncPaused: Boolean,
+    onSync: () -> Unit,
+    onPauseSync: () -> Unit,
     nav: NavController,
     onOpenLetters: () -> Unit,
 ) {
@@ -591,13 +605,136 @@ private fun AgencyLandingPanel(
         }
         Spacer(Modifier.height(18.dp))
 
-        LandingTile(
-            label    = "SETTINGS",
-            icon     = Icons.Default.Settings,
-            subtitle = "Sync, display, account",
-            accent   = MaterialTheme.colorScheme.primary
-        ) { nav.navigate(Screen.Settings.route) }
-        Spacer(Modifier.height(10.dp))
+        if (isSyncing) {
+            val pct = if (syncTotal > 0) (syncCurrent.toFloat() / syncTotal) else 0f
+            Card(
+                shape = RoundedCornerShape(14.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFE3F2FD)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Icon(Icons.Default.CloudDownload, null,
+                            tint = Color(0xFF1565C0), modifier = Modifier.size(20.dp))
+                        Text("DOWNLOADING RECORDS",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF1565C0),
+                            modifier = Modifier.weight(1f))
+                        TextButton(onClick = onPauseSync, contentPadding = PaddingValues(horizontal = 8.dp)) {
+                            Icon(Icons.Default.Pause, null, Modifier.size(18.dp), tint = Color(0xFF1565C0))
+                            Spacer(Modifier.width(4.dp))
+                            Text("Pause", color = Color(0xFF1565C0), fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    if (syncTotal > 0) {
+                        LinearProgressIndicator(
+                            progress = { pct },
+                            modifier = Modifier.fillMaxWidth(),
+                            color = Color(0xFF1565C0),
+                            trackColor = Color(0xFF1565C0).copy(alpha = 0.2f)
+                        )
+                        Spacer(Modifier.height(6.dp))
+                        Text("${syncCurrent.toInt().formatCount()} / ${syncTotal.toInt().formatCount()}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color(0xFF1565C0))
+                    } else {
+                        LinearProgressIndicator(
+                            modifier = Modifier.fillMaxWidth(),
+                            color = Color(0xFF1565C0),
+                            trackColor = Color(0xFF1565C0).copy(alpha = 0.2f)
+                        )
+                        Spacer(Modifier.height(6.dp))
+                        Text("Preparing…",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color(0xFF1565C0))
+                    }
+                }
+            }
+            Spacer(Modifier.height(10.dp))
+        } else if (syncPaused) {
+            Card(
+                onClick = onSync,
+                shape = RoundedCornerShape(14.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF8E1)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = Color(0xFFF57F17).copy(alpha = 0.15f),
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(Icons.Default.PlayArrow, null,
+                                tint = Color(0xFFF57F17), modifier = Modifier.size(22.dp))
+                        }
+                    }
+                    Column(Modifier.weight(1f)) {
+                        Text("DOWNLOAD PAUSED",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFF57F17))
+                        Text("Tap to resume from where it stopped",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Icon(Icons.Default.ChevronRight, null, tint = Color(0xFFF57F17))
+                }
+            }
+            Spacer(Modifier.height(10.dp))
+        } else if (syncHasUpdates) {
+            val pulse = rememberInfiniteTransition(label = "updatePulse")
+            val alpha by pulse.animateFloat(
+                initialValue = 1f, targetValue = 0.45f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(700, easing = FastOutSlowInEasing),
+                    repeatMode = RepeatMode.Reverse
+                ), label = "updateAlpha"
+            )
+            Card(
+                onClick = onSync,
+                shape = RoundedCornerShape(14.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFFFEBEE)),
+                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFD32F2F).copy(alpha = alpha)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = Color(0xFFD32F2F).copy(alpha = 0.15f),
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(Icons.Default.CloudDownload, null,
+                                tint = Color(0xFFD32F2F).copy(alpha = alpha),
+                                modifier = Modifier.size(22.dp))
+                        }
+                    }
+                    Column(Modifier.weight(1f)) {
+                        Text("NEW RECORDS AVAILABLE",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFD32F2F))
+                        Text("Tap to download for offline use",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Icon(Icons.Default.ChevronRight, null, tint = Color(0xFFD32F2F))
+                }
+            }
+            Spacer(Modifier.height(10.dp))
+        }
 
         LandingTile(
             label    = "REMAINING DAYS",
@@ -650,6 +787,17 @@ private fun AgencyLandingPanel(
                     modifier = Modifier.weight(1f)
                 ) { nav.navigate(Screen.RepoKits.route) }
             }
+            Spacer(Modifier.height(10.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                GridTile(
+                    label    = "SETTINGS",
+                    icon     = Icons.Default.Settings,
+                    subtitle = "Sync, display, account",
+                    accent   = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.weight(1f)
+                ) { nav.navigate(Screen.Settings.route) }
+                Spacer(Modifier.weight(1f))
+            }
         }
         if (isAdmin) {
             Spacer(Modifier.height(10.dp))
@@ -678,7 +826,13 @@ private fun AgencyLandingPanel(
                     accent   = Color(0xFF2E7D32),
                     modifier = Modifier.weight(1f)
                 ) { nav.navigate(Screen.TaskManager.route) }
-                Spacer(Modifier.weight(1f))
+                GridTile(
+                    label    = "SETTINGS",
+                    icon     = Icons.Default.Settings,
+                    subtitle = "Sync, display, account",
+                    accent   = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.weight(1f)
+                ) { nav.navigate(Screen.Settings.route) }
             }
         }
         Spacer(Modifier.height(24.dp))

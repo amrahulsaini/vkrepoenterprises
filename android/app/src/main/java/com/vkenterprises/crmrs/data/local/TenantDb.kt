@@ -28,7 +28,7 @@ class TenantDb @Inject constructor(
                 VKDatabase::class.java,
                 "vk_cache_${slug}.db"
             )
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                 .fallbackToDestructiveMigration()
                 .build()
             openedFor = slug
