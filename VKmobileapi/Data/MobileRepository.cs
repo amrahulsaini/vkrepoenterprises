@@ -222,7 +222,8 @@ public class MobileRepository
         await using var cmd = new MySqlCommand(@"
             SELECT name, COALESCE(address,''), mobile1,
                    COALESCE(mobile2,''), COALESCE(mobiles_extra,''),
-                   COALESCE(logo_path,''), COALESCE(letterhead_path,'')
+                   COALESCE(logo_path,''), COALESCE(letterhead_path,''),
+                   COALESCE(watermark_path,'')
               FROM agencies WHERE slug=@s LIMIT 1", conn);
         cmd.Parameters.AddWithValue("@s", slug);
         await using var rdr = await cmd.ExecuteReaderAsync();
@@ -243,16 +244,18 @@ public class MobileRepository
             Address:  rdr.GetString(1),
             Mobiles:  mobiles,
             LogoPath: rdr.GetString(5),
-            LetterheadPath: rdr.GetString(6));
+            LetterheadPath: rdr.GetString(6),
+            WatermarkPath: rdr.GetString(7));
     }
 
 
-    public async Task SaveAgencyLetterheadAsync(string slug, string relativePath)
+    public async Task SaveAgencyLetterheadAsync(string slug, string relativePath, bool isWatermark = false)
     {
         await using var conn = DbFactory.CreateMaster();
         await conn.OpenAsync();
+        var col = isWatermark ? "watermark_path" : "letterhead_path";
         await using var cmd = new MySqlCommand(
-            "UPDATE agencies SET letterhead_path=@p WHERE slug=@s", conn);
+            $"UPDATE agencies SET {col}=@p WHERE slug=@s", conn);
         cmd.Parameters.AddWithValue("@p", relativePath);
         cmd.Parameters.AddWithValue("@s", slug);
         await cmd.ExecuteNonQueryAsync();

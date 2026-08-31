@@ -63,7 +63,7 @@ public class MobileController : ControllerBase
     }
 
     [HttpPost("agency/letterhead")]
-    public async Task<IActionResult> UploadLetterhead(IFormFile file)
+    public async Task<IActionResult> UploadLetterhead(IFormFile file, [FromQuery] string kind = "letterhead")
     {
         var slug = TenantContext.Key;
         if (string.IsNullOrEmpty(slug) || slug == "default")
@@ -80,16 +80,20 @@ public class MobileController : ControllerBase
             if (ext != ".png" && ext != ".jpg" && ext != ".jpeg")
                 return BadRequest(new ApiError(false, "Letterhead must be a PNG or JPG image."));
 
-            var dir = Path.Combine(MobileRepository.UploadsPath, "letterhead");
+            var isWatermark = string.Equals(kind, "watermark", StringComparison.OrdinalIgnoreCase);
+            var folder = isWatermark ? "watermark" : "letterhead";
+            var dir = Path.Combine(MobileRepository.UploadsPath, folder);
             Directory.CreateDirectory(dir);
             var safeSlug = new string(slug.Where(c => char.IsLetterOrDigit(c) || c == '_' || c == '-').ToArray());
-            var rel = $"letterhead/{safeSlug}{ext}";
-            var full = Path.Combine(dir, $"{safeSlug}{ext}");
+            var stamp = DateTime.UtcNow.Ticks;
+            var name = $"{safeSlug}_{stamp}{ext}";
+            var rel = $"/uploads/{folder}/{name}";
+            var full = Path.Combine(dir, name);
             await using (var fs = new FileStream(full, FileMode.Create))
                 await file.CopyToAsync(fs);
 
-            await _repo.SaveAgencyLetterheadAsync(slug, rel);
-            return Ok(new { success = true, letterheadPath = rel, url = AbsUrl(rel) });
+            await _repo.SaveAgencyLetterheadAsync(slug, rel, isWatermark);
+            return Ok(new { success = true, path = rel });
         }
         catch (Exception ex)
         {
