@@ -169,9 +169,26 @@ app.MapDelete("/api/Records/Delete/{id}", async (string id) =>
     {
         await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
-        await using var cmd = new MySqlCommand("DELETE FROM vehicle_records WHERE id = @id", conn);
-        cmd.Parameters.AddWithValue("@id", id);
-        await cmd.ExecuteNonQueryAsync();
+        long branchId = 0;
+        await using (var find = new MySqlCommand("SELECT branch_id FROM vehicle_records WHERE id = @id", conn))
+        {
+            find.Parameters.AddWithValue("@id", id);
+            var r = await find.ExecuteScalarAsync();
+            if (r is not null and not DBNull) branchId = Convert.ToInt64(r);
+        }
+        await using (var cmd = new MySqlCommand("DELETE FROM vehicle_records WHERE id = @id", conn))
+        {
+            cmd.Parameters.AddWithValue("@id", id);
+            await cmd.ExecuteNonQueryAsync();
+        }
+        if (branchId > 0)
+        {
+            await using var st = new MySqlCommand(
+                "UPDATE branches SET total_records=(SELECT COUNT(*) FROM vehicle_records WHERE branch_id=@bid) WHERE id=@bid", conn)
+                { CommandTimeout = 60 };
+            st.Parameters.AddWithValue("@bid", branchId);
+            await st.ExecuteNonQueryAsync();
+        }
         return Results.Ok();
     }
     catch (Exception ex) { return Results.BadRequest(new { message = ex.Message }); }

@@ -121,6 +121,14 @@ class SearchViewModel @Inject constructor(
         }
     }
 
+    fun refreshSyncStatus() {
+        viewModelScope.launch(Dispatchers.IO) {
+            refreshOfflineCount()
+            val pending = runCatching { syncRepo.hasUpdates() }.getOrDefault(true)
+            _ui.update { it.copy(syncHasUpdates = pending) }
+        }
+    }
+
     suspend fun refreshOfflineCount() {
         val n = runCatching { vehicleDao.count() }.getOrDefault(0L)
         _ui.update { it.copy(offlineCount = n) }

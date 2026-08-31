@@ -80,12 +80,14 @@ fun HomeScreen(
     val imeVisible = WindowInsets.isImeVisible
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
-    BackHandler(enabled = imeVisible || ui.results.isNotEmpty() || ui.inputText.isNotEmpty()) {
-        if (imeVisible) {
-            focusManager.clearFocus()
-            keyboardController?.hide()
-        } else {
-            searchVm.clearResults()
+    BackHandler(enabled = true) {
+        when {
+            imeVisible -> {
+                focusManager.clearFocus()
+                keyboardController?.hide()
+            }
+            ui.results.isNotEmpty() || ui.inputText.isNotEmpty() -> searchVm.clearResults()
+            else -> Unit
         }
     }
     var agencyInfo by remember { mutableStateOf<com.vkenterprises.crmrs.data.models.AgencyInfo?>(null) }
@@ -143,6 +145,7 @@ fun HomeScreen(
                 val ok = (fine == PackageManager.PERMISSION_GRANTED || coarse == PackageManager.PERMISSION_GRANTED) && isLocationEnabled()
                 showLocationDialog = !ok
                 authVm.refreshSession()
+                searchVm.refreshSyncStatus()
             }
         }
         lifecycleOwner.lifecycle.addObserver(obs)
@@ -275,7 +278,7 @@ fun HomeScreen(
                 color = MaterialTheme.colorScheme.surfaceVariant,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Column(Modifier.padding(horizontal = 10.dp, vertical = 6.dp)) {
+                Column(Modifier.padding(horizontal = 6.dp, vertical = 5.dp)) {
                     val focusRequester = remember { FocusRequester() }
                     LaunchedEffect(Unit) {
                         focusRequester.requestFocus()
@@ -283,8 +286,8 @@ fun HomeScreen(
                     val fieldStyle = MaterialTheme.typography.bodyLarge.copy(
                         fontFamily = RobotoFamily,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 18.sp,
-                        letterSpacing = 3.sp
+                        fontSize = 17.sp,
+                        letterSpacing = 1.5.sp
                     )
                     val fieldColors = OutlinedTextFieldDefaults.colors(
                         focusedContainerColor   = MaterialTheme.colorScheme.surface,
@@ -295,23 +298,23 @@ fun HomeScreen(
                         text,
                         fontFamily = RobotoFamily,
                         fontWeight = FontWeight.Normal,
-                        fontSize = 16.sp,
-                        letterSpacing = 1.sp,
+                        fontSize = 14.sp,
+                        letterSpacing = 0.5.sp,
+                        maxLines = 1,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
                     )
                     Row(
                         Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         OutlinedTextField(
                             value = ui.inputText,
                             onValueChange = { searchVm.onInputChange(it, userId) },
-                            placeholder = { fadedHint(if (ui.mode == SearchMode.RC) "1234" else "Last 5 digits") },
-                            leadingIcon = { Icon(Icons.Default.Search, null, Modifier.size(18.dp)) },
+                            placeholder = { fadedHint(if (ui.mode == SearchMode.RC) "1234" else "Last 5") },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                             singleLine = true,
-                            modifier = Modifier.weight(1f).focusRequester(focusRequester),
+                            modifier = Modifier.weight(1f).height(52.dp).focusRequester(focusRequester),
                             shape = RoundedCornerShape(8.dp),
                             textStyle = fieldStyle,
                             colors = fieldColors
@@ -326,7 +329,7 @@ fun HomeScreen(
                                     capitalization = KeyboardCapitalization.Characters
                                 ),
                                 singleLine = true,
-                                modifier = Modifier.width(118.dp),
+                                modifier = Modifier.width(72.dp).height(52.dp),
                                 shape = RoundedCornerShape(8.dp),
                                 textStyle = fieldStyle,
                                 colors = fieldColors
@@ -343,23 +346,60 @@ fun HomeScreen(
                             }
                         ) {
                             Row(
-                                Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                                Modifier.padding(horizontal = 8.dp, vertical = 7.dp),
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(5.dp)
+                                horizontalArrangement = Arrangement.spacedBy(2.dp)
                             ) {
                                 Text(
                                     if (ui.mode == SearchMode.RC) "RC" else "CH",
                                     color = MaterialTheme.colorScheme.onPrimary,
                                     fontWeight = FontWeight.Bold,
-                                    fontSize = 12.sp,
-                                    letterSpacing = 0.5.sp
+                                    fontSize = 11.sp,
+                                    maxLines = 1,
+                                    letterSpacing = 0.sp
                                 )
                                 Icon(
                                     Icons.Default.SwapHoriz, "Switch mode",
                                     tint = MaterialTheme.colorScheme.onPrimary,
-                                    modifier = Modifier.size(14.dp)
+                                    modifier = Modifier.size(12.dp)
                                 )
                             }
+                        }
+                        val pendingDl = ui.syncHasUpdates || ui.offlineCount <= 0L
+                        val dlPulse = rememberInfiniteTransition(label = "dlPulse")
+                        val dlAlpha by dlPulse.animateFloat(
+                            initialValue = 1f, targetValue = 0.3f,
+                            animationSpec = infiniteRepeatable(
+                                animation = tween(550, easing = FastOutSlowInEasing),
+                                repeatMode = RepeatMode.Reverse
+                            ), label = "dlAlpha"
+                        )
+                        IconButton(
+                            onClick = { if (!ui.isSyncing) searchVm.triggerSync() },
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(
+                                if (ui.isSyncing) Icons.Default.CloudSync
+                                else if (pendingDl) Icons.Default.CloudDownload
+                                else Icons.Default.CloudDone,
+                                "Download records",
+                                tint = when {
+                                    ui.isSyncing -> Color(0xFF1565C0)
+                                    pendingDl    -> Color(0xFFD32F2F).copy(alpha = dlAlpha)
+                                    else         -> Color(0xFF388E3C)
+                                },
+                                modifier = Modifier.size(21.dp)
+                            )
+                        }
+                        IconButton(
+                            onClick = { nav.navigate(Screen.Settings.route) },
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.Settings, "Settings",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(20.dp)
+                            )
                         }
                     }
                 }
@@ -689,20 +729,22 @@ private fun AgencyLandingPanel(
                 }
             }
             Spacer(Modifier.height(10.dp))
-        } else if (syncHasUpdates) {
+        } else if (syncHasUpdates || offlineCount <= 0L) {
             val pulse = rememberInfiniteTransition(label = "updatePulse")
             val alpha by pulse.animateFloat(
                 initialValue = 1f, targetValue = 0.45f,
                 animationSpec = infiniteRepeatable(
-                    animation = tween(700, easing = FastOutSlowInEasing),
+                    animation = tween(550, easing = FastOutSlowInEasing),
                     repeatMode = RepeatMode.Reverse
                 ), label = "updateAlpha"
             )
             Card(
                 onClick = onSync,
                 shape = RoundedCornerShape(14.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFFFEBEE)),
-                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFD32F2F).copy(alpha = alpha)),
+                colors = CardDefaults.cardColors(
+                    containerColor = Color(0xFFD32F2F).copy(alpha = 0.10f + (1f - alpha) * 0.22f)
+                ),
+                border = androidx.compose.foundation.BorderStroke(2.dp, Color(0xFFD32F2F).copy(alpha = alpha)),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(
@@ -722,15 +764,36 @@ private fun AgencyLandingPanel(
                         }
                     }
                     Column(Modifier.weight(1f)) {
-                        Text("NEW RECORDS AVAILABLE",
+                        Text("RECORDS NOT FULLY DOWNLOADED",
                             style = MaterialTheme.typography.labelLarge,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFFD32F2F))
+                            color = Color(0xFFD32F2F).copy(alpha = alpha))
                         Text("Tap to download for offline use",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     Icon(Icons.Default.ChevronRight, null, tint = Color(0xFFD32F2F))
+                }
+            }
+            Spacer(Modifier.height(10.dp))
+        } else {
+            Card(
+                shape = RoundedCornerShape(14.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFE8F5E9)),
+                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF388E3C).copy(alpha = 0.4f)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Icon(Icons.Default.CheckCircle, null,
+                        tint = Color(0xFF388E3C), modifier = Modifier.size(20.dp))
+                    Text("RECORDS FULLY DOWNLOADED",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF388E3C))
                 }
             }
             Spacer(Modifier.height(10.dp))
@@ -755,53 +818,13 @@ private fun AgencyLandingPanel(
         Spacer(Modifier.height(10.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             GridTile(
-                label    = "OFFLINE RECORDS",
-                icon     = Icons.Default.CloudDownload,
-                subtitle = "Saved on this phone",
-                accent   = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.weight(1f)
-            ) { nav.navigate(Screen.Settings.route) }
-            GridTile(
                 label    = "MY ACCOUNT",
                 icon     = Icons.Default.AccountCircle,
                 subtitle = "Profile, KYC, subscriptions",
                 accent   = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.weight(1f)
             ) { nav.navigate(Screen.Profile.route) }
-        }
-        if (!isAdmin) {
-            Spacer(Modifier.height(10.dp))
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                GridTile(
-                    label    = "ID CARD",
-                    icon     = Icons.Default.Badge,
-                    subtitle = "Your official agent ID",
-                    accent   = Color(0xFF1565C0),
-                    modifier = Modifier.weight(1f)
-                ) { nav.navigate(Screen.IdCard.route) }
-                GridTile(
-                    label    = "DOWNLOAD REPOKITS",
-                    icon     = Icons.Default.PictureAsPdf,
-                    subtitle = "Head office repo kits",
-                    accent   = Color(0xFF00897B),
-                    modifier = Modifier.weight(1f)
-                ) { nav.navigate(Screen.RepoKits.route) }
-            }
-            Spacer(Modifier.height(10.dp))
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                GridTile(
-                    label    = "SETTINGS",
-                    icon     = Icons.Default.Settings,
-                    subtitle = "Sync, display, account",
-                    accent   = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.weight(1f)
-                ) { nav.navigate(Screen.Settings.route) }
-                Spacer(Modifier.weight(1f))
-            }
-        }
-        if (isAdmin) {
-            Spacer(Modifier.height(10.dp))
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            if (isAdmin) {
                 GridTile(
                     label    = "PRE POST INTIMATION",
                     icon     = Icons.Default.Description,
@@ -809,6 +832,19 @@ private fun AgencyLandingPanel(
                     accent   = Color(0xFFF57F17),
                     modifier = Modifier.weight(1f)
                 ) { onOpenLetters() }
+            } else {
+                GridTile(
+                    label    = "ID CARD",
+                    icon     = Icons.Default.Badge,
+                    subtitle = "Your official agent ID",
+                    accent   = Color(0xFF1565C0),
+                    modifier = Modifier.weight(1f)
+                ) { nav.navigate(Screen.IdCard.route) }
+            }
+        }
+        if (isAdmin) {
+            Spacer(Modifier.height(10.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 GridTile(
                     label    = "CONTROL PANEL",
                     icon     = Icons.Default.Lock,
@@ -816,9 +852,6 @@ private fun AgencyLandingPanel(
                     accent   = Color(0xFF6A1B9A),
                     modifier = Modifier.weight(1f)
                 ) { nav.navigate(Screen.ControlPanel.route) }
-            }
-            Spacer(Modifier.height(10.dp))
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 GridTile(
                     label    = "TASK MANAGER",
                     icon     = Icons.Default.Assignment,
@@ -826,15 +859,22 @@ private fun AgencyLandingPanel(
                     accent   = Color(0xFF2E7D32),
                     modifier = Modifier.weight(1f)
                 ) { nav.navigate(Screen.TaskManager.route) }
-                GridTile(
-                    label    = "SETTINGS",
-                    icon     = Icons.Default.Settings,
-                    subtitle = "Sync, display, account",
-                    accent   = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.weight(1f)
-                ) { nav.navigate(Screen.Settings.route) }
             }
         }
+        Spacer(Modifier.height(10.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            GridTile(
+                label    = "DOWNLOAD REPOKITS",
+                icon     = Icons.Default.PictureAsPdf,
+                subtitle = "Head office repo kits",
+                accent   = Color(0xFF00897B),
+                modifier = Modifier.weight(1f)
+            ) { nav.navigate(Screen.RepoKits.route) }
+            Spacer(Modifier.weight(1f))
+        }
+        Spacer(Modifier.height(16.dp))
+        RbiGuidelinesCard()
+
         Spacer(Modifier.height(24.dp))
         Text("SOFTWARE DESIGNED BY",
             style = MaterialTheme.typography.labelSmall,
@@ -969,10 +1009,10 @@ private fun VehicleGridCell(item: SearchResult, mode: SearchMode, showHyphens: B
     ) {
         Text(
             display,
-            fontWeight = FontWeight.Bold,
+            fontWeight = FontWeight.Black,
             fontFamily = RobotoFamily,
-            fontSize = 16.sp,
-            lineHeight = 18.sp,
+            fontSize = 19.sp,
+            lineHeight = 21.sp,
             maxLines = if (mode == SearchMode.CHASSIS) 2 else 1,
             softWrap = mode == SearchMode.CHASSIS,
             overflow = if (mode == SearchMode.CHASSIS) TextOverflow.Visible else TextOverflow.Clip,
@@ -1073,7 +1113,7 @@ private fun VehicleListRow(item: SearchResult, mode: SearchMode, showHyphens: Bo
     ) {
         Text(
             rcOrChassis,
-            style = MaterialTheme.typography.bodyLarge,
+            style = MaterialTheme.typography.bodyLarge.copy(fontSize = 20.sp, letterSpacing = 0.5.sp),
             fontWeight = FontWeight.Black,
             fontFamily = RobotoFamily,
             maxLines = if (mode == SearchMode.CHASSIS) 2 else 1,

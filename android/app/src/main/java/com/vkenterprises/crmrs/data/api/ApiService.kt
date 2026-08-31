@@ -27,6 +27,12 @@ interface ApiService {
     @GET("api/mobile/agency")
     suspend fun getAgencyInfo(): Response<AgencyInfo>
 
+    @retrofit2.http.Multipart
+    @POST("api/mobile/agency/letterhead")
+    suspend fun uploadLetterhead(
+        @retrofit2.http.Part file: okhttp3.MultipartBody.Part
+    ): Response<Map<String, Any>>
+
     @POST("api/mobile/check-mobile")
     suspend fun checkMobile(@Body body: Map<String, String?>): Response<Map<String, Any>>
 

@@ -33,7 +33,7 @@ public record LoginRequest(
 
 public record AgencyListItem(long Id, string Name, string Slug, string LogoPath);
 
-public record AgencyInfo(string Name, string Address, List<string> Mobiles, string LogoPath);
+public record AgencyInfo(string Name, string Address, List<string> Mobiles, string LogoPath, string LetterheadPath);
 
 public record HeartbeatRequest(long UserId, double? Lat, double? Lng);
 

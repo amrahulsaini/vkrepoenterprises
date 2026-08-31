@@ -20,6 +20,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.animation.core.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.snapshots.SnapshotStateMap
 import androidx.compose.ui.*
@@ -50,6 +51,9 @@ import com.vkenterprises.crmrs.data.models.SearchResult
 import com.vkenterprises.crmrs.navigation.Screen
 import com.vkenterprises.crmrs.viewmodel.AuthViewModel
 import com.vkenterprises.crmrs.viewmodel.SearchViewModel
+import com.vkenterprises.crmrs.utils.AuthorityLetterPdf
+import com.vkenterprises.crmrs.utils.RepoPdf
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -167,9 +171,45 @@ fun VehicleDetailScreen(
         }
     }
 
+    val scope = rememberCoroutineScope()
+    var buildingLetter by remember { mutableStateOf(false) }
+    fun downloadAuthorityLetter(rec: SearchResult) {
+        if (buildingLetter) return
+        buildingLetter = true
+        scope.launch {
+            runCatching {
+                val info = runCatching { ApiClient.api.getAgencyInfo() }
+                    .getOrNull()?.takeIf { it.isSuccessful }?.body()
+                val lhUrl = info?.letterheadPath.orEmpty()
+                val bmp = if (lhUrl.isNotBlank()) RepoPdf.loadBitmap(lhUrl) else null
+                val data = AuthorityLetterPdf.Data(
+                    agencyName          = info?.name?.takeIf { it.isNotBlank() } ?: waAgencyName,
+                    regNo               = "",
+                    gstNo               = "",
+                    dateText            = SimpleDateFormat("dd MMM yyyy", Locale.US).format(java.util.Date()),
+                    bankNbfc            = rec.financer.orEmpty().ifBlank { rec.branchName.orEmpty() },
+                    loanAcNo            = rec.agreementNo.orEmpty(),
+                    borrowerName        = rec.customerName.orEmpty(),
+                    vehicleNo           = rec.vehicleNo.orEmpty(),
+                    chassisNo           = rec.chassisNo.orEmpty(),
+                    engineNo            = rec.engineNo.orEmpty(),
+                    authorizedExecutive = agentName,
+                    executiveId         = agentPhone,
+                    letterhead          = bmp
+                )
+                val file = withContext(Dispatchers.IO) { AuthorityLetterPdf.generate(context, data) }
+                RepoPdf.open(context, file, "application/pdf")
+            }.onFailure {
+                android.widget.Toast.makeText(
+                    context, "Could not create the letter.", android.widget.Toast.LENGTH_SHORT
+                ).show()
+            }
+            buildingLetter = false
+        }
+    }
+
     var showWaSheet      by remember { mutableStateOf(false) }
     var showCopyDialog   by remember { mutableStateOf(false) }
-    var showMoreMenu     by remember { mutableStateOf(false) }
     var showSelection    by remember { mutableStateOf(false) }
     var showBranchSheet  by remember { mutableStateOf(false) }
     var popped by remember { mutableStateOf(false) }
@@ -366,7 +406,7 @@ fun VehicleDetailScreen(
                                     entry.createdOn.toShortBranchDate(),
                                     style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = Color(0xFFF57F17)
+                                    color = MaterialTheme.colorScheme.onSurface
                                 )
                             }
                             if (entry.financer.isNotBlank()) {
@@ -398,7 +438,7 @@ fun VehicleDetailScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         ActionChip(
-                            label = "CNF",
+                            label = "Send Agent",
                             icon  = Icons.Default.CheckCircle,
                             color = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.weight(1f)
@@ -407,13 +447,13 @@ fun VehicleDetailScreen(
                             nav.navigate(Screen.Confirm.route)
                         }
                         ActionChip(
-                            label = "WP",
+                            label = "Bank Conf",
                             icon  = Icons.Default.Chat,
                             color = Color(0xFF25D366),
                             modifier = Modifier.weight(1f)
                         ) { showWaSheet = true }
                         ActionChip(
-                            label = "OK Repo",
+                            label = "V.Update",
                             icon  = Icons.Default.Done,
                             color = Color(0xFF1565C0),
                             modifier = Modifier.weight(1f)
@@ -421,6 +461,12 @@ fun VehicleDetailScreen(
                             searchVm.setActionType("okrepo")
                             nav.navigate(Screen.OkForRepo.route)
                         }
+                        ActionChip(
+                            label = if (buildingLetter) "…" else "Auth Letter",
+                            icon  = Icons.Default.Description,
+                            color = Color(0xFF00695C),
+                            modifier = Modifier.weight(1f)
+                        ) { downloadAuthorityLetter(detailRecord ?: item) }
                         ActionChip(
                             label = "Copy",
                             icon  = Icons.Default.ContentCopy,
@@ -440,53 +486,10 @@ fun VehicleDetailScreen(
                                 showCopyDialog = true
                             }
                         }
-                        Box(Modifier.weight(1f)) {
-                            ActionChip(
-                                label    = "More",
-                                icon     = Icons.Default.MoreVert,
-                                color    = MaterialTheme.colorScheme.secondary,
-                                modifier = Modifier.fillMaxWidth()
-                            ) { showMoreMenu = true }
-                            DropdownMenu(
-                                expanded = showMoreMenu,
-                                onDismissRequest = { showMoreMenu = false }
-                            ) {
-                                DropdownMenuItem(
-                                    text = { Text("Cancel") },
-                                    leadingIcon = { Icon(Icons.Default.Cancel, null) },
-                                    onClick = {
-                                        showMoreMenu = false
-                                        searchVm.setActionType("cancel")
-                                        nav.navigate(Screen.Confirm.route)
-                                    }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text("POS (coming soon)", color = MaterialTheme.colorScheme.onSurfaceVariant) },
-                                    leadingIcon = { Icon(Icons.Default.PointOfSale, null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
-                                    onClick = { showMoreMenu = false },
-                                    enabled = false
-                                )
-                            }
-                        }
                     }
                 }
             }
         },
-        floatingActionButton = {
-            if (!isAdmin && item != null) {
-                ExtendedFloatingActionButton(
-                    onClick = {
-                        searchVm.setActionType("confirm")
-                        nav.navigate(Screen.Confirm.route)
-                    },
-                    icon = { Icon(Icons.Default.Send, null) },
-                    text = { Text("Send Confirmation to Agency", fontWeight = FontWeight.Bold) },
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor   = MaterialTheme.colorScheme.onPrimary
-                )
-            }
-        },
-        floatingActionButtonPosition = FabPosition.Center
     ) { pad ->
         if (item == null) {
             Box(Modifier.fillMaxSize().padding(pad), contentAlignment = Alignment.Center) {
@@ -499,6 +502,7 @@ fun VehicleDetailScreen(
             QuickSearchBar(
                 searchVm = searchVm,
                 authVm   = authVm,
+                nav      = nav,
                 surfaceColor = pageBg,
                 onSubmit = {
                     if (!popped && nav.previousBackStackEntry != null) {
@@ -565,6 +569,34 @@ fun VehicleDetailScreen(
                     )
                 } else {
                     BasicDetailView(item = detailRecord ?: item, agentName = agentName, agentPhone = agentPhone, showHyphens = ui.showHyphens)
+                    Button(
+                        onClick = {
+                            searchVm.setActionType("confirm")
+                            nav.navigate(Screen.Confirm.route)
+                        },
+                        shape = RoundedCornerShape(14.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor   = MaterialTheme.colorScheme.onPrimary
+                        ),
+                        modifier = Modifier.fillMaxWidth().height(52.dp)
+                    ) {
+                        Icon(Icons.Default.Send, null, Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Send Confirmation to Agency", fontWeight = FontWeight.Bold)
+                    }
+                    OutlinedButton(
+                        onClick = { downloadAuthorityLetter(detailRecord ?: item) },
+                        shape = RoundedCornerShape(14.dp),
+                        modifier = Modifier.fillMaxWidth().height(50.dp)
+                    ) {
+                        Icon(Icons.Default.Description, null, Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            if (buildingLetter) "Preparing letter…" else "Download Authority Letter",
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
                 Spacer(Modifier.height(8.dp))
             }
@@ -577,6 +609,7 @@ fun VehicleDetailScreen(
 private fun QuickSearchBar(
     searchVm: SearchViewModel,
     authVm: AuthViewModel,
+    nav: NavController,
     surfaceColor: Color = Color.Unspecified,
     onSubmit: () -> Unit
 ) {
@@ -588,8 +621,8 @@ private fun QuickSearchBar(
     val fieldStyle = MaterialTheme.typography.bodyLarge.copy(
         fontFamily = RobotoFamily,
         fontWeight = FontWeight.Bold,
-        fontSize = 18.sp,
-        letterSpacing = 3.sp
+        fontSize = 17.sp,
+        letterSpacing = 1.5.sp
     )
     val fieldContainer = if (surfaceColor == Color.Unspecified)
         MaterialTheme.colorScheme.surface else Color.White
@@ -603,8 +636,9 @@ private fun QuickSearchBar(
         text,
         fontFamily = RobotoFamily,
         fontWeight = FontWeight.Normal,
-        fontSize = 16.sp,
-        letterSpacing = 1.sp,
+        fontSize = 14.sp,
+        letterSpacing = 0.5.sp,
+        maxLines = 1,
         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
     )
 
@@ -613,9 +647,9 @@ private fun QuickSearchBar(
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
-            Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 6.dp),
+            Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 5.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             OutlinedTextField(
                 value = ui.inputText,
@@ -625,14 +659,13 @@ private fun QuickSearchBar(
                     if (digits.length == maxLen) onSubmit()
                 },
                 placeholder = {
-                    fadedHint(if (mode == com.vkenterprises.crmrs.viewmodel.SearchMode.RC) "1234" else "Last 5 digits")
+                    fadedHint(if (mode == com.vkenterprises.crmrs.viewmodel.SearchMode.RC) "1234" else "Last 5")
                 },
-                leadingIcon = { Icon(Icons.Default.Search, null, Modifier.size(18.dp)) },
                 keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
                     keyboardType = androidx.compose.ui.text.input.KeyboardType.Number
                 ),
                 singleLine = true,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(1f).height(52.dp),
                 shape = RoundedCornerShape(8.dp),
                 textStyle = fieldStyle,
                 colors = fieldColors
@@ -647,7 +680,7 @@ private fun QuickSearchBar(
                         capitalization = androidx.compose.ui.text.input.KeyboardCapitalization.Characters
                     ),
                     singleLine = true,
-                    modifier = Modifier.width(118.dp),
+                    modifier = Modifier.width(72.dp).height(52.dp),
                     shape = RoundedCornerShape(8.dp),
                     textStyle = fieldStyle,
                     colors = fieldColors
@@ -665,23 +698,62 @@ private fun QuickSearchBar(
                 }
             ) {
                 Row(
-                    Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                    Modifier.padding(horizontal = 8.dp, vertical = 7.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(5.dp)
+                    horizontalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
                     Text(
                         if (mode == com.vkenterprises.crmrs.viewmodel.SearchMode.RC) "RC" else "CH",
                         color = MaterialTheme.colorScheme.onPrimary,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 12.sp,
-                        letterSpacing = 0.5.sp
+                        fontSize = 11.sp,
+                        maxLines = 1,
+                        letterSpacing = 0.sp
                     )
                     Icon(
                         Icons.Default.SwapHoriz, "Switch mode",
                         tint = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.size(14.dp)
+                        modifier = Modifier.size(12.dp)
                     )
                 }
+            }
+            val pendingDl = ui.syncHasUpdates || ui.offlineCount <= 0L
+            val dlPulse = rememberInfiniteTransition(label = "dlPulseDetail")
+            val dlAlpha by dlPulse.animateFloat(
+                initialValue = 1f, targetValue = 0.3f,
+                animationSpec = infiniteRepeatable(
+                    animation = androidx.compose.animation.core.tween(
+                        550, easing = androidx.compose.animation.core.FastOutSlowInEasing
+                    ),
+                    repeatMode = androidx.compose.animation.core.RepeatMode.Reverse
+                ), label = "dlAlphaDetail"
+            )
+            IconButton(
+                onClick = { if (!ui.isSyncing) searchVm.triggerSync() },
+                modifier = Modifier.size(32.dp)
+            ) {
+                Icon(
+                    if (ui.isSyncing) Icons.Default.CloudSync
+                    else if (pendingDl) Icons.Default.CloudDownload
+                    else Icons.Default.CloudDone,
+                    "Download records",
+                    tint = when {
+                        ui.isSyncing -> Color(0xFF1565C0)
+                        pendingDl    -> Color(0xFFD32F2F).copy(alpha = dlAlpha)
+                        else         -> Color(0xFF388E3C)
+                    },
+                    modifier = Modifier.size(21.dp)
+                )
+            }
+            IconButton(
+                onClick = { nav.navigate(Screen.Settings.route) },
+                modifier = Modifier.size(32.dp)
+            ) {
+                Icon(
+                    Icons.Default.Settings, "Settings",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp)
+                )
             }
         }
     }
@@ -850,6 +922,9 @@ private fun BasicDetailView(item: SearchResult, agentName: String, agentPhone: S
                 DetailRow("Agent Mobile", agentPhone, isPhone = true)
         }
     }
+
+    Spacer(Modifier.height(12.dp))
+    RbiGuidelinesCard()
 }
 
 
@@ -1201,11 +1276,19 @@ private fun ActionChip(
         modifier = modifier.height(40.dp),
         shape  = RoundedCornerShape(8.dp),
         colors = ButtonDefaults.buttonColors(containerColor = color, contentColor = Color.White),
-        contentPadding = PaddingValues(horizontal = 6.dp)
+        contentPadding = PaddingValues(horizontal = 3.dp)
     ) {
-        Icon(icon, null, modifier = Modifier.size(14.dp))
-        Spacer(Modifier.width(3.dp))
-        Text(label, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+        Icon(icon, null, modifier = Modifier.size(13.dp))
+        Spacer(Modifier.width(2.dp))
+        Text(
+            label,
+            fontSize = 10.sp,
+            lineHeight = 11.sp,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 2,
+            softWrap = true,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+        )
     }
 }
 

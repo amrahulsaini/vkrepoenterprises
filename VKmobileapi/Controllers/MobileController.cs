@@ -62,6 +62,41 @@ public class MobileController : ControllerBase
         }
     }
 
+    [HttpPost("agency/letterhead")]
+    public async Task<IActionResult> UploadLetterhead(IFormFile file)
+    {
+        var slug = TenantContext.Key;
+        if (string.IsNullOrEmpty(slug) || slug == "default")
+            return Unauthorized(new ApiError(false, "No tenant context"));
+        if (file == null || file.Length == 0)
+            return BadRequest(new ApiError(false, "No file uploaded."));
+        if (file.Length > 8 * 1024 * 1024)
+            return BadRequest(new ApiError(false, "Letterhead must be 8 MB or smaller."));
+        try
+        {
+            var ext = Path.GetExtension(file.FileName);
+            if (string.IsNullOrWhiteSpace(ext)) ext = ".png";
+            ext = ext.ToLowerInvariant();
+            if (ext != ".png" && ext != ".jpg" && ext != ".jpeg")
+                return BadRequest(new ApiError(false, "Letterhead must be a PNG or JPG image."));
+
+            var dir = Path.Combine(MobileRepository.UploadsPath, "letterhead");
+            Directory.CreateDirectory(dir);
+            var safeSlug = new string(slug.Where(c => char.IsLetterOrDigit(c) || c == '_' || c == '-').ToArray());
+            var rel = $"letterhead/{safeSlug}{ext}";
+            var full = Path.Combine(dir, $"{safeSlug}{ext}");
+            await using (var fs = new FileStream(full, FileMode.Create))
+                await file.CopyToAsync(fs);
+
+            await _repo.SaveAgencyLetterheadAsync(slug, rel);
+            return Ok(new { success = true, letterheadPath = rel, url = AbsUrl(rel) });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new ApiError(false, $"Letterhead upload failed: {ex.Message}"));
+        }
+    }
+
     [HttpPost("register")]
     public async Task<IActionResult> Register([FromBody] RegisterRequest req)
     {

@@ -34,6 +34,24 @@ import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import com.vkenterprises.crmrs.ui.theme.RobotoFamily
 
+private const val SUBS_PAGE_SIZE = 5
+
+internal fun formatAmount(v: Double): String {
+    val a = kotlin.math.abs(v)
+    val sign = if (v < 0) "-" else ""
+    fun trim(x: Double): String {
+        val r = Math.round(x * 100.0) / 100.0
+        return if (r == Math.floor(r)) r.toLong().toString() else r.toString()
+    }
+    return when {
+        a >= 1_000_000_000 -> "$sign${trim(a / 1_000_000_000)}B"
+        a >= 1_000_000     -> "$sign${trim(a / 1_000_000)}M"
+        a >= 100_000       -> "$sign${trim(a / 100_000)}L"
+        a >= 1_000         -> "$sign${trim(a / 1_000)}K"
+        else               -> "$sign${trim(a)}"
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ControlPanelScreen(
@@ -415,7 +433,11 @@ private fun UserDetail(vm: ControlPanelViewModel, ui: com.vkenterprises.crmrs.vi
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.error)
                             }
-                            ui.subs.sortedByDescending { it.endDate }.forEach { s ->
+                            val sortedSubs = ui.subs.sortedByDescending { it.endDate }
+                            var subPage by remember(sortedSubs.size) { mutableStateOf(0) }
+                            val pageCount = ((sortedSubs.size + SUBS_PAGE_SIZE - 1) / SUBS_PAGE_SIZE).coerceAtLeast(1)
+                            val page = subPage.coerceIn(0, pageCount - 1)
+                            sortedSubs.drop(page * SUBS_PAGE_SIZE).take(SUBS_PAGE_SIZE).forEach { s ->
                                 Row(
                                     Modifier.fillMaxWidth().padding(vertical = 4.dp),
                                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -443,14 +465,31 @@ private fun UserDetail(vm: ControlPanelViewModel, ui: com.vkenterprises.crmrs.vi
                                                 )
                                             }
                                         }
-                                        Text("₹${s.amount}" + (s.notes?.let { "  •  $it" } ?: ""),
+                                        Text("₹${formatAmount(s.amount)}" + (s.notes?.let { "  •  $it" } ?: ""),
                                             style = MaterialTheme.typography.labelSmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     }
-                                    IconButton(onClick = { vm.deleteSubscription(s.id) }) {
-                                        Icon(Icons.Default.Delete, null,
-                                            tint = MaterialTheme.colorScheme.error)
-                                    }
+                                }
+                            }
+                            if (pageCount > 1) {
+                                Row(
+                                    Modifier.fillMaxWidth().padding(top = 6.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    TextButton(
+                                        onClick = { subPage = page - 1 },
+                                        enabled = page > 0
+                                    ) { Text("Previous") }
+                                    Text(
+                                        "Page ${page + 1} of $pageCount  •  ${sortedSubs.size} plans",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    TextButton(
+                                        onClick = { subPage = page + 1 },
+                                        enabled = page < pageCount - 1
+                                    ) { Text("Next") }
                                 }
                             }
                         }

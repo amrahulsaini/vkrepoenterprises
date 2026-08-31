@@ -162,53 +162,31 @@ fun ConfirmScreen(
 
     fun buildMessage(): String {
         if (!isAdmin) return buildUserMessage()
+        val status = when (actionType) {
+            "okrepo" -> "Ok for repo."
+            "cancel" -> "Cancel"
+            else     -> "Please confirm this vehicle."
+        }
         return buildString {
-        appendLine("*Respected sir,*")
-        when (actionType) {
-            "okrepo" -> appendLine("This vehicle is confirmed OK for repo. The details of the vehicle and customer are as below.")
-            "cancel" -> appendLine("Please note the status update for the vehicle below.")
-            else     -> appendLine("A Vehicle has been traced out by our ground team. The details of the vehicle and customer are as below.")
-        }
-        appendLine()
+            appendLine("*Respected sir,*")
 
-        fun line(label: String, value: String?) {
-            val v = value?.trim().orEmpty()
-            if (v.isNotBlank()) appendLine("$label: *$v*")
-            else if (isAdmin)   appendLine("$label: *null*")
-        }
+            fun line(label: String, value: String?) {
+                val v = value?.trim().orEmpty()
+                appendLine("$label: *${v.ifBlank { "-" }}*")
+            }
 
-        line("Loan No",       item?.agreementNo)
-        line("Branch",        item?.branchFromExcel)
-        line("Customer Name", item?.customerName)
-        line("Vehicle No",    item?.vehicleNo)
-        line("Model/Maker",   item?.model)
-        line("Chassis No",    item?.chassisNo)
-        line("Engine No",     item?.engineNo)
-        line("BKT",           item?.bucket)
-        line("OD",            item?.od)
-        appendLine("Vehicle location: *${vehicleAddress.trim().ifBlank { "-" }}*")
-        appendLine("Load details: *${carriesGoods.trim().ifBlank { "-" }}*")
-
-        fun levelLine(label: String, name: String?, contact: String?) {
-            val n = name?.trim().orEmpty(); val c = contact?.trim().orEmpty()
-            val content = listOf(n, c).filter { it.isNotBlank() }.joinToString(" - ")
-            if (content.isNotBlank()) appendLine("$label: *$content*")
-            else if (isAdmin)         appendLine("$label: *null*")
-        }
-        levelLine("Level1", item?.level1, item?.level1Contact)
-        levelLine("Level2", item?.level2, item?.level2Contact)
-        levelLine("Level3", item?.level3, item?.level3Contact)
-
-        appendLine()
-        val closing = when (actionType) {
-            "okrepo" -> "Kindly proceed — this vehicle is OK for repo."
-            "cancel" -> "Kindly note: this vehicle stands cancelled / not confirmed."
-            else     -> "We urgently need you to confirm the status of this vehicle, whether it is to be Repo released."
-        }
-        append(closing)
-        append(" *${agencyName}*")
-        val person = listOf(agentName.trim(), agentPhone.trim()).filter { it.isNotBlank() }.joinToString(" - ")
-        if (person.isNotBlank()) append(" $person")
+            line("Loan No",       item?.agreementNo)
+            line("Customer Name", item?.customerName)
+            line("Vehicle No",    item?.vehicleNo)
+            line("Model/Maker",   item?.model)
+            line("Chassis No",    item?.chassisNo)
+            line("Engine No",     item?.engineNo)
+            appendLine("Status: *$status*")
+            appendLine()
+            val person = listOf(agentName.trim(), agentPhone.trim())
+                .filter { it.isNotBlank() }.joinToString(" - ")
+            if (person.isNotBlank()) appendLine(person)
+            append("Agency Name: *${agencyName}*")
         }
     }
 

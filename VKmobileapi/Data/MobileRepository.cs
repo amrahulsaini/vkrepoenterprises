@@ -222,7 +222,7 @@ public class MobileRepository
         await using var cmd = new MySqlCommand(@"
             SELECT name, COALESCE(address,''), mobile1,
                    COALESCE(mobile2,''), COALESCE(mobiles_extra,''),
-                   COALESCE(logo_path,'')
+                   COALESCE(logo_path,''), COALESCE(letterhead_path,'')
               FROM agencies WHERE slug=@s LIMIT 1", conn);
         cmd.Parameters.AddWithValue("@s", slug);
         await using var rdr = await cmd.ExecuteReaderAsync();
@@ -242,9 +242,21 @@ public class MobileRepository
             Name:     rdr.GetString(0),
             Address:  rdr.GetString(1),
             Mobiles:  mobiles,
-            LogoPath: rdr.GetString(5));
+            LogoPath: rdr.GetString(5),
+            LetterheadPath: rdr.GetString(6));
     }
 
+
+    public async Task SaveAgencyLetterheadAsync(string slug, string relativePath)
+    {
+        await using var conn = DbFactory.CreateMaster();
+        await conn.OpenAsync();
+        await using var cmd = new MySqlCommand(
+            "UPDATE agencies SET letterhead_path=@p WHERE slug=@s", conn);
+        cmd.Parameters.AddWithValue("@p", relativePath);
+        cmd.Parameters.AddWithValue("@s", slug);
+        await cmd.ExecuteNonQueryAsync();
+    }
 
     public async Task<string?> FindExistingAgencyForMobileOrDevice(string mobile, string deviceId, string currentSlug)
     {

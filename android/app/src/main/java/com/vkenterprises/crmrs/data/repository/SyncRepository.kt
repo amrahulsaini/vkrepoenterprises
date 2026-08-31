@@ -43,6 +43,9 @@ class SyncRepository @Inject constructor(
         val localStates = runCatching { syncStateDao.getAll() }.getOrDefault(emptyList())
         if (localStates.any { !it.completed }) return true
 
+        val counts = runCatching { vehicleDao.countPerBranch().associate { it.branchId to it.cnt } }
+            .getOrDefault(emptyMap())
+
         val branchResp = runCatching { api.getSyncBranches() }.getOrNull()
             ?: return localStates.isEmpty()
         if (!branchResp.isSuccessful) return localStates.isEmpty()
@@ -54,6 +57,7 @@ class SyncRepository @Inject constructor(
             val savedState = byId[b.branchId]
             if (savedState == null || savedState.uploadedAt != b.uploadedAt) return true
             if (!savedState.completed) return true
+            if ((counts[b.branchId] ?: 0L) != b.totalRecords) return true
         }
         return false
     }
@@ -114,9 +118,11 @@ class SyncRepository @Inject constructor(
 
             val uploadedChanged = savedState?.uploadedAt != b.uploadedAt
             val incomplete      = savedState?.completed != true
-            if (!uploadedChanged && !incomplete) continue
+            val countMismatch   = localCount != b.totalRecords
+            if (!uploadedChanged && !incomplete && !countMismatch) continue
 
-            val fullReset  = uploadedChanged || localCount > b.totalRecords
+            val fullReset  = uploadedChanged || localCount > b.totalRecords ||
+                             (countMismatch && !incomplete)
             val startPage  = if (fullReset) 0 else (localCount / PAGE_SIZE).toInt()
 
             tasks.add(SyncTask(b, fullReset, startPage, 0L))
@@ -159,7 +165,8 @@ class SyncRepository @Inject constructor(
 
         fun state(done: Boolean) = BranchSyncState(
             branch.branchId, branch.uploadedAt!!, branch.branchName, branch.financerName,
-            branch.contact1, branch.contact2, branch.contact3, branch.address, done
+            branch.contact1, branch.contact2, branch.contact3, branch.address, done,
+            branch.totalRecords
         )
 
         syncStateDao.save(state(false))

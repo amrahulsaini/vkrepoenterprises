@@ -25,6 +25,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.*
 import androidx.navigation.NavController
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.RequestBody.Companion.toRequestBody
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import coil.compose.AsyncImage
 import com.vkenterprises.crmrs.BuildConfig
 import com.vkenterprises.crmrs.R
@@ -91,6 +95,58 @@ fun SettingsScreen(
                             nav.navigate(com.vkenterprises.crmrs.navigation.Screen.FingerprintScan.route)
                         }
                     )
+                }
+
+                item {
+                    val ctx = LocalContext.current
+                    val scope = rememberCoroutineScope()
+                    var lhBusy by remember { mutableStateOf(false) }
+                    var lhMsg  by remember { mutableStateOf<String?>(null) }
+                    val picker = androidx.activity.compose.rememberLauncherForActivityResult(
+                        androidx.activity.result.contract.ActivityResultContracts.GetContent()
+                    ) { uri ->
+                        if (uri == null) return@rememberLauncherForActivityResult
+                        lhBusy = true; lhMsg = null
+                        scope.launch {
+                            val ok = runCatching {
+                                val bytes = withContext(kotlinx.coroutines.Dispatchers.IO) {
+                                    ctx.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                                } ?: return@runCatching false
+                                val type = ctx.contentResolver.getType(uri) ?: "image/png"
+                                val ext  = if (type.contains("jp")) "jpg" else "png"
+                                val body = bytes.toRequestBody(type.toMediaTypeOrNull())
+                                val part = okhttp3.MultipartBody.Part.createFormData(
+                                    "file", "letterhead.$ext", body
+                                )
+                                com.vkenterprises.crmrs.data.api.ApiClient.api
+                                    .uploadLetterhead(part).isSuccessful
+                            }.getOrDefault(false)
+                            lhMsg = if (ok) "Letterhead uploaded." else "Upload failed. Try a PNG or JPG under 8 MB."
+                            lhBusy = false
+                        }
+                    }
+                    SectionCard(title = "Letterhead") {
+                        Text(
+                            "Used on the Authority Letter. Upload your letterhead with the agency name and signature.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+                        Button(
+                            onClick = { picker.launch("image/*") },
+                            enabled = !lhBusy,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(Icons.Default.Upload, null, Modifier.size(18.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text(if (lhBusy) "Uploading…" else "Upload Letterhead")
+                        }
+                        lhMsg?.let {
+                            Spacer(Modifier.height(6.dp))
+                            Text(it, style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
                 }
 
                 item {

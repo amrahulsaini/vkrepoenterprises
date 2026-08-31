@@ -88,7 +88,8 @@ data class AgencyInfo(
     val name: String = "",
     val address: String = "",
     val mobiles: List<String> = emptyList(),
-    val logoPath: String = ""
+    val logoPath: String = "",
+    val letterheadPath: String = ""
 )
 
 data class SearchResult(
