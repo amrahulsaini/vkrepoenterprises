@@ -260,6 +260,7 @@ public partial class MainWindow : Window
             MessageBox.Show("Wrong password.", "Couriers", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
+        WindowState = WindowState.Maximized;
         LoadPage(new Couriers.CouriersPage());
     }
 

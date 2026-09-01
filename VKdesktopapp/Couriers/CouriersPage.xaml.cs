@@ -272,7 +272,7 @@ public partial class CouriersPage : Page
         else pnlBilled.Visibility = System.Windows.Visibility.Collapsed;
 
         _suppressCalc = true;
-        txtBillingStatus.Text = "Status: " + r.ActionText;
+        txtBillingStatus.Text = r.ActionText;
         txtRemark.Text = r.Src.Remark;
         txtGross.Text = r.Src.TotalGross?.ToString("0.##") ?? "";
         txtPercent.Text = r.Src.CourierPercent?.ToString("0.##") ?? "";

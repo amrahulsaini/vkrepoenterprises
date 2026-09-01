@@ -166,10 +166,9 @@
 
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Name="pnlForm" IsEnabled="False">
-                        <Border Name="pnlStatus" Background="#EEF3FB" CornerRadius="6" Padding="10,6" Margin="0,0,0,10">
-                            <TextBlock Name="txtBillingStatus" Text="" FontSize="13" FontWeight="Bold"
-                                       Foreground="{StaticResource Accent}" TextWrapping="Wrap" />
-                        </Border>
+                        <TextBlock Text="Billing Status" Foreground="#666" FontSize="12" Margin="0,0,0,3" />
+                        <TextBox Name="txtBillingStatus" Style="{StaticResource Fld}" IsReadOnly="True"
+                                 Background="#F5F5F5" />
 
                         <TextBlock Text="Remark (from Ok for Repo)" Foreground="#666" FontSize="12" Margin="0,0,0,3" />
                         <TextBox Name="txtRemark" IsReadOnly="True" Background="#F5F5F5" Height="52"
