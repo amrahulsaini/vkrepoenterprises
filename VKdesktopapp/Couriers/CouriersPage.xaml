@@ -35,6 +35,20 @@
                     <ComboBoxItem Content="Cancel" />
                     <ComboBoxItem Content="Billing Done" />
                 </ComboBox>
+                <TextBlock Text="Finance" VerticalAlignment="Center" Foreground="#666" Margin="0,0,6,0" />
+                <ComboBox Name="cmbFinance" Width="200" Height="26" IsEditable="True" IsTextSearchEnabled="True"
+                          StaysOpenOnEdit="True" VerticalContentAlignment="Center"
+                          SelectionChanged="Finance_Changed" KeyUp="Finance_Key"
+                          ToolTip="Type to search a finance / head office, or pick from the list" />
+                <Button Name="btnClearFinance" Content="✕" Width="26" Height="26" Margin="4,0,14,0"
+                        Cursor="Hand" ToolTip="Clear finance filter" Click="btnClearFinance_Click" />
+                <TextBlock Text="Agent" VerticalAlignment="Center" Foreground="#666" Margin="0,0,6,0" />
+                <ComboBox Name="cmbAgent" Width="200" Height="26" IsEditable="True" IsTextSearchEnabled="True"
+                          StaysOpenOnEdit="True" VerticalContentAlignment="Center"
+                          SelectionChanged="Agent_Changed" KeyUp="Agent_Key"
+                          ToolTip="Type to search an agent, or pick from the list" />
+                <Button Name="btnClearAgent" Content="✕" Width="26" Height="26" Margin="4,0,14,0"
+                        Cursor="Hand" ToolTip="Clear agent filter" Click="btnClearAgent_Click" />
                 <TextBlock Text="RC last 4" VerticalAlignment="Center" Foreground="#666" Margin="0,0,6,0" />
                 <TextBox Name="txtRcLast4" Width="90" Height="26" MaxLength="6" Margin="0,0,14,0"
                          VerticalContentAlignment="Center" TextAlignment="Center" FontWeight="Bold"
@@ -96,6 +110,7 @@
                     <DataGridTextColumn Header="Loan No" Binding="{Binding LoanNo}" Width="150" MinWidth="90" ElementStyle="{StaticResource XlText}" />
                     <DataGridTextColumn Header="Invoice No" Binding="{Binding InvoiceNo}" Width="90" MinWidth="70" ElementStyle="{StaticResource XlText}" />
                     <DataGridTextColumn Header="Customer Name" Binding="{Binding CustomerName}" Width="150" MinWidth="90" ElementStyle="{StaticResource XlText}" />
+                    <DataGridTextColumn Header="Finance" Binding="{Binding FinanceName}" Width="130" MinWidth="80" ElementStyle="{StaticResource XlText}" />
                     <DataGridTextColumn Header="Branch" Binding="{Binding BranchName}" Width="120" MinWidth="80" ElementStyle="{StaticResource XlText}" />
                     <DataGridTextColumn Header="Vehicle No" Binding="{Binding VehicleNo}" Width="110" MinWidth="80" ElementStyle="{StaticResource XlText}" />
                     <DataGridTextColumn Header="Model/Maker" Binding="{Binding Model}" Width="160" MinWidth="90" ElementStyle="{StaticResource XlText}" />
@@ -109,7 +124,6 @@
                     <DataGridTextColumn Header="Confirmation By (Name, Mobile)" Binding="{Binding ConfirmationBy}" Width="190" MinWidth="110" ElementStyle="{StaticResource XlText}" />
                     <DataGridTextColumn Header="Executive Name" Binding="{Binding ExecutiveName}" Width="130" MinWidth="80" ElementStyle="{StaticResource XlText}" />
                     <DataGridTextColumn Header="Collection Update" Binding="{Binding CollectionUpdate}" Width="150" MinWidth="90" ElementStyle="{StaticResource XlText}" />
-                    <DataGridTextColumn Header="Finance" Binding="{Binding FinanceName}" Width="130" MinWidth="80" ElementStyle="{StaticResource XlText}" />
                     <DataGridTextColumn Header="Billing" Binding="{Binding ActionText}" Width="120" MinWidth="80" ElementStyle="{StaticResource XlText}" />
                     <DataGridTextColumn Header="Repo Charges" Binding="{Binding RepoChargesText}" Width="100" MinWidth="70" ElementStyle="{StaticResource XlMoney}" />
                     <DataGridTextColumn Header="Advance" Binding="{Binding AdvanceText}" Width="90" MinWidth="70" ElementStyle="{StaticResource XlMoney}" />
@@ -190,7 +204,50 @@
                         <TextBox Name="txtRepoCharges" Style="{StaticResource Fld}" TextChanged="Calc_Changed" />
 
                         <TextBlock Text="Advance" Foreground="#666" FontSize="12" Margin="0,0,0,3" />
-                        <TextBox Name="txtAdvance" Style="{StaticResource Fld}" TextChanged="Calc_Changed" />
+                        <Border BorderBrush="#E0E0E0" BorderThickness="1" CornerRadius="6" Padding="8,6" Margin="0,0,0,10">
+                            <StackPanel>
+                                <TextBlock Name="txtNoAdvances" Text="No advance paid yet." FontSize="11.5"
+                                           Foreground="#999" Margin="0,0,0,4" />
+                                <ItemsControl Name="lstAdvances">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Grid Margin="0,0,0,4">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="90" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="{Binding DateText}" FontSize="12"
+                                                           Foreground="#666" VerticalAlignment="Center" />
+                                                <TextBox Grid.Column="1" Text="{Binding AmountText, UpdateSourceTrigger=PropertyChanged}"
+                                                         Height="26" VerticalContentAlignment="Center" Padding="6,0"
+                                                         TextChanged="Advance_Edited" />
+                                                <Button Grid.Column="2" Content="✕" Width="24" Height="24" Margin="4,0,0,0"
+                                                        Cursor="Hand" ToolTip="Remove this advance"
+                                                        Click="btnRemoveAdvance_Click" />
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                                <Grid Name="pnlAddAdvance" Margin="0,4,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="90" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <DatePicker Grid.Column="0" Name="dpAdvDate" Height="26" Padding="0" />
+                                    <TextBox Grid.Column="1" Name="txtAdvAmount" Height="26" Margin="4,0,0,0"
+                                             VerticalContentAlignment="Center" Padding="6,0"
+                                             ToolTip="Amount of the new advance" KeyUp="AdvAmount_Key" />
+                                    <Button Grid.Column="2" Name="btnAddAdvance" Content="+ Add" Height="26" Margin="4,0,0,0"
+                                            Padding="8,0" Cursor="Hand" Background="#1565C0" Foreground="White"
+                                            BorderThickness="0" Click="btnAddAdvance_Click" />
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <TextBlock Text="Total Advance" Foreground="#666" FontSize="12" Margin="0,0,0,3" />
+                        <TextBox Name="txtAdvance" Style="{StaticResource Fld}" IsReadOnly="True" Background="#F5F5F5" />
 
                         <TextBlock Text="Final Amount (Repo Charges − Advance)" Foreground="#666" FontSize="12" Margin="0,0,0,3" />
                         <TextBox Name="txtFinal" Style="{StaticResource Fld}" IsReadOnly="True" Background="#F5F5F5" FontWeight="Bold" />

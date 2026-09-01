@@ -615,6 +615,15 @@ internal static class DesktopApiClient
     internal static async Task UpdateCourierSubmissionAsync(long id, object dto)
         => (await Send(HttpMethod.Post, $"api/mgr/couriers/submissions/{id}/update", dto)).Dispose();
 
+    internal record CourierAdvanceDto(long Id, decimal Amount, string Date, string Note);
+
+    internal static async Task<List<CourierAdvanceDto>> GetCourierAdvancesAsync(long id)
+    {
+        var resp = await Send(HttpMethod.Get, $"api/mgr/couriers/submissions/{id}/advances");
+        resp.EnsureSuccessStatusCode();
+        return (await resp.Content.ReadFromJsonAsync<List<CourierAdvanceDto>>(_json))!;
+    }
+
     internal static async Task<string> GetCourierPasswordAsync()
     {
         var resp = await Send(HttpMethod.Get, "api/mgr/settings/courier-password");

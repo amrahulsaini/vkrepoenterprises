@@ -556,6 +556,33 @@ static async Task MgrExec(string sql, MySqlConnection c, int timeout = 30,
     await cmd.ExecuteNonQueryAsync();
 }
 
+static async Task<decimal?> ReplaceAdvances(MySqlConnection c, long id, List<MgrAdvanceDto> rows)
+{
+    await MgrExec("DELETE FROM repo_advances WHERE submission_id=@id", c, 20, ("@id", id));
+    decimal total = 0m;
+    foreach (var a in rows)
+    {
+        if (a.Amount == 0m) continue;
+        var when = DateTime.TryParse(a.Date, out var d) ? d.Date : DateTime.Today;
+        await MgrExec(
+            "INSERT INTO repo_advances (submission_id, amount, advance_date, note) VALUES (@id,@amt,@dt,@note)",
+            c, 20, ("@id", id), ("@amt", a.Amount), ("@dt", when),
+            ("@note", string.IsNullOrWhiteSpace(a.Note) ? DBNull.Value : (object)a.Note.Trim()));
+        total += a.Amount;
+    }
+    return total == 0m ? null : total;
+}
+
+static async Task<decimal?> SyncAdvanceTotal(MySqlConnection c, long id, decimal value)
+{
+    await using var cmd = new MySqlCommand(
+        "SELECT COALESCE(SUM(amount),0) FROM repo_advances WHERE submission_id=@id", c) { CommandTimeout = 20 };
+    cmd.Parameters.AddWithValue("@id", id);
+    var current = Convert.ToDecimal(await cmd.ExecuteScalarAsync());
+    if (current == value) return value == 0m ? null : value;
+    return await ReplaceAdvances(c, id, new List<MgrAdvanceDto> { new(value, null, null) });
+}
+
 static async Task SetMemberFinances(MySqlConnection c, long memberId, List<int> financeIds)
 {
     await MgrExec("DELETE FROM billing_member_finances WHERE member_id=@id", c, 20, ("@id", memberId));
@@ -2273,6 +2300,33 @@ app.MapGet("/api/mgr/billing/submissions", async (HttpContext ctx, string? from,
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
 
+app.MapGet("/api/mgr/couriers/submissions/{id:long}/advances", async (HttpContext ctx, long id) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        await using var conn = new MySqlConnection(TenantContext.Conn);
+        await conn.OpenAsync();
+        await using var cmd = new MySqlCommand(
+            @"SELECT id, amount, advance_date, COALESCE(note,'')
+                FROM repo_advances WHERE submission_id=@id
+               ORDER BY advance_date, id", conn) { CommandTimeout = 20 };
+        cmd.Parameters.AddWithValue("@id", id);
+        var list = new List<object>();
+        await using var rdr = await cmd.ExecuteReaderAsync();
+        while (await rdr.ReadAsync())
+            list.Add(new
+            {
+                id = rdr.GetInt64(0),
+                amount = rdr.GetDecimal(1),
+                date = rdr.GetDateTime(2).ToString("yyyy-MM-dd"),
+                note = rdr.GetString(3)
+            });
+        return Results.Ok(list);
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
 app.MapPost("/api/mgr/couriers/submissions/{id:long}/update", async (HttpContext ctx, long id, MgrCourierUpdateDto dto) =>
 {
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
@@ -2291,6 +2345,7 @@ app.MapPost("/api/mgr/couriers/submissions/{id:long}/update", async (HttpContext
 
         if (dto.ClearEntries == true)
         {
+            await MgrExec("DELETE FROM repo_advances WHERE submission_id=@id", conn, 20, ("@id", id));
             Set("repo_charges", "@rc", null);
             Set("advance", "@adv", null);
             Set("courier_yn", "@cy", null);
@@ -2301,7 +2356,8 @@ app.MapPost("/api/mgr/couriers/submissions/{id:long}/update", async (HttpContext
         else
         {
             if (dto.RepoCharges is not null)    Set("repo_charges", "@rc", dto.RepoCharges);
-            if (dto.Advance is not null)        Set("advance", "@adv", dto.Advance);
+            if (dto.Advances is not null)       Set("advance", "@adv", await ReplaceAdvances(conn, id, dto.Advances));
+            else if (dto.Advance is not null)   Set("advance", "@adv", await SyncAdvanceTotal(conn, id, dto.Advance.Value));
             if (dto.CourierYn is not null)      Set("courier_yn", "@cy", dto.CourierYn);
             if (dto.BankerAddress is not null)  Set("banker_address", "@ba", dto.BankerAddress);
             if (dto.PodNumber is not null)      Set("pod_number", "@pod", dto.PodNumber);
@@ -4442,7 +4498,8 @@ record MgrAgentBillingDto(
 
 record MgrCourierUpdateDto(decimal? RepoCharges, decimal? Advance, string? CourierYn,
     string? BankerAddress, string? PodNumber, string? BillingAction, decimal? CourierPercent = null,
-    bool? ClearEntries = null);
+    bool? ClearEntries = null, List<MgrAdvanceDto>? Advances = null);
+record MgrAdvanceDto(decimal Amount, string? Date, string? Note);
 record MgrSetFinanceRestrictionsDto(List<int> FinanceIds);
 record MgrSetSubsPasswordDto(string Password);
 

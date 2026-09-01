@@ -741,6 +741,19 @@ CREATE TABLE IF NOT EXISTS `repo_submissions` (
   KEY `idx_repo_submitter` (`submitted_by_user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+CREATE TABLE IF NOT EXISTS `repo_advances` (
+  `id`            BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `submission_id` BIGINT UNSIGNED NOT NULL,
+  `amount`        DECIMAL(12,2)   NOT NULL,
+  `advance_date`  DATE            NOT NULL,
+  `note`          VARCHAR(255)    NULL,
+  `created_at`    TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_repo_advances_sub` (`submission_id`),
+  CONSTRAINT `fk_repo_advances_sub` FOREIGN KEY (`submission_id`)
+    REFERENCES `repo_submissions` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
 -- Collective per-agent billing details (the money goes to one agent account,
 -- so bank details + application charges are stored once per agent, not per vehicle).
 CREATE TABLE IF NOT EXISTS `agent_billing` (

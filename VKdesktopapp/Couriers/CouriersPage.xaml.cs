@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -58,6 +60,25 @@ public partial class CouriersPage : Page
             => string.Join(", ", parts.Where(p => !string.IsNullOrWhiteSpace(p)).Select(p => p!.Trim()));
     }
 
+    private class AdvRow : INotifyPropertyChanged
+    {
+        public long Id { get; set; }
+        public DateTime Date { get; set; }
+        public string DateText => Date.ToString("dd-MM-yyyy");
+        public string Note { get; set; } = "";
+
+        private string _amountText = "";
+        public string AmountText
+        {
+            get => _amountText;
+            set { _amountText = value; PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(AmountText))); }
+        }
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+    }
+
+    private readonly ObservableCollection<AdvRow> _advances = new();
+
     private bool _ready;
 
     private static long RowIdOf(object? item) => item is Row r ? r.Id : 0;
@@ -94,6 +115,8 @@ public partial class CouriersPage : Page
         dpTo.DisplayDateEnd = DateTime.Today;
         dpFrom.SelectedDate = DateTime.Today.AddDays(-30);
         dpTo.SelectedDate = DateTime.Today;
+        dpAdvDate.SelectedDate = DateTime.Today;
+        lstAdvances.ItemsSource = _advances;
         Loaded += async (_, __) => { _ready = true; await LoadAsync(); };
     }
 
@@ -147,18 +170,49 @@ public partial class CouriersPage : Page
             }
 
             _rows = data.Select(d => new Row { Src = d }).ToList();
-            ApplyRcFilter();
+            RefreshFilterLists();
+            ApplyFilters();
         }
         catch (Exception ex) { txtStatus.Text = "Failed: " + ex.Message; }
     }
 
-    private void ApplyRcFilter()
+    private void RefreshFilterLists()
     {
+        Fill(cmbFinance, _rows.Select(r => r.FinanceName));
+        Fill(cmbAgent, _rows.Select(r => r.AgentName));
+
+        static void Fill(ComboBox box, IEnumerable<string?> values)
+        {
+            var keep = box.Text;
+            box.ItemsSource = values
+                .Select(v => (v ?? "").Trim())
+                .Where(v => v.Length > 0)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(v => v, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            box.Text = keep;
+        }
+    }
+
+    private static List<Row> Narrow(List<Row> rows, string term, Func<Row, string?> field)
+    {
+        if (term.Length == 0) return rows;
+        var exact = rows.Where(r => string.Equals((field(r) ?? "").Trim(), term, StringComparison.OrdinalIgnoreCase)).ToList();
+        return exact.Count > 0
+            ? exact
+            : rows.Where(r => CRMRSDesktopApp.Billing.ViewAllDetailsWindow.NameMatches(field(r), term)).ToList();
+    }
+
+    private void ApplyFilters()
+    {
+        var shown = Narrow(_rows, (cmbFinance.Text ?? "").Trim(), r => r.FinanceName);
+        shown = Narrow(shown, (cmbAgent.Text ?? "").Trim(), r => r.AgentName);
+
         var last4 = Squash4(txtRcLast4?.Text);
-        var shown = last4.Length == 0
-            ? _rows
-            : _rows.Where(r => Squash4(r.VehicleNo).Contains(last4) ||
-                               Squash4(r.ChassisNo).Contains(last4)).ToList();
+        if (last4.Length > 0)
+            shown = shown.Where(r => Squash4(r.VehicleNo).Contains(last4) ||
+                                     Squash4(r.ChassisNo).Contains(last4)).ToList();
+
         grid.ItemsSource = shown;
         txtStatus.Text = shown.Count == _rows.Count
             ? $"{shown.Count} record(s)."
@@ -167,8 +221,24 @@ public partial class CouriersPage : Page
 
     private void RcLast4_Changed(object sender, TextChangedEventArgs e)
     {
-        if (_ready) ApplyRcFilter();
+        if (_ready) ApplyFilters();
     }
+
+    private void Finance_Changed(object sender, SelectionChangedEventArgs e)
+    {
+        if (!_ready) return;
+        Dispatcher.BeginInvoke(new Action(ApplyFilters), System.Windows.Threading.DispatcherPriority.Input);
+    }
+    private void Finance_Key(object sender, KeyEventArgs e) { if (_ready) ApplyFilters(); }
+    private void btnClearFinance_Click(object sender, RoutedEventArgs e) { cmbFinance.Text = ""; if (_ready) ApplyFilters(); }
+
+    private void Agent_Changed(object sender, SelectionChangedEventArgs e)
+    {
+        if (!_ready) return;
+        Dispatcher.BeginInvoke(new Action(ApplyFilters), System.Windows.Threading.DispatcherPriority.Input);
+    }
+    private void Agent_Key(object sender, KeyEventArgs e) { if (_ready) ApplyFilters(); }
+    private void btnClearAgent_Click(object sender, RoutedEventArgs e) { cmbAgent.Text = ""; if (_ready) ApplyFilters(); }
 
     private async void btnLoad_Click(object sender, RoutedEventArgs e) => await LoadAsync();
 
@@ -207,7 +277,6 @@ public partial class CouriersPage : Page
         txtGross.Text = r.Src.TotalGross?.ToString("0.##") ?? "";
         txtPercent.Text = r.Src.CourierPercent?.ToString("0.##") ?? "";
         txtRepoCharges.Text = r.Src.RepoCharges?.ToString("0.##") ?? "";
-        txtAdvance.Text = r.Src.Advance?.ToString("0.##") ?? "";
         cmbCourier.SelectedIndex = string.Equals(r.Src.CourierYn, "Yes", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
         txtBankerAddress.Text = r.Src.BankerAddress;
         txtPod.Text = r.Src.PodNumber;
@@ -215,7 +284,7 @@ public partial class CouriersPage : Page
 
         ShowAppInfo(r);
         ConfigureForStatus(r.Src.BillingAction);
-        UpdateFinal();
+        _ = LoadAdvancesAsync(r);
         LoadScreenshot(r.Src.ScreenshotUrl);
 
         pnlForm.IsEnabled = true;
@@ -267,11 +336,92 @@ public partial class CouriersPage : Page
 
         txtPercent.IsReadOnly     = !ok;
         txtRepoCharges.IsReadOnly = !chargesEditable;
-        txtAdvance.IsReadOnly     = !chargesEditable;
+        pnlAddAdvance.IsEnabled   = chargesEditable;
+        lstAdvances.IsEnabled     = chargesEditable;
 
         var disabled = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFrom("#F0F0F0")!;
         txtRepoCharges.Background = chargesEditable ? System.Windows.Media.Brushes.White : disabled;
-        txtAdvance.Background     = chargesEditable ? System.Windows.Media.Brushes.White : disabled;
+    }
+
+    private long _advLoadedFor;
+
+    private async System.Threading.Tasks.Task LoadAdvancesAsync(Row r)
+    {
+        _advLoadedFor = r.Id;
+        _suppressCalc = true;
+        _advances.Clear();
+        _suppressCalc = false;
+        RecalcAdvance();
+
+        List<DesktopApiClient.CourierAdvanceDto> list;
+        try { list = await DesktopApiClient.GetCourierAdvancesAsync(r.Id); }
+        catch { return; }
+        if (_advLoadedFor != r.Id) return;
+
+        _suppressCalc = true;
+        if (list.Count == 0 && (r.Src.Advance ?? 0m) != 0m)
+            _advances.Add(new AdvRow
+            {
+                Date = DateTime.TryParse(r.Src.CreatedAt, out var seeded) ? seeded.Date : DateTime.Today,
+                AmountText = r.Src.Advance!.Value.ToString("0.##")
+            });
+        foreach (var a in list)
+            _advances.Add(new AdvRow
+            {
+                Id = a.Id,
+                Date = DateTime.TryParse(a.Date, out var d) ? d.Date : DateTime.Today,
+                AmountText = a.Amount.ToString("0.##"),
+                Note = a.Note ?? ""
+            });
+        _suppressCalc = false;
+        RecalcAdvance();
+    }
+
+    private void RecalcAdvance()
+    {
+        var total = _advances.Sum(a => ParseAmt(a.AmountText) ?? 0m);
+        txtAdvance.Text = total == 0m ? "" : total.ToString("0.##");
+        txtNoAdvances.Visibility = _advances.Count == 0
+            ? System.Windows.Visibility.Visible
+            : System.Windows.Visibility.Collapsed;
+        UpdateFinal();
+    }
+
+    private void btnAddAdvance_Click(object sender, RoutedEventArgs e)
+    {
+        var amt = ParseAmt(txtAdvAmount.Text);
+        if (amt is null || amt == 0m)
+        {
+            txtFormStatus.Foreground = System.Windows.Media.Brushes.Firebrick;
+            txtFormStatus.Text = "Enter the advance amount first.";
+            return;
+        }
+        _advances.Add(new AdvRow { Date = dpAdvDate.SelectedDate ?? DateTime.Today, AmountText = amt.Value.ToString("0.##") });
+        txtAdvAmount.Text = "";
+        dpAdvDate.SelectedDate = DateTime.Today;
+        txtFormStatus.Foreground = System.Windows.Media.Brushes.Gray;
+        txtFormStatus.Text = "Advance added — press Submit to save it.";
+        RecalcAdvance();
+    }
+
+    private void AdvAmount_Key(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Enter) btnAddAdvance_Click(sender, new RoutedEventArgs());
+    }
+
+    private void btnRemoveAdvance_Click(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.DataContext is not AdvRow a) return;
+        _advances.Remove(a);
+        txtFormStatus.Foreground = System.Windows.Media.Brushes.Gray;
+        txtFormStatus.Text = "Advance removed — press Submit to save it.";
+        RecalcAdvance();
+    }
+
+    private void Advance_Edited(object sender, TextChangedEventArgs e)
+    {
+        if (_suppressCalc) return;
+        Dispatcher.BeginInvoke(new Action(RecalcAdvance), System.Windows.Threading.DispatcherPriority.Background);
     }
 
     private void Calc_Changed(object sender, TextChangedEventArgs e)
@@ -440,7 +590,14 @@ public partial class CouriersPage : Page
         await SaveAsync(r.Id, new
         {
             RepoCharges = ParseAmt(txtRepoCharges.Text),
-            Advance = ParseAmt(txtAdvance.Text),
+            Advances = _advances
+                .Where(a => (ParseAmt(a.AmountText) ?? 0m) != 0m)
+                .Select(a => new
+                {
+                    Amount = ParseAmt(a.AmountText) ?? 0m,
+                    Date = a.Date.ToString("yyyy-MM-dd"),
+                    Note = a.Note
+                }).ToList(),
             CourierYn = courier,
             BankerAddress = txtBankerAddress.Text.Trim(),
             PodNumber = txtPod.Text.Trim(),
