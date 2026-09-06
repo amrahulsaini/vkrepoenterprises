@@ -334,6 +334,7 @@ public partial class CouriersPage : Page
         txtRepoCharges.Text = r.Src.RepoCharges?.ToString("0.##") ?? "";
         cmbCourier.SelectedIndex = string.Equals(r.Src.CourierYn, "Yes", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
         cmbEditAgent.Text = r.AgentName;
+        SetAgentEditing(false);
         txtBankerAddress.Text = r.Src.BankerAddress;
         txtPod.Text = r.Src.PodNumber;
         _suppressCalc = false;
@@ -653,18 +654,6 @@ public partial class CouriersPage : Page
         if (grid.SelectedItem is not Row r) return;
         var courier = cmbCourier.SelectedIndex == 1 ? "Yes" : "No";
 
-        var agent = (cmbEditAgent.Text ?? "").Trim();
-        if (agent.Length > 0 && !string.Equals(agent, (r.AgentName ?? "").Trim(), StringComparison.Ordinal))
-        {
-            try { await DesktopApiClient.UpdateSubmissionFieldsAsync(r.Id, new { AgentName = agent }); }
-            catch (Exception ex)
-            {
-                txtFormStatus.Foreground = System.Windows.Media.Brushes.Firebrick;
-                txtFormStatus.Text = "Could not save the agent name: " + ex.Message;
-                return;
-            }
-        }
-
         await SaveAsync(r.Id, new
         {
             RepoCharges = ParseAmt(txtRepoCharges.Text),
@@ -681,6 +670,67 @@ public partial class CouriersPage : Page
             PodNumber = txtPod.Text.Trim(),
             CourierPercent = ParseAmt(txtPercent.Text)
         }, "Saved.");
+    }
+
+    private void SetAgentEditing(bool on)
+    {
+        cmbEditAgent.IsEnabled = on;
+        btnAgentEdit.Visibility   = on ? System.Windows.Visibility.Collapsed : System.Windows.Visibility.Visible;
+        btnAgentSave.Visibility   = on ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
+        btnAgentCancel.Visibility = on ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
+    }
+
+    private void btnAgentEdit_Click(object sender, RoutedEventArgs e)
+    {
+        if (grid.SelectedItem is not Row) return;
+        SetAgentEditing(true);
+        cmbEditAgent.Focus();
+    }
+
+    private void btnAgentCancel_Click(object sender, RoutedEventArgs e)
+    {
+        if (grid.SelectedItem is Row r) cmbEditAgent.Text = r.AgentName;
+        SetAgentEditing(false);
+    }
+
+    private async void btnAgentSave_Click(object sender, RoutedEventArgs e)
+    {
+        if (grid.SelectedItem is not Row r) return;
+        var agent = (cmbEditAgent.Text ?? "").Trim();
+        if (agent.Length == 0)
+        {
+            txtFormStatus.Foreground = System.Windows.Media.Brushes.Firebrick;
+            txtFormStatus.Text = "Agent name cannot be blank.";
+            return;
+        }
+        if (string.Equals(agent, (r.AgentName ?? "").Trim(), StringComparison.Ordinal))
+        {
+            SetAgentEditing(false);
+            return;
+        }
+
+        try
+        {
+            btnAgentSave.IsEnabled = false;
+            txtFormStatus.Foreground = System.Windows.Media.Brushes.Gray;
+            txtFormStatus.Text = "Saving agent name…";
+
+            await DesktopApiClient.UpdateSubmissionFieldsAsync(r.Id, new { AgentName = agent });
+
+            txtFormStatus.Foreground = System.Windows.Media.Brushes.Green;
+            txtFormStatus.Text = "Agent name saved.";
+            SetAgentEditing(false);
+            await LoadAsync();
+
+            var again = _rows.FirstOrDefault(x => x.Id == r.Id);
+            if (again != null) { grid.SelectedItem = again; grid.ScrollIntoView(again); }
+        }
+        catch (Exception ex)
+        {
+            txtFormStatus.Foreground = System.Windows.Media.Brushes.Firebrick;
+            txtFormStatus.Text = "Could not save the agent name: " + ex.Message;
+        }
+        finally { btnAgentSave.IsEnabled = true; }
     }
 
     private async void btnClear_Click(object sender, RoutedEventArgs e)
