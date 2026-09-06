@@ -57,20 +57,20 @@
                                 <TextBlock Text="FULL RECORD" FontSize="10.5" FontWeight="Bold"
                                            Foreground="#EF6C00" Margin="0,0,0,8" />
                                 <WrapPanel>
-                                    <StackPanel><TextBlock Text="Vehicle No" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding VehicleNo}" Style="{StaticResource XlDetailValue}" /></StackPanel>
-                                    <StackPanel><TextBlock Text="Chassis No" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding ChassisNo}" Style="{StaticResource XlDetailValue}" /></StackPanel>
-                                    <StackPanel><TextBlock Text="Customer" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding CustomerName}" Style="{StaticResource XlDetailValue}" /></StackPanel>
-                                    <StackPanel><TextBlock Text="Loan No" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding LoanNo}" Style="{StaticResource XlDetailValue}" /></StackPanel>
-                                    <StackPanel><TextBlock Text="Model" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding Model}" Style="{StaticResource XlDetailValue}" /></StackPanel>
-                                    <StackPanel><TextBlock Text="Finance" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding FinanceName}" Style="{StaticResource XlDetailValue}" /></StackPanel>
-                                    <StackPanel><TextBlock Text="Branch" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding BranchName}" Style="{StaticResource XlDetailValue}" /></StackPanel>
-                                    <StackPanel><TextBlock Text="Agent" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding AgentName}" Style="{StaticResource XlDetailValue}" /></StackPanel>
-                                    <StackPanel><TextBlock Text="Parking Yard" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding ParkingYardName}" Style="{StaticResource XlDetailValue}" /></StackPanel>
-                                    <StackPanel><TextBlock Text="Status" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding ActionText}" Style="{StaticResource XlDetailValue}" /></StackPanel>
-                                    <StackPanel><TextBlock Text="Repo Date" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding RepoDate}" Style="{StaticResource XlDetailValue}" /></StackPanel>
-                                    <StackPanel><TextBlock Text="Cash Collected" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding CashText}" Style="{StaticResource XlDetailValue}" /></StackPanel>
-                                    <StackPanel><TextBlock Text="UTR No" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding UtrNo}" Style="{StaticResource XlDetailValue}" /></StackPanel>
-                                    <StackPanel><TextBlock Text="Payment Date" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding PaymentDate}" Style="{StaticResource XlDetailValue}" /></StackPanel>
+                                    <StackPanel Style="{StaticResource XlDetailCell}"><TextBlock Text="Vehicle No" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding VehicleNo}" Style="{StaticResource XlDetailValue}" /></StackPanel>
+                                    <StackPanel Style="{StaticResource XlDetailCell}"><TextBlock Text="Chassis No" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding ChassisNo}" Style="{StaticResource XlDetailValue}" /></StackPanel>
+                                    <StackPanel Style="{StaticResource XlDetailCell}"><TextBlock Text="Customer" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding CustomerName}" Style="{StaticResource XlDetailValue}" /></StackPanel>
+                                    <StackPanel Style="{StaticResource XlDetailCell}"><TextBlock Text="Loan No" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding LoanNo}" Style="{StaticResource XlDetailValue}" /></StackPanel>
+                                    <StackPanel Style="{StaticResource XlDetailCell}"><TextBlock Text="Model" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding Model}" Style="{StaticResource XlDetailValue}" /></StackPanel>
+                                    <StackPanel Style="{StaticResource XlDetailCell}"><TextBlock Text="Finance" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding FinanceName}" Style="{StaticResource XlDetailValue}" /></StackPanel>
+                                    <StackPanel Style="{StaticResource XlDetailCell}"><TextBlock Text="Branch" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding BranchName}" Style="{StaticResource XlDetailValue}" /></StackPanel>
+                                    <StackPanel Style="{StaticResource XlDetailCell}"><TextBlock Text="Agent" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding AgentName}" Style="{StaticResource XlDetailValue}" /></StackPanel>
+                                    <StackPanel Style="{StaticResource XlDetailCell}"><TextBlock Text="Parking Yard" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding ParkingYardName}" Style="{StaticResource XlDetailValue}" /></StackPanel>
+                                    <StackPanel Style="{StaticResource XlDetailCell}"><TextBlock Text="Status" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding ActionText}" Style="{StaticResource XlDetailValue}" /></StackPanel>
+                                    <StackPanel Style="{StaticResource XlDetailCell}"><TextBlock Text="Repo Date" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding RepoDate}" Style="{StaticResource XlDetailValue}" /></StackPanel>
+                                    <StackPanel Style="{StaticResource XlDetailCell}"><TextBlock Text="Cash Collected" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding CashText}" Style="{StaticResource XlDetailValue}" /></StackPanel>
+                                    <StackPanel Style="{StaticResource XlDetailCell}"><TextBlock Text="UTR No" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding UtrNo}" Style="{StaticResource XlDetailValue}" /></StackPanel>
+                                    <StackPanel Style="{StaticResource XlDetailCell}"><TextBlock Text="Payment Date" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding PaymentDate}" Style="{StaticResource XlDetailValue}" /></StackPanel>
                                 </WrapPanel>
                                 <TextBlock Text="Collection Update" Style="{StaticResource XlDetailLabel}" />
                                 <TextBlock Text="{Binding CollectionUpdate}" Style="{StaticResource XlDetailValue}" />

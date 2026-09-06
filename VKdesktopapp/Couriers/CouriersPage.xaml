@@ -14,38 +14,73 @@
     <Grid Margin="14">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*" />
-            <ColumnDefinition Width="340" />
+            <ColumnDefinition Width="380" />
         </Grid.ColumnDefinitions>
 
         <DockPanel Grid.Column="0" Margin="0,0,14,0">
             <TextBlock DockPanel.Dock="Top" Text="Courier Department" FontSize="18" FontWeight="Bold"
                        Foreground="{StaticResource Accent}" Margin="0,0,0,8" />
 
-            <WrapPanel DockPanel.Dock="Top" Margin="0,0,0,10">
-                <TextBlock Text="From" VerticalAlignment="Center" Foreground="#666" Margin="0,0,6,0" />
-                <DatePicker Name="dpFrom" Width="130" Margin="0,0,14,0" SelectedDateChanged="Filter_Changed" />
-                <TextBlock Text="To" VerticalAlignment="Center" Foreground="#666" Margin="0,0,6,0" />
-                <DatePicker Name="dpTo" Width="130" Margin="0,0,14,0" SelectedDateChanged="Filter_Changed" />
-                <TextBlock Text="Billing Status" VerticalAlignment="Center" Foreground="#666" Margin="0,0,6,0" />
-                <ComboBox Name="cmbAction" Width="150" Margin="0,0,14,0" SelectedIndex="0" SelectionChanged="Filter_Changed">
-                    <ComboBoxItem Content="All" />
-                    <ComboBoxItem Content="OK for billing" />
-                    <ComboBoxItem Content="Hold for collection" />
-                    <ComboBoxItem Content="Collection done" />
-                    <ComboBoxItem Content="Cancel" />
-                    <ComboBoxItem Content="Billing Done" />
-                </ComboBox>
-                <TextBlock Text="Finance" VerticalAlignment="Center" Foreground="#666" Margin="0,0,6,0" />
-                <ComboBox Name="cmbFinance" Width="200" Height="26" IsEditable="True" IsTextSearchEnabled="True"
-                          StaysOpenOnEdit="True" VerticalContentAlignment="Center"
-                          SelectionChanged="Finance_Changed" KeyUp="Finance_Key"
-                          ToolTip="Type to search a finance / head office, or pick from the list" />
-                <Button Name="btnClearFinance" Content="✕" Width="26" Height="26" Margin="4,0,14,0"
-                        Cursor="Hand" ToolTip="Clear finance filter" Click="btnClearFinance_Click" />
-                <TextBlock Text="Agent" VerticalAlignment="Center" Foreground="#666" Margin="0,0,6,0" />
-                <ToggleButton Name="btnAgents" Width="200" Height="26" Content="All agents"
-                              HorizontalContentAlignment="Left" Padding="8,0" Cursor="Hand"
-                              ToolTip="Tick one or more agents to show only their records" />
+            <WrapPanel DockPanel.Dock="Top" Margin="0,0,0,12">
+                <WrapPanel.Resources>
+                    <Style TargetType="TextBlock">
+                        <Setter Property="VerticalAlignment" Value="Center" />
+                        <Setter Property="Foreground" Value="#666" />
+                        <Setter Property="FontSize" Value="12" />
+                        <Setter Property="Margin" Value="0,0,6,0" />
+                    </Style>
+                    <Style TargetType="DatePicker">
+                        <Setter Property="Height" Value="28" />
+                        <Setter Property="VerticalContentAlignment" Value="Center" />
+                    </Style>
+                    <Style TargetType="ComboBox">
+                        <Setter Property="Height" Value="28" />
+                        <Setter Property="VerticalContentAlignment" Value="Center" />
+                    </Style>
+                    <Style TargetType="Button">
+                        <Setter Property="Height" Value="28" />
+                        <Setter Property="Cursor" Value="Hand" />
+                    </Style>
+                    <Style TargetType="ToggleButton">
+                        <Setter Property="Height" Value="28" />
+                        <Setter Property="Cursor" Value="Hand" />
+                    </Style>
+                </WrapPanel.Resources>
+
+                <StackPanel Orientation="Horizontal" Margin="0,0,20,8">
+                    <TextBlock Text="From" />
+                    <DatePicker Name="dpFrom" Width="120" SelectedDateChanged="Filter_Changed" />
+                    <TextBlock Text="To" Margin="12,0,6,0" />
+                    <DatePicker Name="dpTo" Width="120" SelectedDateChanged="Filter_Changed" />
+                </StackPanel>
+
+                <StackPanel Orientation="Horizontal" Margin="0,0,20,8">
+                    <TextBlock Text="Billing Status" />
+                    <ComboBox Name="cmbAction" Width="150" SelectedIndex="0" SelectionChanged="Filter_Changed">
+                        <ComboBoxItem Content="All" />
+                        <ComboBoxItem Content="OK for billing" />
+                        <ComboBoxItem Content="Hold for collection" />
+                        <ComboBoxItem Content="Collection done" />
+                        <ComboBoxItem Content="Cancel" />
+                        <ComboBoxItem Content="Billing Done" />
+                    </ComboBox>
+                </StackPanel>
+
+                <StackPanel Orientation="Horizontal" Margin="0,0,20,8">
+                    <TextBlock Text="Finance" />
+                    <ComboBox Name="cmbFinance" Width="190" IsEditable="True" IsTextSearchEnabled="True"
+                              StaysOpenOnEdit="True"
+                              SelectionChanged="Finance_Changed" KeyUp="Finance_Key"
+                              ToolTip="Type to search a finance / head office, or pick from the list" />
+                    <Button Name="btnClearFinance" Content="✕" Width="28" Margin="4,0,0,0"
+                            ToolTip="Clear finance filter" Click="btnClearFinance_Click" />
+                </StackPanel>
+
+                <StackPanel Orientation="Horizontal" Margin="0,0,20,8">
+                    <TextBlock Text="Agent" />
+                    <ToggleButton Name="btnAgents" Width="190" Content="All agents"
+                                  HorizontalContentAlignment="Left" Padding="8,0"
+                                  ToolTip="Tick one or more agents to show only their records" />
                 <Popup Name="popAgents" PlacementTarget="{Binding ElementName=btnAgents}" Placement="Bottom"
                        StaysOpen="False" AllowsTransparency="True"
                        IsOpen="{Binding IsChecked, ElementName=btnAgents, Mode=TwoWay}">
@@ -61,7 +96,7 @@
                                     <DataTemplate>
                                         <CheckBox IsChecked="{Binding IsChecked, Mode=TwoWay}"
                                                   Margin="2" Click="AgentPick_Changed">
-                                            <TextBlock Text="{Binding Name}" TextWrapping="Wrap" />
+                                            <TextBlock Text="{Binding Name}" TextWrapping="Wrap" Foreground="#222222" FontSize="12.5" Margin="0" />
                                         </CheckBox>
                                     </DataTemplate>
                                 </ListBox.ItemTemplate>
@@ -71,17 +106,24 @@
                         </StackPanel>
                     </Border>
                 </Popup>
-                <Button Name="btnClearAgentTop" Content="✕" Width="26" Height="26" Margin="4,0,14,0"
-                        Cursor="Hand" ToolTip="Clear agent filter" Click="btnClearAgent_Click" />
-                <TextBlock Text="RC last 4" VerticalAlignment="Center" Foreground="#666" Margin="0,0,6,0" />
-                <TextBox Name="txtRcLast4" Width="90" Height="26" MaxLength="6" Margin="0,0,14,0"
-                         VerticalContentAlignment="Center" TextAlignment="Center" FontWeight="Bold"
-                         ToolTip="Type the last 4 digits of the RC or chassis"
-                         TextChanged="RcLast4_Changed" />
-                <Button Name="btnRefresh" Content="↻ Refresh" Width="100" Height="26" FontWeight="Bold"
-                        Background="#1565C0" Foreground="White" BorderThickness="0" Cursor="Hand"
-                        ToolTip="Reload records from the server" Click="btnRefresh_Click" />
-                <TextBlock Name="txtStatus" VerticalAlignment="Center" Foreground="#888" FontSize="12" Margin="14,0,0,0" />
+                    <Button Name="btnClearAgentTop" Content="✕" Width="28" Margin="4,0,0,0"
+                            ToolTip="Clear agent filter" Click="btnClearAgent_Click" />
+                </StackPanel>
+
+                <StackPanel Orientation="Horizontal" Margin="0,0,20,8">
+                    <TextBlock Text="RC last 4" />
+                    <TextBox Name="txtRcLast4" Width="90" Height="28" MaxLength="6"
+                             VerticalContentAlignment="Center" TextAlignment="Center" FontWeight="Bold"
+                             ToolTip="Type the last 4 digits of the RC or chassis"
+                             TextChanged="RcLast4_Changed" />
+                </StackPanel>
+
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                    <Button Name="btnRefresh" Content="↻ Refresh" Width="100" FontWeight="Bold"
+                            Background="#1565C0" Foreground="White" BorderThickness="0"
+                            ToolTip="Reload records from the server" Click="btnRefresh_Click" />
+                    <TextBlock Name="txtStatus" Foreground="#888" Margin="14,0,0,0" />
+                </StackPanel>
             </WrapPanel>
 
             <DataGrid Name="grid" AutoGenerateColumns="False" IsReadOnly="True"
@@ -96,24 +138,24 @@
                                 <TextBlock Text="FULL RECORD" FontSize="10.5" FontWeight="Bold"
                                            Foreground="#EF6C00" Margin="0,0,0,8" />
                                 <WrapPanel>
-                                    <StackPanel><TextBlock Text="Vehicle No" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding VehicleNo}" Style="{StaticResource XlDetailValue}" /></StackPanel>
-                                    <StackPanel><TextBlock Text="Chassis No" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding ChassisNo}" Style="{StaticResource XlDetailValue}" /></StackPanel>
-                                    <StackPanel><TextBlock Text="Engine No" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding EngineNo}" Style="{StaticResource XlDetailValue}" /></StackPanel>
-                                    <StackPanel><TextBlock Text="Customer" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding CustomerName}" Style="{StaticResource XlDetailValue}" /></StackPanel>
-                                    <StackPanel><TextBlock Text="Loan No" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding LoanNo}" Style="{StaticResource XlDetailValue}" /></StackPanel>
-                                    <StackPanel><TextBlock Text="Model/Maker" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding Model}" Style="{StaticResource XlDetailValue}" /></StackPanel>
-                                    <StackPanel><TextBlock Text="Finance" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding FinanceName}" Style="{StaticResource XlDetailValue}" /></StackPanel>
-                                    <StackPanel><TextBlock Text="Branch" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding BranchName}" Style="{StaticResource XlDetailValue}" /></StackPanel>
-                                    <StackPanel><TextBlock Text="Agent" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding AgentName}" Style="{StaticResource XlDetailValue}" /></StackPanel>
-                                    <StackPanel><TextBlock Text="Parking Yard" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding ParkingYardName}" Style="{StaticResource XlDetailValue}" /></StackPanel>
-                                    <StackPanel><TextBlock Text="Yard Mobile" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding ParkingYardMobile}" Style="{StaticResource XlDetailValue}" /></StackPanel>
-                                    <StackPanel><TextBlock Text="Executive" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding ExecutiveName}" Style="{StaticResource XlDetailValue}" /></StackPanel>
-                                    <StackPanel><TextBlock Text="Status" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding ActionText}" Style="{StaticResource XlDetailValue}" /></StackPanel>
-                                    <StackPanel><TextBlock Text="Repo Charges" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding RepoChargesText}" Style="{StaticResource XlDetailValue}" /></StackPanel>
-                                    <StackPanel><TextBlock Text="Advance" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding AdvanceText}" Style="{StaticResource XlDetailValue}" /></StackPanel>
-                                    <StackPanel><TextBlock Text="Inventory" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding CourierYn}" Style="{StaticResource XlDetailValue}" /></StackPanel>
-                                    <StackPanel><TextBlock Text="POD Number" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding PodNumber}" Style="{StaticResource XlDetailValue}" /></StackPanel>
-                                    <StackPanel><TextBlock Text="Invoice No" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding InvoiceNo}" Style="{StaticResource XlDetailValue}" /></StackPanel>
+                                    <StackPanel Style="{StaticResource XlDetailCell}"><TextBlock Text="Vehicle No" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding VehicleNo}" Style="{StaticResource XlDetailValue}" /></StackPanel>
+                                    <StackPanel Style="{StaticResource XlDetailCell}"><TextBlock Text="Chassis No" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding ChassisNo}" Style="{StaticResource XlDetailValue}" /></StackPanel>
+                                    <StackPanel Style="{StaticResource XlDetailCell}"><TextBlock Text="Engine No" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding EngineNo}" Style="{StaticResource XlDetailValue}" /></StackPanel>
+                                    <StackPanel Style="{StaticResource XlDetailCell}"><TextBlock Text="Customer" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding CustomerName}" Style="{StaticResource XlDetailValue}" /></StackPanel>
+                                    <StackPanel Style="{StaticResource XlDetailCell}"><TextBlock Text="Loan No" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding LoanNo}" Style="{StaticResource XlDetailValue}" /></StackPanel>
+                                    <StackPanel Style="{StaticResource XlDetailCell}"><TextBlock Text="Model/Maker" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding Model}" Style="{StaticResource XlDetailValue}" /></StackPanel>
+                                    <StackPanel Style="{StaticResource XlDetailCell}"><TextBlock Text="Finance" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding FinanceName}" Style="{StaticResource XlDetailValue}" /></StackPanel>
+                                    <StackPanel Style="{StaticResource XlDetailCell}"><TextBlock Text="Branch" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding BranchName}" Style="{StaticResource XlDetailValue}" /></StackPanel>
+                                    <StackPanel Style="{StaticResource XlDetailCell}"><TextBlock Text="Agent" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding AgentName}" Style="{StaticResource XlDetailValue}" /></StackPanel>
+                                    <StackPanel Style="{StaticResource XlDetailCell}"><TextBlock Text="Parking Yard" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding ParkingYardName}" Style="{StaticResource XlDetailValue}" /></StackPanel>
+                                    <StackPanel Style="{StaticResource XlDetailCell}"><TextBlock Text="Yard Mobile" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding ParkingYardMobile}" Style="{StaticResource XlDetailValue}" /></StackPanel>
+                                    <StackPanel Style="{StaticResource XlDetailCell}"><TextBlock Text="Executive" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding ExecutiveName}" Style="{StaticResource XlDetailValue}" /></StackPanel>
+                                    <StackPanel Style="{StaticResource XlDetailCell}"><TextBlock Text="Status" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding ActionText}" Style="{StaticResource XlDetailValue}" /></StackPanel>
+                                    <StackPanel Style="{StaticResource XlDetailCell}"><TextBlock Text="Repo Charges" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding RepoChargesText}" Style="{StaticResource XlDetailValue}" /></StackPanel>
+                                    <StackPanel Style="{StaticResource XlDetailCell}"><TextBlock Text="Advance" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding AdvanceText}" Style="{StaticResource XlDetailValue}" /></StackPanel>
+                                    <StackPanel Style="{StaticResource XlDetailCell}"><TextBlock Text="Inventory" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding CourierYn}" Style="{StaticResource XlDetailValue}" /></StackPanel>
+                                    <StackPanel Style="{StaticResource XlDetailCell}"><TextBlock Text="POD Number" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding PodNumber}" Style="{StaticResource XlDetailValue}" /></StackPanel>
+                                    <StackPanel Style="{StaticResource XlDetailCell}"><TextBlock Text="Invoice No" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding InvoiceNo}" Style="{StaticResource XlDetailValue}" /></StackPanel>
                                 </WrapPanel>
                                 <TextBlock Text="Load Details" Style="{StaticResource XlDetailLabel}" />
                                 <TextBlock Text="{Binding LoadDetails}" Style="{StaticResource XlDetailValue}" />
