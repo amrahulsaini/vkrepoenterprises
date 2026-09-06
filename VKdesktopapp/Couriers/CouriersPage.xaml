@@ -50,15 +50,19 @@
                        StaysOpen="False" AllowsTransparency="True"
                        IsOpen="{Binding IsChecked, ElementName=btnAgents, Mode=TwoWay}">
                     <Border Background="White" BorderBrush="#CCCCCC" BorderThickness="1" Padding="8">
-                        <StackPanel Width="240">
+                        <StackPanel Width="380">
                             <TextBox Name="txtAgentSearch" Height="26" Margin="0,0,0,6"
                                      VerticalContentAlignment="Center" Padding="6,0"
                                      ToolTip="Type to narrow the list" TextChanged="AgentSearch_Changed" />
-                            <ListBox Name="lstAgentPicks" MaxHeight="280" BorderThickness="0">
+                            <ListBox Name="lstAgentPicks" MaxHeight="340" BorderThickness="0"
+                                     HorizontalContentAlignment="Stretch"
+                                     ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                                 <ListBox.ItemTemplate>
                                     <DataTemplate>
-                                        <CheckBox Content="{Binding Name}" IsChecked="{Binding IsChecked, Mode=TwoWay}"
-                                                  Margin="2" Click="AgentPick_Changed" />
+                                        <CheckBox IsChecked="{Binding IsChecked, Mode=TwoWay}"
+                                                  Margin="2" Click="AgentPick_Changed">
+                                            <TextBlock Text="{Binding Name}" TextWrapping="Wrap" />
+                                        </CheckBox>
                                     </DataTemplate>
                                 </ListBox.ItemTemplate>
                             </ListBox>
