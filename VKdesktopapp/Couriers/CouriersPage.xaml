@@ -43,11 +43,31 @@
                 <Button Name="btnClearFinance" Content="✕" Width="26" Height="26" Margin="4,0,14,0"
                         Cursor="Hand" ToolTip="Clear finance filter" Click="btnClearFinance_Click" />
                 <TextBlock Text="Agent" VerticalAlignment="Center" Foreground="#666" Margin="0,0,6,0" />
-                <ComboBox Name="cmbAgent" Width="200" Height="26" IsEditable="True" IsTextSearchEnabled="True"
-                          StaysOpenOnEdit="True" VerticalContentAlignment="Center"
-                          SelectionChanged="Agent_Changed" KeyUp="Agent_Key"
-                          ToolTip="Type to search an agent, or pick from the list" />
-                <Button Name="btnClearAgent" Content="✕" Width="26" Height="26" Margin="4,0,14,0"
+                <ToggleButton Name="btnAgents" Width="200" Height="26" Content="All agents"
+                              HorizontalContentAlignment="Left" Padding="8,0" Cursor="Hand"
+                              ToolTip="Tick one or more agents to show only their records" />
+                <Popup Name="popAgents" PlacementTarget="{Binding ElementName=btnAgents}" Placement="Bottom"
+                       StaysOpen="False" AllowsTransparency="True"
+                       IsOpen="{Binding IsChecked, ElementName=btnAgents, Mode=TwoWay}">
+                    <Border Background="White" BorderBrush="#CCCCCC" BorderThickness="1" Padding="8">
+                        <StackPanel Width="240">
+                            <TextBox Name="txtAgentSearch" Height="26" Margin="0,0,0,6"
+                                     VerticalContentAlignment="Center" Padding="6,0"
+                                     ToolTip="Type to narrow the list" TextChanged="AgentSearch_Changed" />
+                            <ListBox Name="lstAgentPicks" MaxHeight="280" BorderThickness="0">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <CheckBox Content="{Binding Name}" IsChecked="{Binding IsChecked, Mode=TwoWay}"
+                                                  Margin="2" Click="AgentPick_Changed" />
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                            <Button Content="Clear selection" Height="26" Margin="0,6,0,0"
+                                    Cursor="Hand" Click="btnClearAgent_Click" />
+                        </StackPanel>
+                    </Border>
+                </Popup>
+                <Button Name="btnClearAgentTop" Content="✕" Width="26" Height="26" Margin="4,0,14,0"
                         Cursor="Hand" ToolTip="Clear agent filter" Click="btnClearAgent_Click" />
                 <TextBlock Text="RC last 4" VerticalAlignment="Center" Foreground="#666" Margin="0,0,6,0" />
                 <TextBox Name="txtRcLast4" Width="90" Height="26" MaxLength="6" Margin="0,0,14,0"
@@ -87,7 +107,7 @@
                                     <StackPanel><TextBlock Text="Status" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding ActionText}" Style="{StaticResource XlDetailValue}" /></StackPanel>
                                     <StackPanel><TextBlock Text="Repo Charges" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding RepoChargesText}" Style="{StaticResource XlDetailValue}" /></StackPanel>
                                     <StackPanel><TextBlock Text="Advance" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding AdvanceText}" Style="{StaticResource XlDetailValue}" /></StackPanel>
-                                    <StackPanel><TextBlock Text="Courier" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding CourierYn}" Style="{StaticResource XlDetailValue}" /></StackPanel>
+                                    <StackPanel><TextBlock Text="Inventory" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding CourierYn}" Style="{StaticResource XlDetailValue}" /></StackPanel>
                                     <StackPanel><TextBlock Text="POD Number" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding PodNumber}" Style="{StaticResource XlDetailValue}" /></StackPanel>
                                     <StackPanel><TextBlock Text="Invoice No" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding InvoiceNo}" Style="{StaticResource XlDetailValue}" /></StackPanel>
                                 </WrapPanel>
@@ -127,7 +147,7 @@
                     <DataGridTextColumn Header="Billing" Binding="{Binding ActionText}" Width="120" MinWidth="80" ElementStyle="{StaticResource XlText}" />
                     <DataGridTextColumn Header="Repo Charges" Binding="{Binding RepoChargesText}" Width="100" MinWidth="70" ElementStyle="{StaticResource XlMoney}" />
                     <DataGridTextColumn Header="Advance" Binding="{Binding AdvanceText}" Width="90" MinWidth="70" ElementStyle="{StaticResource XlMoney}" />
-                    <DataGridTextColumn Header="Courier" Binding="{Binding CourierYn}" Width="70" MinWidth="60" ElementStyle="{StaticResource XlText}" />
+                    <DataGridTextColumn Header="Inventory" Binding="{Binding CourierYn}" Width="80" MinWidth="60" ElementStyle="{StaticResource XlText}" />
                     <DataGridTextColumn Header="Banker Address" Binding="{Binding BankerAddress}" Width="150" MinWidth="90" ElementStyle="{StaticResource XlText}" />
                     <DataGridTextColumn Header="POD Number" Binding="{Binding PodNumber}" Width="110" MinWidth="70" ElementStyle="{StaticResource XlText}" />
                 </DataGrid.Columns>
@@ -251,7 +271,12 @@
                         <TextBlock Text="Final Amount (Repo Charges − Advance)" Foreground="#666" FontSize="12" Margin="0,0,0,3" />
                         <TextBox Name="txtFinal" Style="{StaticResource Fld}" IsReadOnly="True" Background="#F5F5F5" FontWeight="Bold" />
 
-                        <TextBlock Text="Courier" Foreground="#666" FontSize="12" Margin="0,0,0,3" />
+                        <TextBlock Text="Agent Name" Foreground="#666" FontSize="12" Margin="0,0,0,3" />
+                        <ComboBox Name="cmbEditAgent" Height="32" Margin="0,0,0,10" IsEditable="True"
+                                  IsTextSearchEnabled="True" StaysOpenOnEdit="True" VerticalContentAlignment="Center"
+                                  ToolTip="Pick the agent from the list, or type a correction" />
+
+                        <TextBlock Text="Inventory" Foreground="#666" FontSize="12" Margin="0,0,0,3" />
                         <ComboBox Name="cmbCourier" Height="32" Margin="0,0,0,10" SelectedIndex="0">
                             <ComboBoxItem Content="No" />
                             <ComboBoxItem Content="Yes" />

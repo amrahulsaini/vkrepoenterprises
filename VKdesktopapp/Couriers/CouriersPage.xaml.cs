@@ -79,6 +79,22 @@ public partial class CouriersPage : Page
 
     private readonly ObservableCollection<AdvRow> _advances = new();
 
+    private class AgentPick : INotifyPropertyChanged
+    {
+        public string Name { get; set; } = "";
+
+        private bool _isChecked;
+        public bool IsChecked
+        {
+            get => _isChecked;
+            set { _isChecked = value; PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsChecked))); }
+        }
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+    }
+
+    private List<AgentPick> _agentPicks = new();
+
     private bool _ready;
 
     private static long RowIdOf(object? item) => item is Row r ? r.Id : 0;
@@ -178,20 +194,46 @@ public partial class CouriersPage : Page
 
     private void RefreshFilterLists()
     {
-        Fill(cmbFinance, _rows.Select(r => r.FinanceName));
-        Fill(cmbAgent, _rows.Select(r => r.AgentName));
+        var keepFinance = cmbFinance.Text;
+        cmbFinance.ItemsSource = Distinct(_rows.Select(r => r.FinanceName));
+        cmbFinance.Text = keepFinance;
 
-        static void Fill(ComboBox box, IEnumerable<string?> values)
+        var agents = Distinct(_rows.Select(r => r.AgentName));
+        var ticked = new HashSet<string>(
+            _agentPicks.Where(a => a.IsChecked).Select(a => a.Name), StringComparer.OrdinalIgnoreCase);
+        _agentPicks = agents.Select(a => new AgentPick { Name = a, IsChecked = ticked.Contains(a) }).ToList();
+        ShowAgentPicks();
+        UpdateAgentButton();
+
+        var keepEdit = cmbEditAgent.Text;
+        cmbEditAgent.ItemsSource = agents;
+        cmbEditAgent.Text = keepEdit;
+
+        static List<string> Distinct(IEnumerable<string?> values) => values
+            .Select(v => (v ?? "").Trim())
+            .Where(v => v.Length > 0)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(v => v, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private void ShowAgentPicks()
+    {
+        var term = (txtAgentSearch.Text ?? "").Trim();
+        lstAgentPicks.ItemsSource = term.Length == 0
+            ? _agentPicks
+            : _agentPicks.Where(a => a.Name.IndexOf(term, StringComparison.OrdinalIgnoreCase) >= 0).ToList();
+    }
+
+    private void UpdateAgentButton()
+    {
+        var picked = _agentPicks.Where(a => a.IsChecked).Select(a => a.Name).ToList();
+        btnAgents.Content = picked.Count switch
         {
-            var keep = box.Text;
-            box.ItemsSource = values
-                .Select(v => (v ?? "").Trim())
-                .Where(v => v.Length > 0)
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .OrderBy(v => v, StringComparer.OrdinalIgnoreCase)
-                .ToList();
-            box.Text = keep;
-        }
+            0 => "All agents",
+            1 => picked[0],
+            _ => $"{picked.Count} agents"
+        };
     }
 
     private static List<Row> Narrow(List<Row> rows, string term, Func<Row, string?> field)
@@ -206,7 +248,11 @@ public partial class CouriersPage : Page
     private void ApplyFilters()
     {
         var shown = Narrow(_rows, (cmbFinance.Text ?? "").Trim(), r => r.FinanceName);
-        shown = Narrow(shown, (cmbAgent.Text ?? "").Trim(), r => r.AgentName);
+
+        var picked = new HashSet<string>(
+            _agentPicks.Where(a => a.IsChecked).Select(a => a.Name), StringComparer.OrdinalIgnoreCase);
+        if (picked.Count > 0)
+            shown = shown.Where(r => picked.Contains((r.AgentName ?? "").Trim())).ToList();
 
         var last4 = Squash4(txtRcLast4?.Text);
         if (last4.Length > 0)
@@ -232,13 +278,22 @@ public partial class CouriersPage : Page
     private void Finance_Key(object sender, KeyEventArgs e) { if (_ready) ApplyFilters(); }
     private void btnClearFinance_Click(object sender, RoutedEventArgs e) { cmbFinance.Text = ""; if (_ready) ApplyFilters(); }
 
-    private void Agent_Changed(object sender, SelectionChangedEventArgs e)
+    private void AgentSearch_Changed(object sender, TextChangedEventArgs e) => ShowAgentPicks();
+
+    private void AgentPick_Changed(object sender, RoutedEventArgs e)
     {
-        if (!_ready) return;
-        Dispatcher.BeginInvoke(new Action(ApplyFilters), System.Windows.Threading.DispatcherPriority.Input);
+        UpdateAgentButton();
+        if (_ready) ApplyFilters();
     }
-    private void Agent_Key(object sender, KeyEventArgs e) { if (_ready) ApplyFilters(); }
-    private void btnClearAgent_Click(object sender, RoutedEventArgs e) { cmbAgent.Text = ""; if (_ready) ApplyFilters(); }
+
+    private void btnClearAgent_Click(object sender, RoutedEventArgs e)
+    {
+        foreach (var a in _agentPicks) a.IsChecked = false;
+        txtAgentSearch.Text = "";
+        ShowAgentPicks();
+        UpdateAgentButton();
+        if (_ready) ApplyFilters();
+    }
 
     private async void btnLoad_Click(object sender, RoutedEventArgs e) => await LoadAsync();
 
@@ -278,6 +333,7 @@ public partial class CouriersPage : Page
         txtPercent.Text = r.Src.CourierPercent?.ToString("0.##") ?? "";
         txtRepoCharges.Text = r.Src.RepoCharges?.ToString("0.##") ?? "";
         cmbCourier.SelectedIndex = string.Equals(r.Src.CourierYn, "Yes", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
+        cmbEditAgent.Text = r.AgentName;
         txtBankerAddress.Text = r.Src.BankerAddress;
         txtPod.Text = r.Src.PodNumber;
         _suppressCalc = false;
@@ -427,14 +483,24 @@ public partial class CouriersPage : Page
     private void Calc_Changed(object sender, TextChangedEventArgs e)
     {
         if (_suppressCalc) return;
+        var gross = ParseAmt(txtGross.Text);
         if (ReferenceEquals(sender, txtPercent))
         {
-            var gross = ParseAmt(txtGross.Text);
-            var pct   = ParseAmt(txtPercent.Text);
+            var pct = ParseAmt(txtPercent.Text);
             if (gross.HasValue && pct.HasValue)
             {
                 _suppressCalc = true;
                 txtRepoCharges.Text = (gross.Value * pct.Value / 100m).ToString("0.##");
+                _suppressCalc = false;
+            }
+        }
+        else if (ReferenceEquals(sender, txtRepoCharges))
+        {
+            var repo = ParseAmt(txtRepoCharges.Text);
+            if (gross.HasValue && gross.Value != 0m && repo.HasValue)
+            {
+                _suppressCalc = true;
+                txtPercent.Text = (repo.Value * 100m / gross.Value).ToString("0.##");
                 _suppressCalc = false;
             }
         }
@@ -520,7 +586,7 @@ public partial class CouriersPage : Page
             ("Finance", s.FinanceName),
             ("Repo Charges", s.RepoCharges?.ToString("0.##") ?? ""),
             ("Advance", s.Advance?.ToString("0.##") ?? ""),
-            ("Courier", s.CourierYn),
+            ("Inventory", s.CourierYn),
             ("Banker Address", s.BankerAddress),
             ("POD Number", s.PodNumber),
             ("Submitted By", s.SubmittedByName),
@@ -587,6 +653,18 @@ public partial class CouriersPage : Page
         if (grid.SelectedItem is not Row r) return;
         var courier = cmbCourier.SelectedIndex == 1 ? "Yes" : "No";
 
+        var agent = (cmbEditAgent.Text ?? "").Trim();
+        if (agent.Length > 0 && !string.Equals(agent, (r.AgentName ?? "").Trim(), StringComparison.Ordinal))
+        {
+            try { await DesktopApiClient.UpdateSubmissionFieldsAsync(r.Id, new { AgentName = agent }); }
+            catch (Exception ex)
+            {
+                txtFormStatus.Foreground = System.Windows.Media.Brushes.Firebrick;
+                txtFormStatus.Text = "Could not save the agent name: " + ex.Message;
+                return;
+            }
+        }
+
         await SaveAsync(r.Id, new
         {
             RepoCharges = ParseAmt(txtRepoCharges.Text),
@@ -608,7 +686,7 @@ public partial class CouriersPage : Page
     private async void btnClear_Click(object sender, RoutedEventArgs e)
     {
         if (grid.SelectedItem is not Row r) return;
-        if (MessageBox.Show("Clear this record's courier entries (Repo Charges, Advance, Courier, Banker Address, POD)?",
+        if (MessageBox.Show("Clear this record's courier entries (Repo Charges, Advance, Inventory, Banker Address, POD)?",
                 "Couriers", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
 
         await SaveAsync(r.Id, new { ClearEntries = true }, "Entries cleared.");
