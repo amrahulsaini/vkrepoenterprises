@@ -168,6 +168,14 @@ public partial class AccountsPage : Page
     // the user has typed so the search box isn't disturbed on reload.
     private void RefreshAgentList()
     {
+        var keepFin = cmbFinance.Text;
+        cmbFinance.ItemsSource = _all.Select(r => (r.Src.FinanceName ?? "").Trim())
+            .Where(f => f.Length > 0)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(f => f, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        cmbFinance.Text = keepFin;
+
         var keep = cmbAgent.Text;
         var names = _all.Select(r => (r.AgentName ?? "").Trim())
             .Where(a => a.Length > 0)
@@ -196,6 +204,23 @@ public partial class AccountsPage : Page
                 : _all.Where(r => CRMRSDesktopApp.Billing.ViewAllDetailsWindow.NameMatches(r.AgentName, term)).ToList();
         }
 
+        var fin = (cmbFinance.Text ?? "").Trim();
+        if (fin.Length > 0)
+        {
+            var exactFin = rows.Where(r => string.Equals((r.Src.FinanceName ?? "").Trim(), fin, StringComparison.OrdinalIgnoreCase)).ToList();
+            rows = exactFin.Count > 0
+                ? exactFin
+                : rows.Where(r => CRMRSDesktopApp.Billing.ViewAllDetailsWindow.NameMatches(r.Src.FinanceName, fin)).ToList();
+        }
+
+        if (cmbInventory.SelectedIndex > 0)
+        {
+            var want = cmbInventory.SelectedIndex == 1 ? "Yes" : "No";
+            rows = rows.Where(r => string.Equals(
+                string.IsNullOrWhiteSpace(r.Src.CourierYn) ? "No" : r.Src.CourierYn.Trim(),
+                want, StringComparison.OrdinalIgnoreCase)).ToList();
+        }
+
         var last4 = Squash4(txtRcLast4?.Text);
         if (last4.Length > 0)
             rows = rows.Where(r => Squash4(r.VehicleNo).Contains(last4) ||
@@ -213,6 +238,15 @@ public partial class AccountsPage : Page
         Dispatcher.BeginInvoke(new Action(ApplyFilter), System.Windows.Threading.DispatcherPriority.Input);
     }
     private void Agent_Key(object sender, System.Windows.Input.KeyEventArgs e) { if (_ready) ApplyFilter(); }
+
+    private void Finance_Changed(object sender, SelectionChangedEventArgs e)
+    {
+        if (!_ready) return;
+        Dispatcher.BeginInvoke(new Action(ApplyFilter), System.Windows.Threading.DispatcherPriority.Input);
+    }
+    private void Finance_Key(object sender, System.Windows.Input.KeyEventArgs e) { if (_ready) ApplyFilter(); }
+    private void btnClearFinance_Click(object sender, RoutedEventArgs e) { cmbFinance.Text = ""; if (_ready) ApplyFilter(); }
+    private void Inventory_Changed(object sender, SelectionChangedEventArgs e) { if (_ready) ApplyFilter(); }
     private void RcLast4_Changed(object sender, TextChangedEventArgs e) { if (_ready) ApplyFilter(); }
     private void btnClearAgent_Click(object sender, RoutedEventArgs e) { cmbAgent.Text = ""; if (_ready) ApplyFilter(); }
 
@@ -302,6 +336,7 @@ public partial class AccountsPage : Page
             "unpaid" => 2,
             _        => 0
         };
+        txtAcRemark.Text = r.Src.AccountsRemark;
         LoadCharges(r);
         pnlPay.IsEnabled = true;
     }
@@ -466,7 +501,8 @@ public partial class AccountsPage : Page
             {
                 UtrNo = txtUtr.Text.Trim(),
                 PaymentDate = dpPayDate.SelectedDate?.ToString("yyyy-MM-dd"),
-                PaymentStatus = cmbPayStatus.SelectedIndex == 1 ? "paid" : "unpaid"
+                PaymentStatus = cmbPayStatus.SelectedIndex == 1 ? "paid" : "unpaid",
+                AccountsRemark = txtAcRemark.Text.Trim()
             });
             long keepId = r.Id;
             await LoadAsync();

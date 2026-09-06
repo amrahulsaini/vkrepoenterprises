@@ -80,6 +80,7 @@ fun TaskManagerScreen(
                 MonthHeader(ui, onPrev = { vm.prevMonth() }, onNext = { vm.nextMonth() })
                 ProgressCard(ui)
                 StatusFilterBar(ui.statusFilter) { vm.setStatusFilter(it) }
+                RcSearchBar(ui.rcQuery) { vm.setRcQuery(it) }
 
                 val shown = ui.visibleItems
                 if (ui.loading) {
@@ -91,6 +92,8 @@ fun TaskManagerScreen(
                         Text(
                             if (ui.items.isEmpty())
                                 "No OK-for-Repo entries in ${ui.monthName} ${ui.year}."
+                            else if (ui.rcQuery.isNotBlank())
+                                "No vehicle matching \"${ui.rcQuery}\" in ${ui.monthName} ${ui.year}."
                             else
                                 "No ${STATUS_LABELS[ui.statusFilter] ?: "matching"} entries in ${ui.monthName} ${ui.year}.",
                             style = MaterialTheme.typography.bodyMedium,
@@ -128,6 +131,25 @@ internal val STATUS_LABELS = mapOf(
     "collection_done" to "Collection done",
     "cancel"          to "Cancel"
 )
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun RcSearchBar(value: String, onChange: (String) -> Unit) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = { onChange(it.filter { c -> c.isLetterOrDigit() }.uppercase()) },
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
+        singleLine = true,
+        label = { Text("Search RC / chassis (last 4)") },
+        leadingIcon = { Icon(Icons.Default.Search, null) },
+        trailingIcon = {
+            if (value.isNotEmpty())
+                IconButton(onClick = { onChange("") }) { Icon(Icons.Default.Close, "Clear") }
+        },
+        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+            capitalization = KeyboardCapitalization.Characters)
+    )
+}
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -317,10 +339,29 @@ private fun TaskEditSheet(
     val payCamera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { ok ->
         if (ok) payCamUri?.let { u -> payUri = u; payB64 = runCatching { compressImageToBase64(context, u) }.getOrNull() }
     }
+
+    var pendingCameraUripayCamera by remember { mutableStateOf<android.net.Uri?>(null) }
+    val camPermpayCamera = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        val target = pendingCameraUripayCamera
+        pendingCameraUripayCamera = null
+        if (granted && target != null) payCamera.launch(target)
+    }
+    fun launchCamerapayCamera(target: android.net.Uri) {
+        val ok = androidx.core.content.ContextCompat.checkSelfPermission(
+            context, android.Manifest.permission.CAMERA
+        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        if (ok) payCamera.launch(target)
+        else {
+            pendingCameraUripayCamera = target
+            camPermpayCamera.launch(android.Manifest.permission.CAMERA)
+        }
+    }
     if (showPaySrc) {
         ImageSourceDialog(
             title = "Attach payment screenshot",
-            onCamera = { showPaySrc = false; val u = createCameraImageUri(context); payCamUri = u; payCamera.launch(u) },
+            onCamera = { showPaySrc = false; val u = createCameraImageUri(context); payCamUri = u; launchCamerapayCamera(u) },
             onGallery = { showPaySrc = false; payGallery.launch("image/*") },
             onDismiss = { showPaySrc = false }
         )

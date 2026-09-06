@@ -26,6 +26,21 @@
                     <ComboBoxItem Content="Collection done" />
                     <ComboBoxItem Content="Billing Done" />
                 </ComboBox>
+                <TextBlock Text="Finance" VerticalAlignment="Center" Foreground="#666" Margin="0,0,6,0" />
+                <ComboBox Name="cmbFinance" Width="190" Height="26" IsEditable="True" IsTextSearchEnabled="True"
+                          StaysOpenOnEdit="True" VerticalContentAlignment="Center"
+                          SelectionChanged="Finance_Changed" KeyUp="Finance_Key"
+                          ToolTip="Type to search a finance / head office, or pick from the list" />
+                <Button Name="btnClearFinance" Content="&#10005;" Width="26" Height="26" Margin="4,0,14,0"
+                        Cursor="Hand" ToolTip="Clear finance filter" Click="btnClearFinance_Click" />
+                <TextBlock Text="Inventory" VerticalAlignment="Center" Foreground="#666" Margin="0,0,6,0" />
+                <ComboBox Name="cmbInventory" Width="90" Height="26" Margin="0,0,14,0" SelectedIndex="0"
+                          VerticalContentAlignment="Center" SelectionChanged="Inventory_Changed"
+                          ToolTip="Show only records marked Yes or No for inventory">
+                    <ComboBoxItem Content="All" />
+                    <ComboBoxItem Content="Yes" />
+                    <ComboBoxItem Content="No" />
+                </ComboBox>
                 <TextBlock Text="Agent" VerticalAlignment="Center" Foreground="#666" Margin="0,0,6,0" />
                 <ComboBox Name="cmbAgent" Width="220" Height="26" IsEditable="True" IsTextSearchEnabled="True"
                           StaysOpenOnEdit="True" VerticalContentAlignment="Center"
@@ -202,6 +217,10 @@
                             </StackPanel>
                         </Border>
 
+                        <TextBlock Text="Accounts Remark" Style="{StaticResource PLbl}" />
+                        <TextBox Name="txtAcRemark" Height="52" Margin="0,0,0,7" TextWrapping="Wrap"
+                                 AcceptsReturn="True" VerticalScrollBarVisibility="Auto"
+                                 VerticalContentAlignment="Top" Padding="8,4" />
                         <TextBlock Text="UTR No" Style="{StaticResource PLbl}" />
                         <TextBox Name="txtUtr" Style="{StaticResource PFld}" />
                         <TextBlock Text="Date of Payment" Style="{StaticResource PLbl}" />

@@ -14,6 +14,62 @@ public partial class ViewAllDetailsWindow : Window
     private readonly List<int> _financeIds;
     private List<Row> _rows = new();
 
+    private void Grid_RightClickCopy(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        var src = e.OriginalSource as System.Windows.DependencyObject;
+        while (src != null && src is not DataGridCell && src is not DataGridRow)
+            src = System.Windows.Media.VisualTreeHelper.GetParent(src);
+
+        var text = src switch
+        {
+            DataGridCell cell => CellText(cell),
+            DataGridRow row   => RowText(row),
+            _                 => ""
+        };
+        if (string.IsNullOrWhiteSpace(text)) return;
+
+        try
+        {
+            System.Windows.Clipboard.SetText(text);
+            txtStatus.Text = text.Length > 40 ? "Copied." : $"Copied \u201c{text}\u201d.";
+        }
+        catch { txtStatus.Text = "Could not copy."; }
+        e.Handled = true;
+    }
+
+    private static string CellText(DataGridCell cell) => cell.Content switch
+    {
+        TextBlock tb => tb.Text,
+        TextBox tx   => tx.Text,
+        Button b     => b.Content?.ToString() ?? "",
+        System.Windows.DependencyObject d => FirstText(d),
+        _            => ""
+    };
+
+    private static string FirstText(System.Windows.DependencyObject root)
+    {
+        int n = System.Windows.Media.VisualTreeHelper.GetChildrenCount(root);
+        for (int i = 0; i < n; i++)
+        {
+            var child = System.Windows.Media.VisualTreeHelper.GetChild(root, i);
+            if (child is TextBlock tb && !string.IsNullOrWhiteSpace(tb.Text)) return tb.Text;
+            var deeper = FirstText(child);
+            if (!string.IsNullOrWhiteSpace(deeper)) return deeper;
+        }
+        return "";
+    }
+
+    private static string RowText(DataGridRow row)
+    {
+        if (row.Item is not Row r) return "";
+        var parts = new[]
+        {
+            r.CreatedAt, r.VehicleOrChassis, r.CustomerName, r.FinanceName, r.BranchName,
+            r.LoanNo, r.AgentName, r.ParkingYardName, r.CollectionUpdate, r.Remark
+        };
+        return string.Join("\t", parts.Select(x => (x ?? "").Trim()));
+    }
+
     private class Row
     {
         public DesktopApiClient.RepoSubmissionDto Src { get; set; } = null!;

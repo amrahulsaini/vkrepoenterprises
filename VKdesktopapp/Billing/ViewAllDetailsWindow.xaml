@@ -64,7 +64,8 @@
                   IsReadOnly="False" CellEditEnding="grid_CellEditEnding"
                   SelectionUnit="CellOrRowHeader" CanUserSortColumns="False" FrozenColumnCount="2"
                   RowDetailsVisibilityMode="VisibleWhenSelected"
-                  PreviewMouseLeftButtonDown="XlGrid_RowClick">
+                  PreviewMouseLeftButtonDown="XlGrid_RowClick"
+                  PreviewMouseRightButtonUp="Grid_RightClickCopy">
             <DataGrid.RowDetailsTemplate>
                 <DataTemplate>
                     <Border Background="#FFFBF4" BorderBrush="#EF6C00" BorderThickness="3,0,0,1" Padding="14,10">

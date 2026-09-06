@@ -302,6 +302,7 @@ public partial class BillingPage : Page
         txtExecutiveName.Text = Up(s.ExecutiveName);
         txtCollectionUpdate.Text = Up(s.CollectionUpdate);
         txtRemark.Text = Up(s.Remark);
+        txtBillingRemark.Text = s.BillingRemark;
         if (!string.IsNullOrWhiteSpace(s.ParkingYardName)) txtParkingYard.Text = Up(s.ParkingYardName);
         if (!string.IsNullOrWhiteSpace(s.AddlChargesNotes)) txtAddlCharges.Text = Up(s.AddlChargesNotes);
         if (s.AddlChargesAmount is decimal amt && amt > 0) txtAddlAmount.Text = amt.ToString("0.##");
@@ -488,7 +489,8 @@ public partial class BillingPage : Page
                     catch { }
                     await DesktopApiClient.MarkSubmissionBilledAsync(
                         _currentSubmissionId, _session?.MemberId ?? 0,
-                        txtInvoiceNo.Text.Trim(), billB64, ext, ParseAmt(txtTotalAmount.Text));
+                        txtInvoiceNo.Text.Trim(), billB64, ext, ParseAmt(txtTotalAmount.Text),
+                        txtBillingRemark.Text.Trim());
                 }
                 catch { }
                 _currentSubmissionId = 0;
@@ -498,6 +500,7 @@ public partial class BillingPage : Page
             txtConfirmationBy.Text = "";
             txtRepoAmount.Text = txtRepoWords.Text = "";
             txtTotalAmount.Text = txtTotalWords.Text = "";
+            txtBillingRemark.Text = "";
             txtAddlCharges.Text = "NA";
             txtAddlAmount.Text = "";
             txtSearchStatus.Text = "Ready for the next bill.";

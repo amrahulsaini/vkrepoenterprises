@@ -28,12 +28,21 @@ data class TaskManagerUiState(
     val editing: RepoTaskItem?      = null,
     val saving: Boolean             = false,
     val statusFilter: String        = "all",
+    val rcQuery: String             = "",
     val errorMsg: String?           = null,
     val savedMsg: String?           = null
 ) {
     val visibleItems: List<RepoTaskItem>
-        get() = if (statusFilter == "all") items
-                else items.filter { it.billingAction.ifBlank { "immediate" }.equals(statusFilter, true) }
+        get() {
+            var list = if (statusFilter == "all") items
+                       else items.filter { it.billingAction.ifBlank { "immediate" }.equals(statusFilter, true) }
+            val q = squash(rcQuery)
+            if (q.isNotEmpty())
+                list = list.filter { squash(it.vehicleNo).contains(q) || squash(it.chassisNo).contains(q) }
+            return list
+        }
+
+    private fun squash(s: String) = s.filter { it.isLetterOrDigit() }.uppercase()
 
     val monthName: String
         get() = Month.of(month).getDisplayName(TextStyle.FULL, Locale.ENGLISH).uppercase()
@@ -124,6 +133,8 @@ class TaskManagerViewModel @Inject constructor(
     }
 
     fun setStatusFilter(value: String) = _ui.update { it.copy(statusFilter = value) }
+
+    fun setRcQuery(value: String) = _ui.update { it.copy(rcQuery = value.take(10)) }
 
     fun startEdit(item: RepoTaskItem) = _ui.update { it.copy(editing = item, savedMsg = null) }
     fun cancelEdit() = _ui.update { it.copy(editing = null) }

@@ -111,7 +111,7 @@
                             <StackPanel Margin="0,0,0,8" />
                             <StackPanel Margin="0,0,8,8"><TextBlock Text="Total Gross (in words)" Foreground="#666" FontSize="12" /><TextBox Name="txtTotalWords" Height="30" /></StackPanel>
                             <StackPanel Margin="0,0,8,8"><TextBlock Text="Total Gross (amount)" Foreground="#666" FontSize="12" /><TextBox Name="txtTotalAmount" Height="30" /></StackPanel>
-                            <StackPanel Margin="0,0,0,8" />
+                            <StackPanel Margin="0,0,0,8"><TextBlock Text="Billing Remark" Foreground="#666" FontSize="12" /><TextBox Name="txtBillingRemark" Height="30" /></StackPanel>
                         </UniformGrid>
 
                         <TextBlock Text="REPO SUBMISSION DETAILS" FontWeight="Bold" Foreground="{StaticResource Accent}" Margin="0,10,0,6" />

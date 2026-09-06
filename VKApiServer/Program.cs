@@ -2239,7 +2239,8 @@ app.MapGet("/api/mgr/billing/submissions", async (HttpContext ctx, string? from,
                    rs.banker_address, rs.pod_number, rs.invoice_no, rs.bill_file,
                    rs.total_gross, rs.courier_percent, rs.payment_screenshot, rs.acct_holder_name,
                    rs.bank_name, rs.bank_account_no, rs.ifsc_code, rs.utr_no,
-                   rs.payment_date, rs.application_charges, rs.cash_amount, rs.payment_status
+                   rs.payment_date, rs.application_charges, rs.cash_amount, rs.payment_status,
+                   rs.billing_remark, rs.accounts_remark
               FROM repo_submissions rs
          LEFT JOIN finances f ON f.id = rs.finance_id
          LEFT JOIN vehicle_records vr ON vr.id = rs.record_id {whereSql}
@@ -2292,7 +2293,9 @@ app.MapGet("/api/mgr/billing/submissions", async (HttpContext ctx, string? from,
                 paymentDate = rdr.IsDBNull(44) ? "" : rdr.GetDateTime(44).ToString("yyyy-MM-dd"),
                 applicationCharges = rdr.IsDBNull(45) ? (decimal?)null : rdr.GetDecimal(45),
                 cashAmount = rdr.IsDBNull(46) ? (decimal?)null : rdr.GetDecimal(46),
-                paymentStatus = rdr.IsDBNull(47) ? "" : rdr.GetString(47)
+                paymentStatus = rdr.IsDBNull(47) ? "" : rdr.GetString(47),
+                billingRemark = S(48) ?? "",
+                accountsRemark = S(49) ?? ""
             });
         }
         return Results.Ok(list);
@@ -2582,13 +2585,15 @@ app.MapPost("/api/mgr/billing/submissions/{id:long}/billed", async (HttpContext 
                  SET bill_status='billed', billed_at=NOW(), billed_by_member_id=@mid,
                      invoice_no=COALESCE(@inv, invoice_no),
                      bill_file=COALESCE(@bf, bill_file),
-                     total_gross=COALESCE(@tg, total_gross)
+                     total_gross=COALESCE(@tg, total_gross),
+                     billing_remark=COALESCE(@brem, billing_remark)
                WHERE id=@id",
             conn, 20,
             ("@mid", dto.MemberId),
             ("@inv", (object?)dto.InvoiceNo ?? DBNull.Value),
             ("@bf", (object?)billRel ?? DBNull.Value),
             ("@tg", (object?)dto.TotalGross ?? DBNull.Value),
+            ("@brem", string.IsNullOrWhiteSpace(dto.BillingRemark) ? DBNull.Value : (object)dto.BillingRemark),
             ("@id", id));
         return Results.Ok(new { success = true });
     }
@@ -2647,13 +2652,21 @@ app.MapPost("/api/mgr/accounts/submissions/{id:long}/payment", async (HttpContex
         await conn.OpenAsync();
         var pstatus = (dto.PaymentStatus ?? "").Trim().ToLowerInvariant();
         if (pstatus != "paid" && pstatus != "unpaid") pstatus = "";
-        await MgrExec(
-            "UPDATE repo_submissions SET utr_no=@utr, payment_date=@pdate, payment_status=@pstat WHERE id=@id",
-            conn, 20,
+        var psets = new List<string> { "utr_no=@utr", "payment_date=@pdate", "payment_status=@pstat" };
+        var pps = new List<(string, object)>
+        {
             ("@utr", (object?)dto.UtrNo ?? DBNull.Value),
             ("@pdate", (object?)pdate ?? DBNull.Value),
             ("@pstat", pstatus.Length == 0 ? DBNull.Value : (object)pstatus),
-            ("@id", id));
+            ("@id", id)
+        };
+        if (dto.AccountsRemark is not null)
+        {
+            psets.Add("accounts_remark=@arem");
+            pps.Add(("@arem", dto.AccountsRemark));
+        }
+        await MgrExec($"UPDATE repo_submissions SET {string.Join(", ", psets)} WHERE id=@id",
+            conn, 20, pps.ToArray());
         return Results.Ok(new { success = true });
     }
     catch (Exception ex) { return Results.Problem(ex.Message); }
@@ -4479,7 +4492,7 @@ record MgrBillingMemberDto(
     string Username, string? Password, bool IsActive, List<int>? FinanceIds);
 record MgrMemberLoginDto(string Username, string Password);
 record MgrSetMemberFinancesDto(List<int> FinanceIds);
-record MgrMarkBilledDto(long MemberId, string? InvoiceNo = null, string? BillBase64 = null, string? BillExt = null, decimal? TotalGross = null);
+record MgrMarkBilledDto(long MemberId, string? InvoiceNo = null, string? BillBase64 = null, string? BillExt = null, decimal? TotalGross = null, string? BillingRemark = null);
 record MgrEditFieldsDto(
     string? CustomerName = null, string? FinanceName = null, string? BranchName = null,
     string? LoanNo = null, string? AgentName = null, string? ParkingYardName = null,
@@ -4490,7 +4503,7 @@ record MgrEditFieldsDto(
 record MgrPaymentDto(
     string? AcctHolderName = null, string? BankName = null, string? BankAccountNo = null,
     string? IfscCode = null, string? UtrNo = null, string? PaymentDate = null,
-    decimal? ApplicationCharges = null, string? PaymentStatus = null);
+    decimal? ApplicationCharges = null, string? PaymentStatus = null, string? AccountsRemark = null);
 record MgrAgentBillingDto(
     string AgentName, string? AcctHolderName = null, string? BankName = null,
     string? BankAccountNo = null, string? IfscCode = null,

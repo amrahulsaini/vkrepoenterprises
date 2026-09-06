@@ -138,7 +138,7 @@ internal static class DesktopApiClient
         string AcctHolderName = "", string BankName = "", string BankAccountNo = "",
         string IfscCode = "", string UtrNo = "", string PaymentDate = "",
         decimal? ApplicationCharges = null, decimal? CashAmount = null,
-        string PaymentStatus = "");
+        string PaymentStatus = "", string BillingRemark = "", string AccountsRemark = "");
 
     internal static async Task<List<BillingMemberDto>> GetBillingMembersAsync()
     {
@@ -184,9 +184,11 @@ internal static class DesktopApiClient
     }
 
     internal static async Task MarkSubmissionBilledAsync(long id, long memberId,
-        string? invoiceNo = null, string? billBase64 = null, string? billExt = null, decimal? totalGross = null)
+        string? invoiceNo = null, string? billBase64 = null, string? billExt = null, decimal? totalGross = null,
+        string? billingRemark = null)
         => (await Send(HttpMethod.Post, $"api/mgr/billing/submissions/{id}/billed",
-            new { MemberId = memberId, InvoiceNo = invoiceNo, BillBase64 = billBase64, BillExt = billExt, TotalGross = totalGross })).Dispose();
+            new { MemberId = memberId, InvoiceNo = invoiceNo, BillBase64 = billBase64, BillExt = billExt,
+                  TotalGross = totalGross, BillingRemark = billingRemark })).Dispose();
 
     internal static async Task UpdateSubmissionFieldsAsync(long id, object dto)
         => (await Send(HttpMethod.Post, $"api/mgr/billing/submissions/{id}/fields", dto)).Dispose();
