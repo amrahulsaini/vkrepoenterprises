@@ -278,7 +278,7 @@ fun HomeScreen(
                 color = MaterialTheme.colorScheme.surfaceVariant,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Column(Modifier.padding(horizontal = 6.dp, vertical = 5.dp)) {
+                Column(Modifier.padding(horizontal = 6.dp, vertical = 2.dp)) {
                     val focusRequester = remember { FocusRequester() }
                     LaunchedEffect(Unit) {
                         focusRequester.requestFocus()
@@ -286,8 +286,8 @@ fun HomeScreen(
                     val fieldStyle = MaterialTheme.typography.bodyLarge.copy(
                         fontFamily = RobotoFamily,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 17.sp,
-                        letterSpacing = 1.5.sp
+                        fontSize = 16.sp,
+                        letterSpacing = 1.0.sp
                     )
                     val fieldColors = OutlinedTextFieldDefaults.colors(
                         focusedContainerColor   = MaterialTheme.colorScheme.surface,
@@ -314,7 +314,7 @@ fun HomeScreen(
                             placeholder = { fadedHint(if (ui.mode == SearchMode.RC) "1234" else "Last 5") },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                             singleLine = true,
-                            modifier = Modifier.weight(1f).height(52.dp).focusRequester(focusRequester),
+                            modifier = Modifier.weight(1f).height(44.dp).focusRequester(focusRequester),
                             shape = RoundedCornerShape(8.dp),
                             textStyle = fieldStyle,
                             colors = fieldColors
@@ -329,7 +329,7 @@ fun HomeScreen(
                                     capitalization = KeyboardCapitalization.Characters
                                 ),
                                 singleLine = true,
-                                modifier = Modifier.width(72.dp).height(52.dp),
+                                modifier = Modifier.width(64.dp).height(44.dp),
                                 shape = RoundedCornerShape(8.dp),
                                 textStyle = fieldStyle,
                                 colors = fieldColors
@@ -346,7 +346,7 @@ fun HomeScreen(
                             }
                         ) {
                             Row(
-                                Modifier.padding(horizontal = 8.dp, vertical = 7.dp),
+                                Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(2.dp)
                             ) {
@@ -376,7 +376,7 @@ fun HomeScreen(
                         )
                         IconButton(
                             onClick = { if (!ui.isSyncing) searchVm.triggerSync() },
-                            modifier = Modifier.size(32.dp)
+                            modifier = Modifier.size(28.dp)
                         ) {
                             Icon(
                                 if (ui.isSyncing) Icons.Default.CloudSync
@@ -388,17 +388,17 @@ fun HomeScreen(
                                     pendingDl    -> Color(0xFF2E7D32).copy(alpha = dlAlpha)
                                     else         -> Color(0xFFD32F2F)
                                 },
-                                modifier = Modifier.size(21.dp)
+                                modifier = Modifier.size(19.dp)
                             )
                         }
                         IconButton(
                             onClick = { nav.navigate(Screen.Settings.route) },
-                            modifier = Modifier.size(32.dp)
+                            modifier = Modifier.size(28.dp)
                         ) {
                             Icon(
                                 Icons.Default.Settings, "Settings",
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(20.dp)
+                                modifier = Modifier.size(18.dp)
                             )
                         }
                     }
@@ -1018,7 +1018,7 @@ private fun VehicleGridCell(item: SearchResult, mode: SearchMode, showHyphens: B
         Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(start = 10.dp, end = 0.dp, top = 9.dp, bottom = 9.dp),
+            .padding(start = 10.dp, end = 0.dp, top = 4.dp, bottom = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
@@ -1027,7 +1027,7 @@ private fun VehicleGridCell(item: SearchResult, mode: SearchMode, showHyphens: B
             fontWeight = FontWeight.Bold,
             fontFamily = RobotoFamily,
             fontSize = 20.sp,
-            lineHeight = 23.sp,
+            lineHeight = 21.sp,
             letterSpacing = 0.25.sp,
             maxLines = if (mode == SearchMode.CHASSIS) 2 else 1,
             softWrap = mode == SearchMode.CHASSIS,
@@ -1124,7 +1124,7 @@ private fun VehicleListRow(item: SearchResult, mode: SearchMode, showHyphens: Bo
         Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 10.dp),
+            .padding(horizontal = 12.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
