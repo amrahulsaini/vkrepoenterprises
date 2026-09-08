@@ -1018,7 +1018,7 @@ private fun VehicleGridCell(item: SearchResult, mode: SearchMode, showHyphens: B
         Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(start = 8.dp, end = 0.dp, top = 6.dp, bottom = 6.dp),
+            .padding(start = 10.dp, end = 0.dp, top = 9.dp, bottom = 9.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
@@ -1026,9 +1026,9 @@ private fun VehicleGridCell(item: SearchResult, mode: SearchMode, showHyphens: B
             display,
             fontWeight = FontWeight.Bold,
             fontFamily = RobotoFamily,
-            fontSize = 15.sp,
-            lineHeight = 17.sp,
-            letterSpacing = 0.sp,
+            fontSize = 20.sp,
+            lineHeight = 23.sp,
+            letterSpacing = 0.25.sp,
             maxLines = if (mode == SearchMode.CHASSIS) 2 else 1,
             softWrap = mode == SearchMode.CHASSIS,
             overflow = if (mode == SearchMode.CHASSIS) TextOverflow.Visible else TextOverflow.Clip,
@@ -1124,13 +1124,13 @@ private fun VehicleListRow(item: SearchResult, mode: SearchMode, showHyphens: Bo
         Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 8.dp),
+            .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
             rcOrChassis,
-            style = MaterialTheme.typography.bodyLarge.copy(fontSize = 17.sp, letterSpacing = 0.3.sp),
-            fontWeight = FontWeight.Black,
+            style = MaterialTheme.typography.bodyLarge.copy(fontSize = 20.sp, letterSpacing = 0.25.sp),
+            fontWeight = FontWeight.Bold,
             fontFamily = RobotoFamily,
             maxLines = if (mode == SearchMode.CHASSIS) 2 else 1,
             softWrap = mode == SearchMode.CHASSIS,
@@ -1139,8 +1139,8 @@ private fun VehicleListRow(item: SearchResult, mode: SearchMode, showHyphens: Bo
         )
         Text(
             model,
-            style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
-            fontWeight = FontWeight.Bold,
+            style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
+            fontWeight = FontWeight.Medium,
             fontFamily = RobotoFamily,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
