@@ -385,8 +385,8 @@ fun HomeScreen(
                                 "Download records",
                                 tint = when {
                                     ui.isSyncing -> Color(0xFF1565C0)
-                                    pendingDl    -> Color(0xFFD32F2F).copy(alpha = dlAlpha)
-                                    else         -> Color(0xFF388E3C)
+                                    pendingDl    -> Color(0xFF2E7D32).copy(alpha = dlAlpha)
+                                    else         -> Color(0xFFD32F2F)
                                 },
                                 modifier = Modifier.size(21.dp)
                             )
@@ -742,9 +742,9 @@ private fun AgencyLandingPanel(
                 onClick = onSync,
                 shape = RoundedCornerShape(14.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = Color(0xFFD32F2F).copy(alpha = 0.10f + (1f - alpha) * 0.22f)
+                    containerColor = Color(0xFF2E7D32).copy(alpha = 0.10f + (1f - alpha) * 0.22f)
                 ),
-                border = androidx.compose.foundation.BorderStroke(2.dp, Color(0xFFD32F2F).copy(alpha = alpha)),
+                border = androidx.compose.foundation.BorderStroke(2.dp, Color(0xFF2E7D32).copy(alpha = alpha)),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(
@@ -754,12 +754,12 @@ private fun AgencyLandingPanel(
                 ) {
                     Surface(
                         shape = RoundedCornerShape(10.dp),
-                        color = Color(0xFFD32F2F).copy(alpha = 0.15f),
+                        color = Color(0xFF2E7D32).copy(alpha = 0.15f),
                         modifier = Modifier.size(40.dp)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(Icons.Default.CloudDownload, null,
-                                tint = Color(0xFFD32F2F).copy(alpha = alpha),
+                                tint = Color(0xFF2E7D32).copy(alpha = alpha),
                                 modifier = Modifier.size(22.dp))
                         }
                     }
@@ -767,20 +767,20 @@ private fun AgencyLandingPanel(
                         Text("RECORDS NOT FULLY DOWNLOADED",
                             style = MaterialTheme.typography.labelLarge,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFFD32F2F).copy(alpha = alpha))
+                            color = Color(0xFF2E7D32).copy(alpha = alpha))
                         Text("Tap to download for offline use",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    Icon(Icons.Default.ChevronRight, null, tint = Color(0xFFD32F2F))
+                    Icon(Icons.Default.ChevronRight, null, tint = Color(0xFF2E7D32))
                 }
             }
             Spacer(Modifier.height(10.dp))
         } else {
             Card(
                 shape = RoundedCornerShape(14.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFE8F5E9)),
-                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF388E3C).copy(alpha = 0.4f)),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFFFEBEE)),
+                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFD32F2F).copy(alpha = 0.4f)),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(
@@ -789,11 +789,11 @@ private fun AgencyLandingPanel(
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Icon(Icons.Default.CheckCircle, null,
-                        tint = Color(0xFF388E3C), modifier = Modifier.size(20.dp))
+                        tint = Color(0xFFD32F2F), modifier = Modifier.size(20.dp))
                     Text("RECORDS FULLY DOWNLOADED",
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF388E3C))
+                        color = Color(0xFFD32F2F))
                 }
             }
             Spacer(Modifier.height(10.dp))
@@ -870,7 +870,13 @@ private fun AgencyLandingPanel(
                 accent   = Color(0xFF00897B),
                 modifier = Modifier.weight(1f)
             ) { nav.navigate(Screen.RepoKits.route) }
-            Spacer(Modifier.weight(1f))
+            GridTile(
+                label    = "AUTHORIZATION LETTER",
+                icon     = Icons.Default.Description,
+                subtitle = "Search a vehicle and download",
+                accent   = Color(0xFF00695C),
+                modifier = Modifier.weight(1f)
+            ) { nav.navigate(Screen.AuthorityLetter.route) }
         }
         Spacer(Modifier.height(16.dp))
         RbiGuidelinesCard()
@@ -921,27 +927,32 @@ private fun GridTile(
 ) {
     Card(
         onClick = onClick,
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-        modifier = modifier.height(148.dp)
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f)
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        modifier = modifier.height(112.dp)
     ) {
         Column(
-            Modifier.fillMaxSize().padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
+            Modifier.fillMaxSize().padding(14.dp),
+            verticalArrangement = Arrangement.SpaceBetween
         ) {
             Surface(
-                shape = RoundedCornerShape(10.dp),
-                color = accent.copy(alpha = 0.15f),
-                modifier = Modifier.size(34.dp)
+                shape = RoundedCornerShape(12.dp),
+                color = accent.copy(alpha = 0.12f),
+                modifier = Modifier.size(38.dp)
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    Icon(icon, null, tint = accent, modifier = Modifier.size(18.dp))
+                    Icon(icon, null, tint = accent, modifier = Modifier.size(20.dp))
                 }
             }
             Text(
                 label,
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.Bold,
+                letterSpacing = 0.3.sp,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 lineHeight = 15.sp
@@ -961,8 +972,12 @@ private fun LandingTile(
 ) {
     Card(
         onClick = onClick,
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f)
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
         modifier = modifier
     ) {
         Row(
@@ -1003,7 +1018,7 @@ private fun VehicleGridCell(item: SearchResult, mode: SearchMode, showHyphens: B
         Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(start = 10.dp, end = 2.dp, top = 8.dp, bottom = 8.dp),
+            .padding(start = 10.dp, end = 2.dp, top = 7.dp, bottom = 7.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
@@ -1011,8 +1026,8 @@ private fun VehicleGridCell(item: SearchResult, mode: SearchMode, showHyphens: B
             display,
             fontWeight = FontWeight.Black,
             fontFamily = RobotoFamily,
-            fontSize = 19.sp,
-            lineHeight = 21.sp,
+            fontSize = 16.sp,
+            lineHeight = 18.sp,
             maxLines = if (mode == SearchMode.CHASSIS) 2 else 1,
             softWrap = mode == SearchMode.CHASSIS,
             overflow = if (mode == SearchMode.CHASSIS) TextOverflow.Visible else TextOverflow.Clip,
@@ -1108,12 +1123,12 @@ private fun VehicleListRow(item: SearchResult, mode: SearchMode, showHyphens: Bo
         Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 10.dp),
+            .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
             rcOrChassis,
-            style = MaterialTheme.typography.bodyLarge.copy(fontSize = 20.sp, letterSpacing = 0.5.sp),
+            style = MaterialTheme.typography.bodyLarge.copy(fontSize = 17.sp, letterSpacing = 0.3.sp),
             fontWeight = FontWeight.Black,
             fontFamily = RobotoFamily,
             maxLines = if (mode == SearchMode.CHASSIS) 2 else 1,
@@ -1123,7 +1138,7 @@ private fun VehicleListRow(item: SearchResult, mode: SearchMode, showHyphens: Bo
         )
         Text(
             model,
-            style = MaterialTheme.typography.bodyMedium,
+            style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
             fontWeight = FontWeight.Bold,
             fontFamily = RobotoFamily,
             maxLines = 1,
