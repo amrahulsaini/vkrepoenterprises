@@ -1018,16 +1018,17 @@ private fun VehicleGridCell(item: SearchResult, mode: SearchMode, showHyphens: B
         Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(start = 10.dp, end = 2.dp, top = 7.dp, bottom = 7.dp),
+            .padding(start = 8.dp, end = 0.dp, top = 6.dp, bottom = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Text(
             display,
-            fontWeight = FontWeight.Black,
+            fontWeight = FontWeight.Bold,
             fontFamily = RobotoFamily,
-            fontSize = 16.sp,
-            lineHeight = 18.sp,
+            fontSize = 15.sp,
+            lineHeight = 17.sp,
+            letterSpacing = 0.sp,
             maxLines = if (mode == SearchMode.CHASSIS) 2 else 1,
             softWrap = mode == SearchMode.CHASSIS,
             overflow = if (mode == SearchMode.CHASSIS) TextOverflow.Visible else TextOverflow.Clip,
@@ -1043,7 +1044,7 @@ private fun VehicleGridCell(item: SearchResult, mode: SearchMode, showHyphens: B
                 modifier = Modifier.padding(horizontal = 2.dp))
         } else {
             Icon(Icons.Default.ChevronRight, null,
-                Modifier.size(14.dp),
+                Modifier.size(12.dp),
                 tint = MaterialTheme.colorScheme.outlineVariant)
         }
     }
