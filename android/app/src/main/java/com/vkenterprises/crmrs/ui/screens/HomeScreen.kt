@@ -314,7 +314,7 @@ fun HomeScreen(
                             placeholder = { fadedHint(if (ui.mode == SearchMode.RC) "1234" else "Last 5") },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                             singleLine = true,
-                            modifier = Modifier.weight(1f).height(44.dp).focusRequester(focusRequester),
+                            modifier = Modifier.weight(1f).height(52.dp).focusRequester(focusRequester),
                             shape = RoundedCornerShape(8.dp),
                             textStyle = fieldStyle,
                             colors = fieldColors
@@ -329,7 +329,7 @@ fun HomeScreen(
                                     capitalization = KeyboardCapitalization.Characters
                                 ),
                                 singleLine = true,
-                                modifier = Modifier.width(64.dp).height(44.dp),
+                                modifier = Modifier.width(70.dp).height(52.dp),
                                 shape = RoundedCornerShape(8.dp),
                                 textStyle = fieldStyle,
                                 colors = fieldColors

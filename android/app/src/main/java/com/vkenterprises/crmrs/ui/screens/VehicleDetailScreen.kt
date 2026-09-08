@@ -171,43 +171,6 @@ fun VehicleDetailScreen(
         }
     }
 
-    val scope = rememberCoroutineScope()
-    var buildingLetter by remember { mutableStateOf(false) }
-    fun downloadAuthorityLetter(rec: SearchResult) {
-        if (buildingLetter) return
-        buildingLetter = true
-        scope.launch {
-            runCatching {
-                val info = runCatching { ApiClient.api.getAgencyInfo() }
-                    .getOrNull()?.takeIf { it.isSuccessful }?.body()
-                val lhUrl = info?.letterheadPath.orEmpty()
-                val bmp = if (lhUrl.isNotBlank()) RepoPdf.loadBitmap(lhUrl) else null
-                val data = AuthorityLetterPdf.Data(
-                    agencyName          = info?.name?.takeIf { it.isNotBlank() } ?: waAgencyName,
-                    regNo               = "",
-                    gstNo               = "",
-                    dateText            = SimpleDateFormat("dd MMM yyyy", Locale.US).format(java.util.Date()),
-                    bankNbfc            = rec.financer.orEmpty().ifBlank { rec.branchName.orEmpty() },
-                    loanAcNo            = rec.agreementNo.orEmpty(),
-                    borrowerName        = rec.customerName.orEmpty(),
-                    vehicleNo           = rec.vehicleNo.orEmpty(),
-                    chassisNo           = rec.chassisNo.orEmpty(),
-                    engineNo            = rec.engineNo.orEmpty(),
-                    authorizedExecutive = agentName,
-                    executiveId         = agentPhone,
-                    letterhead          = bmp
-                )
-                val file = withContext(Dispatchers.IO) { AuthorityLetterPdf.generate(context, data) }
-                RepoPdf.open(context, file, "application/pdf")
-            }.onFailure {
-                android.widget.Toast.makeText(
-                    context, "Could not create the letter.", android.widget.Toast.LENGTH_SHORT
-                ).show()
-            }
-            buildingLetter = false
-        }
-    }
-
     var showWaSheet      by remember { mutableStateOf(false) }
     var showCopyDialog   by remember { mutableStateOf(false) }
     var showSelection    by remember { mutableStateOf(false) }
@@ -462,12 +425,6 @@ fun VehicleDetailScreen(
                             nav.navigate(Screen.OkForRepo.route)
                         }
                         ActionChip(
-                            label = if (buildingLetter) "…" else "Auth Letter",
-                            icon  = Icons.Default.Description,
-                            color = Color(0xFF00695C),
-                            modifier = Modifier.weight(1f)
-                        ) { downloadAuthorityLetter(detailRecord ?: item) }
-                        ActionChip(
                             label = "Copy",
                             icon  = Icons.Default.ContentCopy,
                             color = if (showSelection) Color(0xFF4A148C) else Color(0xFF6A1B9A),
@@ -585,18 +542,6 @@ fun VehicleDetailScreen(
                         Spacer(Modifier.width(8.dp))
                         Text("Send Confirmation to Agency", fontWeight = FontWeight.Bold)
                     }
-                    OutlinedButton(
-                        onClick = { downloadAuthorityLetter(detailRecord ?: item) },
-                        shape = RoundedCornerShape(14.dp),
-                        modifier = Modifier.fillMaxWidth().height(50.dp)
-                    ) {
-                        Icon(Icons.Default.Description, null, Modifier.size(18.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            if (buildingLetter) "Preparing letter…" else "Download Authority Letter",
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
                 }
                 Spacer(Modifier.height(8.dp))
             }
@@ -621,8 +566,8 @@ private fun QuickSearchBar(
     val fieldStyle = MaterialTheme.typography.bodyLarge.copy(
         fontFamily = RobotoFamily,
         fontWeight = FontWeight.Bold,
-        fontSize = 17.sp,
-        letterSpacing = 1.5.sp
+        fontSize = 16.sp,
+        letterSpacing = 1.0.sp
     )
     val fieldContainer = if (surfaceColor == Color.Unspecified)
         MaterialTheme.colorScheme.surface else Color.White
@@ -647,7 +592,7 @@ private fun QuickSearchBar(
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
-            Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 5.dp),
+            Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 2.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
@@ -680,7 +625,7 @@ private fun QuickSearchBar(
                         capitalization = androidx.compose.ui.text.input.KeyboardCapitalization.Characters
                     ),
                     singleLine = true,
-                    modifier = Modifier.width(72.dp).height(52.dp),
+                    modifier = Modifier.width(70.dp).height(52.dp),
                     shape = RoundedCornerShape(8.dp),
                     textStyle = fieldStyle,
                     colors = fieldColors
@@ -698,7 +643,7 @@ private fun QuickSearchBar(
                 }
             ) {
                 Row(
-                    Modifier.padding(horizontal = 8.dp, vertical = 7.dp),
+                    Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
@@ -739,8 +684,8 @@ private fun QuickSearchBar(
                     "Download records",
                     tint = when {
                         ui.isSyncing -> Color(0xFF1565C0)
-                        pendingDl    -> Color(0xFFD32F2F).copy(alpha = dlAlpha)
-                        else         -> Color(0xFF388E3C)
+                        pendingDl    -> Color(0xFF2E7D32).copy(alpha = dlAlpha)
+                        else         -> Color(0xFFD32F2F)
                     },
                     modifier = Modifier.size(21.dp)
                 )
