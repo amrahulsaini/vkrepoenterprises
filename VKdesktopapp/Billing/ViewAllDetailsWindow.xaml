@@ -62,7 +62,7 @@
 
         <DataGrid Grid.Row="2" Name="grid" Style="{StaticResource XlGrid}"
                   IsReadOnly="False" CellEditEnding="grid_CellEditEnding"
-                  SelectionUnit="CellOrRowHeader" CanUserSortColumns="False" FrozenColumnCount="2"
+                  SelectionUnit="CellOrRowHeader" CanUserSortColumns="False" FrozenColumnCount="3"
                   RowDetailsVisibilityMode="VisibleWhenSelected"
                   PreviewMouseLeftButtonDown="XlGrid_RowClick"
                   PreviewMouseRightButtonUp="Grid_RightClickCopy">
@@ -100,11 +100,22 @@
                             <TextBlock Text="{Binding CollectionUpdate}" Style="{StaticResource XlDetailValue}" />
                             <TextBlock Text="Remark" Style="{StaticResource XlDetailLabel}" />
                             <TextBlock Text="{Binding Remark}" Style="{StaticResource XlDetailValue}" />
+                            <TextBlock Text="Billing Remark" Style="{StaticResource XlDetailLabel}" />
+                            <TextBlock Text="{Binding BillingRemark}" Style="{StaticResource XlDetailValue}" />
                         </StackPanel>
                     </Border>
                 </DataTemplate>
             </DataGrid.RowDetailsTemplate>
             <DataGrid.Columns>
+                <DataGridTemplateColumn Header="Action" Width="120" MinWidth="110" CanUserResize="False" IsReadOnly="True">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <Button Content="Generate Bill" Height="26" Margin="4,2,4,2" Cursor="Hand"
+                                    Background="{StaticResource Accent}" Foreground="White" BorderThickness="0"
+                                    Click="btnGenerate_Click" Tag="{Binding Id}" />
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
                 <DataGridTextColumn Header="Repo Date" Binding="{Binding CreatedAt}" Width="120" MinWidth="90" IsReadOnly="True" ElementStyle="{StaticResource XlText}" />
                 <DataGridTemplateColumn Header="Vehicle / VIN" Width="130" MinWidth="90">
                     <DataGridTemplateColumn.CellTemplate>
@@ -131,6 +142,7 @@
                 <DataGridTextColumn Header="Addl Amt" Binding="{Binding AddlChargesAmount}" Width="90" MinWidth="70" ElementStyle="{StaticResource XlText}" />
                 <DataGridTextColumn Header="Collection Update" Binding="{Binding CollectionUpdate}" Width="160" MinWidth="100" ElementStyle="{StaticResource XlText}" />
                 <DataGridTextColumn Header="Remark" Binding="{Binding Remark}" Width="160" MinWidth="100" ElementStyle="{StaticResource XlText}" />
+                <DataGridTextColumn Header="Billing Remark" Binding="{Binding BillingRemark, UpdateSourceTrigger=PropertyChanged}" Width="180" MinWidth="110" ElementStyle="{StaticResource XlText}" />
                 <DataGridTextColumn Header="Executive Name" Binding="{Binding ExecutiveName}" Width="140" MinWidth="90" IsReadOnly="True" ElementStyle="{StaticResource XlText}" />
                 <DataGridTextColumn Header="Confirmation By (Name, Mobile)" Binding="{Binding ConfirmationBy}" Width="200" MinWidth="110" IsReadOnly="True" ElementStyle="{StaticResource XlText}" />
                 <DataGridTextColumn Header="Billing" Binding="{Binding ActionText}" Width="130" MinWidth="90" IsReadOnly="True" ElementStyle="{StaticResource XlText}" />
@@ -141,15 +153,6 @@
                             <Button Content="Change" Height="26" Margin="4,2,4,2" Cursor="Hand"
                                     Click="btnChangeAction_Click" Tag="{Binding Id}"
                                     ToolTip="Set OK for billing, Hold for collection or Cancel" />
-                        </DataTemplate>
-                    </DataGridTemplateColumn.CellTemplate>
-                </DataGridTemplateColumn>
-                <DataGridTemplateColumn Header="Action" Width="130" MinWidth="120" CanUserResize="False">
-                    <DataGridTemplateColumn.CellTemplate>
-                        <DataTemplate>
-                            <Button Content="Generate Bill" Height="26" Margin="4,2,4,2" Cursor="Hand"
-                                    Background="{StaticResource Accent}" Foreground="White" BorderThickness="0"
-                                    Click="btnGenerate_Click" Tag="{Binding Id}" />
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>

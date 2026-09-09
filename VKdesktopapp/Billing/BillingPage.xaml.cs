@@ -257,12 +257,22 @@ public partial class BillingPage : Page
         SetSubmissionFieldsReadOnly(false);
     }
 
+    private bool _cameFromViewAll;
+
     private void btnBack_Click(object sender, RoutedEventArgs e)
     {
+        if (_cameFromViewAll)
+        {
+            _cameFromViewAll = false;
+            OpenViewAll();
+            return;
+        }
         if (NavigationService?.CanGoBack == true) NavigationService.GoBack();
     }
 
-    private void btnViewAll_Click(object sender, RoutedEventArgs e)
+    private void btnViewAll_Click(object sender, RoutedEventArgs e) => OpenViewAll();
+
+    private void OpenViewAll()
     {
         var allowed = _session?.FinanceIds
             ?? (cmbFinance.ItemsSource as IEnumerable<FinanceOption>)?.Select(f => f.Id).ToList()
@@ -273,6 +283,7 @@ public partial class BillingPage : Page
 
     internal async Task LoadSubmission(DesktopApiClient.RepoSubmissionDto s)
     {
+        _cameFromViewAll = true;
         if (s.FinanceId is int fid && cmbFinance.ItemsSource is IEnumerable<FinanceOption> opts)
         {
             var match = opts.FirstOrDefault(o => o.Id == fid);

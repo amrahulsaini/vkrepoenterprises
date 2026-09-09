@@ -2370,16 +2370,8 @@ app.MapPost("/api/mgr/couriers/submissions/{id:long}/update", async (HttpContext
         {
             sets.Add("billing_action=@ba2");
             ps.Add(("@ba2", dto.BillingAction));
-            if (dto.BillingAction is "hold" or "collection_done")
-            {
-                sets.Add("bill_status='billed'");
-                sets.Add("billed_at=COALESCE(billed_at, NOW())");
-            }
-            else
-            {
-                sets.Add("bill_status = CASE WHEN invoice_no IS NOT NULL OR bill_file IS NOT NULL THEN bill_status ELSE 'pending' END");
-                sets.Add("billed_at = CASE WHEN invoice_no IS NOT NULL OR bill_file IS NOT NULL THEN billed_at ELSE NULL END");
-            }
+            sets.Add("bill_status = CASE WHEN invoice_no IS NOT NULL OR bill_file IS NOT NULL THEN bill_status ELSE 'pending' END");
+            sets.Add("billed_at = CASE WHEN invoice_no IS NOT NULL OR bill_file IS NOT NULL THEN billed_at ELSE NULL END");
         }
 
         await MgrExec($"UPDATE repo_submissions SET {string.Join(", ", sets)} WHERE id=@id",
@@ -2496,28 +2488,15 @@ app.MapPost("/api/mgr/billing/submissions/{id:long}/action", async (HttpContext 
     {
         await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
-        if (dto.BillingAction is "hold" or "collection_done")
-        {
-            await MgrExec(
-                @"UPDATE repo_submissions
-                     SET billing_action=@a,
-                         bill_status='billed',
-                         billed_at=COALESCE(billed_at, NOW())
-                   WHERE id=@id",
-                conn, 20, ("@a", dto.BillingAction), ("@id", id));
-        }
-        else
-        {
-            await MgrExec(
-                @"UPDATE repo_submissions
-                     SET billing_action=@a,
-                         bill_status = CASE WHEN invoice_no IS NOT NULL OR bill_file IS NOT NULL
-                                            THEN bill_status ELSE 'pending' END,
-                         billed_at   = CASE WHEN invoice_no IS NOT NULL OR bill_file IS NOT NULL
-                                            THEN billed_at ELSE NULL END
-                   WHERE id=@id",
-                conn, 20, ("@a", dto.BillingAction), ("@id", id));
-        }
+        await MgrExec(
+            @"UPDATE repo_submissions
+                 SET billing_action=@a,
+                     bill_status = CASE WHEN invoice_no IS NOT NULL OR bill_file IS NOT NULL
+                                        THEN bill_status ELSE 'pending' END,
+                     billed_at   = CASE WHEN invoice_no IS NOT NULL OR bill_file IS NOT NULL
+                                        THEN billed_at ELSE NULL END
+               WHERE id=@id",
+            conn, 20, ("@a", dto.BillingAction), ("@id", id));
         return Results.Ok(new { success = true });
     }
     catch (MySqlException dup) when (dup.Number == 1062)
@@ -2628,6 +2607,7 @@ app.MapPost("/api/mgr/billing/submissions/{id:long}/fields", async (HttpContext 
         if (dto.ConfirmationByName   != null) M("confirmation_by_name", dto.ConfirmationByName);
         if (dto.ConfirmationByMobile != null) M("confirmation_by_mobile", dto.ConfirmationByMobile);
         if (dto.ExecutiveName        != null) M("executive_name", dto.ExecutiveName);
+        if (dto.BillingRemark        != null) M("billing_remark", dto.BillingRemark);
 
         if (sets.Count == 0) return Results.Ok(new { success = true });
 
@@ -2813,7 +2793,8 @@ app.MapGet("/api/mgr/search/list", async (HttpContext ctx, string? q, string? mo
         const string lite = @"
             vr.id, vr.vehicle_no, vr.chassis_no, vr.model,
             b.name AS branch_name, COALESCE(f.name,'') AS financer,
-            COALESCE(DATE_FORMAT(vr.created_at,'%d %b %Y %h:%i %p'),'') AS created_on";
+            COALESCE(DATE_FORMAT(vr.created_at,'%d %b %Y %h:%i %p'),'') AS created_on,
+            COALESCE(vr.branch_name_raw,'') AS branch_name_raw";
         var sql = isChassis
             ? $@"SELECT {lite} FROM chassis_info ci
                  INNER JOIN vehicle_records vr ON vr.id = ci.vehicle_record_id
@@ -2840,7 +2821,8 @@ app.MapGet("/api/mgr/search/list", async (HttpContext ctx, string? q, string? mo
             {
                 Id = rdr.GetInt64(0).ToString(),
                 VehicleNo = S(1), ChassisNo = S(2), Model = S(3),
-                BranchName = S(4), Financer = S(5), CreatedOn = S(6)
+                BranchName = S(4), Financer = S(5), CreatedOn = S(6),
+                BranchFromExcel = S(7)
             });
         }
         return Results.Ok(results);
@@ -4499,7 +4481,8 @@ record MgrEditFieldsDto(
     string? VehicleNo = null, string? ChassisNo = null, string? Model = null, string? EngineNo = null,
     string? CollectionUpdate = null, string? Remark = null, decimal? AddlChargesAmount = null,
     string? ParkingYardMobile = null, string? LoadDetails = null, string? AddlChargesNotes = null,
-    string? ConfirmationByName = null, string? ConfirmationByMobile = null, string? ExecutiveName = null);
+    string? ConfirmationByName = null, string? ConfirmationByMobile = null, string? ExecutiveName = null,
+    string? BillingRemark = null);
 record MgrPaymentDto(
     string? AcctHolderName = null, string? BankName = null, string? BankAccountNo = null,
     string? IfscCode = null, string? UtrNo = null, string? PaymentDate = null,

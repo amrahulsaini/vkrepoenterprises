@@ -89,6 +89,7 @@ public partial class ViewAllDetailsWindow : Window
         public string AddlChargesAmount { get; set; } = "";
         public string CollectionUpdate { get; set; } = "";
         public string Remark { get; set; } = "";
+        public string BillingRemark { get; set; } = "";
 
         public string ActionText => Src.BillingAction switch
         {
@@ -125,7 +126,8 @@ public partial class ViewAllDetailsWindow : Window
             BranchName = (d.BranchName ?? "").ToUpperInvariant(),
             LoanNo = d.LoanNo, AgentName = d.AgentName, ParkingYardName = d.ParkingYardName,
             AddlChargesAmount = d.AddlChargesAmount?.ToString("0.##") ?? "",
-            CollectionUpdate = d.CollectionUpdate, Remark = d.Remark
+            CollectionUpdate = d.CollectionUpdate, Remark = d.Remark,
+            BillingRemark = d.BillingRemark
         };
     }
 
@@ -349,6 +351,7 @@ public partial class ViewAllDetailsWindow : Window
                 {
                     r.CustomerName, r.FinanceName, r.BranchName, r.LoanNo, r.AgentName,
                     r.ParkingYardName, r.VehicleNo, r.ChassisNo, r.CollectionUpdate, r.Remark,
+                    r.BillingRemark,
                     AddlChargesAmount = addl
                 });
                 txtStatus.Text = "Saved.";
