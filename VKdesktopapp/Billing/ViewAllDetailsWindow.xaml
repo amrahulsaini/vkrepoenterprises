@@ -133,6 +133,22 @@
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
+                <DataGridTemplateColumn Header="Billing Remark" Width="200" MinWidth="130" IsReadOnly="True">
+                    <DataGridTemplateColumn.HeaderStyle>
+                        <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource {x:Type DataGridColumnHeader}}">
+                            <Setter Property="Foreground" Value="#B26A00" />
+                        </Style>
+                    </DataGridTemplateColumn.HeaderStyle>
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <TextBox Text="{Binding BillingRemark, UpdateSourceTrigger=LostFocus, Mode=TwoWay}"
+                                     Height="26" Margin="4,2" Padding="6,0" VerticalContentAlignment="Center"
+                                     Background="#FFFDF2" BorderBrush="#E0B870" BorderThickness="1"
+                                     ToolTip="Type a billing remark and click away to save it"
+                                     LostFocus="BillingRemark_LostFocus" />
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
                 <DataGridTextColumn Header="Customer" Binding="{Binding CustomerName}" Width="160" MinWidth="90" ElementStyle="{StaticResource XlText}" />
                 <DataGridTextColumn Header="Finance" Binding="{Binding FinanceName}" Width="140" MinWidth="90" ElementStyle="{StaticResource XlText}" />
                 <DataGridTextColumn Header="Branch" Binding="{Binding BranchName}" Width="120" MinWidth="80" ElementStyle="{StaticResource XlText}" />
@@ -142,7 +158,6 @@
                 <DataGridTextColumn Header="Addl Amt" Binding="{Binding AddlChargesAmount}" Width="90" MinWidth="70" ElementStyle="{StaticResource XlText}" />
                 <DataGridTextColumn Header="Collection Update" Binding="{Binding CollectionUpdate}" Width="160" MinWidth="100" ElementStyle="{StaticResource XlText}" />
                 <DataGridTextColumn Header="Remark" Binding="{Binding Remark}" Width="160" MinWidth="100" ElementStyle="{StaticResource XlText}" />
-                <DataGridTextColumn Header="Billing Remark" Binding="{Binding BillingRemark, UpdateSourceTrigger=PropertyChanged}" Width="180" MinWidth="110" ElementStyle="{StaticResource XlText}" />
                 <DataGridTextColumn Header="Executive Name" Binding="{Binding ExecutiveName}" Width="140" MinWidth="90" IsReadOnly="True" ElementStyle="{StaticResource XlText}" />
                 <DataGridTextColumn Header="Confirmation By (Name, Mobile)" Binding="{Binding ConfirmationBy}" Width="200" MinWidth="110" IsReadOnly="True" ElementStyle="{StaticResource XlText}" />
                 <DataGridTextColumn Header="Billing" Binding="{Binding ActionText}" Width="130" MinWidth="90" IsReadOnly="True" ElementStyle="{StaticResource XlText}" />

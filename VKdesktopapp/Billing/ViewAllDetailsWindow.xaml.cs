@@ -310,7 +310,7 @@ public partial class ViewAllDetailsWindow : Window
             return;
         }
 
-        await _parent.LoadSubmission(row.Src);
+        await _parent.LoadSubmission(row.Src with { BillingRemark = row.BillingRemark ?? "" });
         Close();
     }
 
@@ -336,6 +336,24 @@ public partial class ViewAllDetailsWindow : Window
     }
 
     // Inline editing of the app-filled fields; saves the edited row to the server.
+    private async void BillingRemark_LostFocus(object sender, RoutedEventArgs e)
+    {
+        if (sender is not TextBox box || box.DataContext is not Row r) return;
+        var text = (box.Text ?? "").Trim();
+        if (text == (_lastSavedRemark.TryGetValue(r.Id, out var prev) ? prev : r.BillingRemark)) return;
+
+        try
+        {
+            await DesktopApiClient.UpdateSubmissionFieldsAsync(r.Id, new { BillingRemark = text });
+            _lastSavedRemark[r.Id] = text;
+            r.BillingRemark = text;
+            txtStatus.Text = "Billing remark saved.";
+        }
+        catch (Exception ex) { txtStatus.Text = "Save failed: " + ex.Message; }
+    }
+
+    private readonly Dictionary<long, string> _lastSavedRemark = new();
+
     private async void grid_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
     {
         if (e.EditAction != DataGridEditAction.Commit) return;
