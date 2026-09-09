@@ -117,8 +117,6 @@ public partial class BillingPage : Page
             : App.Firm.FirmName;
         txtAgencyRealName.Text = (_realAgencyName ?? "").ToUpperInvariant();
         txtInvoiceNo.IsReadOnly = true;
-        txtBranch.IsReadOnly = true;
-        txtBranch.Background = System.Windows.Media.Brushes.WhiteSmoke;
         RefreshCertStatus();
 
         try
@@ -336,8 +334,8 @@ public partial class BillingPage : Page
             b.IsReadOnly = ro;
             b.Background = ro ? System.Windows.Media.Brushes.WhiteSmoke : System.Windows.Media.Brushes.White;
         }
-        txtBranch.IsReadOnly = true;
-        txtBranch.Background = System.Windows.Media.Brushes.WhiteSmoke;
+        txtBranch.IsReadOnly = ro;
+        txtBranch.Background = ro ? System.Windows.Media.Brushes.WhiteSmoke : System.Windows.Media.Brushes.White;
     }
 
     private async Task SaveSubmissionEditsAsync(long submissionId)
@@ -413,7 +411,7 @@ public partial class BillingPage : Page
         txtCustomer.Text  = Up(rec.CustomerName);
         txtMakeModel.Text = Up(rec.Model);
         txtRcNo.Text      = Up(rec.VehicleNo);
-        txtBranch.Text    = Up(string.IsNullOrWhiteSpace(rec.BranchFromExcel) ? rec.BranchName : rec.BranchFromExcel);
+        txtBranch.Text    = Up(rec.BranchFromExcel);
     }
 
     private string BillFileName(string fallback)
