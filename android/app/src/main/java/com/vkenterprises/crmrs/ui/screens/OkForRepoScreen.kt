@@ -134,10 +134,29 @@ fun OkForRepoScreen(
     val paymentCamera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { ok ->
         if (ok) paymentCameraUri?.let { u -> paymentUri = u; paymentB64 = runCatching { compressImageToBase64(context, u) }.getOrNull() }
     }
+
+    var pendingCameraUripaymentCamera by remember { mutableStateOf<android.net.Uri?>(null) }
+    val camPermpaymentCamera = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        val target = pendingCameraUripaymentCamera
+        pendingCameraUripaymentCamera = null
+        if (granted && target != null) paymentCamera.launch(target)
+    }
+    fun launchCamerapaymentCamera(target: android.net.Uri) {
+        val ok = androidx.core.content.ContextCompat.checkSelfPermission(
+            context, android.Manifest.permission.CAMERA
+        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        if (ok) paymentCamera.launch(target)
+        else {
+            pendingCameraUripaymentCamera = target
+            camPermpaymentCamera.launch(android.Manifest.permission.CAMERA)
+        }
+    }
     if (showPaymentSource) {
         ImageSourceDialog(
             title = "Attach payment screenshot",
-            onCamera = { showPaymentSource = false; val u = createCameraImageUri(context); paymentCameraUri = u; paymentCamera.launch(u) },
+            onCamera = { showPaymentSource = false; val u = createCameraImageUri(context); paymentCameraUri = u; launchCamerapaymentCamera(u) },
             onGallery = { showPaymentSource = false; paymentGallery.launch("image/*") },
             onDismiss = { showPaymentSource = false }
         )

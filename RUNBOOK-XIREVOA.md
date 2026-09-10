@@ -94,7 +94,7 @@ sudo systemctl start vkapi
 sudo systemctl stop vkmobileapi; sudo rm -f /opt/vkmobileapi/VKmobileapi.pdb
 cd /home/vkapp/VKmobileapi && sudo /usr/bin/dotnet publish -c Release -o /opt/vkmobileapi --nologo -v quiet
 sudo cp /home/vkapp/db/.env.local /opt/vkmobileapi/db/.env.local
-sudo mkdir -p /opt/vkmobileapi/uploads/{pfp,kyc}; sudo chown -R www-data:www-data /opt/vkmobileapi/uploads
+sudo mkdir -p /opt/vkmobileapi/uploads/{pfp,kyc,confirm,repokits,ratelist}; sudo chown -R www-data:www-data /opt/vkmobileapi/uploads
 sudo systemctl start vkmobileapi
 ```
 

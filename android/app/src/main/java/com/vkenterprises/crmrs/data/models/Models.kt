@@ -89,7 +89,8 @@ data class AgencyInfo(
     val address: String = "",
     val mobiles: List<String> = emptyList(),
     val logoPath: String = "",
-    val letterheadPath: String = ""
+    val letterheadPath: String = "",
+    val watermarkPath: String = ""
 )
 
 data class SearchResult(
@@ -358,8 +359,58 @@ data class HeartbeatRequest(
 data class ConfirmCaptureRequest(
     val vehicleNo: String?,
     val chassisNo: String?,
-    val imageBase64: String,
-    val capturedAtIso: String
+    val imageBase64: String?,
+    val capturedAtIso: String,
+    val actionType: String? = null,
+    val channel: String? = null,
+    val customerName: String? = null,
+    val model: String? = null,
+    val engineNo: String? = null,
+    val agreementNo: String? = null,
+    val financer: String? = null,
+    val address: String? = null,
+    val mapLink: String? = null,
+    val loadDetails: String? = null,
+    val messageText: String? = null
+)
+
+data class ConfirmationLog(
+    val id: Long,
+    val vehicleNo: String?,
+    val chassisNo: String?,
+    val actionType: String = "confirm",
+    val channel: String = "whatsapp",
+    val customerName: String?,
+    val model: String?,
+    val engineNo: String?,
+    val agreementNo: String?,
+    val financer: String?,
+    val address: String?,
+    val mapLink: String?,
+    val loadDetails: String?,
+    val messageText: String?,
+    val imageUrl: String?,
+    val confirmedAt: String?
+)
+
+data class ConfirmationsResponse(
+    val success: Boolean = true,
+    val total: Int = 0,
+    val items: List<ConfirmationLog> = emptyList()
+)
+
+data class RateListItem(
+    val id: Long,
+    val title: String,
+    val kind: String = "file",
+    val notes: String?,
+    val financeId: Int?,
+    val financeName: String?,
+    val fileName: String?,
+    val fileSize: Long = 0,
+    val mime: String?,
+    val url: String?,
+    val createdAt: String?
 )
 
 data class IdCardResponse(
@@ -404,14 +455,16 @@ data class HeartbeatResponse(
     val isStopped: Boolean,
     val isBlacklisted: Boolean,
     val isActive: Boolean = true,
-    val found: Boolean = true
+    val found: Boolean = true,
+    val showFinanceName: Boolean = false
 )
 
 data class UserStatusResponse(
     val isStopped: Boolean,
     val isBlacklisted: Boolean,
     val isActive: Boolean = true,
-    val found: Boolean = true
+    val found: Boolean = true,
+    val showFinanceName: Boolean = false
 )
 
 data class LiveUser(

@@ -30,7 +30,8 @@ interface ApiService {
     @retrofit2.http.Multipart
     @POST("api/mobile/agency/letterhead")
     suspend fun uploadLetterhead(
-        @retrofit2.http.Part file: okhttp3.MultipartBody.Part
+        @retrofit2.http.Part file: okhttp3.MultipartBody.Part,
+        @retrofit2.http.Query("kind") kind: String = "letterhead"
     ): Response<Map<String, Any>>
 
     @POST("api/mobile/check-mobile")
@@ -233,6 +234,18 @@ interface ApiService {
         @Header("X-User-Id") userId: Long,
         @Body request: IdCardSubmitRequest
     ): Response<Map<String, Any>>
+
+    @GET("api/mobile/confirmations")
+    suspend fun getConfirmations(
+        @Header("X-User-Id") userId: Long,
+        @Query("from") from: String? = null,
+        @Query("to") to: String? = null
+    ): Response<ConfirmationsResponse>
+
+    @GET("api/mobile/ratelist")
+    suspend fun getRateList(
+        @Header("X-User-Id") userId: Long
+    ): Response<List<RateListItem>>
 
     @GET("api/mobile/repokits/head-offices")
     suspend fun searchRepoKitHeadOffices(

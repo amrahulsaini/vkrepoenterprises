@@ -154,7 +154,26 @@ public record ProfileResponse(
 
 public record ApiError(bool Success, string Message);
 
-public record UserStatusDto(bool IsActive, bool IsStopped, bool IsBlacklisted, bool Found = true);
+public record UserStatusDto(bool IsActive, bool IsStopped, bool IsBlacklisted,
+    bool Found = true, bool ShowFinanceName = false);
+
+public record ConfirmCaptureReq(
+    string? VehicleNo, string? ChassisNo, string? ImageBase64, string? CapturedAtIso,
+    string? ActionType = null, string? Channel = null, string? CustomerName = null,
+    string? Model = null, string? EngineNo = null, string? AgreementNo = null,
+    string? Financer = null, string? Address = null, string? MapLink = null,
+    string? LoadDetails = null, string? MessageText = null);
+
+public record ConfirmationLogDto(
+    long Id, string? VehicleNo, string? ChassisNo, string ActionType, string Channel,
+    string? CustomerName, string? Model, string? EngineNo, string? AgreementNo,
+    string? Financer, string? Address, string? MapLink, string? LoadDetails,
+    string? MessageText, string? ImageUrl, DateTime ConfirmedAt);
+
+public record RateListItemDto(
+    long Id, string Title, string Kind, string? Url, string? FilePath, string? FileName,
+    long FileSize, string? Mime, int? FinanceId, string? FinanceName,
+    string? Notes, DateTime CreatedAt);
 
 public record IdCardDto(
     string  Status,        // none | pending | approved | declined

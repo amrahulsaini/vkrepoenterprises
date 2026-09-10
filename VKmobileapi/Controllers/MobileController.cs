@@ -867,7 +867,7 @@ public class MobileController : ControllerBase
         try
         {
             var status = await _repo.GetUserStatusAsync(userId);
-            return Ok(new { isStopped = status.IsStopped, isBlacklisted = status.IsBlacklisted, isActive = status.IsActive, found = status.Found });
+            return Ok(new { isStopped = status.IsStopped, isBlacklisted = status.IsBlacklisted, isActive = status.IsActive, found = status.Found, showFinanceName = status.ShowFinanceName });
         }
         catch (Exception ex)
         {
@@ -898,7 +898,8 @@ public class MobileController : ControllerBase
             await _repo.HeartbeatAsync(req.UserId, req.Lat, req.Lng);
             var status = await _repo.GetUserStatusAsync(req.UserId);
             return Ok(new {
-                success       = true,
+                success         = true,
+                showFinanceName = status.ShowFinanceName,
                 isStopped     = status.IsStopped,
                 isBlacklisted = status.IsBlacklisted,
                 isActive      = status.IsActive,
@@ -1057,8 +1058,7 @@ public class MobileController : ControllerBase
     {
         try
         {
-            if (req == null || string.IsNullOrWhiteSpace(req.ImageBase64))
-                return BadRequest(new ApiError(false, "A photo is required."));
+            if (req == null) return BadRequest(new ApiError(false, "Nothing to log."));
 
             var status = await _repo.GetUserStatusAsync(userId);
             if (status.IsBlacklisted) return StatusCode(403, new ApiError(false, "blacklisted"));
@@ -1072,14 +1072,52 @@ public class MobileController : ControllerBase
                     out var capturedAt))
                 capturedAt = DateTime.UtcNow;
 
-            var rel = await _repo.SaveConfirmCaptureAsync(
-                userId, req.VehicleNo, req.ChassisNo, req.ImageBase64, capturedAt);
-            if (rel == null) return BadRequest(new ApiError(false, "Could not save the photo."));
+            var rel = await _repo.LogConfirmationAsync(userId, req, capturedAt);
             return Ok(new { success = true, imageUrl = AbsUrl(rel) });
         }
         catch (Exception ex)
         {
             return StatusCode(500, new ApiError(false, $"Save failed: {ex.Message}"));
+        }
+    }
+
+    [HttpGet("confirmations")]
+    public async Task<IActionResult> GetConfirmations(
+        [FromHeader(Name = "X-User-Id")] long userId,
+        [FromQuery] string? from, [FromQuery] string? to)
+    {
+        try
+        {
+            static DateTime? Day(string? s) =>
+                DateTime.TryParse(s, System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.None, out var d) ? d.Date : null;
+
+            var rows = await _repo.GetConfirmationsAsync(userId, Day(from), Day(to));
+            var items = rows.Select(r => r with { ImageUrl = AbsUrl(r.ImageUrl) }).ToList();
+            return Ok(new { success = true, total = items.Count, items });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new ApiError(false, $"Fetch failed: {ex.Message}"));
+        }
+    }
+
+    [HttpGet("ratelist")]
+    public async Task<IActionResult> GetRateList([FromHeader(Name = "X-User-Id")] long userId)
+    {
+        try
+        {
+            var rows = await _repo.GetRateListAsync();
+            return Ok(rows.Select(r => new
+            {
+                r.Id, r.Title, r.Kind, r.Notes, r.FinanceId, r.FinanceName,
+                r.FileName, r.FileSize, r.Mime, r.CreatedAt,
+                Url = r.Kind == "link" ? r.Url : AbsUrl(r.FilePath),
+            }));
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new ApiError(false, $"Fetch failed: {ex.Message}"));
         }
     }
 
@@ -1354,9 +1392,6 @@ public record KycResubmitReq(
     string? AadhaarNumber, string? AadhaarName, string? AadhaarDob,
     string? AadhaarGender, string? AadhaarAddress, bool AadhaarVerified = false,
     double? RegLat = null, double? RegLng = null, string? RegLocation = null);
-
-public record ConfirmCaptureReq(
-    string? VehicleNo, string? ChassisNo, string? ImageBase64, string? CapturedAtIso);
 
 public record IdCardSubmitReq(
     string? PhotoBase64, string? PccBase64, string? DraBase64,

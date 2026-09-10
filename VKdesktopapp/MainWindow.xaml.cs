@@ -99,6 +99,7 @@ public partial class MainWindow : Window
             case "Users": LoadPage(_appUsersManagerPage); break;
             case "IdCards": LoadPage(new AppUsers.IdCardsManagerPage()); break;
             case "RepoKits": LoadPage(new AppUsers.RepoKitsManagerPage()); break;
+            case "RateList": LoadPage(new AppUsers.RateListManagerPage()); break;
             case "Confirmations": LoadPage(_confirmationsPage); break;
             case "Reports": LoadPage(_reportsPage); break;
             case "DirectData": LoadPage(_directDataPage); break;
@@ -228,6 +229,7 @@ public partial class MainWindow : Window
             case "Users": LoadPage(_appUsersManagerPage); break;
             case "IdCards": LoadPage(new AppUsers.IdCardsManagerPage()); break;
             case "RepoKits": LoadPage(new AppUsers.RepoKitsManagerPage()); break;
+            case "RateList": LoadPage(new AppUsers.RateListManagerPage()); break;
             case "UploadRecords": OpenRecordsEditor(); break;
             case "DetailsViews": LoadPage(_detailsViewsPage); break;
             case "Confirmations": LoadPage(_confirmationsPage); break;

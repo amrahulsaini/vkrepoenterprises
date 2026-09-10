@@ -23,6 +23,8 @@ public partial class AppUsersManagerPage : Page
     private ObservableCollection<AppUserListItem> _allUsers = new();
     private AppUserListItem? _selectedUser;
     private bool _suppressStopToggle;
+    private bool _suppressFinanceToggle;
+    private bool _suppressConfirmRange;
 
     public AppUsersManagerPage()
     {
@@ -117,6 +119,16 @@ public partial class AppUsersManagerPage : Page
         lblStopStatus.Text   = user.IsStopped ? "Stopped" : "Running";
         _suppressStopToggle  = false;
 
+        _suppressFinanceToggle = true;
+        tglShowFinance.IsChecked = user.ShowFinanceName;
+        lblShowFinance.Text      = user.ShowFinanceName ? "Shown" : "Hidden";
+        _suppressFinanceToggle   = false;
+
+        _suppressConfirmRange = true;
+        dpConfirmFrom.SelectedDate = DateTime.Today.AddDays(-29);
+        dpConfirmTo.SelectedDate   = DateTime.Today;
+        _suppressConfirmRange = false;
+
         pnlEmpty.Visibility   = Visibility.Collapsed;
         pnlProfile.Visibility = Visibility.Visible;
         btnUserActions.Visibility = Visibility.Visible;
@@ -126,6 +138,7 @@ public partial class AppUsersManagerPage : Page
         await Task.WhenAll(
             LoadSubscriptionsAsync(user.Id),
             LoadFinanceRestrictionsAsync(user.Id),
+            LoadConfirmationsAsync(user.Id),
             LoadKycAsync(user.Id));
     }
 
@@ -310,6 +323,88 @@ public partial class AppUsersManagerPage : Page
         if (c != MessageBoxResult.Yes) return;
         try { await _repo.DeleteUserAsync(_selectedUser.Id); _selectedUser = null; pnlProfile.Visibility = Visibility.Collapsed; btnUserActions.Visibility = Visibility.Collapsed; pnlEmpty.Visibility = Visibility.Visible; txtRightTitle.Text = "Select a user"; await LoadUsersAsync(); }
         catch (Exception ex) { MessageBox.Show(ex.Message, "Delete User", MessageBoxButton.OK, MessageBoxImage.Error); }
+    }
+
+    // ── Confirmations ────────────────────────────────────────────────────────
+    private async Task LoadConfirmationsAsync(long userId)
+    {
+        try
+        {
+            var r = await DesktopApiClient.GetUserConfirmationsAsync(
+                userId, dpConfirmFrom.SelectedDate, dpConfirmTo.SelectedDate);
+            if (_selectedUser?.Id != userId) return;
+
+            icConfirmations.ItemsSource = r.Items;
+            txtConfirmCount.Text = r.Total.ToString("N0");
+            txtConfirmCountLabel.Text =
+                dpConfirmFrom.SelectedDate == null && dpConfirmTo.SelectedDate == null
+                    ? "all time" : "in range";
+            txtConfirmGrandTotal.Text = $"{r.GrandTotal:N0} sent in total";
+            txtConfirmEmpty.Visibility = r.Items.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        }
+        catch (Exception ex)
+        {
+            icConfirmations.ItemsSource = null;
+            txtConfirmCount.Text = "—";
+            txtConfirmGrandTotal.Text = ex.Message;
+            txtConfirmEmpty.Visibility = Visibility.Visible;
+        }
+    }
+
+    private async void ConfirmRange_Changed(object sender, SelectionChangedEventArgs e)
+    {
+        if (_suppressConfirmRange || _selectedUser == null) return;
+        await LoadConfirmationsAsync(_selectedUser.Id);
+    }
+
+    private async void btnConfirmAll_Click(object sender, RoutedEventArgs e)
+    {
+        if (_selectedUser == null) return;
+        _suppressConfirmRange = true;
+        dpConfirmFrom.SelectedDate = null;
+        dpConfirmTo.SelectedDate   = null;
+        _suppressConfirmRange = false;
+        await LoadConfirmationsAsync(_selectedUser.Id);
+    }
+
+    private void ConfirmPhoto_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button { Tag: string url } && !string.IsNullOrWhiteSpace(url))
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true });
+    }
+
+    private void ConfirmList_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+    {
+        if (sender is ScrollViewer sv && sv.ScrollableHeight > 0)
+        {
+            sv.ScrollToVerticalOffset(sv.VerticalOffset - e.Delta);
+            e.Handled = true;
+        }
+    }
+
+    // ── Display finance name ─────────────────────────────────────────────────
+    private async void ShowFinanceToggle_Checked(object sender, RoutedEventArgs e)
+        => await SetShowFinanceAsync(true);
+
+    private async void ShowFinanceToggle_Unchecked(object sender, RoutedEventArgs e)
+        => await SetShowFinanceAsync(false);
+
+    private async Task SetShowFinanceAsync(bool show)
+    {
+        if (_suppressFinanceToggle || _selectedUser == null) return;
+        try
+        {
+            await DesktopApiClient.SetShowFinanceNameAsync(_selectedUser.Id, show);
+            _selectedUser.ShowFinanceName = show;
+            lblShowFinance.Text = show ? "Shown" : "Hidden";
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(ex.Message, "Display Finance Name", MessageBoxButton.OK, MessageBoxImage.Error);
+            _suppressFinanceToggle = true;
+            tglShowFinance.IsChecked = !show;
+            _suppressFinanceToggle = false;
+        }
     }
 
     private void pnlProfile_PreviewMouseWheel(object sender, System.Windows.Input.MouseWheelEventArgs e)

@@ -28,7 +28,10 @@ object AuthorityLetterPdf {
         val engineNo: String,
         val authorizedExecutive: String,
         val executiveId: String,
-        val letterhead: Bitmap? = null
+        val validFrom: String = "",
+        val validTo: String = "",
+        val letterhead: Bitmap? = null,
+        val watermark: Bitmap? = null
     )
 
     private const val PAGE_W = 595
@@ -72,6 +75,17 @@ object AuthorityLetterPdf {
             style = Paint.Style.STROKE; strokeWidth = 0.8f; color = 0xFF000000.toInt()
         }
 
+        d.watermark?.let { bmp ->
+            if (bmp.width > 0 && bmp.height > 0) {
+                val w = (PAGE_W * 0.78f)
+                val h = bmp.height * (w / bmp.width)
+                val left = (PAGE_W - w) / 2f
+                val top  = (PAGE_H - h) / 2f
+                canvas.drawBitmap(bmp, null, RectF(left, top, left + w, top + h),
+                    Paint().apply { alpha = 62 })
+            }
+        }
+
         var y = MARGIN
 
         d.letterhead?.let { bmp ->
@@ -104,13 +118,13 @@ object AuthorityLetterPdf {
             "Bank / NBFC" to d.bankNbfc,
             "Borrower Name" to d.borrowerName,
             "Chassis No" to d.chassisNo,
-            "Authorized Executive" to d.authorizedExecutive
+            "Authorized Executive" to d.authorizedExecutive.ifBlank { "" }
         )
         val rightRows = listOf(
             "Loan A/c No" to d.loanAcNo,
             "Vehicle No" to d.vehicleNo,
             "Engine No" to d.engineNo,
-            "Executive ID" to d.executiveId
+            "Executive ID" to d.executiveId.ifBlank { "" }
         )
         leftRows.forEachIndexed { i, pair ->
             val ry = boxTop + i * 20f
@@ -137,7 +151,9 @@ object AuthorityLetterPdf {
         }
 
         y += 14f
-        canvas.drawText("Validity:  From ______________   To ______________", MARGIN, y + 8f, bold)
+        val vFrom = d.validFrom.ifBlank { "______________" }
+        val vTo   = d.validTo.ifBlank { "______________" }
+        canvas.drawText("Validity:  From " + vFrom + "   To " + vTo, MARGIN, y + 8f, bold)
         canvas.drawText("For " + d.agencyName, PAGE_W - MARGIN - 170f, y + 8f, bold)
         y += 48f
         canvas.drawText("Authorized Signatory", PAGE_W - MARGIN - 170f, y, bold)

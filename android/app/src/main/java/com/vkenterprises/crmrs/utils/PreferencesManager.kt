@@ -26,6 +26,7 @@ class PreferencesManager(private val context: Context) {
         val KEY_SHOW_HYPHENS   = booleanPreferencesKey("show_hyphens")
         val KEY_TWO_COLUMN     = booleanPreferencesKey("two_column_view")
         val KEY_ONLINE_ONLY    = booleanPreferencesKey("online_only")
+        val KEY_SHOW_FINANCE   = booleanPreferencesKey("show_finance_name")
     }
 
     val showHyphens: Flow<Boolean> = context.dataStore.data
@@ -68,6 +69,15 @@ class PreferencesManager(private val context: Context) {
 
     val isAdmin: Flow<Boolean> = context.dataStore.data
         .map { it[KEY_IS_ADMIN] ?: false }
+
+    // Set by the office from the desktop app; decides whether the vehicle
+    // detail screen fills in the Finance line or leaves it blank.
+    val showFinanceName: Flow<Boolean> = context.dataStore.data
+        .map { it[KEY_SHOW_FINANCE] ?: false }
+
+    suspend fun setShowFinanceName(v: Boolean) {
+        context.dataStore.edit { prefs -> prefs[KEY_SHOW_FINANCE] = v }
+    }
 
     val subscriptionEnd: Flow<String?> = context.dataStore.data
         .map { it[KEY_SUB_END] }

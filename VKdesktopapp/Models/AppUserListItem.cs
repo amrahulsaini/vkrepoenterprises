@@ -19,6 +19,7 @@ public class AppUserListItem
     public int?     BillingDemand   { get; set; }
     public int?     BillingTarget   { get; set; }
     public int      BilledThisMonth { get; set; }
+    public bool     ShowFinanceName { get; set; }
 
     public string DemandDisplay => BillingDemand?.ToString() ?? "";
     public string TargetDisplay => BillingTarget?.ToString() ?? "";

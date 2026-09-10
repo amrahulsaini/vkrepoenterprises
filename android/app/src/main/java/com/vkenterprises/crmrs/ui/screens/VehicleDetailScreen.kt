@@ -153,6 +153,7 @@ fun VehicleDetailScreen(
     val agentName  by authVm.userName.collectAsState(initial = "")
     val agentPhone by authVm.userMobile.collectAsState(initial = "")
     val isAdmin    by authVm.isAdmin.collectAsState(initial = false)
+    val showFinanceName by authVm.showFinanceName.collectAsState(initial = false)
     val context    = LocalContext.current
 
     val imeVisible = WindowInsets.isImeVisible
@@ -525,7 +526,7 @@ fun VehicleDetailScreen(
                         showHyphens       = ui.showHyphens
                     )
                 } else {
-                    BasicDetailView(item = detailRecord ?: item, agentName = agentName, agentPhone = agentPhone, showHyphens = ui.showHyphens)
+                    BasicDetailView(item = detailRecord ?: item, agentName = agentName, agentPhone = agentPhone, showHyphens = ui.showHyphens, showFinanceName = showFinanceName)
                     Button(
                         onClick = {
                             searchVm.setActionType("confirm")
@@ -818,7 +819,13 @@ private fun AdminDetailView(
 
 
 @Composable
-private fun BasicDetailView(item: SearchResult, agentName: String, agentPhone: String, showHyphens: Boolean) {
+private fun BasicDetailView(
+    item: SearchResult,
+    agentName: String,
+    agentPhone: String,
+    showHyphens: Boolean,
+    showFinanceName: Boolean
+) {
     var agencyInfo by remember { mutableStateOf<AgencyInfo?>(null) }
     LaunchedEffect(Unit) {
         runCatching {
@@ -849,6 +856,11 @@ private fun BasicDetailView(item: SearchResult, agentName: String, agentPhone: S
             DetailRow("Engine No",     item.engineNo,     alwaysShow = true, upper = true)
             DetailRow("Model / Make",  item.model,        alwaysShow = true, upper = true)
             DetailRow("Customer Name", item.customerName, alwaysShow = true, upper = true)
+            // The office decides per agent whether the head office is named here;
+            // with it off the row still shows, blank, so the layout never shifts.
+            DetailRow("Finance",
+                if (showFinanceName) item.financer.orEmpty() else "",
+                alwaysShow = true, upper = true)
 
             Spacer(Modifier.height(6.dp))
             Text("Agency",

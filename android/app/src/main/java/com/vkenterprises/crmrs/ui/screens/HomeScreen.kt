@@ -73,6 +73,7 @@ fun HomeScreen(
     val ui          by searchVm.ui.collectAsState()
     val userId      by authVm.userId.collectAsState(initial = -1L)
     val isAdmin     by authVm.isAdmin.collectAsState(initial = false)
+    var confirmCount by remember { mutableStateOf(0) }
     val kickReason  by authVm.kickReason.collectAsState()
     val agencyLogo  by authVm.agencyLogo.collectAsState(initial = null)
     val subEnd      by authVm.subscriptionEnd.collectAsState(initial = null)
@@ -94,6 +95,13 @@ fun HomeScreen(
     LaunchedEffect(Unit) {
         runCatching { com.vkenterprises.crmrs.data.api.ApiClient.api.getAgencyInfo() }
             .getOrNull()?.takeIf { it.isSuccessful }?.body()?.let { agencyInfo = it }
+    }
+
+    LaunchedEffect(userId) {
+        if (userId <= 0L) return@LaunchedEffect
+        authVm.refreshFinanceFlag()
+        runCatching { com.vkenterprises.crmrs.data.api.ApiClient.api.getConfirmations(userId) }
+            .getOrNull()?.takeIf { it.isSuccessful }?.body()?.let { confirmCount = it.total }
     }
 
     val dynAgencyName    = agencyInfo?.name?.takeIf { it.isNotBlank() } ?: BuildConfig.AGENCY_NAME
@@ -536,6 +544,7 @@ fun HomeScreen(
                     subEndDate    = subEnd,
                     offlineCount  = ui.offlineCount,
                     isAdmin       = isAdmin,
+                    confirmCount  = confirmCount,
                     syncHasUpdates = ui.syncHasUpdates,
                     isSyncing      = ui.isSyncing,
                     syncCurrent    = ui.syncCurrent,
@@ -563,6 +572,7 @@ private fun AgencyLandingPanel(
     subEndDate: String?,
     offlineCount: Long,
     isAdmin: Boolean,
+    confirmCount: Int,
     syncHasUpdates: Boolean,
     isSyncing: Boolean,
     syncCurrent: Long,
@@ -870,13 +880,31 @@ private fun AgencyLandingPanel(
                 accent   = Color(0xFF00897B),
                 modifier = Modifier.weight(1f)
             ) { nav.navigate(Screen.RepoKits.route) }
-            GridTile(
-                label    = "AUTHORIZATION LETTER",
-                icon     = Icons.Default.Description,
-                subtitle = "Search a vehicle and download",
-                accent   = Color(0xFF00695C),
+            ConfirmationsTile(
+                count    = confirmCount,
                 modifier = Modifier.weight(1f)
-            ) { nav.navigate(Screen.AuthorityLetter.route) }
+            ) { nav.navigate(Screen.Confirmations.route) }
+        }
+        Spacer(Modifier.height(10.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            GridTile(
+                label    = "RATE LIST",
+                icon     = Icons.Default.Assignment,
+                subtitle = "Rates, links and attachments",
+                accent   = Color(0xFF3F51B5),
+                modifier = Modifier.weight(1f)
+            ) { nav.navigate(Screen.RateList.route) }
+            if (isAdmin) {
+                GridTile(
+                    label    = "AUTHORIZATION LETTER",
+                    icon     = Icons.Default.Description,
+                    subtitle = "Search a vehicle and download",
+                    accent   = Color(0xFF00695C),
+                    modifier = Modifier.weight(1f)
+                ) { nav.navigate(Screen.AuthorityLetter.route) }
+            } else {
+                Spacer(Modifier.weight(1f))
+            }
         }
         Spacer(Modifier.height(16.dp))
         RbiGuidelinesCard()
@@ -913,6 +941,45 @@ private fun AgencyLandingPanel(
             modifier = Modifier.height(34.dp)
         )
         Spacer(Modifier.height(12.dp))
+    }
+}
+
+@Composable
+private fun ConfirmationsTile(
+    count: Int,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    Card(
+        onClick = onClick,
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFFBEB)),
+        border = androidx.compose.foundation.BorderStroke(2.dp, Color(0xFFF59E0B)),
+        elevation = CardDefaults.cardElevation(2.dp),
+        modifier = modifier
+    ) {
+        Column(Modifier.padding(14.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.MarkChatRead, null,
+                    tint = Color(0xFFB45309), modifier = Modifier.size(22.dp))
+                Spacer(Modifier.weight(1f))
+                Text(
+                    count.toString(),
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = Color(0xFFB45309)
+                )
+            }
+            Spacer(Modifier.height(8.dp))
+            Text("CONFIRMATIONS",
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.ExtraBold,
+                color = Color(0xFF78350F),
+                letterSpacing = 0.4.sp)
+            Text("Every vehicle you confirmed",
+                style = MaterialTheme.typography.labelSmall,
+                color = Color(0xFF92400E))
+        }
     }
 }
 

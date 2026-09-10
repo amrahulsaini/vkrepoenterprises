@@ -178,6 +178,16 @@ fun VKNavHost() {
             RepoKitsScreen(authVm, navController)
         }
 
+        composable(Screen.Confirmations.route) {
+            ConfirmationsScreen(authVm, navController)
+        }
+        composable(Screen.RateList.route) {
+            RateListScreen(authVm, navController)
+        }
+        composable(Screen.AuthorityLetter.route) {
+            AuthorityLetterScreen(searchVm, authVm, navController)
+        }
+
         composable(Screen.Fingerprint.route) {
             val api = com.vkenterprises.crmrs.data.api.ApiClient.api
             FingerprintScreen(api = api, onBack = { navController.popBackStack() })

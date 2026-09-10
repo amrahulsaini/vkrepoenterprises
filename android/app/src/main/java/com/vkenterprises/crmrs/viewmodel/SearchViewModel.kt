@@ -46,6 +46,8 @@ data class SearchUiState(
     val syncCompleted: Boolean        = false,
     val syncPaused: Boolean           = false,
     val offlineNotice: Boolean        = false,
+    val letterResults: List<SearchResult> = emptyList(),
+    val letterSearching: Boolean      = false,
     val onlineOnly: Boolean           = true,
     val showHyphens: Boolean          = true,
     val twoColumnView: Boolean        = true,
@@ -119,6 +121,31 @@ class SearchViewModel @Inject constructor(
                 refreshOfflineCount()
             }
         }
+    }
+
+    fun searchForLetter(q: String, userId: Long) {
+        if (q.isBlank()) {
+            _ui.update { it.copy(letterResults = emptyList(), letterSearching = false) }
+            return
+        }
+        viewModelScope.launch {
+            _ui.update { it.copy(letterSearching = true) }
+            val local = localSearch(q, SearchMode.RC, "")
+            var rows = local.first
+            if (rows.isEmpty() && hasNetwork()) {
+                val r = runCatching {
+                    withContext(Dispatchers.IO) { serverRepo.searchRc(q, userId) }
+                }.getOrNull()
+                if (r is SearchResult2.Success) {
+                    rows = r.data.filter { it.vehicleNo.isValidRc() }.bestPerVehicle(SearchMode.RC)
+                }
+            }
+            _ui.update { it.copy(letterResults = rows, letterSearching = false) }
+        }
+    }
+
+    fun clearLetterResults() {
+        _ui.update { it.copy(letterResults = emptyList(), letterSearching = false) }
     }
 
     fun refreshSyncStatus() {

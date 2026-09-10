@@ -923,6 +923,7 @@ app.MapGet("/api/mgr/users", async (HttpContext ctx) =>
                    u.created_at,
                    (SELECT MAX(s.end_date) FROM subscriptions s WHERE s.user_id = u.id) AS sub_end,
                    COALESCE(u.is_stopped,0), COALESCE(u.is_blacklisted,0),
+                   COALESCE(u.show_finance_name,0),
                    (SELECT bt.demand FROM user_billing_targets bt
                      WHERE bt.user_id=u.id AND bt.year=YEAR(CURDATE()) AND bt.month=MONTH(CURDATE())) AS billing_demand,
                    (SELECT bt.target FROM user_billing_targets bt
@@ -965,9 +966,10 @@ app.MapGet("/api/mgr/users", async (HttpContext ctx) =>
                     subEndDate    = rdr.IsDBNull(11) ? null : rdr.GetDateTime(11).ToString("yyyy-MM-dd"),
                     isStopped     = rdr.GetBoolean(12),
                     isBlacklisted = rdr.GetBoolean(13),
-                    billingDemand = rdr.IsDBNull(14) ? (int?)null : Convert.ToInt32(rdr.GetValue(14)),
-                    billingTarget = rdr.IsDBNull(15) ? (int?)null : Convert.ToInt32(rdr.GetValue(15)),
-                    billedThisMonth = rdr.IsDBNull(16) ? 0 : Convert.ToInt32(rdr.GetValue(16)),
+                    showFinanceName = rdr.GetBoolean(14),
+                    billingDemand = rdr.IsDBNull(15) ? (int?)null : Convert.ToInt32(rdr.GetValue(15)),
+                    billingTarget = rdr.IsDBNull(16) ? (int?)null : Convert.ToInt32(rdr.GetValue(16)),
+                    billedThisMonth = rdr.IsDBNull(17) ? 0 : Convert.ToInt32(rdr.GetValue(17)),
                 });
             }
         }
@@ -1863,6 +1865,210 @@ app.MapPost("/api/mgr/id-cards/{id:long}/decline", async (HttpContext ctx, long 
         cmd.Parameters.AddWithValue("@id", id);
         var n = await cmd.ExecuteNonQueryAsync();
         if (n == 0) return Results.NotFound(new { message = "No ID-card request for this user." });
+        return Results.Ok(new { success = true });
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+app.MapMethods("/api/mgr/users/{id:long}/show-finance", new[] { "PATCH" }, async (HttpContext ctx, long id, MgrSetShowFinanceDto dto) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        await using var conn = new MySqlConnection(TenantContext.Conn);
+        await conn.OpenAsync();
+        await MgrExec("UPDATE app_users SET show_finance_name=@v WHERE id=@id", conn, 10,
+            ("@v", dto.Show ? 1 : 0), ("@id", id));
+        return Results.Ok(new { success = true });
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+// One agent's confirmation log. `from`/`to` are inclusive yyyy-MM-dd days; both
+// optional, so an empty range means everything the agent has ever sent.
+app.MapGet("/api/mgr/users/{id:long}/confirmations", async (HttpContext ctx, long id, string? from, string? to) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        static DateTime? Day(string? v) =>
+            DateTime.TryParse(v, System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.None, out var d) ? d.Date : null;
+        var dFrom = Day(from);
+        var dTo   = Day(to);
+
+        await using var conn = new MySqlConnection(TenantContext.Conn);
+        await conn.OpenAsync();
+
+        var where = new List<string> { "user_id=@uid" };
+        if (dFrom.HasValue) where.Add("DATE(COALESCE(captured_at, created_at)) >= @from");
+        if (dTo.HasValue)   where.Add("DATE(COALESCE(captured_at, created_at)) <= @to");
+        var clause = string.Join(" AND ", where);
+
+        long grandTotal = 0;
+        await using (var cnt = new MySqlCommand(
+            "SELECT COUNT(*) FROM confirm_captures WHERE user_id=@uid", conn) { CommandTimeout = 15 })
+        {
+            cnt.Parameters.AddWithValue("@uid", id);
+            grandTotal = Convert.ToInt64(await cnt.ExecuteScalarAsync() ?? 0L);
+        }
+
+        string baseUrl = $"{ctx.Request.Scheme}://{ctx.Request.Host}";
+        var items = new List<object>();
+        await using (var cmd = new MySqlCommand($@"
+            SELECT id, vehicle_no, chassis_no, action_type, channel, customer_name, model,
+                   engine_no, agreement_no, financer, address, map_link, load_details,
+                   message_text, image_path, COALESCE(captured_at, created_at)
+            FROM confirm_captures
+            WHERE {clause}
+            ORDER BY COALESCE(captured_at, created_at) DESC
+            LIMIT 2000", conn) { CommandTimeout = 30 })
+        {
+            cmd.Parameters.AddWithValue("@uid", id);
+            if (dFrom.HasValue) cmd.Parameters.AddWithValue("@from", dFrom.Value);
+            if (dTo.HasValue)   cmd.Parameters.AddWithValue("@to",   dTo.Value);
+            await using var r = await cmd.ExecuteReaderAsync();
+            string? S(int i) => r.IsDBNull(i) ? null : r.GetString(i);
+            while (await r.ReadAsync())
+            {
+                var img = S(14);
+                items.Add(new
+                {
+                    id           = r.GetInt64(0),
+                    vehicleNo    = S(1),
+                    chassisNo    = S(2),
+                    actionType   = S(3) ?? "confirm",
+                    channel      = S(4) ?? "whatsapp",
+                    customerName = S(5),
+                    model        = S(6),
+                    engineNo     = S(7),
+                    agreementNo  = S(8),
+                    financer     = S(9),
+                    address      = S(10),
+                    mapLink      = S(11),
+                    loadDetails  = S(12),
+                    messageText  = S(13),
+                    imageUrl     = string.IsNullOrEmpty(img) ? null : $"{baseUrl}/uploads/{img.TrimStart('/')}",
+                    confirmedAt  = r.GetDateTime(15),
+                });
+            }
+        }
+        return Results.Ok(new { total = items.Count, grandTotal, items });
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+app.MapGet("/api/mgr/ratelist", async (HttpContext ctx) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        await using var conn = new MySqlConnection(TenantContext.Conn);
+        await conn.OpenAsync();
+        await using var cmd = new MySqlCommand(@"
+            SELECT r.id, r.title, r.kind, r.url, r.file_path, r.file_name, r.file_size,
+                   r.mime, r.finance_id, f.name, r.notes, r.created_at
+            FROM rate_lists r
+            LEFT JOIN finances f ON f.id = r.finance_id
+            ORDER BY r.created_at DESC", conn) { CommandTimeout = 20 };
+        string baseUrl = $"{ctx.Request.Scheme}://{ctx.Request.Host}";
+        var list = new List<object>();
+        await using var r = await cmd.ExecuteReaderAsync();
+        string? S(int i) => r.IsDBNull(i) ? null : r.GetString(i);
+        while (await r.ReadAsync())
+        {
+            var kind = S(2) ?? "file";
+            var rel  = S(4);
+            list.Add(new
+            {
+                id          = r.GetInt64(0),
+                title       = S(1) ?? "",
+                kind,
+                notes       = S(10),
+                financeId   = r.IsDBNull(8) ? (int?)null : r.GetInt32(8),
+                financeName = S(9),
+                fileName    = S(5),
+                fileSize    = r.GetInt64(6),
+                mime        = S(7),
+                url         = kind == "link"
+                                ? S(3)
+                                : (string.IsNullOrEmpty(rel) ? null : $"{baseUrl}/uploads/{rel.TrimStart('/')}"),
+                createdAt   = r.GetDateTime(11),
+            });
+        }
+        return Results.Ok(list);
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+app.MapPost("/api/mgr/ratelist", async (HttpContext ctx, MgrRateListDto dto) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    var title = dto.Title?.Trim();
+    if (string.IsNullOrWhiteSpace(title))
+        return Results.BadRequest(new { message = "A title is required." });
+
+    var isLink = string.Equals(dto.Kind, "link", StringComparison.OrdinalIgnoreCase);
+    if (isLink && string.IsNullOrWhiteSpace(dto.Url))
+        return Results.BadRequest(new { message = "A link needs a URL." });
+    if (!isLink && string.IsNullOrWhiteSpace(dto.FileBase64))
+        return Results.BadRequest(new { message = "Choose a file to upload." });
+
+    try
+    {
+        string? rel = null; long size = 0;
+        if (!isLink)
+        {
+            var bytes = Convert.FromBase64String(dto.FileBase64!);
+            size = bytes.LongLength;
+            var dir = "/opt/vkmobileapi/uploads/ratelist";
+            Directory.CreateDirectory(dir);
+            var ext = Path.GetExtension(dto.FileName ?? "").Trim();
+            if (ext.Length > 12 || ext.Any(c => Path.GetInvalidFileNameChars().Contains(c))) ext = "";
+            var fname = $"{DateTime.UtcNow:yyyyMMddHHmmssfff}{ext}";
+            await File.WriteAllBytesAsync(Path.Combine(dir, fname), bytes);
+            rel = $"ratelist/{fname}";
+        }
+
+        await using var conn = new MySqlConnection(TenantContext.Conn);
+        await conn.OpenAsync();
+        await using var cmd = new MySqlCommand(@"
+            INSERT INTO rate_lists (title, kind, url, file_path, file_name, file_size, mime, finance_id, notes)
+            VALUES (@t, @k, @u, @p, @fn, @sz, @m, @fid, @n)", conn) { CommandTimeout = 30 };
+        cmd.Parameters.AddWithValue("@t",   title);
+        cmd.Parameters.AddWithValue("@k",   isLink ? "link" : "file");
+        cmd.Parameters.AddWithValue("@u",   isLink ? (object)dto.Url!.Trim() : DBNull.Value);
+        cmd.Parameters.AddWithValue("@p",   (object?)rel ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@fn",  string.IsNullOrWhiteSpace(dto.FileName) ? DBNull.Value : dto.FileName!.Trim());
+        cmd.Parameters.AddWithValue("@sz",  size);
+        cmd.Parameters.AddWithValue("@m",   string.IsNullOrWhiteSpace(dto.Mime) ? DBNull.Value : dto.Mime!.Trim());
+        cmd.Parameters.AddWithValue("@fid", dto.FinanceId is > 0 ? dto.FinanceId : DBNull.Value);
+        cmd.Parameters.AddWithValue("@n",   string.IsNullOrWhiteSpace(dto.Notes) ? DBNull.Value : dto.Notes!.Trim());
+        await cmd.ExecuteNonQueryAsync();
+        return Results.Ok(new { success = true });
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+app.MapDelete("/api/mgr/ratelist/{id:long}", async (HttpContext ctx, long id) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        await using var conn = new MySqlConnection(TenantContext.Conn);
+        await conn.OpenAsync();
+        string? rel = null;
+        await using (var q = new MySqlCommand("SELECT file_path FROM rate_lists WHERE id=@id", conn) { CommandTimeout = 10 })
+        {
+            q.Parameters.AddWithValue("@id", id);
+            rel = (await q.ExecuteScalarAsync()) as string;
+        }
+        await MgrExec("DELETE FROM rate_lists WHERE id=@id", conn, 10, ("@id", id));
+        if (!string.IsNullOrWhiteSpace(rel))
+        {
+            var full = Path.Combine("/opt/vkmobileapi/uploads", rel.TrimStart('/'));
+            try { if (File.Exists(full)) File.Delete(full); } catch { }
+        }
         return Results.Ok(new { success = true });
     }
     catch (Exception ex) { return Results.Problem(ex.Message); }
@@ -4458,6 +4664,9 @@ record MgrAddSubscriptionDto(string StartDate, string EndDate, decimal Amount, s
 record MgrApproveIdCardDto(int ValidDays, string? ValidFrom = null, string? ValidUntil = null);
 record MgrDeclineIdCardDto(string? Reason);
 record MgrUploadRepoKitDto(int FinanceId, string? Title, string? FileName, string? PdfBase64);
+record MgrSetShowFinanceDto(bool Show);
+record MgrRateListDto(string? Title, string? Kind, string? Url, string? FileName,
+                      string? FileBase64, string? Mime, int? FinanceId, string? Notes);
 record MgrCreateMappingDto(int ColumnTypeId, string RawName);
 record MgrCreateColumnTypeDto(string Name);
 record MgrSetStoppedDto(bool Stopped);

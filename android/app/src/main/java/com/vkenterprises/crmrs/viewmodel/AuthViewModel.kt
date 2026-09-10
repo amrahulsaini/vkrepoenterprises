@@ -69,6 +69,7 @@ class AuthViewModel @Inject constructor(
     val userName        = prefs.userName
     val userMobile      = prefs.userMobile
     val isAdmin         = prefs.isAdmin
+    val showFinanceName = prefs.showFinanceName
     val pfpUrl          = prefs.pfpUrl
     val subscriptionEnd = prefs.subscriptionEnd
     val blockedReason   = prefs.blockedReason
@@ -117,6 +118,19 @@ class AuthViewModel @Inject constructor(
 
     fun clearBlockedReason() = viewModelScope.launch { prefs.clearBlockedReason() }
 
+    // The heartbeat carries this flag too, but that first beat is 15s out — a
+    // detail screen opened straight after login would show a stale value.
+    fun refreshFinanceFlag() {
+        viewModelScope.launch {
+            val uid = prefs.userId.first()
+            if (uid <= 0L) return@launch
+            runCatching {
+                val r = ApiClient.api.getMyStatus(uid)
+                if (r.isSuccessful) r.body()?.let { prefs.setShowFinanceName(it.showFinanceName) }
+            }
+        }
+    }
+
     fun startStatusPolling(userId: Long) {
         if (pollingJob?.isActive == true) return
         pollingJob = viewModelScope.launch(Dispatchers.IO) {
@@ -133,6 +147,7 @@ class AuthViewModel @Inject constructor(
                     val resp = ApiClient.api.heartbeat(HeartbeatRequest(userId, lastLat, lastLng))
                     if (resp.isSuccessful) {
                         val body = resp.body() ?: return@runCatching
+                        prefs.setShowFinanceName(body.showFinanceName)
                         when {
                             // The account this session's userId points at no longer
                             // exists (e.g. it was deleted and re-registered under a

@@ -246,6 +246,25 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
         if (ok) pickTarget?.let { applyPicked(it, cameraTargetUri) }
     }
 
+    var pendingCameraUricameraLauncher by remember { mutableStateOf<android.net.Uri?>(null) }
+    val camPermcameraLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        val target = pendingCameraUricameraLauncher
+        pendingCameraUricameraLauncher = null
+        if (granted && target != null) cameraLauncher.launch(target)
+    }
+    fun launchCameracameraLauncher(target: android.net.Uri) {
+        val ok = androidx.core.content.ContextCompat.checkSelfPermission(
+            context, android.Manifest.permission.CAMERA
+        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        if (ok) cameraLauncher.launch(target)
+        else {
+            pendingCameraUricameraLauncher = target
+            camPermcameraLauncher.launch(android.Manifest.permission.CAMERA)
+        }
+    }
+
     fun startPick(target: PickTarget) { pickTarget = target; showSourceDialog = true }
 
     if (showSourceDialog) {
@@ -254,7 +273,7 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
                 showSourceDialog = false
                 val u = createCameraImageUri(context)
                 cameraTargetUri = u
-                cameraLauncher.launch(u)
+                launchCameracameraLauncher(u)
             },
             onGallery = {
                 showSourceDialog = false

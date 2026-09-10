@@ -27,6 +27,7 @@ public class AppUserRepository
             BillingDemand   = u.BillingDemand,
             BillingTarget   = u.BillingTarget,
             BilledThisMonth = u.BilledThisMonth,
+            ShowFinanceName = u.ShowFinanceName,
         }).ToList();
         return (users, r.Stats.Total, r.Stats.Active, r.Stats.Admins, r.Stats.WithSub);
     }

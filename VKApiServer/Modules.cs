@@ -17,6 +17,7 @@ public static class Modules
         new("Users",         "Users",           "People"),
         new("IdCards",       "Id Cards",        "People"),
         new("RepoKits",      "Repo Kits",       "People"),
+        new("RateList",      "Rate List",       "People"),
         new("Hrms",          "HRMS",            "People"),
 
         new("Confirmations", "Confirmations",   "Operations"),

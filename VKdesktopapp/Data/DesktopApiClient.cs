@@ -35,7 +35,8 @@ internal static class DesktopApiClient
         string? Address, string? Pincode, string? PfpBase64, string? DeviceId,
         bool IsActive, bool IsAdmin, decimal Balance, DateTime CreatedAt, string? SubEndDate,
         bool IsStopped = false, bool IsBlacklisted = false,
-        int? BillingDemand = null, int? BillingTarget = null, int BilledThisMonth = 0);
+        int? BillingDemand = null, int? BillingTarget = null, int BilledThisMonth = 0,
+        bool ShowFinanceName = false);
     internal record MgrUsersResponseDto(MgrStatsDto Stats, List<MgrUserDto> Users);
     internal record MgrSubDto(long Id, string StartDate, string EndDate, decimal Amount, string? Notes, DateTime CreatedAt);
 
@@ -350,6 +351,128 @@ internal static class DesktopApiClient
     internal static async Task DeclineIdCardAsync(long userId, string reason)
     {
         var resp = await Send(HttpMethod.Post, $"api/mgr/id-cards/{userId}/decline", new { Reason = reason });
+        resp.EnsureSuccessStatusCode();
+    }
+
+    // ── Confirmations, rate list, per-user finance visibility ────────────────
+    internal sealed class ConfirmationLogDto
+    {
+        public long Id { get; set; }
+        public string? VehicleNo { get; set; }
+        public string? ChassisNo { get; set; }
+        public string ActionType { get; set; } = "confirm";
+        public string Channel { get; set; } = "whatsapp";
+        public string? CustomerName { get; set; }
+        public string? Model { get; set; }
+        public string? EngineNo { get; set; }
+        public string? AgreementNo { get; set; }
+        public string? Financer { get; set; }
+        public string? Address { get; set; }
+        public string? MapLink { get; set; }
+        public string? LoadDetails { get; set; }
+        public string? MessageText { get; set; }
+        public string? ImageUrl { get; set; }
+        public DateTime ConfirmedAt { get; set; }
+
+        public string DateDisplay    => ConfirmedAt.ToLocalTime().ToString("dd MMM yyyy, HH:mm");
+        public string VehicleDisplay => string.IsNullOrWhiteSpace(VehicleNo) ? (ChassisNo ?? "—") : VehicleNo!;
+        public string ChannelDisplay => Channel.Equals("sms", StringComparison.OrdinalIgnoreCase) ? "SMS" : "WhatsApp";
+        public string ActionDisplay  => ActionType switch
+        {
+            "okrepo" => "OK for Repo",
+            "cancel" => "Cancellation",
+            _        => "Confirmation",
+        };
+        public bool HasImage => !string.IsNullOrWhiteSpace(ImageUrl);
+    }
+
+    internal sealed class ConfirmationsResponseDto
+    {
+        public int Total { get; set; }
+        public long GrandTotal { get; set; }
+        public List<ConfirmationLogDto> Items { get; set; } = new();
+    }
+
+    internal static async Task<ConfirmationsResponseDto> GetUserConfirmationsAsync(
+        long userId, DateTime? from, DateTime? to)
+    {
+        var q = new List<string>();
+        if (from.HasValue) q.Add($"from={from.Value:yyyy-MM-dd}");
+        if (to.HasValue)   q.Add($"to={to.Value:yyyy-MM-dd}");
+        var qs = q.Count > 0 ? "?" + string.Join("&", q) : "";
+        var resp = await Send(HttpMethod.Get, $"api/mgr/users/{userId}/confirmations{qs}");
+        resp.EnsureSuccessStatusCode();
+        return (await resp.Content.ReadFromJsonAsync<ConfirmationsResponseDto>(_json))
+               ?? new ConfirmationsResponseDto();
+    }
+
+    internal static async Task SetShowFinanceNameAsync(long userId, bool show)
+    {
+        var resp = await Send(new HttpMethod("PATCH"), $"api/mgr/users/{userId}/show-finance",
+            new { Show = show });
+        resp.EnsureSuccessStatusCode();
+    }
+
+    internal sealed class RateListItemDto
+    {
+        public long Id { get; set; }
+        public string Title { get; set; } = "";
+        public string Kind { get; set; } = "file";
+        public string? Url { get; set; }
+        public string? Notes { get; set; }
+        public int? FinanceId { get; set; }
+        public string? FinanceName { get; set; }
+        public string? FileName { get; set; }
+        public long FileSize { get; set; }
+        public string? Mime { get; set; }
+        public DateTime CreatedAt { get; set; }
+
+        public bool IsLink => Kind.Equals("link", StringComparison.OrdinalIgnoreCase);
+        public string Icon => IsLink ? "\U0001F517" : "\U0001F4CE";
+        public string SubtitleDisplay
+        {
+            get
+            {
+                var bits = new List<string>();
+                if (!string.IsNullOrWhiteSpace(FinanceName)) bits.Add(FinanceName!);
+                if (IsLink) bits.Add(Url ?? "");
+                else
+                {
+                    if (!string.IsNullOrWhiteSpace(FileName)) bits.Add(FileName!);
+                    if (FileSize > 0) bits.Add($"{FileSize / 1024:N0} KB");
+                }
+                bits.Add(CreatedAt.ToLocalTime().ToString("dd MMM yyyy"));
+                return string.Join("  ·  ", bits.Where(b => b.Length > 0));
+            }
+        }
+    }
+
+    internal static async Task<List<RateListItemDto>> GetRateListAsync()
+    {
+        var resp = await Send(HttpMethod.Get, "api/mgr/ratelist");
+        resp.EnsureSuccessStatusCode();
+        return (await resp.Content.ReadFromJsonAsync<List<RateListItemDto>>(_json))!;
+    }
+
+    internal static async Task AddRateListLinkAsync(string title, string url, int? financeId, string? notes)
+    {
+        var resp = await Send(HttpMethod.Post, "api/mgr/ratelist",
+            new { Title = title, Kind = "link", Url = url, FinanceId = financeId, Notes = notes });
+        resp.EnsureSuccessStatusCode();
+    }
+
+    internal static async Task AddRateListFileAsync(
+        string title, string fileName, string mime, string fileBase64, int? financeId, string? notes)
+    {
+        var resp = await Send(HttpMethod.Post, "api/mgr/ratelist",
+            new { Title = title, Kind = "file", FileName = fileName, Mime = mime,
+                  FileBase64 = fileBase64, FinanceId = financeId, Notes = notes });
+        resp.EnsureSuccessStatusCode();
+    }
+
+    internal static async Task DeleteRateListAsync(long id)
+    {
+        var resp = await Send(HttpMethod.Delete, $"api/mgr/ratelist/{id}");
         resp.EnsureSuccessStatusCode();
     }
 

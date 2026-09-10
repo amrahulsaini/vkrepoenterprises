@@ -1,0 +1,110 @@
+<Page
+    x:Class="CRMRSDesktopApp.AppUsers.RateListManagerPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Background="{StaticResource Gray50}"
+    FontFamily="{StaticResource FontBody}"
+    Loaded="Page_Loaded">
+
+    <Page.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis" />
+    </Page.Resources>
+
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Margin="0,0,0,16">
+            <TextBlock Text="Rate List" FontSize="22" FontWeight="Bold" Foreground="{StaticResource Gray900}" />
+            <TextBlock Text="Publish rate sheets and links. Everything here shows up in the Rate List card in the mobile app, for admins and field agents alike."
+                       FontSize="12" Foreground="{StaticResource Gray600}" Margin="0,2,0,0" />
+        </StackPanel>
+
+        <Border Grid.Row="1" Background="White" CornerRadius="10" Padding="16" Margin="0,0,0,16"
+                BorderBrush="{StaticResource Gray200}" BorderThickness="1">
+            <StackPanel>
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                    <RadioButton x:Name="rbFile" Content="Attachment" IsChecked="True" GroupName="kind"
+                                 FontWeight="SemiBold" Margin="0,0,18,0" Checked="Kind_Changed" />
+                    <RadioButton x:Name="rbLink" Content="Link" GroupName="kind"
+                                 FontWeight="SemiBold" Checked="Kind_Changed" />
+                </StackPanel>
+
+                <Grid Margin="0,0,0,10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="2*" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" Margin="0,0,10,0">
+                        <TextBlock Text="Title" FontSize="11" Foreground="{StaticResource Gray600}" />
+                        <TextBox x:Name="txtTitle" Height="32" Margin="0,2,0,0" VerticalContentAlignment="Center" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="1">
+                        <TextBlock Text="Head Office (optional)" FontSize="11" Foreground="{StaticResource Gray600}" />
+                        <ComboBox x:Name="cmbFinance" DisplayMemberPath="Name" SelectedValuePath="Id"
+                                  Height="32" Margin="0,2,0,0" />
+                    </StackPanel>
+                </Grid>
+
+                <StackPanel x:Name="pnlLink" Visibility="Collapsed" Margin="0,0,0,10">
+                    <TextBlock Text="URL" FontSize="11" Foreground="{StaticResource Gray600}" />
+                    <TextBox x:Name="txtUrl" Height="32" Margin="0,2,0,0" VerticalContentAlignment="Center" />
+                </StackPanel>
+
+                <StackPanel Margin="0,0,0,10">
+                    <TextBlock Text="Notes (optional)" FontSize="11" Foreground="{StaticResource Gray600}" />
+                    <TextBox x:Name="txtNotes" Height="32" Margin="0,2,0,0" VerticalContentAlignment="Center" />
+                </StackPanel>
+
+                <DockPanel>
+                    <Button x:Name="btnPublish" DockPanel.Dock="Right" Content="Publish" Padding="22,7"
+                            Background="#1565C0" Foreground="White" BorderThickness="0" Cursor="Hand"
+                            Click="Publish_Click" />
+                    <Button x:Name="btnChoose" DockPanel.Dock="Right" Content="Choose file…" Padding="14,7"
+                            Margin="0,0,10,0" Cursor="Hand" Click="ChooseFile_Click" />
+                    <TextBlock x:Name="txtChosen" Text="No file chosen" FontSize="11"
+                               Foreground="{StaticResource Gray600}" VerticalAlignment="Center" />
+                </DockPanel>
+            </StackPanel>
+        </Border>
+
+        <Grid Grid.Row="2">
+            <TextBlock x:Name="txtEmpty" Text="Nothing published yet." HorizontalAlignment="Center"
+                       VerticalAlignment="Center" Foreground="{StaticResource Gray600}" Visibility="Collapsed" />
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <ItemsControl x:Name="listItems">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Background="White" CornerRadius="8" Margin="0,0,0,8" Padding="14"
+                                    BorderBrush="{StaticResource Gray200}" BorderThickness="1">
+                                <DockPanel>
+                                    <TextBlock DockPanel.Dock="Left" Text="{Binding Icon}" FontSize="22"
+                                               VerticalAlignment="Center" Margin="0,0,12,0" />
+                                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Button Content="Open" Tag="{Binding Url}" Click="Open_Click"
+                                                Padding="12,6" Margin="0,0,8,0" Cursor="Hand" />
+                                        <Button Content="Delete" Tag="{Binding Id}" Click="Delete_Click" Padding="12,6"
+                                                Background="#DC2626" Foreground="White" BorderThickness="0" Cursor="Hand" />
+                                    </StackPanel>
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding Title}" FontWeight="Bold"
+                                                   Foreground="{StaticResource Gray900}" FontSize="14" />
+                                        <TextBlock Text="{Binding SubtitleDisplay}" FontSize="11"
+                                                   Foreground="{StaticResource Gray600}"
+                                                   TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Text="{Binding Notes}" FontSize="11"
+                                                   Foreground="{StaticResource Gray500}"
+                                                   TextTrimming="CharacterEllipsis" />
+                                    </StackPanel>
+                                </DockPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </Grid>
+    </Grid>
+</Page>

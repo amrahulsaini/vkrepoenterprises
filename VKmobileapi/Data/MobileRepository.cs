@@ -24,34 +24,106 @@ public class MobileRepository
         catch { return null; }
     }
 
+    private static object Clean(string? s) =>
+        string.IsNullOrWhiteSpace(s) ? (object)DBNull.Value : s.Trim();
+
     /// <summary>
-    /// Persists a "Send Confirm" photo: saves the image under uploads/confirm/
-    /// and inserts a confirm_captures row for the agent's active tenant. Returns
-    /// the stored relative image path, or null if no image was supplied.
+    /// Logs one confirmation send by a field agent: the vehicle, everything that
+    /// went into the message, the channel it left on, and the photo if one was
+    /// taken. Returns the stored relative image path when there was an image.
     /// </summary>
-    public async Task<string?> SaveConfirmCaptureAsync(
-        long userId, string? vehicleNo, string? chassisNo,
-        string imageBase64, DateTime capturedAt)
+    public async Task<string?> LogConfirmationAsync(long userId, ConfirmCaptureReq req, DateTime capturedAt)
     {
-        var stamp    = DateTime.UtcNow.ToString("yyyyMMddHHmmssfff");
-        var fileName = $"user_{userId}_{stamp}.jpg";
-        var rel      = await SaveBase64ImageAsync(imageBase64, "confirm", fileName);
-        if (rel == null) return null;
+        string? rel = null;
+        if (!string.IsNullOrWhiteSpace(req.ImageBase64))
+        {
+            var stamp = DateTime.UtcNow.ToString("yyyyMMddHHmmssfff");
+            rel = await SaveBase64ImageAsync(req.ImageBase64, "confirm", $"user_{userId}_{stamp}.jpg");
+        }
 
         await using var conn = DbFactory.Create();
         await conn.OpenAsync();
         await using var cmd = new MySqlCommand(@"
-            INSERT INTO confirm_captures (user_id, vehicle_no, chassis_no, image_path, captured_at)
-            VALUES (@uid, @veh, @cha, @img, @cap)", conn) { CommandTimeout = 15 };
-        static object Clean(string? s) =>
-            string.IsNullOrWhiteSpace(s) ? DBNull.Value : s.Trim();
-        cmd.Parameters.AddWithValue("@uid", userId);
-        cmd.Parameters.AddWithValue("@veh", Clean(vehicleNo));
-        cmd.Parameters.AddWithValue("@cha", Clean(chassisNo));
-        cmd.Parameters.AddWithValue("@img", rel);
-        cmd.Parameters.AddWithValue("@cap", capturedAt);
+            INSERT INTO confirm_captures
+                (user_id, vehicle_no, chassis_no, action_type, channel, customer_name, model,
+                 engine_no, agreement_no, financer, address, map_link, load_details,
+                 message_text, image_path, captured_at)
+            VALUES (@uid, @veh, @cha, @act, @chn, @cust, @mdl, @eng, @agr, @fin,
+                    @addr, @map, @load, @msg, @img, @cap)", conn) { CommandTimeout = 15 };
+        cmd.Parameters.AddWithValue("@uid",  userId);
+        cmd.Parameters.AddWithValue("@veh",  Clean(req.VehicleNo));
+        cmd.Parameters.AddWithValue("@cha",  Clean(req.ChassisNo));
+        cmd.Parameters.AddWithValue("@act",  string.IsNullOrWhiteSpace(req.ActionType) ? "confirm" : req.ActionType!.Trim());
+        cmd.Parameters.AddWithValue("@chn",  string.IsNullOrWhiteSpace(req.Channel) ? "whatsapp" : req.Channel!.Trim());
+        cmd.Parameters.AddWithValue("@cust", Clean(req.CustomerName));
+        cmd.Parameters.AddWithValue("@mdl",  Clean(req.Model));
+        cmd.Parameters.AddWithValue("@eng",  Clean(req.EngineNo));
+        cmd.Parameters.AddWithValue("@agr",  Clean(req.AgreementNo));
+        cmd.Parameters.AddWithValue("@fin",  Clean(req.Financer));
+        cmd.Parameters.AddWithValue("@addr", Clean(req.Address));
+        cmd.Parameters.AddWithValue("@map",  Clean(req.MapLink));
+        cmd.Parameters.AddWithValue("@load", Clean(req.LoadDetails));
+        cmd.Parameters.AddWithValue("@msg",  Clean(req.MessageText));
+        cmd.Parameters.AddWithValue("@img",  (object?)rel ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@cap",  capturedAt);
         await cmd.ExecuteNonQueryAsync();
         return rel;
+    }
+
+    /// <summary>One agent's confirmation log, newest first, optionally windowed
+    /// to a date range (inclusive, on the captured date).</summary>
+    public async Task<List<ConfirmationLogDto>> GetConfirmationsAsync(
+        long userId, DateTime? from, DateTime? to)
+    {
+        await using var conn = DbFactory.Create();
+        await conn.OpenAsync();
+        var where = new List<string> { "user_id=@uid" };
+        if (from.HasValue) where.Add("DATE(COALESCE(captured_at, created_at)) >= @from");
+        if (to.HasValue)   where.Add("DATE(COALESCE(captured_at, created_at)) <= @to");
+        await using var cmd = new MySqlCommand($@"
+            SELECT id, vehicle_no, chassis_no, action_type, channel, customer_name, model,
+                   engine_no, agreement_no, financer, address, map_link, load_details,
+                   message_text, image_path, COALESCE(captured_at, created_at)
+            FROM confirm_captures
+            WHERE {string.Join(" AND ", where)}
+            ORDER BY COALESCE(captured_at, created_at) DESC
+            LIMIT 1000", conn) { CommandTimeout = 20 };
+        cmd.Parameters.AddWithValue("@uid", userId);
+        if (from.HasValue) cmd.Parameters.AddWithValue("@from", from.Value.Date);
+        if (to.HasValue)   cmd.Parameters.AddWithValue("@to",   to.Value.Date);
+
+        var list = new List<ConfirmationLogDto>();
+        await using var r = await cmd.ExecuteReaderAsync();
+        string? S(int i) => r.IsDBNull(i) ? null : r.GetString(i);
+        while (await r.ReadAsync())
+            list.Add(new ConfirmationLogDto(
+                r.GetInt64(0), S(1), S(2), S(3) ?? "confirm", S(4) ?? "whatsapp",
+                S(5), S(6), S(7), S(8), S(9), S(10), S(11), S(12), S(13),
+                S(14), r.GetDateTime(15)));
+        return list;
+    }
+
+    /// <summary>Rate-list entries published by the office, newest first.</summary>
+    public async Task<List<RateListItemDto>> GetRateListAsync()
+    {
+        await using var conn = DbFactory.Create();
+        await conn.OpenAsync();
+        await using var cmd = new MySqlCommand(@"
+            SELECT r.id, r.title, r.kind, r.url, r.file_path, r.file_name, r.file_size,
+                   r.mime, r.finance_id, f.name, r.notes, r.created_at
+            FROM rate_lists r
+            LEFT JOIN finances f ON f.id = r.finance_id
+            ORDER BY r.created_at DESC
+            LIMIT 500", conn) { CommandTimeout = 20 };
+        var list = new List<RateListItemDto>();
+        await using var r = await cmd.ExecuteReaderAsync();
+        string? S(int i) => r.IsDBNull(i) ? null : r.GetString(i);
+        while (await r.ReadAsync())
+            list.Add(new RateListItemDto(
+                r.GetInt64(0), S(1) ?? "", S(2) ?? "file", S(3), S(4), S(5),
+                r.GetInt64(6), S(7), r.IsDBNull(8) ? null : r.GetInt32(8), S(9),
+                S(10), r.GetDateTime(11)));
+        return list;
     }
 
     // ── ID card ─────────────────────────────────────────────────────────────
@@ -849,12 +921,13 @@ public class MobileRepository
         await using var conn = DbFactory.Create();
         await conn.OpenAsync();
         await using var cmd = new MySqlCommand(
-            "SELECT is_active, COALESCE(is_stopped,0), COALESCE(is_blacklisted,0) FROM app_users WHERE id=@id LIMIT 1",
+            "SELECT is_active, COALESCE(is_stopped,0), COALESCE(is_blacklisted,0), COALESCE(show_finance_name,0) FROM app_users WHERE id=@id LIMIT 1",
             conn) { CommandTimeout = 5 };
         cmd.Parameters.AddWithValue("@id", userId);
         await using var rdr = await cmd.ExecuteReaderAsync();
         if (!await rdr.ReadAsync()) return new UserStatusDto(false, false, false, Found: false);
-        return new UserStatusDto(rdr.GetInt32(0)==1, rdr.GetInt32(1)==1, rdr.GetInt32(2)==1);
+        return new UserStatusDto(rdr.GetInt32(0)==1, rdr.GetInt32(1)==1, rdr.GetInt32(2)==1,
+                                 ShowFinanceName: rdr.GetInt32(3)==1);
     }
 
     // The device currently bound to the user. If a request comes from a

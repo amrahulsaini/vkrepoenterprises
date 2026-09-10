@@ -85,6 +85,7 @@ CREATE TABLE `app_users` (
   `kyc_status` varchar(20) NOT NULL DEFAULT 'pending',
   `kyc_reject_note` text DEFAULT NULL,
   `kyc_aadhaar_number` varchar(12) DEFAULT NULL,
+  `show_finance_name` tinyint(1) NOT NULL DEFAULT 0,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_mobile` (`mobile`),
   KEY `idx_device` (`device_id`(100))
@@ -814,17 +815,47 @@ CREATE TABLE IF NOT EXISTS `billing_member_finances` (
 
 -- confirm_captures — "Send Confirm" photos captured by field agents.
 CREATE TABLE IF NOT EXISTS confirm_captures (
+    id            BIGINT       NOT NULL AUTO_INCREMENT,
+    user_id       BIGINT       NOT NULL,
+    vehicle_no    VARCHAR(32)           DEFAULT NULL,
+    chassis_no    VARCHAR(40)           DEFAULT NULL,
+    action_type   VARCHAR(16)  NOT NULL DEFAULT 'confirm',
+    channel       VARCHAR(16)  NOT NULL DEFAULT 'whatsapp',
+    customer_name VARCHAR(190)          DEFAULT NULL,
+    model         VARCHAR(190)          DEFAULT NULL,
+    engine_no     VARCHAR(64)           DEFAULT NULL,
+    agreement_no  VARCHAR(64)           DEFAULT NULL,
+    financer      VARCHAR(190)          DEFAULT NULL,
+    address       VARCHAR(255)          DEFAULT NULL,
+    map_link      VARCHAR(255)          DEFAULT NULL,
+    load_details  VARCHAR(190)          DEFAULT NULL,
+    message_text  TEXT                  DEFAULT NULL,
+    image_path    VARCHAR(255)          DEFAULT NULL,
+    captured_at   DATETIME              DEFAULT NULL,
+    created_at    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    INDEX idx_cc_user     (user_id),
+    INDEX idx_cc_vehicle  (vehicle_no),
+    INDEX idx_cc_chassis  (chassis_no),
+    INDEX idx_cc_captured (captured_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- rate_lists — links and attachments published by the office to every agent.
+CREATE TABLE IF NOT EXISTS rate_lists (
     id          BIGINT       NOT NULL AUTO_INCREMENT,
-    user_id     BIGINT       NOT NULL,
-    vehicle_no  VARCHAR(32)           DEFAULT NULL,
-    chassis_no  VARCHAR(40)           DEFAULT NULL,
-    image_path  VARCHAR(255) NOT NULL,
-    captured_at DATETIME              DEFAULT NULL,
+    title       VARCHAR(200) NOT NULL,
+    kind        VARCHAR(8)   NOT NULL DEFAULT 'file',
+    url         VARCHAR(500)          DEFAULT NULL,
+    file_path   VARCHAR(255)          DEFAULT NULL,
+    file_name   VARCHAR(200)          DEFAULT NULL,
+    file_size   BIGINT       NOT NULL DEFAULT 0,
+    mime        VARCHAR(120)          DEFAULT NULL,
+    finance_id  INT UNSIGNED          DEFAULT NULL,
+    notes       VARCHAR(500)          DEFAULT NULL,
     created_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
-    INDEX idx_cc_user    (user_id),
-    INDEX idx_cc_vehicle (vehicle_no),
-    INDEX idx_cc_chassis (chassis_no)
+    INDEX idx_rl_finance (finance_id),
+    INDEX idx_rl_created (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- id_cards — agent ID-card requests & approvals (one row per user).

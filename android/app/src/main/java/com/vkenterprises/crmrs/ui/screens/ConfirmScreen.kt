@@ -239,6 +239,25 @@ fun ConfirmScreen(
         }
     }
 
+    var pendingCameraUricameraLauncher by remember { mutableStateOf<android.net.Uri?>(null) }
+    val camPermcameraLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        val target = pendingCameraUricameraLauncher
+        pendingCameraUricameraLauncher = null
+        if (granted && target != null) cameraLauncher.launch(target)
+    }
+    fun launchCameracameraLauncher(target: android.net.Uri) {
+        val ok = androidx.core.content.ContextCompat.checkSelfPermission(
+            context, android.Manifest.permission.CAMERA
+        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        if (ok) cameraLauncher.launch(target)
+        else {
+            pendingCameraUricameraLauncher = target
+            camPermcameraLauncher.launch(android.Manifest.permission.CAMERA)
+        }
+    }
+
     fun sendWhatsAppWithImage(imageUri: Uri) {
         val msg  = buildMessage()
         val base = Intent(Intent.ACTION_SEND).apply {
@@ -258,44 +277,53 @@ fun ConfirmScreen(
         }
     }
 
-    // Non-admin "Send Confirm": the photo is optional. With one, we save the
-    // capture to the server (confirm_captures) and then open WhatsApp with the
-    // image + message. A server hiccup must not strand a field agent, so if the
-    // save fails we still send — the photo is attached to WhatsApp regardless.
-    // With no photo we simply send the details as text.
-    fun confirmWithPhoto() {
-        if (sending) return
-        val uri = photoUri
-        if (uri == null) {
-            sendWhatsApp()
-            return
-        }
-        sending = true
-        scope.launch {
-            runCatching {
-                val b64 = withContext(Dispatchers.IO) { compressImageToBase64(context, uri) }
-                if (b64 != null && userId > 0L) {
-                    ApiClient.api.confirmCapture(
-                        userId,
-                        ConfirmCaptureRequest(
-                            vehicleNo     = item?.vehicleNo,
-                            chassisNo     = item?.chassisNo,
-                            imageBase64   = b64,
-                            capturedAtIso = java.time.Instant.now().toString()
-                        )
-                    )
-                }
-            }.onFailure {
-                Toast.makeText(context,
-                    "Couldn't save the photo to the server, sending anyway.",
-                    Toast.LENGTH_SHORT).show()
-            }
-            sending = false
-            sendWhatsAppWithImage(uri)
+    // Every confirmation a field agent sends is logged, on either channel, with
+    // or without a photo — that log is what the Confirmations card and the
+    // desktop user panel count. A server hiccup must not strand an agent, so a
+    // failed log still sends the message; only the record is lost.
+    suspend fun logConfirmation(channel: String) {
+        if (isAdmin || userId <= 0L) return
+        val b64 = photoUri?.let { withContext(Dispatchers.IO) { compressImageToBase64(context, it) } }
+        runCatching {
+            ApiClient.api.confirmCapture(
+                userId,
+                ConfirmCaptureRequest(
+                    vehicleNo     = item?.vehicleNo,
+                    chassisNo     = item?.chassisNo,
+                    imageBase64   = b64,
+                    capturedAtIso = java.time.Instant.now().toString(),
+                    actionType    = actionType ?: "confirm",
+                    channel       = channel,
+                    customerName  = item?.customerName,
+                    model         = item?.model,
+                    engineNo      = item?.engineNo,
+                    agreementNo   = item?.agreementNo,
+                    financer      = item?.financer,
+                    address       = vehicleAddress.trim().ifBlank { null },
+                    mapLink       = mapLink,
+                    loadDetails   = carriesGoods.trim().ifBlank { null },
+                    messageText   = buildMessage()
+                )
+            )
+        }.onFailure {
+            Toast.makeText(context,
+                "Couldn't record this confirmation, sending anyway.",
+                Toast.LENGTH_SHORT).show()
         }
     }
 
-    fun sendSms() {
+    fun confirmWithPhoto() {
+        if (sending) return
+        sending = true
+        val uri = photoUri
+        scope.launch {
+            logConfirmation("whatsapp")
+            sending = false
+            if (uri != null) sendWhatsAppWithImage(uri) else sendWhatsApp()
+        }
+    }
+
+    fun sendSmsIntent() {
         val msg   = buildMessage().replace("*", "")
         val nums  = checkedNumbers()
         val uri   = if (nums.isNotEmpty())
@@ -305,6 +333,17 @@ fun ConfirmScreen(
         val intent = Intent(Intent.ACTION_SENDTO, uri)
         intent.putExtra("sms_body", msg)
         context.startActivity(intent)
+    }
+
+    fun sendSms() {
+        if (isAdmin) { sendSmsIntent(); return }
+        if (sending) return
+        sending = true
+        scope.launch {
+            logConfirmation("sms")
+            sending = false
+            sendSmsIntent()
+        }
     }
 
     val pageBg = if (isAdmin) MaterialTheme.colorScheme.background else Color.White
@@ -494,7 +533,7 @@ fun ConfirmScreen(
                             )
                         }
                         OutlinedButton(
-                            onClick = { cameraLauncher.launch(newPhotoTarget()) },
+                            onClick = { launchCameracameraLauncher(newPhotoTarget()) },
                             enabled = !sending,
                             modifier = Modifier.fillMaxWidth()
                         ) {
@@ -527,6 +566,7 @@ fun ConfirmScreen(
 
                 Button(
                     onClick  = { sendSms() },
+                    enabled  = isAdmin || !sending,
                     modifier = Modifier.weight(1f).height(52.dp),
                     shape    = RoundedCornerShape(10.dp),
                     colors   = ButtonDefaults.buttonColors(
