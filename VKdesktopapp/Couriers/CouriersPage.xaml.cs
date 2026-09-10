@@ -138,7 +138,7 @@ public partial class CouriersPage : Page
         InitializeComponent();
         dpFrom.DisplayDateEnd = DateTime.Today;
         dpTo.DisplayDateEnd = DateTime.Today;
-        dpFrom.SelectedDate = DateTime.Today.AddDays(-30);
+        dpFrom.SelectedDate = DateTime.Today.AddDays(-7);
         dpTo.SelectedDate = DateTime.Today;
         dpAdvDate.SelectedDate = DateTime.Today;
         lstAdvances.ItemsSource = _advances;

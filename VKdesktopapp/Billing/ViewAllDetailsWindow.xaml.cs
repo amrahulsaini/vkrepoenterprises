@@ -139,7 +139,7 @@ public partial class ViewAllDetailsWindow : Window
         _financeIds = financeIds;
         dpFrom.DisplayDateEnd = DateTime.Today;
         dpTo.DisplayDateEnd = DateTime.Today;
-        dpFrom.SelectedDate = DateTime.Today.AddDays(-30);
+        dpFrom.SelectedDate = DateTime.Today.AddDays(-7);
         dpTo.SelectedDate = DateTime.Today;
         Loaded += async (_, __) => { _ready = true; await LoadAsync(); };
     }

@@ -401,7 +401,7 @@ public partial class ReportsPage : Page
             1 => (today.AddMonths(-3), today),
             2 => (today.AddMonths(-6), today),
             3 => (new DateTime(today.Year, 1, 1), today),
-            _ => (dpBillFrom.SelectedDate ?? today.AddMonths(-1), dpBillTo.SelectedDate ?? today)
+            _ => (dpBillFrom.SelectedDate ?? today.AddDays(-7), dpBillTo.SelectedDate ?? today)
         };
     }
 
@@ -412,7 +412,7 @@ public partial class ReportsPage : Page
         pnlBillDates.IsEnabled = custom;
         if (custom && dpBillFrom.SelectedDate == null)
         {
-            dpBillFrom.SelectedDate = DateTime.Today.AddMonths(-1);
+            dpBillFrom.SelectedDate = DateTime.Today.AddDays(-7);
             dpBillTo.SelectedDate   = DateTime.Today;
         }
         var (f, t) = BillRange();

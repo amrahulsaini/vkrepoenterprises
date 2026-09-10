@@ -13,67 +13,147 @@
             <TextBlock DockPanel.Dock="Top" Text="Accounts" FontSize="18" FontWeight="Bold"
                        Foreground="{StaticResource Accent}" Margin="0,0,0,8" />
 
-            <WrapPanel DockPanel.Dock="Top" Margin="0,0,0,10">
-                <TextBlock Text="From" VerticalAlignment="Center" Foreground="#666" Margin="0,0,6,0" />
-                <DatePicker Name="dpFrom" Width="130" Margin="0,0,14,0" SelectedDateChanged="Reload_Changed" />
-                <TextBlock Text="To" VerticalAlignment="Center" Foreground="#666" Margin="0,0,6,0" />
-                <DatePicker Name="dpTo" Width="130" Margin="0,0,14,0" SelectedDateChanged="Reload_Changed" />
-                <TextBlock Text="Status" VerticalAlignment="Center" Foreground="#666" Margin="0,0,6,0" />
-                <ToggleButton Name="btnStatuses" Width="170" Height="26" Content="All statuses" Margin="0,0,14,0"
-                              HorizontalContentAlignment="Left" Padding="8,0" Cursor="Hand"
-                              ToolTip="Tick one or more statuses to show only those records" />
-                <Popup Name="popStatuses" PlacementTarget="{Binding ElementName=btnStatuses}" Placement="Bottom"
-                       StaysOpen="False" AllowsTransparency="True"
-                       IsOpen="{Binding IsChecked, ElementName=btnStatuses, Mode=TwoWay}">
-                    <Border Background="White" BorderBrush="#CCCCCC" BorderThickness="1" Padding="8">
-                        <StackPanel Width="230">
-                            <ItemsControl Name="lstStatusPicks">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <CheckBox IsChecked="{Binding IsChecked, Mode=TwoWay}"
-                                                  Margin="2,3" Click="StatusPick_Changed">
-                                            <TextBlock Text="{Binding Name}" Foreground="#222222" FontSize="12.5" />
-                                        </CheckBox>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                            <Button Content="Clear selection" Height="26" Margin="0,6,0,0"
-                                    Cursor="Hand" Click="btnClearStatus_Click" />
-                        </StackPanel>
-                    </Border>
-                </Popup>
-                <TextBlock Text="Finance" VerticalAlignment="Center" Foreground="#666" Margin="0,0,6,0" />
-                <ComboBox Name="cmbFinance" Width="190" Height="26" IsEditable="True" IsTextSearchEnabled="True"
-                          StaysOpenOnEdit="True" VerticalContentAlignment="Center"
-                          SelectionChanged="Finance_Changed" KeyUp="Finance_Key"
-                          ToolTip="Type to search a finance / head office, or pick from the list" />
-                <Button Name="btnClearFinance" Content="&#10005;" Width="26" Height="26" Margin="4,0,14,0"
-                        Cursor="Hand" ToolTip="Clear finance filter" Click="btnClearFinance_Click" />
-                <TextBlock Text="Inventory" VerticalAlignment="Center" Foreground="#666" Margin="0,0,6,0" />
-                <ComboBox Name="cmbInventory" Width="90" Height="26" Margin="0,0,14,0" SelectedIndex="0"
-                          VerticalContentAlignment="Center" SelectionChanged="Inventory_Changed"
-                          ToolTip="Show only records marked Yes or No for inventory">
-                    <ComboBoxItem Content="All" />
-                    <ComboBoxItem Content="Yes" />
-                    <ComboBoxItem Content="No" />
-                </ComboBox>
-                <TextBlock Text="Agent" VerticalAlignment="Center" Foreground="#666" Margin="0,0,6,0" />
-                <ComboBox Name="cmbAgent" Width="220" Height="26" IsEditable="True" IsTextSearchEnabled="True"
-                          StaysOpenOnEdit="True" VerticalContentAlignment="Center"
-                          SelectionChanged="Agent_Changed" KeyUp="Agent_Key"
-                          ToolTip="Type to search an agent, or pick from the list, then Generate Agent Bill" />
-                <Button Name="btnClearAgent" Content="✕" Width="26" Height="26" Margin="4,0,0,0"
-                        Cursor="Hand" ToolTip="Clear agent filter" Click="btnClearAgent_Click" />
-                <TextBlock Text="RC last 4" VerticalAlignment="Center" Foreground="#666" Margin="0,0,6,0" />
-                <TextBox Name="txtRcLast4" Width="90" Height="26" MaxLength="6" Margin="0,0,14,0"
-                         VerticalContentAlignment="Center" TextAlignment="Center" FontWeight="Bold"
-                         ToolTip="Type the last 4 digits of the RC or chassis"
-                         TextChanged="RcLast4_Changed" />
-                <Button Name="btnRefresh" Content="↻ Refresh" Width="100" Height="26" Margin="14,0,0,0" FontWeight="Bold"
-                        Background="#1565C0" Foreground="White" BorderThickness="0" Cursor="Hand"
-                        ToolTip="Reload records from the server" Click="btnRefresh_Click" />
-                <TextBlock Name="txtStatus" VerticalAlignment="Center" Foreground="#888" FontSize="12" Margin="14,0,0,0" />
-            </WrapPanel>
+            <ScrollViewer DockPanel.Dock="Top" HorizontalScrollBarVisibility="Auto"
+                          VerticalScrollBarVisibility="Disabled" Margin="0,0,0,12">
+            <StackPanel Orientation="Horizontal">
+                <StackPanel.Resources>
+                    <Style TargetType="TextBlock">
+                        <Setter Property="VerticalAlignment" Value="Center" />
+                        <Setter Property="Foreground" Value="#666" />
+                        <Setter Property="FontSize" Value="12" />
+                        <Setter Property="Margin" Value="0,0,6,0" />
+                    </Style>
+                    <Style TargetType="DatePicker">
+                        <Setter Property="Height" Value="28" />
+                        <Setter Property="VerticalContentAlignment" Value="Center" />
+                    </Style>
+                    <Style TargetType="ComboBox">
+                        <Setter Property="Height" Value="28" />
+                        <Setter Property="VerticalContentAlignment" Value="Center" />
+                    </Style>
+                    <Style TargetType="Button">
+                        <Setter Property="Height" Value="28" />
+                        <Setter Property="Cursor" Value="Hand" />
+                    </Style>
+                    <Style TargetType="ToggleButton">
+                        <Setter Property="Height" Value="28" />
+                        <Setter Property="Cursor" Value="Hand" />
+                    </Style>
+                </StackPanel.Resources>
+
+                <StackPanel Orientation="Horizontal" Margin="0,0,18,0">
+                    <TextBlock Text="From" />
+                    <DatePicker Name="dpFrom" Width="120" SelectedDateChanged="Reload_Changed" />
+                    <TextBlock Text="To" Margin="12,0,6,0" />
+                    <DatePicker Name="dpTo" Width="120" SelectedDateChanged="Reload_Changed" />
+                </StackPanel>
+
+                <StackPanel Orientation="Horizontal" Margin="0,0,18,0">
+                    <TextBlock Text="Status" />
+                    <ToggleButton Name="btnStatuses" Width="170" Content="All statuses"
+                                  HorizontalContentAlignment="Left" Padding="8,0"
+                                  ToolTip="Tick one or more statuses to show only those records" />
+                    <Popup Name="popStatuses" PlacementTarget="{Binding ElementName=btnStatuses}" Placement="Bottom"
+                           StaysOpen="False" AllowsTransparency="True"
+                           IsOpen="{Binding IsChecked, ElementName=btnStatuses, Mode=TwoWay}">
+                        <Border Background="White" BorderBrush="#CCCCCC" BorderThickness="1" Padding="8">
+                            <StackPanel Width="230">
+                                <ItemsControl Name="lstStatusPicks">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <CheckBox IsChecked="{Binding IsChecked, Mode=TwoWay}"
+                                                      Margin="2,3" Click="StatusPick_Changed">
+                                                <TextBlock Text="{Binding Name}" Foreground="#222222" FontSize="12.5" Margin="0" />
+                                            </CheckBox>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                                <Button Content="Clear selection" Height="26" Margin="0,6,0,0"
+                                        Cursor="Hand" Click="btnClearStatus_Click" />
+                            </StackPanel>
+                        </Border>
+                    </Popup>
+                    <Button Name="btnClearStatusTop" Content="&#10005;" Width="28" Margin="4,0,0,0"
+                            ToolTip="Clear status filter" Click="btnClearStatus_Click" />
+                </StackPanel>
+
+                <StackPanel Orientation="Horizontal" Margin="0,0,18,0">
+                    <TextBlock Text="Finance" />
+                    <ComboBox Name="cmbFinance" Width="190" IsEditable="True" IsTextSearchEnabled="True"
+                              StaysOpenOnEdit="True"
+                              SelectionChanged="Finance_Changed" KeyUp="Finance_Key"
+                              ToolTip="Type to search a finance / head office, or pick from the list" />
+                    <Button Name="btnClearFinance" Content="&#10005;" Width="28" Margin="4,0,0,0"
+                            ToolTip="Clear finance filter" Click="btnClearFinance_Click" />
+                </StackPanel>
+
+                <StackPanel Orientation="Horizontal" Margin="0,0,18,0">
+                    <TextBlock Text="Agent" />
+                    <ToggleButton Name="btnAgents" Width="190" Content="All agents"
+                                  HorizontalContentAlignment="Left" Padding="8,0"
+                                  ToolTip="Tick one or more agents to show only their records" />
+                    <Popup Name="popAgents" PlacementTarget="{Binding ElementName=btnAgents}" Placement="Bottom"
+                           StaysOpen="False" AllowsTransparency="True"
+                           IsOpen="{Binding IsChecked, ElementName=btnAgents, Mode=TwoWay}">
+                        <Border Background="White" BorderBrush="#CCCCCC" BorderThickness="1" Padding="8">
+                            <StackPanel Width="380">
+                                <TextBox Name="txtAgentSearch" Height="26" Margin="0,0,0,6"
+                                         VerticalContentAlignment="Center" Padding="6,0"
+                                         ToolTip="Type to narrow the list, then press Enter to apply"
+                                         TextChanged="AgentSearch_Changed" KeyDown="AgentPicker_KeyDown" />
+                                <ListBox Name="lstAgentPicks" MaxHeight="340" BorderThickness="0"
+                                         HorizontalContentAlignment="Stretch"
+                                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <CheckBox IsChecked="{Binding IsChecked, Mode=TwoWay}"
+                                                      Margin="2" Click="AgentPick_Changed">
+                                                <TextBlock Text="{Binding Name}" TextWrapping="Wrap" Foreground="#222222" FontSize="12.5" Margin="0" />
+                                            </CheckBox>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                                <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                    <Button Content="Clear selection" Height="26" Padding="10,0" Margin="0,0,6,0"
+                                            Cursor="Hand" Click="btnClearAgent_Click" />
+                                    <Button Content="Apply" Height="26" Padding="16,0" Cursor="Hand"
+                                            Background="#1565C0" Foreground="White" BorderThickness="0"
+                                            Click="btnApplyAgents_Click" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                    </Popup>
+                    <Button Name="btnClearAgent" Content="&#10005;" Width="28" Margin="4,0,0,0"
+                            ToolTip="Clear agent filter" Click="btnClearAgent_Click" />
+                </StackPanel>
+
+                <StackPanel Orientation="Horizontal" Margin="0,0,18,0">
+                    <TextBlock Text="Inventory" />
+                    <ComboBox Name="cmbInventory" Width="90" SelectedIndex="0"
+                              SelectionChanged="Inventory_Changed"
+                              ToolTip="Show only records marked Yes or No for inventory">
+                        <ComboBoxItem Content="All" />
+                        <ComboBoxItem Content="Yes" />
+                        <ComboBoxItem Content="No" />
+                    </ComboBox>
+                </StackPanel>
+
+                <StackPanel Orientation="Horizontal" Margin="0,0,18,0">
+                    <TextBlock Text="RC last 4" />
+                    <TextBox Name="txtRcLast4" Width="90" Height="28" MaxLength="6"
+                             VerticalContentAlignment="Center" TextAlignment="Center" FontWeight="Bold"
+                             ToolTip="Type the last 4 digits of the RC or chassis"
+                             TextChanged="RcLast4_Changed" />
+                </StackPanel>
+
+                <StackPanel Orientation="Horizontal">
+                    <Button Name="btnRefresh" Content="&#8635; Refresh" Width="100" FontWeight="Bold"
+                            Background="#1565C0" Foreground="White" BorderThickness="0"
+                            ToolTip="Reload records from the server" Click="btnRefresh_Click" />
+                    <TextBlock Name="txtStatus" Foreground="#888" Margin="14,0,0,0" />
+                </StackPanel>
+            </StackPanel>
+            </ScrollViewer>
 
             <DataGrid Name="grid" Style="{StaticResource XlGrid}"
                       CanUserSortColumns="True" FrozenColumnCount="2"
@@ -99,6 +179,8 @@
                     </ContextMenu>
                 </DataGrid.ContextMenu>
                 <DataGrid.Columns>
+                    <DataGridTextColumn Header="Repo Date" Binding="{Binding RepoDate}" Width="120" IsReadOnly="True" ElementStyle="{StaticResource XlText}" />
+                    <DataGridTextColumn Header="Vehicle No" Binding="{Binding VehicleNo}" Width="110" IsReadOnly="True" ElementStyle="{StaticResource XlText}" />
                     <DataGridTextColumn Header="Gross" Binding="{Binding GrossText}" Width="90" IsReadOnly="True" ElementStyle="{StaticResource XlText}" />
                     <DataGridTextColumn Header="%" Binding="{Binding PercentText}" Width="60" IsReadOnly="True" ElementStyle="{StaticResource XlText}" />
                     <DataGridTextColumn Header="Repo Charges" Binding="{Binding RepoChargesText, UpdateSourceTrigger=PropertyChanged}" Width="110" ElementStyle="{StaticResource XlText}" />
@@ -128,9 +210,7 @@
                         </DataGridTextColumn.ElementStyle>
                     </DataGridTextColumn>
                     <DataGridTextColumn Header="Invoice No" Binding="{Binding InvoiceNo}" Width="110" IsReadOnly="True" ElementStyle="{StaticResource XlText}" />
-                    <DataGridTextColumn Header="Repo Date" Binding="{Binding RepoDate}" Width="120" IsReadOnly="True" ElementStyle="{StaticResource XlText}" />
                     <DataGridTextColumn Header="Agent" Binding="{Binding AgentName}" Width="140" IsReadOnly="True" ElementStyle="{StaticResource XlText}" />
-                    <DataGridTextColumn Header="Vehicle No" Binding="{Binding VehicleNo}" Width="110" IsReadOnly="True" ElementStyle="{StaticResource XlText}" />
                     <DataGridTextColumn Header="Customer" Binding="{Binding CustomerName}" Width="150" IsReadOnly="True" ElementStyle="{StaticResource XlText}" />
                     <DataGridTextColumn Header="Finance" Binding="{Binding FinanceName}" Width="130" IsReadOnly="True" ElementStyle="{StaticResource XlText}" />
                     <DataGridTextColumn Header="Branch" Binding="{Binding BranchName}" Width="120" IsReadOnly="True" ElementStyle="{StaticResource XlText}" />

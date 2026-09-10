@@ -44,6 +44,74 @@ public partial class AccountsPage : Page
         new StatusPick { Name = "Billing Done",        Key = "billed" },
     };
 
+    private class AgentPick : INotifyPropertyChanged
+    {
+        public string Name { get; set; } = "";
+
+        private bool _isChecked;
+        public bool IsChecked
+        {
+            get => _isChecked;
+            set { _isChecked = value; PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsChecked))); }
+        }
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+    }
+
+    private List<AgentPick> _agentPicks = new();
+
+    private void ShowAgentPicks()
+    {
+        var term = (txtAgentSearch.Text ?? "").Trim();
+        lstAgentPicks.ItemsSource = term.Length == 0
+            ? _agentPicks
+            : _agentPicks.Where(a => a.Name.IndexOf(term, StringComparison.OrdinalIgnoreCase) >= 0).ToList();
+    }
+
+    private void UpdateAgentButton()
+    {
+        var picked = _agentPicks.Where(a => a.IsChecked).Select(a => a.Name).ToList();
+        btnAgents.Content = picked.Count switch
+        {
+            0 => "All agents",
+            1 => picked[0],
+            _ => $"{picked.Count} agents",
+        };
+    }
+
+    private void AgentSearch_Changed(object sender, TextChangedEventArgs e) => ShowAgentPicks();
+
+    private void AgentPick_Changed(object sender, RoutedEventArgs e)
+    {
+        UpdateAgentButton();
+        if (_ready) ApplyFilter();
+    }
+
+    // Enter applies the ticks and shuts the popup, so the keyboard alone gets
+    // you through the picker.
+    private void AgentPicker_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+    {
+        if (e.Key != System.Windows.Input.Key.Enter && e.Key != System.Windows.Input.Key.Escape) return;
+        e.Handled = true;
+        if (e.Key == System.Windows.Input.Key.Enter && _ready) ApplyFilter();
+        btnAgents.IsChecked = false;
+    }
+
+    private void btnApplyAgents_Click(object sender, RoutedEventArgs e)
+    {
+        if (_ready) ApplyFilter();
+        btnAgents.IsChecked = false;
+    }
+
+    /// The single agent a bill can be generated for: exactly one ticked, or the
+    /// agent of the selected row.
+    private string PickedAgentName()
+    {
+        var picked = _agentPicks.Where(a => a.IsChecked).Select(a => a.Name).ToList();
+        if (picked.Count == 1) return picked[0];
+        return (grid.SelectedItem as AcctRow)?.AgentName ?? "";
+    }
+
     private void UpdateStatusButton()
     {
         var picked = _statusPicks.Where(p => p.IsChecked).Select(p => p.Name).ToList();
@@ -81,7 +149,7 @@ public partial class AccountsPage : Page
         dpFrom.DisplayDateEnd = DateTime.Today;
         dpTo.DisplayDateEnd = DateTime.Today;
         dpPayDate.DisplayDateEnd = DateTime.Today;
-        dpFrom.SelectedDate = DateTime.Today.AddDays(-30);
+        dpFrom.SelectedDate = DateTime.Today.AddDays(-7);
         dpTo.SelectedDate = DateTime.Today;
         Loaded += async (_, __) => { _ready = true; await LoadAsync(); };
     }
@@ -208,14 +276,17 @@ public partial class AccountsPage : Page
             .ToList();
         cmbFinance.Text = keepFin;
 
-        var keep = cmbAgent.Text;
         var names = _all.Select(r => (r.AgentName ?? "").Trim())
             .Where(a => a.Length > 0)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(a => a, StringComparer.OrdinalIgnoreCase)
             .ToList();
-        cmbAgent.ItemsSource = names;
-        cmbAgent.Text = keep;
+
+        var ticked = new HashSet<string>(
+            _agentPicks.Where(a => a.IsChecked).Select(a => a.Name), StringComparer.OrdinalIgnoreCase);
+        _agentPicks = names.Select(a => new AgentPick { Name = a, IsChecked = ticked.Contains(a) }).ToList();
+        ShowAgentPicks();
+        UpdateAgentButton();
 
         var keepEdit = cmbEditAgent.Text;
         cmbEditAgent.ItemsSource = names;
@@ -453,21 +524,11 @@ public partial class AccountsPage : Page
 
     private void ApplyFilter()
     {
-        var term = (cmbAgent.Text ?? "").Trim();
-        List<AcctRow> rows;
-        if (term.Length == 0)
-        {
-            rows = _all;
-        }
-        else
-        {
-            // Prefer an exact agent match (so "J" doesn't also pull in "RAJA RAM");
-            // fall back to contains for free-text discovery.
-            var exact = _all.Where(r => string.Equals((r.AgentName ?? "").Trim(), term, StringComparison.OrdinalIgnoreCase)).ToList();
-            rows = exact.Count > 0
-                ? exact
-                : _all.Where(r => CRMRSDesktopApp.Billing.ViewAllDetailsWindow.NameMatches(r.AgentName, term)).ToList();
-        }
+        var picked = new HashSet<string>(
+            _agentPicks.Where(a => a.IsChecked).Select(a => a.Name), StringComparer.OrdinalIgnoreCase);
+        List<AcctRow> rows = picked.Count == 0
+            ? _all
+            : _all.Where(r => picked.Contains((r.AgentName ?? "").Trim())).ToList();
 
         var fin = (cmbFinance.Text ?? "").Trim();
         if (fin.Length > 0)
@@ -497,12 +558,6 @@ public partial class AccountsPage : Page
         BuildSummary(rows);
     }
 
-    private void Agent_Changed(object sender, SelectionChangedEventArgs e)
-    {
-        if (!_ready) return;
-        Dispatcher.BeginInvoke(new Action(ApplyFilter), System.Windows.Threading.DispatcherPriority.Input);
-    }
-    private void Agent_Key(object sender, System.Windows.Input.KeyEventArgs e) { if (_ready) ApplyFilter(); }
 
     private void Finance_Changed(object sender, SelectionChangedEventArgs e)
     {
@@ -513,7 +568,14 @@ public partial class AccountsPage : Page
     private void btnClearFinance_Click(object sender, RoutedEventArgs e) { cmbFinance.Text = ""; if (_ready) ApplyFilter(); }
     private void Inventory_Changed(object sender, SelectionChangedEventArgs e) { if (_ready) ApplyFilter(); }
     private void RcLast4_Changed(object sender, TextChangedEventArgs e) { if (_ready) ApplyFilter(); }
-    private void btnClearAgent_Click(object sender, RoutedEventArgs e) { cmbAgent.Text = ""; if (_ready) ApplyFilter(); }
+    private void btnClearAgent_Click(object sender, RoutedEventArgs e)
+    {
+        foreach (var a in _agentPicks) a.IsChecked = false;
+        txtAgentSearch.Text = "";
+        ShowAgentPicks();
+        UpdateAgentButton();
+        if (_ready) ApplyFilter();
+    }
 
     private async void btnRefresh_Click(object sender, RoutedEventArgs e)
     {
@@ -796,6 +858,7 @@ public partial class AccountsPage : Page
     {
         var sel = grid.SelectedItem as AcctRow ?? _selected;
         string agent = (sel?.AgentName ?? "").Trim();
+        if (agent.Length == 0) agent = PickedAgentName().Trim();
         if (agent.Length == 0)
         {
             var agents = _shown.Select(r => (r.AgentName ?? "").Trim())

@@ -125,7 +125,7 @@ public partial class AppUsersManagerPage : Page
         _suppressFinanceToggle   = false;
 
         _suppressConfirmRange = true;
-        dpConfirmFrom.SelectedDate = DateTime.Today.AddDays(-29);
+        dpConfirmFrom.SelectedDate = DateTime.Today.AddDays(-7);
         dpConfirmTo.SelectedDate   = DateTime.Today;
         _suppressConfirmRange = false;
 
