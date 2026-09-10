@@ -31,6 +31,9 @@ data class ControlPanelUiState(
     val subs: List<SubscriptionRecord> = emptyList(),
     val subsLoading: Boolean           = false,
     val selectedProfile: ProfileResponse? = null,
+    val confirmCount: Int?             = null,
+    val confirmMonth: java.time.YearMonth = java.time.YearMonth.now(),
+    val confirmLoading: Boolean        = false,
     val profileLoading: Boolean        = false,
     val showAddDialog: Boolean         = false,
     val addStartDate: String           = "",
@@ -104,9 +107,13 @@ class ControlPanelViewModel @Inject constructor(
                 subs            = emptyList(),
                 subsLoading     = true,
                 selectedProfile = null,
-                profileLoading  = true
+                profileLoading  = true,
+                confirmCount    = null,
+                confirmMonth    = java.time.YearMonth.now(),
+                confirmLoading  = true
             )
         }
+        loadConfirmCount(user.id, java.time.YearMonth.now())
         viewModelScope.launch {
             runCatching {
                 val resp = api.getUserSubscriptions(adminUserId, user.id)
@@ -130,6 +137,25 @@ class ControlPanelViewModel @Inject constructor(
                 _ui.update { it.copy(profileLoading = false) }
             }
         }
+    }
+
+    private fun loadConfirmCount(targetUserId: Long, ym: java.time.YearMonth) {
+        viewModelScope.launch {
+            _ui.update { it.copy(confirmLoading = true, confirmMonth = ym) }
+            val n = runCatching {
+                val r = api.getUserConfirmationCount(
+                    adminUserId, targetUserId, ym.year, ym.monthValue)
+                if (r.isSuccessful) r.body()?.count else null
+            }.getOrNull()
+            _ui.update { it.copy(confirmLoading = false, confirmCount = n) }
+        }
+    }
+
+    fun shiftConfirmMonth(delta: Long) {
+        val user = _ui.value.selectedUser ?: return
+        val next = _ui.value.confirmMonth.plusMonths(delta)
+        if (next.isAfter(java.time.YearMonth.now())) return
+        loadConfirmCount(user.id, next)
     }
 
     fun clearUser() = _ui.update {

@@ -27,9 +27,13 @@ private val ERR_RED = Color(0xFFDC2626)
 internal fun StatusActions(vm: AuthViewModel, nav: NavController) {
     val state by vm.state.collectAsState()
     LaunchedEffect(state) { routeAuthState(state, nav, vm) }
+    DisposableEffect(Unit) {
+        vm.startBlockedWatch()
+        onDispose { vm.stopBlockedWatch() }
+    }
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Button(
-            onClick = { vm.login(vm.lastMobile, BuildConfig.AGENCY_SLUG, BuildConfig.AGENCY_NAME) },
+            onClick = { vm.recheckBlocked() },
             enabled = state !is AuthUiState.Loading,
             modifier = Modifier.fillMaxWidth().height(50.dp),
             shape = RoundedCornerShape(12.dp)
@@ -41,8 +45,13 @@ internal fun StatusActions(vm: AuthViewModel, nav: NavController) {
                 Text("CHECK AGAIN", fontWeight = FontWeight.Bold, fontSize = 15.sp)
             }
         }
-        TextButton(onClick = { nav.navigate(Screen.Login.route) { popUpTo(0) { inclusive = true } } },
-            modifier = Modifier.fillMaxWidth()) { Text("Back to login") }
+        Text(
+            "This screen checks by itself every few seconds — it will open on its own once your agency lifts the block.",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            modifier = Modifier.fillMaxWidth()
+        )
     }
 }
 

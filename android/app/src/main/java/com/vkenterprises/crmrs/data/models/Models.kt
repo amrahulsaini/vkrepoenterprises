@@ -398,6 +398,11 @@ data class ConfirmationLog(
     val confirmedAt: String?
 )
 
+data class ConfirmationCountResponse(
+    val success: Boolean = true,
+    val count: Int = 0
+)
+
 data class ConfirmationsResponse(
     val success: Boolean = true,
     val total: Int = 0,

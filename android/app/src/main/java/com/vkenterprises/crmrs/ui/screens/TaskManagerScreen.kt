@@ -79,8 +79,8 @@ fun TaskManagerScreen(
             Column(Modifier.fillMaxSize()) {
                 MonthHeader(ui, onPrev = { vm.prevMonth() }, onNext = { vm.nextMonth() })
                 ProgressCard(ui)
-                StatusFilterBar(ui.statusFilter) { vm.setStatusFilter(it) }
                 RcSearchBar(ui.rcQuery) { vm.setRcQuery(it) }
+                StatusFilterBar(ui.statusFilter) { vm.setStatusFilter(it) }
 
                 val shown = ui.visibleItems
                 if (ui.loading) {
@@ -151,20 +151,37 @@ private fun RcSearchBar(value: String, onChange: (String) -> Unit) {
     )
 }
 
-@OptIn(ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun StatusFilterBar(selected: String, onSelect: (String) -> Unit) {
-    FlowRow(
-        Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-        verticalArrangement = Arrangement.spacedBy(2.dp)
+    var open by remember { mutableStateOf(false) }
+    ExposedDropdownMenuBox(
+        expanded = open,
+        onExpandedChange = { open = it },
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp)
     ) {
-        STATUS_LABELS.forEach { (value, label) ->
-            FilterChip(
-                selected = selected == value,
-                onClick = { onSelect(value) },
-                label = { Text(label, style = MaterialTheme.typography.labelMedium) }
-            )
+        OutlinedTextField(
+            value = (STATUS_LABELS[selected] ?: "All").uppercase(),
+            onValueChange = {},
+            readOnly = true,
+            singleLine = true,
+            label = { Text("STATUS") },
+            textStyle = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = open) },
+            modifier = Modifier.fillMaxWidth().menuAnchor()
+        )
+        ExposedDropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            STATUS_LABELS.forEach { (value, label) ->
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            label.uppercase(),
+                            fontWeight = if (value == selected) FontWeight.ExtraBold else FontWeight.Medium
+                        )
+                    },
+                    onClick = { onSelect(value); open = false }
+                )
+            }
         }
     }
 }
@@ -200,9 +217,9 @@ private fun ProgressCard(ui: TaskManagerUiState) {
     ) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(
-                "Your total possession of vehicles for ${ui.monthName}: ${ui.billedThisMonth}",
+                "YOUR TOTAL POSSESSION OF VEHICLES FOR ${ui.monthName.uppercase()}: ${ui.billedThisMonth}",
                 style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Bold,
+                fontWeight = FontWeight.ExtraBold,
                 color = accent
             )
             if (ui.demand > 0 || ui.target > 0) {

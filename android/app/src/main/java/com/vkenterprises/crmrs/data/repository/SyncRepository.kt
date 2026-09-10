@@ -39,7 +39,10 @@ class SyncRepository @Inject constructor(
 
     suspend fun getCachedBranches(): List<BranchSyncState> = syncStateDao.getAll()
 
-    suspend fun hasUpdates(): Boolean {
+    /// null means "couldn't tell" — the server was unreachable or answered
+    /// badly. Callers must leave the indicator as it was rather than reporting
+    /// "up to date", which is what made the light flick green then red.
+    suspend fun hasUpdates(): Boolean? {
         val localStates = runCatching { syncStateDao.getAll() }.getOrDefault(emptyList())
         if (localStates.any { !it.completed }) return true
 
@@ -47,9 +50,10 @@ class SyncRepository @Inject constructor(
             .getOrDefault(emptyMap())
 
         val branchResp = runCatching { api.getSyncBranches() }.getOrNull()
-            ?: return localStates.isEmpty()
-        if (!branchResp.isSuccessful) return localStates.isEmpty()
-        val branches = branchResp.body()?.branches ?: return localStates.isEmpty()
+            ?: return if (localStates.isEmpty()) true else null
+        if (!branchResp.isSuccessful) return if (localStates.isEmpty()) true else null
+        val branches = branchResp.body()?.branches
+            ?: return if (localStates.isEmpty()) true else null
 
         val byId = localStates.associateBy { it.branchId }
         for (b in branches) {

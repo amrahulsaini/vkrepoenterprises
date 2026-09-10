@@ -247,6 +247,14 @@ interface ApiService {
         @Query("to") to: String? = null
     ): Response<ConfirmationsResponse>
 
+    @GET("api/mobile/admin/confirmation-count")
+    suspend fun getUserConfirmationCount(
+        @Header("X-User-Id") userId: Long,
+        @Query("targetUserId") targetUserId: Long,
+        @Query("year") year: Int,
+        @Query("month") month: Int
+    ): Response<ConfirmationCountResponse>
+
     @GET("api/mobile/ratelist")
     suspend fun getRateList(
         @Header("X-User-Id") userId: Long

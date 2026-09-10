@@ -48,6 +48,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.*
 import androidx.navigation.NavController
+import kotlinx.coroutines.flow.distinctUntilChanged
 import coil.compose.AsyncImage
 import com.vkenterprises.crmrs.BuildConfig
 import com.vkenterprises.crmrs.R
@@ -279,6 +280,8 @@ fun HomeScreen(
         }
     }
 
+    val focusRequester = remember { FocusRequester() }
+
     Scaffold { pad ->
         Column(Modifier.padding(pad).fillMaxSize()) {
 
@@ -287,7 +290,6 @@ fun HomeScreen(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(Modifier.padding(horizontal = 6.dp, vertical = 2.dp)) {
-                    val focusRequester = remember { FocusRequester() }
                     LaunchedEffect(Unit) {
                         focusRequester.requestFocus()
                     }
@@ -316,33 +318,6 @@ fun HomeScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        OutlinedTextField(
-                            value = ui.inputText,
-                            onValueChange = { searchVm.onInputChange(it, userId) },
-                            placeholder = { fadedHint(if (ui.mode == SearchMode.RC) "1234" else "Last 5") },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            singleLine = true,
-                            modifier = Modifier.weight(1f).height(52.dp).focusRequester(focusRequester),
-                            shape = RoundedCornerShape(8.dp),
-                            textStyle = fieldStyle,
-                            colors = fieldColors
-                        )
-                        if (ui.mode == SearchMode.RC) {
-                            OutlinedTextField(
-                                value = ui.prefixInput,
-                                onValueChange = { searchVm.onPrefixChange(it) },
-                                placeholder = { fadedHint("ABCD") },
-                                keyboardOptions = KeyboardOptions(
-                                    keyboardType = KeyboardType.Text,
-                                    capitalization = KeyboardCapitalization.Characters
-                                ),
-                                singleLine = true,
-                                modifier = Modifier.width(70.dp).height(52.dp),
-                                shape = RoundedCornerShape(8.dp),
-                                textStyle = fieldStyle,
-                                colors = fieldColors
-                            )
-                        }
                         Surface(
                             shape = RoundedCornerShape(50),
                             color = MaterialTheme.colorScheme.primary,
@@ -373,6 +348,33 @@ fun HomeScreen(
                                 )
                             }
                         }
+                        OutlinedTextField(
+                            value = ui.inputText,
+                            onValueChange = { searchVm.onInputChange(it, userId) },
+                            placeholder = { fadedHint(if (ui.mode == SearchMode.RC) "1234" else "Last 5") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            singleLine = true,
+                            modifier = Modifier.weight(1f).height(52.dp).focusRequester(focusRequester),
+                            shape = RoundedCornerShape(8.dp),
+                            textStyle = fieldStyle,
+                            colors = fieldColors
+                        )
+                        if (ui.mode == SearchMode.RC) {
+                            OutlinedTextField(
+                                value = ui.prefixInput,
+                                onValueChange = { searchVm.onPrefixChange(it) },
+                                placeholder = { fadedHint("ABCD") },
+                                keyboardOptions = KeyboardOptions(
+                                    keyboardType = KeyboardType.Text,
+                                    capitalization = KeyboardCapitalization.Characters
+                                ),
+                                singleLine = true,
+                                modifier = Modifier.width(70.dp).height(52.dp),
+                                shape = RoundedCornerShape(8.dp),
+                                textStyle = fieldStyle,
+                                colors = fieldColors
+                            )
+                        }
                         val pendingDl = ui.syncHasUpdates || ui.offlineCount <= 0L
                         val dlPulse = rememberInfiniteTransition(label = "dlPulse")
                         val dlAlpha by dlPulse.animateFloat(
@@ -384,7 +386,7 @@ fun HomeScreen(
                         )
                         IconButton(
                             onClick = { if (!ui.isSyncing) searchVm.triggerSync() },
-                            modifier = Modifier.size(28.dp)
+                            modifier = Modifier.size(38.dp)
                         ) {
                             Icon(
                                 if (ui.isSyncing) Icons.Default.CloudSync
@@ -396,7 +398,7 @@ fun HomeScreen(
                                     pendingDl    -> Color(0xFF2E7D32).copy(alpha = dlAlpha)
                                     else         -> Color(0xFFD32F2F)
                                 },
-                                modifier = Modifier.size(19.dp)
+                                modifier = Modifier.size(28.dp)
                             )
                         }
                         IconButton(
@@ -461,6 +463,24 @@ fun HomeScreen(
                     snapshotFlow { listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset }
                         .collect { (i, o) -> searchVm.saveScroll(i, o) }
                 }
+            }
+
+            LaunchedEffect(ui.twoColumnView, ui.results.isEmpty()) {
+                if (ui.results.isEmpty()) return@LaunchedEffect
+                snapshotFlow {
+                    if (ui.twoColumnView)
+                        gridState.firstVisibleItemIndex == 0 && gridState.firstVisibleItemScrollOffset == 0
+                    else
+                        listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset == 0
+                }
+                    .distinctUntilChanged()
+                    .collect { atTop ->
+                        if (atTop) runCatching { focusRequester.requestFocus() }
+                        else {
+                            focusManager.clearFocus()
+                            keyboardController?.hide()
+                        }
+                    }
             }
 
             if (ui.results.isNotEmpty()) {

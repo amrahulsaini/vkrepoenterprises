@@ -270,6 +270,46 @@ class AuthViewModel @Inject constructor(
     var lastKycMessage: String = ""
         private set
 
+    private var blockedWatchJob: Job? = null
+
+    /// Re-runs the login for whoever is signed in, resolving the mobile from
+    /// storage rather than trusting the in-memory field — after a cold start
+    /// that field is empty, which is why "check again" used to do nothing.
+    fun recheckBlocked() = viewModelScope.launch {
+        val mobile = lastMobile.takeIf { it.isNotBlank() }
+            ?: prefs.userMobile.first().takeIf { it.isNotBlank() }
+            ?: return@launch
+        val slug  = prefs.agencySlug.first()?.takeIf { it.isNotBlank() } ?: BuildConfig.AGENCY_SLUG
+        val name  = prefs.agencyName.first()?.takeIf { it.isNotBlank() } ?: BuildConfig.AGENCY_NAME
+        _kickReason.value = null
+        login(mobile, slug, name)
+    }
+
+    /// While a blocked screen is up, poll the server so the moment an admin
+    /// lifts the block the agent is let back in without touching anything.
+    fun startBlockedWatch() {
+        if (blockedWatchJob?.isActive == true) return
+        blockedWatchJob = viewModelScope.launch {
+            while (true) {
+                delay(8_000L)
+                val uid = prefs.userId.first()
+                if (uid <= 0L) continue
+                val cleared = runCatching {
+                    val r = ApiClient.api.getMyStatus(uid)
+                    val b = r.body()
+                    r.isSuccessful && b != null && b.found && b.isActive &&
+                        !b.isStopped && !b.isBlacklisted
+                }.getOrDefault(false)
+                if (cleared) { recheckBlocked(); return@launch }
+            }
+        }
+    }
+
+    fun stopBlockedWatch() {
+        blockedWatchJob?.cancel()
+        blockedWatchJob = null
+    }
+
     fun login(mobile: String, slug: String, agencyName: String, agencyLogo: String = "") = viewModelScope.launch {
         lastMobile = mobile.trim()
         _state.value = AuthUiState.Loading

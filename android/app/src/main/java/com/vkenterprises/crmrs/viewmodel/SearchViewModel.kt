@@ -109,15 +109,13 @@ class SearchViewModel @Inject constructor(
             }
         }
         viewModelScope.launch(Dispatchers.IO) {
-            val hasUpdates = runCatching { syncRepo.hasUpdates() }.getOrDefault(false)
-            _ui.update { it.copy(syncHasUpdates = hasUpdates) }
+            applyUpdateCheck()
             refreshOfflineCount()
         }
         viewModelScope.launch(Dispatchers.IO) {
             while (true) {
                 kotlinx.coroutines.delay(15_000L)
-                val hasUpdates = runCatching { syncRepo.hasUpdates() }.getOrDefault(false)
-                _ui.update { it.copy(syncHasUpdates = hasUpdates) }
+                applyUpdateCheck()
                 refreshOfflineCount()
             }
         }
@@ -148,11 +146,17 @@ class SearchViewModel @Inject constructor(
         _ui.update { it.copy(letterResults = emptyList(), letterSearching = false) }
     }
 
+    /// Leaves the flag untouched when the check could not reach the server, so
+    /// a dropped request never turns a real "new records" light back off.
+    private suspend fun applyUpdateCheck() {
+        val pending = runCatching { syncRepo.hasUpdates() }.getOrNull() ?: return
+        _ui.update { it.copy(syncHasUpdates = pending) }
+    }
+
     fun refreshSyncStatus() {
         viewModelScope.launch(Dispatchers.IO) {
             refreshOfflineCount()
-            val pending = runCatching { syncRepo.hasUpdates() }.getOrDefault(true)
-            _ui.update { it.copy(syncHasUpdates = pending) }
+            applyUpdateCheck()
         }
     }
 
@@ -176,7 +180,7 @@ class SearchViewModel @Inject constructor(
                 syncRepo.sync { p -> handleProgress(p) }
                 success = true
             }
-            val stillPending = runCatching { syncRepo.hasUpdates() }.getOrDefault(false)
+            val stillPending = runCatching { syncRepo.hasUpdates() }.getOrNull() ?: false
             refreshOfflineCount()
             _ui.update {
                 it.copy(

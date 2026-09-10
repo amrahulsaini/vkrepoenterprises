@@ -51,7 +51,7 @@ class SettingsViewModel @Inject constructor(
             val syncLogs     = syncRepo.getSyncLogs()
             val statsResp    = runCatching { api.getStats() }.getOrNull()
             val body         = statsResp?.body()
-            val hasUpdates   = syncRepo.hasUpdates()
+            val hasUpdates   = syncRepo.hasUpdates() ?: false
             _ui.update {
                 it.copy(
                     roomCount             = roomCount,
@@ -96,7 +96,7 @@ class SettingsViewModel @Inject constructor(
             }.onFailure { e ->
                 _ui.update { it.copy(syncProgress = com.vkenterprises.crmrs.utils.NetworkError.friendly(e)) }
             }
-            val stillPending = runCatching { syncRepo.hasUpdates() }.getOrDefault(false)
+            val stillPending = runCatching { syncRepo.hasUpdates() }.getOrNull() ?: false
             _ui.update {
                 it.copy(isSyncing = false, syncCompleted = success && !stillPending,
                     syncHasUpdates = stillPending)
@@ -124,7 +124,7 @@ class SettingsViewModel @Inject constructor(
             }.onFailure { e ->
                 _ui.update { it.copy(syncProgress = com.vkenterprises.crmrs.utils.NetworkError.friendly(e)) }
             }
-            val stillPending = runCatching { syncRepo.hasUpdates() }.getOrDefault(false)
+            val stillPending = runCatching { syncRepo.hasUpdates() }.getOrNull() ?: false
             _ui.update {
                 it.copy(isSyncing = false, syncCompleted = success && !stillPending,
                     syncHasUpdates = stillPending)

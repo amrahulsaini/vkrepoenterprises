@@ -1130,6 +1130,26 @@ public class MobileController : ControllerBase
         }
     }
 
+    [HttpGet("admin/confirmation-count")]
+    public async Task<IActionResult> GetConfirmationCount(
+        [FromHeader(Name = "X-User-Id")] long userId,
+        [FromQuery] long targetUserId, [FromQuery] int? year, [FromQuery] int? month)
+    {
+        try
+        {
+            if (!await _repo.IsAdminAsync(userId))
+                return StatusCode(403, new ApiError(false, "Admin access required."));
+            var now = DateTime.Now;
+            var count = await _repo.GetConfirmationCountAsync(
+                targetUserId, year ?? now.Year, month ?? now.Month);
+            return Ok(new { success = true, count });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new ApiError(false, $"Count failed: {ex.Message}"));
+        }
+    }
+
     [HttpGet("ratelist")]
     public async Task<IActionResult> GetRateList([FromHeader(Name = "X-User-Id")] long userId)
     {

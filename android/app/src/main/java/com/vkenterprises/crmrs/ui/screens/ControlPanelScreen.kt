@@ -397,11 +397,51 @@ private fun UserDetail(vm: ControlPanelViewModel, ui: com.vkenterprises.crmrs.vi
             }
         }
         item {
+            Card(
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFFFFBEB)),
+                border = androidx.compose.foundation.BorderStroke(2.dp, Color(0xFFF59E0B)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(Modifier.padding(16.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text("CONFIRMATIONS",
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = Color(0xFF78350F))
+                            Text(
+                                ui.confirmMonth.month.name.lowercase()
+                                    .replaceFirstChar { c -> c.uppercase() } + " " + ui.confirmMonth.year,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color(0xFF92400E))
+                        }
+                        IconButton(onClick = { vm.shiftConfirmMonth(-1) }) {
+                            Icon(Icons.Default.ChevronLeft, "Previous month", tint = Color(0xFFB45309))
+                        }
+                        Text(
+                            when {
+                                ui.confirmLoading -> "…"
+                                ui.confirmCount == null -> "—"
+                                else -> ui.confirmCount.toString()
+                            },
+                            style = MaterialTheme.typography.headlineMedium,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color(0xFFB45309)
+                        )
+                        IconButton(onClick = { vm.shiftConfirmMonth(1) }) {
+                            Icon(Icons.Default.ChevronRight, "Next month", tint = Color(0xFFB45309))
+                        }
+                    }
+                }
+            }
+        }
+        item {
             Card(shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     SectionTitle("User Status")
                     ToggleRow("Active account", user.isActive, ui.busy) { vm.setActive(it) }
-                    ToggleRow("Admin (full access)", user.isAdmin, ui.busy) { vm.setAdmin(it) }
+                    ToggleRow("Admin", user.isAdmin, ui.busy) { vm.setAdmin(it) }
                     ToggleRow("App stopped", user.isStopped, ui.busy) { vm.setStopped(it) }
                     ToggleRow("Blacklisted", user.isBlacklisted, ui.busy) { vm.setBlacklisted(it) }
                 }

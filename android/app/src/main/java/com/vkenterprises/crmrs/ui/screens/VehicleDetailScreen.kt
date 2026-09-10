@@ -268,9 +268,22 @@ fun VehicleDetailScreen(
     if (showWaSheet && item != null) {
         var vehicleLocation by remember(showWaSheet) { mutableStateOf("") }
         var loadDetails     by remember(showWaSheet) { mutableStateOf("") }
-        ModalBottomSheet(onDismissRequest = { showWaSheet = false }) {
+        val waSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        ModalBottomSheet(
+            sheetState = waSheetState,
+            onDismissRequest = { showWaSheet = false }
+        ) {
+            // Back closes the keypad first. Without this the sheet's own back
+            // handling wins and the half-filled form is thrown away.
+            BackHandler(enabled = WindowInsets.isImeVisible) {
+                focusManager.clearFocus()
+                keyboardController?.hide()
+            }
             Column(
-                Modifier.padding(16.dp).padding(bottom = 24.dp),
+                Modifier
+                    .imePadding()
+                    .padding(16.dp)
+                    .padding(bottom = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Text("Send WhatsApp",
@@ -317,7 +330,11 @@ fun VehicleDetailScreen(
     }
 
     if (showBranchSheet && uniqueBranches.isNotEmpty()) {
+        // Skipping the partially-expanded stop is what stops the sheet snapping
+        // up over the action bar and fighting the drag on the way back down.
+        val branchSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
         ModalBottomSheet(
+            sheetState = branchSheetState,
             onDismissRequest = {
                 showBranchSheet = false
                 focusManager.clearFocus()
@@ -327,6 +344,7 @@ fun VehicleDetailScreen(
             Column(
                 Modifier
                     .navigationBarsPadding()
+                    .heightIn(max = 460.dp)
                     .padding(horizontal = 16.dp)
                     .verticalScroll(rememberScrollState())
                     .padding(bottom = 24.dp),
@@ -603,6 +621,37 @@ private fun QuickSearchBar(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
+            Surface(
+                shape = RoundedCornerShape(50),
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.clickable {
+                    searchVm.setMode(
+                        if (mode == com.vkenterprises.crmrs.viewmodel.SearchMode.RC)
+                            com.vkenterprises.crmrs.viewmodel.SearchMode.CHASSIS
+                        else com.vkenterprises.crmrs.viewmodel.SearchMode.RC
+                    )
+                }
+            ) {
+                Row(
+                    Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    Text(
+                        if (mode == com.vkenterprises.crmrs.viewmodel.SearchMode.RC) "RC" else "CH",
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 11.sp,
+                        maxLines = 1,
+                        letterSpacing = 0.sp
+                    )
+                    Icon(
+                        Icons.Default.SwapHoriz, "Switch mode",
+                        tint = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.size(12.dp)
+                    )
+                }
+            }
             OutlinedTextField(
                 value = ui.inputText,
                 onValueChange = { raw ->
@@ -638,37 +687,6 @@ private fun QuickSearchBar(
                     colors = fieldColors
                 )
             }
-            Surface(
-                shape = RoundedCornerShape(50),
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.clickable {
-                    searchVm.setMode(
-                        if (mode == com.vkenterprises.crmrs.viewmodel.SearchMode.RC)
-                            com.vkenterprises.crmrs.viewmodel.SearchMode.CHASSIS
-                        else com.vkenterprises.crmrs.viewmodel.SearchMode.RC
-                    )
-                }
-            ) {
-                Row(
-                    Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(2.dp)
-                ) {
-                    Text(
-                        if (mode == com.vkenterprises.crmrs.viewmodel.SearchMode.RC) "RC" else "CH",
-                        color = MaterialTheme.colorScheme.onPrimary,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 11.sp,
-                        maxLines = 1,
-                        letterSpacing = 0.sp
-                    )
-                    Icon(
-                        Icons.Default.SwapHoriz, "Switch mode",
-                        tint = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.size(12.dp)
-                    )
-                }
-            }
             val pendingDl = ui.syncHasUpdates || ui.offlineCount <= 0L
             val dlPulse = rememberInfiniteTransition(label = "dlPulseDetail")
             val dlAlpha by dlPulse.animateFloat(
@@ -682,7 +700,7 @@ private fun QuickSearchBar(
             )
             IconButton(
                 onClick = { if (!ui.isSyncing) searchVm.triggerSync() },
-                modifier = Modifier.size(32.dp)
+                modifier = Modifier.size(38.dp)
             ) {
                 Icon(
                     if (ui.isSyncing) Icons.Default.CloudSync
@@ -694,7 +712,7 @@ private fun QuickSearchBar(
                         pendingDl    -> Color(0xFF2E7D32).copy(alpha = dlAlpha)
                         else         -> Color(0xFFD32F2F)
                     },
-                    modifier = Modifier.size(21.dp)
+                    modifier = Modifier.size(28.dp)
                 )
             }
             IconButton(
@@ -1244,10 +1262,11 @@ private fun ActionChip(
         Icon(icon, null, modifier = Modifier.size(13.dp))
         Spacer(Modifier.width(2.dp))
         Text(
-            label,
+            label.uppercase(),
             fontSize = 10.sp,
             lineHeight = 11.sp,
-            fontWeight = FontWeight.SemiBold,
+            fontWeight = FontWeight.ExtraBold,
+            letterSpacing = 0.2.sp,
             maxLines = 2,
             softWrap = true,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center

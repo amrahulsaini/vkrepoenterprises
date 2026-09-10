@@ -103,6 +103,22 @@ public class MobileRepository
         return list;
     }
 
+    /// <summary>How many confirmations one agent sent in a calendar month.</summary>
+    public async Task<int> GetConfirmationCountAsync(long userId, int year, int month)
+    {
+        await using var conn = DbFactory.Create();
+        await conn.OpenAsync();
+        await using var cmd = new MySqlCommand(@"
+            SELECT COUNT(*) FROM confirm_captures
+             WHERE user_id = @uid
+               AND YEAR(COALESCE(captured_at, created_at))  = @y
+               AND MONTH(COALESCE(captured_at, created_at)) = @m", conn) { CommandTimeout = 15 };
+        cmd.Parameters.AddWithValue("@uid", userId);
+        cmd.Parameters.AddWithValue("@y", year);
+        cmd.Parameters.AddWithValue("@m", month);
+        return Convert.ToInt32(await cmd.ExecuteScalarAsync() ?? 0);
+    }
+
     /// <summary>Rate-list entries this agent has been given, newest first. An
     /// entry with no audience is deliberately visible to nobody.</summary>
     public async Task<List<RateListItemDto>> GetRateListAsync(long userId)
