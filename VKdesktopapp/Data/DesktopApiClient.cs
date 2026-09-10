@@ -766,6 +766,26 @@ internal static class DesktopApiClient
 
     internal record CourierAdvanceDto(long Id, decimal Amount, string Date, string Note);
 
+    internal sealed class BulkAdvanceDto
+    {
+        public long SubmissionId { get; set; }
+        public long Id { get; set; }
+        public decimal Amount { get; set; }
+        public string Date { get; set; } = "";
+        public string Note { get; set; } = "";
+    }
+
+    internal static async Task<List<BulkAdvanceDto>> GetAllCourierAdvancesAsync(string? from, string? to)
+    {
+        var q = new List<string>();
+        if (!string.IsNullOrWhiteSpace(from)) q.Add($"from={Uri.EscapeDataString(from)}");
+        if (!string.IsNullOrWhiteSpace(to))   q.Add($"to={Uri.EscapeDataString(to)}");
+        var qs = q.Count > 0 ? "?" + string.Join("&", q) : "";
+        var resp = await Send(HttpMethod.Get, $"api/mgr/couriers/advances{qs}");
+        resp.EnsureSuccessStatusCode();
+        return (await resp.Content.ReadFromJsonAsync<List<BulkAdvanceDto>>(_json))!;
+    }
+
     internal static async Task<List<CourierAdvanceDto>> GetCourierAdvancesAsync(long id)
     {
         var resp = await Send(HttpMethod.Get, $"api/mgr/couriers/submissions/{id}/advances");

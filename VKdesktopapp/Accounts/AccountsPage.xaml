@@ -19,13 +19,29 @@
                 <TextBlock Text="To" VerticalAlignment="Center" Foreground="#666" Margin="0,0,6,0" />
                 <DatePicker Name="dpTo" Width="130" Margin="0,0,14,0" SelectedDateChanged="Reload_Changed" />
                 <TextBlock Text="Status" VerticalAlignment="Center" Foreground="#666" Margin="0,0,6,0" />
-                <ComboBox Name="cmbAction" Width="150" Margin="0,0,14,0" SelectedIndex="0" SelectionChanged="Reload_Changed">
-                    <ComboBoxItem Content="All" />
-                    <ComboBoxItem Content="OK for billing" />
-                    <ComboBoxItem Content="Hold for collection" />
-                    <ComboBoxItem Content="Collection done" />
-                    <ComboBoxItem Content="Billing Done" />
-                </ComboBox>
+                <ToggleButton Name="btnStatuses" Width="170" Height="26" Content="All statuses" Margin="0,0,14,0"
+                              HorizontalContentAlignment="Left" Padding="8,0" Cursor="Hand"
+                              ToolTip="Tick one or more statuses to show only those records" />
+                <Popup Name="popStatuses" PlacementTarget="{Binding ElementName=btnStatuses}" Placement="Bottom"
+                       StaysOpen="False" AllowsTransparency="True"
+                       IsOpen="{Binding IsChecked, ElementName=btnStatuses, Mode=TwoWay}">
+                    <Border Background="White" BorderBrush="#CCCCCC" BorderThickness="1" Padding="8">
+                        <StackPanel Width="230">
+                            <ItemsControl Name="lstStatusPicks">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <CheckBox IsChecked="{Binding IsChecked, Mode=TwoWay}"
+                                                  Margin="2,3" Click="StatusPick_Changed">
+                                            <TextBlock Text="{Binding Name}" Foreground="#222222" FontSize="12.5" />
+                                        </CheckBox>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <Button Content="Clear selection" Height="26" Margin="0,6,0,0"
+                                    Cursor="Hand" Click="btnClearStatus_Click" />
+                        </StackPanel>
+                    </Border>
+                </Popup>
                 <TextBlock Text="Finance" VerticalAlignment="Center" Foreground="#666" Margin="0,0,6,0" />
                 <ComboBox Name="cmbFinance" Width="190" Height="26" IsEditable="True" IsTextSearchEnabled="True"
                           StaysOpenOnEdit="True" VerticalContentAlignment="Center"
@@ -61,55 +77,35 @@
 
             <DataGrid Name="grid" Style="{StaticResource XlGrid}"
                       CanUserSortColumns="True" FrozenColumnCount="2"
-                      RowDetailsVisibilityMode="VisibleWhenSelected"
-                      PreviewMouseLeftButtonDown="XlGrid_RowClick"
+                      RowDetailsVisibilityMode="Collapsed"
+                      SelectionMode="Extended" SelectionUnit="FullRow"
+                      ClipboardCopyMode="IncludeHeader"
+                      MouseDoubleClick="Grid_MouseDoubleClick"
+                      PreviewKeyDown="Grid_PreviewKeyDown"
+                      PreviewMouseRightButtonDown="Grid_PreviewRightClick"
                       CellEditEnding="grid_CellEditEnding"
                       SelectionChanged="grid_SelectionChanged">
-                <DataGrid.RowDetailsTemplate>
-                    <DataTemplate>
-                        <Border Background="#FFFBF4" BorderBrush="#EF6C00" BorderThickness="3,0,0,1" Padding="14,10">
-                            <StackPanel>
-                                <TextBlock Text="FULL RECORD" FontSize="10.5" FontWeight="Bold"
-                                           Foreground="#EF6C00" Margin="0,0,0,8" />
-                                <WrapPanel>
-                                    <StackPanel Style="{StaticResource XlDetailCell}"><TextBlock Text="Vehicle No" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding VehicleNo}" Style="{StaticResource XlDetailValue}" /></StackPanel>
-                                    <StackPanel Style="{StaticResource XlDetailCell}"><TextBlock Text="Chassis No" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding ChassisNo}" Style="{StaticResource XlDetailValue}" /></StackPanel>
-                                    <StackPanel Style="{StaticResource XlDetailCell}"><TextBlock Text="Customer" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding CustomerName}" Style="{StaticResource XlDetailValue}" /></StackPanel>
-                                    <StackPanel Style="{StaticResource XlDetailCell}"><TextBlock Text="Loan No" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding LoanNo}" Style="{StaticResource XlDetailValue}" /></StackPanel>
-                                    <StackPanel Style="{StaticResource XlDetailCell}"><TextBlock Text="Model" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding Model}" Style="{StaticResource XlDetailValue}" /></StackPanel>
-                                    <StackPanel Style="{StaticResource XlDetailCell}"><TextBlock Text="Finance" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding FinanceName}" Style="{StaticResource XlDetailValue}" /></StackPanel>
-                                    <StackPanel Style="{StaticResource XlDetailCell}"><TextBlock Text="Branch" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding BranchName}" Style="{StaticResource XlDetailValue}" /></StackPanel>
-                                    <StackPanel Style="{StaticResource XlDetailCell}"><TextBlock Text="Agent" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding AgentName}" Style="{StaticResource XlDetailValue}" /></StackPanel>
-                                    <StackPanel Style="{StaticResource XlDetailCell}"><TextBlock Text="Parking Yard" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding ParkingYardName}" Style="{StaticResource XlDetailValue}" /></StackPanel>
-                                    <StackPanel Style="{StaticResource XlDetailCell}"><TextBlock Text="Status" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding ActionText}" Style="{StaticResource XlDetailValue}" /></StackPanel>
-                                    <StackPanel Style="{StaticResource XlDetailCell}"><TextBlock Text="Repo Date" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding RepoDate}" Style="{StaticResource XlDetailValue}" /></StackPanel>
-                                    <StackPanel Style="{StaticResource XlDetailCell}"><TextBlock Text="Cash Collected" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding CashText}" Style="{StaticResource XlDetailValue}" /></StackPanel>
-                                    <StackPanel Style="{StaticResource XlDetailCell}"><TextBlock Text="UTR No" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding UtrNo}" Style="{StaticResource XlDetailValue}" /></StackPanel>
-                                    <StackPanel Style="{StaticResource XlDetailCell}"><TextBlock Text="Payment Date" Style="{StaticResource XlDetailLabel}" /><TextBlock Text="{Binding PaymentDate}" Style="{StaticResource XlDetailValue}" /></StackPanel>
-                                </WrapPanel>
-                                <TextBlock Text="Collection Update" Style="{StaticResource XlDetailLabel}" />
-                                <TextBlock Text="{Binding CollectionUpdate}" Style="{StaticResource XlDetailValue}" />
-                                <TextBlock Text="Remark" Style="{StaticResource XlDetailLabel}" />
-                                <TextBlock Text="{Binding Remark}" Style="{StaticResource XlDetailValue}" />
-                            </StackPanel>
-                        </Border>
-                    </DataTemplate>
-                </DataGrid.RowDetailsTemplate>
+                <DataGrid.ContextMenu>
+                    <ContextMenu>
+                        <MenuItem Header="Copy cell"                    Click="CopyCell_Click" />
+                        <MenuItem Header="Copy selected rows"           Click="CopySelection_Click"    InputGestureText="Ctrl+C" />
+                        <MenuItem Header="Copy selected rows + headers" Click="CopySelectionHdr_Click" InputGestureText="Ctrl+Shift+C" />
+                        <Separator />
+                        <MenuItem Header="Copy this column"             Click="CopyColumn_Click" />
+                        <Separator />
+                        <MenuItem Header="Copy whole table"             Click="CopyTable_Click" />
+                        <Separator />
+                        <MenuItem Header="Open full record..."          Click="OpenRecord_Click" />
+                    </ContextMenu>
+                </DataGrid.ContextMenu>
                 <DataGrid.Columns>
-                    <DataGridTextColumn Header="Repo Date" Binding="{Binding RepoDate}" Width="120" IsReadOnly="True" ElementStyle="{StaticResource XlText}" />
-                    <DataGridTextColumn Header="Agent" Binding="{Binding AgentName}" Width="140" IsReadOnly="True" ElementStyle="{StaticResource XlText}" />
-                    <DataGridTextColumn Header="Vehicle No" Binding="{Binding VehicleNo}" Width="110" IsReadOnly="True" ElementStyle="{StaticResource XlText}" />
-                    <DataGridTextColumn Header="Customer" Binding="{Binding CustomerName}" Width="150" IsReadOnly="True" ElementStyle="{StaticResource XlText}" />
-                    <DataGridTextColumn Header="Finance" Binding="{Binding FinanceName}" Width="130" IsReadOnly="True" ElementStyle="{StaticResource XlText}" />
-                    <DataGridTextColumn Header="Branch" Binding="{Binding BranchName}" Width="120" IsReadOnly="True" ElementStyle="{StaticResource XlText}" />
-                    <DataGridTextColumn Header="Status" Binding="{Binding ActionText}" Width="120" IsReadOnly="True" ElementStyle="{StaticResource XlText}" />
                     <DataGridTextColumn Header="Gross" Binding="{Binding GrossText}" Width="90" IsReadOnly="True" ElementStyle="{StaticResource XlText}" />
                     <DataGridTextColumn Header="%" Binding="{Binding PercentText}" Width="60" IsReadOnly="True" ElementStyle="{StaticResource XlText}" />
                     <DataGridTextColumn Header="Repo Charges" Binding="{Binding RepoChargesText, UpdateSourceTrigger=PropertyChanged}" Width="110" ElementStyle="{StaticResource XlText}" />
                     <DataGridTextColumn Header="Advance" Binding="{Binding AdvanceText, UpdateSourceTrigger=PropertyChanged}" Width="90" ElementStyle="{StaticResource XlText}" />
                     <DataGridTextColumn Header="Cash Collected" Binding="{Binding CashText}" Width="110" IsReadOnly="True"
                                         ElementStyle="{StaticResource XlCashCell}" />
-                    <DataGridTextColumn Header="Final" Binding="{Binding FinalText}" Width="100" IsReadOnly="True">
+                    <DataGridTextColumn Header="Final Amount" Binding="{Binding FinalText}" Width="100" IsReadOnly="True">
                         <DataGridTextColumn.ElementStyle>
                             <Style TargetType="TextBlock" BasedOn="{StaticResource XlMoney}">
                                 <Setter Property="FontWeight" Value="Bold" />
@@ -131,6 +127,14 @@
                             </Style>
                         </DataGridTextColumn.ElementStyle>
                     </DataGridTextColumn>
+                    <DataGridTextColumn Header="Invoice No" Binding="{Binding InvoiceNo}" Width="110" IsReadOnly="True" ElementStyle="{StaticResource XlText}" />
+                    <DataGridTextColumn Header="Repo Date" Binding="{Binding RepoDate}" Width="120" IsReadOnly="True" ElementStyle="{StaticResource XlText}" />
+                    <DataGridTextColumn Header="Agent" Binding="{Binding AgentName}" Width="140" IsReadOnly="True" ElementStyle="{StaticResource XlText}" />
+                    <DataGridTextColumn Header="Vehicle No" Binding="{Binding VehicleNo}" Width="110" IsReadOnly="True" ElementStyle="{StaticResource XlText}" />
+                    <DataGridTextColumn Header="Customer" Binding="{Binding CustomerName}" Width="150" IsReadOnly="True" ElementStyle="{StaticResource XlText}" />
+                    <DataGridTextColumn Header="Finance" Binding="{Binding FinanceName}" Width="130" IsReadOnly="True" ElementStyle="{StaticResource XlText}" />
+                    <DataGridTextColumn Header="Branch" Binding="{Binding BranchName}" Width="120" IsReadOnly="True" ElementStyle="{StaticResource XlText}" />
+                    <DataGridTextColumn Header="Status" Binding="{Binding ActionText}" Width="120" IsReadOnly="True" ElementStyle="{StaticResource XlText}" />
                     <DataGridTemplateColumn Header="Screenshot" Width="90">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
@@ -216,6 +220,29 @@
                                            Margin="0,6,0,0" TextWrapping="Wrap" />
                             </StackPanel>
                         </Border>
+
+                        <TextBlock Text="Agent Name" Style="{StaticResource PLbl}" />
+                        <Grid Margin="0,0,0,7">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <ComboBox Grid.Column="0" Name="cmbEditAgent" Height="28" IsEditable="True"
+                                      IsTextSearchEnabled="True" StaysOpenOnEdit="True"
+                                      VerticalContentAlignment="Center" IsEnabled="False"
+                                      ToolTip="Pick the agent from the list, or type a correction" />
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="4,0,0,0">
+                                <Button Name="btnAgentEdit" Content="&#x270E;" Width="28" Height="28" FontSize="14"
+                                        Cursor="Hand" ToolTip="Edit the agent name" Click="btnAgentEdit_Click" />
+                                <Button Name="btnAgentSave" Content="&#x2714;" Width="28" Height="28" FontSize="12"
+                                        Background="#2E7D32" Foreground="White" BorderThickness="0"
+                                        Cursor="Hand" Visibility="Collapsed"
+                                        ToolTip="Save the agent name" Click="btnAgentSave_Click" />
+                                <Button Name="btnAgentCancel" Content="&#x2715;" Width="28" Height="28" FontSize="12"
+                                        Margin="4,0,0,0" Cursor="Hand" Visibility="Collapsed"
+                                        ToolTip="Cancel" Click="btnAgentCancel_Click" />
+                            </StackPanel>
+                        </Grid>
 
                         <TextBlock Text="Accounts Remark" Style="{StaticResource PLbl}" />
                         <TextBox Name="txtAcRemark" Height="52" Margin="0,0,0,7" TextWrapping="Wrap"

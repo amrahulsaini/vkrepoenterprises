@@ -450,22 +450,49 @@ public partial class ReportsPage : Page
             from.ToString("yyyy-MM-dd"), to.ToString("yyyy-MM-dd"), new List<int>(), null);
         Log($"Fetched {rows.Count:N0} record(s).");
 
+        SetProgress(40, "Fetching advances…");
+        List<DesktopApiClient.BulkAdvanceDto> advances;
+        try
+        {
+            advances = await DesktopApiClient.GetAllCourierAdvancesAsync(
+                from.ToString("yyyy-MM-dd"), to.ToString("yyyy-MM-dd"));
+            Log($"Fetched {advances.Count:N0} advance payment(s).");
+        }
+        catch (Exception ex)
+        {
+            // An older server without the bulk endpoint must not sink the whole
+            // export — the sheet just goes out without the advance breakdown.
+            advances = new List<DesktopApiClient.BulkAdvanceDto>();
+            Log("Advances unavailable (" + ex.Message + ") — exporting without them.");
+        }
+
+        var bySubmission = advances
+            .GroupBy(a => a.SubmissionId)
+            .ToDictionary(g => g.Key, g => g.OrderBy(a => a.Date).ToList());
+
         SetProgress(80, "Writing Excel file…");
         await Task.Run(() =>
         {
             string[] headers =
             {
                 "Repo Date", "Vehicle No.", "Loan Agreement No.", "Customer Name", "Make & Model",
-                "Chassis No.", "Engine No.", "Agent Name", "Yard Name", "Confirmed By",
-                "Finance Name", "Invoice Number", "Additional Amount", "Additional Charges Notes",
-                "Collection update", "Invoice Amount (Total)", "Advance Payment", "Repo Charges",
-                "Payment Status", "Executive", "Billing Status", "Remarks", "Feedback", "UTR No."
+                "Chassis No.", "Engine No.", "Agent Name", "Submitted By", "Yard Name", "Yard Mobile",
+                "Confirmed By", "Finance Name", "Branch", "Invoice Number", "Additional Amount",
+                "Additional Charges Notes", "Load Details", "Collection update",
+                "Invoice Amount (Total)", "Percentage (%)", "Repo Charges",
+                "Advance Payment (Total)", "Advance Count", "Advance Breakdown",
+                "Cash Collected", "Application Charges", "Final Amount",
+                "Payment Status", "UTR No.", "Payment Date",
+                "Account Holder", "Bank Name", "Bank Account No.", "IFSC Code",
+                "Executive", "Billing Status", "Bill Status", "Billed At",
+                "Inventory", "Inventory Remark", "POD Number", "Banker Address",
+                "Remarks", "Billing Remark", "Accounts Remark",
             };
 
             using var engine = new ExcelEngine();
             var xlApp = engine.Excel;
             xlApp.DefaultVersion = ExcelVersion.Xlsx;
-            var wb = xlApp.Workbooks.Create(1);
+            var wb = xlApp.Workbooks.Create(2);
             var ws = wb.Worksheets[0];
             ws.Name = "Billing Report";
 
@@ -476,41 +503,96 @@ public partial class ReportsPage : Page
             {
                 var agent = string.IsNullOrWhiteSpace(d.AgentName) ? d.SubmittedByName : d.AgentName;
                 var repoDate = (d.CreatedAt ?? "").Length >= 10 ? d.CreatedAt.Substring(0, 10) : (d.CreatedAt ?? "");
+                var advs = bySubmission.TryGetValue(d.Id, out var l) ? l : new List<DesktopApiClient.BulkAdvanceDto>();
 
-                ws[r, 1].Text  = repoDate;
-                ws[r, 2].Text  = d.VehicleNo ?? "";
-                ws[r, 3].Text  = d.LoanNo ?? "";
-                ws[r, 4].Text  = d.CustomerName ?? "";
-                ws[r, 5].Text  = d.Model ?? "";
-                ws[r, 6].Text  = d.ChassisNo ?? "";
-                ws[r, 7].Text  = d.EngineNo ?? "";
-                ws[r, 8].Text  = (agent ?? "").Trim();
-                ws[r, 9].Text  = d.ParkingYardName ?? "";
-                ws[r, 10].Text = JoinNonEmpty(d.ConfirmationByName, d.ConfirmationByMobile);
-                ws[r, 11].Text = (d.FinanceName ?? "").ToUpperInvariant();
-                ws[r, 12].Text = d.InvoiceNo ?? "";
+                int c = 1;
+                void T(string? v) { ws[r, c++].Text = v ?? ""; }
+                void N(decimal? v) { if (v is decimal x) ws[r, c].Value2 = (double)x; c++; }
 
-                if (d.AddlChargesAmount is decimal ac) ws[r, 13].Value2 = (double)ac;
-
-                ws[r, 14].Text = d.AddlChargesNotes ?? "";
-                ws[r, 15].Text = d.CollectionUpdate ?? "";
-
-                if (d.BillingAction == "immediate" && d.TotalGross is decimal tg)
-                    ws[r, 16].Value2 = (double)tg;
-
-                if (d.Advance is decimal adv)     ws[r, 17].Value2 = (double)adv;
-                if (d.RepoCharges is decimal rc)  ws[r, 18].Value2 = (double)rc;
-
-                ws[r, 19].Text = PaymentStatusLabel(d.PaymentStatus);
-                ws[r, 20].Text = d.ExecutiveName ?? "";
-                ws[r, 21].Text = BillingStatusLabel(d.BillingAction);
-                ws[r, 22].Text = d.Remark ?? "";
-                ws[r, 23].Text = "";
-                ws[r, 24].Text = "";
+                T(repoDate);
+                T(d.VehicleNo);
+                T(d.LoanNo);
+                T(d.CustomerName);
+                T(d.Model);
+                T(d.ChassisNo);
+                T(d.EngineNo);
+                T((agent ?? "").Trim());
+                T(d.SubmittedByName);
+                T(d.ParkingYardName);
+                T(d.ParkingYardMobile);
+                T(JoinNonEmpty(d.ConfirmationByName, d.ConfirmationByMobile));
+                T((d.FinanceName ?? "").ToUpperInvariant());
+                T((d.BranchName ?? "").ToUpperInvariant());
+                T(d.InvoiceNo);
+                N(d.AddlChargesAmount);
+                T(d.AddlChargesNotes);
+                T(d.LoadDetails);
+                T(d.CollectionUpdate);
+                N(d.TotalGross);
+                N(d.CourierPercent);
+                N(d.RepoCharges);
+                N(d.Advance);
+                ws[r, c++].Value2 = advs.Count;
+                T(string.Join("; ", advs.Select(a => $"{a.Date}: {a.Amount:0.##}" +
+                    (string.IsNullOrWhiteSpace(a.Note) ? "" : $" ({a.Note})"))));
+                N(d.CashAmount);
+                N(d.ApplicationCharges);
+                N((d.RepoCharges ?? 0m) - (d.Advance ?? 0m) - (d.CashAmount ?? 0m));
+                T(PaymentStatusLabel(d.PaymentStatus));
+                T(d.UtrNo);
+                T(d.PaymentDate);
+                T(d.AcctHolderName);
+                T(d.BankName);
+                T(d.BankAccountNo);
+                T(d.IfscCode);
+                T(d.ExecutiveName);
+                T(BillingStatusLabel(d.BillingAction));
+                T(d.BillStatus);
+                T(d.BilledAt);
+                T(string.Equals(d.CourierYn?.Trim(), "Yes", StringComparison.OrdinalIgnoreCase) ? "Yes" : "No");
+                T(d.InventoryRemark);
+                T(d.PodNumber);
+                T(d.BankerAddress);
+                T(d.Remark);
+                T(d.BillingRemark);
+                T(d.AccountsRemark);
                 r++;
             }
 
             ws.UsedRange.AutofitColumns();
+
+            // One row per advance, so the individual payments and their dates
+            // are there to pivot on rather than buried in a text column.
+            var wsAdv = wb.Worksheets[1];
+            wsAdv.Name = "Advances";
+            string[] advHeaders =
+            {
+                "Repo Date", "Vehicle No.", "Loan Agreement No.", "Customer Name",
+                "Finance Name", "Agent Name", "Advance Date", "Advance Amount", "Note",
+            };
+            WriteExcelHeader(wsAdv, advHeaders);
+
+            var byId = rows.GroupBy(x => x.Id).ToDictionary(g => g.Key, g => g.First());
+            int ar = 2;
+            foreach (var a in advances.OrderBy(x => x.Date).ThenBy(x => x.SubmissionId))
+            {
+                byId.TryGetValue(a.SubmissionId, out var d);
+                var agent = d == null ? "" :
+                    (string.IsNullOrWhiteSpace(d.AgentName) ? d.SubmittedByName : d.AgentName);
+                wsAdv[ar, 1].Text = d == null ? "" :
+                    ((d.CreatedAt ?? "").Length >= 10 ? d.CreatedAt.Substring(0, 10) : (d.CreatedAt ?? ""));
+                wsAdv[ar, 2].Text = d?.VehicleNo ?? "";
+                wsAdv[ar, 3].Text = d?.LoanNo ?? "";
+                wsAdv[ar, 4].Text = d?.CustomerName ?? "";
+                wsAdv[ar, 5].Text = (d?.FinanceName ?? "").ToUpperInvariant();
+                wsAdv[ar, 6].Text = (agent ?? "").Trim();
+                wsAdv[ar, 7].Text = a.Date;
+                wsAdv[ar, 8].Value2 = (double)a.Amount;
+                wsAdv[ar, 9].Text = a.Note ?? "";
+                ar++;
+            }
+            wsAdv.UsedRange.AutofitColumns();
+
             wb.SaveAs(filePath);
         });
         Log("Excel file written.");

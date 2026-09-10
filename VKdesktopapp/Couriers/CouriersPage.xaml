@@ -37,17 +37,14 @@
     </Page.Resources>
 
     <Grid Margin="14">
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="*" />
-            <ColumnDefinition Width="380" />
-        </Grid.ColumnDefinitions>
-
-        <DockPanel Grid.Column="0" Margin="0,0,14,0">
+        <DockPanel>
             <TextBlock DockPanel.Dock="Top" Text="Courier Department" FontSize="18" FontWeight="Bold"
                        Foreground="{StaticResource Accent}" Margin="0,0,0,8" />
 
-            <WrapPanel DockPanel.Dock="Top" Margin="0,0,0,12">
-                <WrapPanel.Resources>
+            <ScrollViewer DockPanel.Dock="Top" HorizontalScrollBarVisibility="Auto"
+                          VerticalScrollBarVisibility="Disabled" Margin="0,0,0,12">
+            <StackPanel Orientation="Horizontal">
+                <StackPanel.Resources>
                     <Style TargetType="TextBlock">
                         <Setter Property="VerticalAlignment" Value="Center" />
                         <Setter Property="Foreground" Value="#666" />
@@ -70,16 +67,16 @@
                         <Setter Property="Height" Value="28" />
                         <Setter Property="Cursor" Value="Hand" />
                     </Style>
-                </WrapPanel.Resources>
+                </StackPanel.Resources>
 
-                <StackPanel Orientation="Horizontal" Margin="0,0,20,8">
+                <StackPanel Orientation="Horizontal" Margin="0,0,18,0">
                     <TextBlock Text="From" />
                     <DatePicker Name="dpFrom" Width="120" SelectedDateChanged="Filter_Changed" />
                     <TextBlock Text="To" Margin="12,0,6,0" />
                     <DatePicker Name="dpTo" Width="120" SelectedDateChanged="Filter_Changed" />
                 </StackPanel>
 
-                <StackPanel Orientation="Horizontal" Margin="0,0,20,8">
+                <StackPanel Orientation="Horizontal" Margin="0,0,18,0">
                     <TextBlock Text="Billing Status" />
                     <ToggleButton Name="btnStatuses" Width="190" Content="All statuses"
                                   HorizontalContentAlignment="Left" Padding="8,0"
@@ -108,7 +105,7 @@
                             ToolTip="Clear billing status filter" Click="btnClearStatus_Click" />
                 </StackPanel>
 
-                <StackPanel Orientation="Horizontal" Margin="0,0,20,8">
+                <StackPanel Orientation="Horizontal" Margin="0,0,18,0">
                     <TextBlock Text="Finance" />
                     <ComboBox Name="cmbFinance" Width="190" IsEditable="True" IsTextSearchEnabled="True"
                               StaysOpenOnEdit="True"
@@ -118,7 +115,7 @@
                             ToolTip="Clear finance filter" Click="btnClearFinance_Click" />
                 </StackPanel>
 
-                <StackPanel Orientation="Horizontal" Margin="0,0,20,8">
+                <StackPanel Orientation="Horizontal" Margin="0,0,18,0">
                     <TextBlock Text="Agent" />
                     <ToggleButton Name="btnAgents" Width="190" Content="All agents"
                                   HorizontalContentAlignment="Left" Padding="8,0"
@@ -158,7 +155,7 @@
                             ToolTip="Clear agent filter" Click="btnClearAgent_Click" />
                 </StackPanel>
 
-                <StackPanel Orientation="Horizontal" Margin="0,0,20,8">
+                <StackPanel Orientation="Horizontal" Margin="0,0,18,0">
                     <TextBlock Text="RC last 4" />
                     <TextBox Name="txtRcLast4" Width="90" Height="28" MaxLength="6"
                              VerticalContentAlignment="Center" TextAlignment="Center" FontWeight="Bold"
@@ -166,13 +163,14 @@
                              TextChanged="RcLast4_Changed" />
                 </StackPanel>
 
-                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,0">
                     <Button Name="btnRefresh" Content="↻ Refresh" Width="100" FontWeight="Bold"
                             Background="#1565C0" Foreground="White" BorderThickness="0"
                             ToolTip="Reload records from the server" Click="btnRefresh_Click" />
                     <TextBlock Name="txtStatus" Foreground="#888" Margin="14,0,0,0" />
                 </StackPanel>
-            </WrapPanel>
+            </StackPanel>
+            </ScrollViewer>
 
             <DataGrid Name="grid" AutoGenerateColumns="False" IsReadOnly="True"
                       Style="{StaticResource XlGrid}" CanUserSortColumns="True" FrozenColumnCount="2"
@@ -228,7 +226,8 @@
             </DataGrid>
         </DockPanel>
 
-        <Border Grid.Column="1" Background="White" CornerRadius="8" BorderBrush="#E0E0E0" BorderThickness="1" Padding="16">
+        <Grid Name="editHostLocal" Visibility="Collapsed">
+        <Border Name="pnlRight" Background="White" CornerRadius="8" BorderBrush="#E0E0E0" BorderThickness="1" Padding="16">
             <DockPanel>
                 <TextBlock DockPanel.Dock="Top" Text="Update Courier Details" FontSize="15" FontWeight="Bold"
                            Foreground="{StaticResource Accent}" Margin="0,0,0,4" />
@@ -236,7 +235,7 @@
                            FontSize="12" Foreground="#888" TextWrapping="Wrap" Margin="0,0,0,8" />
 
                 <Button DockPanel.Dock="Top" Name="btnDetails" Content="View all details" Height="30" IsEnabled="False"
-                        Margin="0,0,0,10" Cursor="Hand" Click="btnDetails_Click" />
+                        Margin="0,0,0,10" Cursor="Hand" Click="btnDetails_Click" Visibility="Collapsed" />
 
                 <Border DockPanel.Dock="Top" Name="pnlBilled" Background="#EAF4EA" CornerRadius="6" Padding="10,8"
                         Margin="0,0,0,12" Visibility="Collapsed">
@@ -404,5 +403,6 @@
                 </ScrollViewer>
             </DockPanel>
         </Border>
+        </Grid>
     </Grid>
 </Page>

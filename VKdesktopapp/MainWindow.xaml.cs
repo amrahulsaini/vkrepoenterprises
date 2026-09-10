@@ -287,7 +287,10 @@ public partial class MainWindow : Window
             MessageBox.Show("Wrong password.", "Accounts", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
-        LoadPage(new Accounts.AccountsPage());
+        var shell = new AccountsShellWindow { Owner = this };
+        Hide();
+        try { shell.ShowDialog(); }
+        finally { Show(); Activate(); }
     }
 
     private async Task OpenAllocationsAsync()

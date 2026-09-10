@@ -18,27 +18,54 @@ public partial class AccountsPage : Page
     private readonly ObservableCollection<AcctRow> _shown = new();
     private bool _ready;
 
-    private static long RowIdOf(object? item) => item is AcctRow r ? r.Id : 0;
-
-    private long _lastRowId;
-
-    /// Clicking the already-expanded row collapses it again.
-    private void XlGrid_RowClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    private class StatusPick : INotifyPropertyChanged
     {
-        var src = e.OriginalSource as System.Windows.DependencyObject;
-        while (src != null && src is not DataGridRow && src is not System.Windows.Controls.Primitives.DataGridColumnHeader)
-            src = System.Windows.Media.VisualTreeHelper.GetParent(src);
-        if (src is not DataGridRow row) return;
+        public string Name { get; set; } = "";
+        public string Key  { get; set; } = "";
 
-        long id = RowIdOf(row.Item);
-        if (id != 0 && id == _lastRowId && row.IsSelected)
+        private bool _isChecked;
+        public bool IsChecked
         {
-            row.IsSelected = false;
-            _lastRowId = 0;
-            e.Handled = true;
-            return;
+            get => _isChecked;
+            set { _isChecked = value; PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsChecked))); }
         }
-        _lastRowId = id;
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+    }
+
+    // "billed" lives in bill_status rather than billing_action, so it is
+    // matched separately when the filter runs.
+    private readonly List<StatusPick> _statusPicks = new()
+    {
+        new StatusPick { Name = "OK for billing",      Key = "immediate" },
+        new StatusPick { Name = "Hold for collection", Key = "hold" },
+        new StatusPick { Name = "Collection done",     Key = "collection_done" },
+        new StatusPick { Name = "Cancel",              Key = "cancel" },
+        new StatusPick { Name = "Billing Done",        Key = "billed" },
+    };
+
+    private void UpdateStatusButton()
+    {
+        var picked = _statusPicks.Where(p => p.IsChecked).Select(p => p.Name).ToList();
+        btnStatuses.Content = picked.Count switch
+        {
+            0 => "All statuses",
+            1 => picked[0],
+            _ => $"{picked.Count} statuses",
+        };
+    }
+
+    private async void StatusPick_Changed(object sender, RoutedEventArgs e)
+    {
+        UpdateStatusButton();
+        if (_ready) await LoadAsync();
+    }
+
+    private async void btnClearStatus_Click(object sender, RoutedEventArgs e)
+    {
+        foreach (var p in _statusPicks) p.IsChecked = false;
+        UpdateStatusButton();
+        if (_ready) await LoadAsync();
     }
 
     private static string Squash4(string? s) =>
@@ -49,6 +76,8 @@ public partial class AccountsPage : Page
     {
         InitializeComponent();
         grid.ItemsSource = _shown;
+        lstStatusPicks.ItemsSource = _statusPicks;
+        UpdateStatusButton();
         dpFrom.DisplayDateEnd = DateTime.Today;
         dpTo.DisplayDateEnd = DateTime.Today;
         dpPayDate.DisplayDateEnd = DateTime.Today;
@@ -103,6 +132,7 @@ public partial class AccountsPage : Page
         public string CollectionUpdate => Src.CollectionUpdate;
         public string Remark => Src.Remark;
         public string UtrNo => Src.UtrNo;
+        public string InvoiceNo => Src.InvoiceNo ?? "";
         public string PaymentDate => Src.PaymentDate;
         public string PaymentStatusText => (Src.PaymentStatus ?? "").Trim().ToLowerInvariant() switch
         {
@@ -148,13 +178,15 @@ public partial class AccountsPage : Page
                     && string.Equals(d.CourierYn, "Yes", StringComparison.OrdinalIgnoreCase))
             ).ToList();
 
-            if (cmbAction.SelectedIndex == 4)
-                data = data.Where(d => d.BillStatus == "billed").ToList();
-            else
+            var wanted = _statusPicks.Where(p => p.IsChecked).Select(p => p.Key)
+                                     .ToHashSet(StringComparer.Ordinal);
+            if (wanted.Count > 0)
             {
-                string? f = cmbAction.SelectedIndex switch
-                { 1 => "immediate", 2 => "hold", 3 => "collection_done", _ => null };
-                if (f != null) data = data.Where(d => d.BillingAction == f).ToList();
+                bool wantBilled = wanted.Contains("billed");
+                var actions = wanted.Where(k => k != "billed").ToHashSet(StringComparer.Ordinal);
+                data = data.Where(d =>
+                    (wantBilled && d.BillStatus == "billed") ||
+                    (actions.Count > 0 && actions.Contains(d.BillingAction ?? ""))).ToList();
             }
 
             _all = data.Select(AcctRow.From).ToList();
@@ -184,6 +216,239 @@ public partial class AccountsPage : Page
             .ToList();
         cmbAgent.ItemsSource = names;
         cmbAgent.Text = keep;
+
+        var keepEdit = cmbEditAgent.Text;
+        cmbEditAgent.ItemsSource = names;
+        cmbEditAgent.Text = keepEdit;
+    }
+
+    // ── Full record popup, on double click only ─────────────────────────────
+    private static List<(string, string, bool)> FieldsOf(AcctRow r) => new()
+    {
+        ("Vehicle No",       r.VehicleNo,        false),
+        ("Chassis No",       r.Src.ChassisNo,    false),
+        ("Engine No",        r.Src.EngineNo,     false),
+        ("Customer",         r.CustomerName,     false),
+        ("Loan No",          r.Src.LoanNo,       false),
+        ("Model / Maker",    r.Src.Model,        false),
+        ("Finance",          r.FinanceName,      false),
+        ("Branch",           r.BranchName,       false),
+        ("Agent",            r.AgentName,        false),
+        ("Parking Yard",     r.Src.ParkingYardName, false),
+        ("Repo Date",        r.RepoDate,         false),
+        ("Status",           r.ActionText,       false),
+        ("Invoice No",       r.InvoiceNo,        false),
+        ("Gross",            r.GrossText,        false),
+        ("Percentage",       r.PercentText,      false),
+        ("Repo Charges",     r.RepoChargesText,  false),
+        ("Advance",          r.AdvanceText,      false),
+        ("Cash Collected",   r.CashText,         false),
+        ("Final Amount",     r.FinalText,        false),
+        ("Payment",          r.PaymentStatusText, false),
+        ("UTR No",           r.UtrNo,            false),
+        ("Payment Date",     r.Src.PaymentDate,  false),
+        ("Collection Update", r.Src.CollectionUpdate, true),
+        ("Remark",           r.Src.Remark,       true),
+        ("Accounts Remark",  r.Src.AccountsRemark, true),
+    };
+
+    private bool _popupOpen;
+
+    private void OpenRecordPopup(AcctRow r)
+    {
+        if (_popupOpen) return;
+        _popupOpen = true;
+        try
+        {
+            var win = new CRMRSDesktopApp.Couriers.CourierRecordWindow(
+                r.VehicleNo,
+                string.Join("  •  ", new[] { r.CustomerName, r.FinanceName, r.RepoDate }
+                    .Where(x => !string.IsNullOrWhiteSpace(x))),
+                FieldsOf(r))
+            {
+                Owner = Window.GetWindow(this),
+                Title = "Accounts Record",
+            };
+            win.ShowDialog();
+        }
+        finally { _popupOpen = false; }
+    }
+
+    private static DataGridRow? RowUnder(object? originalSource)
+    {
+        var src = originalSource as System.Windows.DependencyObject;
+        while (src != null && src is not DataGridRow &&
+               src is not System.Windows.Controls.Primitives.DataGridColumnHeader)
+            src = System.Windows.Media.VisualTreeHelper.GetParent(src);
+        return src as DataGridRow;
+    }
+
+    private void Grid_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        if (RowUnder(e.OriginalSource)?.Item is not AcctRow r) return;
+        e.Handled = true;
+        OpenRecordPopup(r);
+    }
+
+    private void OpenRecord_Click(object sender, RoutedEventArgs e)
+    {
+        if (CurrentRow() is { } r) OpenRecordPopup(r);
+    }
+
+    // ── Excel-style copying ─────────────────────────────────────────────────
+    private AcctRow? CurrentRow() => grid.CurrentItem as AcctRow ?? grid.SelectedItem as AcctRow;
+
+    private DataGridColumn? CurrentColumn() =>
+        grid.CurrentColumn ?? (grid.SelectedCells.Count > 0 ? grid.SelectedCells[0].Column : null);
+
+    private List<AcctRow> SelectedRows()
+    {
+        var rows = grid.SelectedItems.OfType<AcctRow>().ToList();
+        if (rows.Count == 0 && CurrentRow() is { } one) rows.Add(one);
+        var order = _shown.ToList();
+        return rows.OrderBy(r => order.IndexOf(r)).ToList();
+    }
+
+    private static string CellText(DataGridColumn col, object item)
+    {
+        if (col is DataGridBoundColumn { Binding: System.Windows.Data.Binding b } &&
+            !string.IsNullOrEmpty(b.Path?.Path))
+        {
+            var prop = item.GetType().GetProperty(b.Path.Path);
+            if (prop != null) return prop.GetValue(item)?.ToString() ?? "";
+        }
+        return "";
+    }
+
+    /// Tabs and newlines inside a value would break the grid Excel reads, so
+    /// they are flattened on the way to the clipboard.
+    private static string Flat(string? v) =>
+        (v ?? "").Replace('\t', ' ').Replace('\r', ' ').Replace('\n', ' ');
+
+    private static void ToClipboard(string text)
+    {
+        try { Clipboard.SetText(text); }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Could not copy:\n{ex.Message}", "Copy",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
+    private List<DataGridColumn> OrderedColumns() =>
+        grid.Columns.Where(c => c.Visibility == Visibility.Visible)
+                    .OrderBy(c => c.DisplayIndex).ToList();
+
+    private string BuildBlock(IEnumerable<AcctRow> rows, List<DataGridColumn> cols, bool headers)
+    {
+        var sb = new System.Text.StringBuilder();
+        if (headers) sb.AppendLine(string.Join("\t", cols.Select(c => Flat(c.Header?.ToString()))));
+        foreach (var r in rows)
+            sb.AppendLine(string.Join("\t", cols.Select(c => Flat(CellText(c, r)))));
+        return sb.ToString();
+    }
+
+    private void CopyCell_Click(object sender, RoutedEventArgs e)
+    {
+        var col = CurrentColumn();
+        if (CurrentRow() is { } r && col != null) ToClipboard(Flat(CellText(col, r)));
+    }
+
+    private void CopySelection_Click(object sender, RoutedEventArgs e) => CopySelected(false);
+    private void CopySelectionHdr_Click(object sender, RoutedEventArgs e) => CopySelected(true);
+
+    private void CopySelected(bool headers)
+    {
+        var rows = SelectedRows();
+        if (rows.Count > 0) ToClipboard(BuildBlock(rows, OrderedColumns(), headers));
+    }
+
+    private void CopyColumn_Click(object sender, RoutedEventArgs e)
+    {
+        var col = CurrentColumn();
+        if (col == null) return;
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine(Flat(col.Header?.ToString()));
+        foreach (var r in _shown) sb.AppendLine(Flat(CellText(col, r)));
+        ToClipboard(sb.ToString());
+    }
+
+    private void CopyTable_Click(object sender, RoutedEventArgs e)
+        => ToClipboard(BuildBlock(_shown, OrderedColumns(), true));
+
+    private void Grid_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+    {
+        if (e.Key != System.Windows.Input.Key.C ||
+            (System.Windows.Input.Keyboard.Modifiers & System.Windows.Input.ModifierKeys.Control) == 0) return;
+        e.Handled = true;
+        CopySelected((System.Windows.Input.Keyboard.Modifiers & System.Windows.Input.ModifierKeys.Shift) != 0);
+    }
+
+    // Right-clicking a cell aims the copy at that cell without discarding the
+    // rows already selected.
+    private void Grid_PreviewRightClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        var src = e.OriginalSource as System.Windows.DependencyObject;
+        while (src != null && src is not DataGridCell) src = System.Windows.Media.VisualTreeHelper.GetParent(src);
+        if (src is not DataGridCell cell || cell.DataContext is not AcctRow r) return;
+        grid.CurrentCell = new DataGridCellInfo(r, cell.Column);
+        if (!grid.SelectedItems.OfType<AcctRow>().Contains(r)) grid.SelectedItem = r;
+    }
+
+    // ── Agent name, edited in place ─────────────────────────────────────────
+    private void SetAgentEditing(bool on)
+    {
+        cmbEditAgent.IsEnabled  = on;
+        btnAgentEdit.Visibility   = on ? Visibility.Collapsed : Visibility.Visible;
+        btnAgentSave.Visibility   = on ? Visibility.Visible   : Visibility.Collapsed;
+        btnAgentCancel.Visibility = on ? Visibility.Visible   : Visibility.Collapsed;
+    }
+
+    private void btnAgentEdit_Click(object sender, RoutedEventArgs e)
+    {
+        if (grid.SelectedItem is not AcctRow) return;
+        SetAgentEditing(true);
+        cmbEditAgent.Focus();
+    }
+
+    private void btnAgentCancel_Click(object sender, RoutedEventArgs e)
+    {
+        if (grid.SelectedItem is AcctRow r) cmbEditAgent.Text = r.AgentName;
+        SetAgentEditing(false);
+    }
+
+    private async void btnAgentSave_Click(object sender, RoutedEventArgs e)
+    {
+        if (grid.SelectedItem is not AcctRow r) return;
+        var agent = (cmbEditAgent.Text ?? "").Trim();
+        if (agent.Length == 0)
+        {
+            txtPayMsg.Foreground = System.Windows.Media.Brushes.Firebrick;
+            txtPayMsg.Text = "Agent name cannot be blank.";
+            return;
+        }
+        if (string.Equals(agent, (r.AgentName ?? "").Trim(), StringComparison.Ordinal))
+        {
+            SetAgentEditing(false);
+            return;
+        }
+        try
+        {
+            btnAgentSave.IsEnabled = false;
+            txtPayMsg.Foreground = System.Windows.Media.Brushes.Gray;
+            txtPayMsg.Text = "Saving agent name…";
+            await DesktopApiClient.UpdateSubmissionFieldsAsync(r.Id, new { AgentName = agent });
+            txtPayMsg.Foreground = System.Windows.Media.Brushes.Green;
+            txtPayMsg.Text = "Agent name saved.";
+            SetAgentEditing(false);
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            txtPayMsg.Foreground = System.Windows.Media.Brushes.Firebrick;
+            txtPayMsg.Text = "Failed: " + ex.Message;
+        }
+        finally { btnAgentSave.IsEnabled = true; }
     }
 
     private void ApplyFilter()
@@ -328,6 +593,8 @@ public partial class AccountsPage : Page
         }
         var veh = string.IsNullOrWhiteSpace(r.VehicleNo) ? r.Src.ChassisNo : r.VehicleNo;
         txtPaySel.Text = $"{veh}  •  {r.CustomerName}  •  Agent: {r.AgentName}";
+        cmbEditAgent.Text = r.AgentName;
+        SetAgentEditing(false);
         txtUtr.Text = r.Src.UtrNo;
         dpPayDate.SelectedDate = DateTime.TryParse(r.Src.PaymentDate, out var d) ? d : (DateTime?)null;
         cmbPayStatus.SelectedIndex = (r.Src.PaymentStatus ?? "").Trim().ToLowerInvariant() switch

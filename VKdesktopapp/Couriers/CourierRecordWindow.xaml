@@ -1,7 +1,7 @@
 <Window x:Class="CRMRSDesktopApp.Couriers.CourierRecordWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Full Record" Height="700" Width="920"
+        Title="Courier Record" Height="820" Width="1320"
         WindowStartupLocation="CenterOwner" Background="#F5F5F5"
         ShowInTaskbar="False">
     <Window.Resources>
@@ -52,17 +52,26 @@
         <TextBlock DockPanel.Dock="Bottom" FontSize="11" Foreground="#999" Margin="0,10,0,0"
                    Text="Values are selectable — drag to highlight and press Ctrl+C, or use Copy all." />
 
-        <ScrollViewer VerticalScrollBarVisibility="Auto">
-            <Border BorderBrush="#E4D8C6" BorderThickness="1,1,0,0">
-                <Grid Name="gridFields">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="170" />
-                        <ColumnDefinition Width="*" MinWidth="200" />
-                        <ColumnDefinition Width="170" />
-                        <ColumnDefinition Width="*" MinWidth="200" />
-                    </Grid.ColumnDefinitions>
-                </Grid>
-            </Border>
-        </ScrollViewer>
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" MinWidth="420" />
+                <ColumnDefinition Name="colEdit" Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto" Margin="0,0,0,0">
+                <Border BorderBrush="#E4D8C6" BorderThickness="1,1,0,0">
+                    <Grid Name="gridFields">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="150" />
+                            <ColumnDefinition Width="*" MinWidth="150" />
+                            <ColumnDefinition Width="150" />
+                            <ColumnDefinition Width="*" MinWidth="150" />
+                        </Grid.ColumnDefinitions>
+                    </Grid>
+                </Border>
+            </ScrollViewer>
+
+            <ContentControl Grid.Column="1" Name="editHost" Margin="14,0,0,0" />
+        </Grid>
     </DockPanel>
 </Window>

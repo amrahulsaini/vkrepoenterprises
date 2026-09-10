@@ -2553,6 +2553,45 @@ app.MapGet("/api/mgr/billing/submissions", async (HttpContext ctx, string? from,
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
 
+// Every advance for the submissions in a date window, in one shot — a report
+// over a few thousand records would otherwise need one request per record.
+app.MapGet("/api/mgr/couriers/advances", async (HttpContext ctx, string? from, string? to) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        await using var conn = new MySqlConnection(TenantContext.Conn);
+        await conn.OpenAsync();
+        var where = new List<string>();
+        if (DateTime.TryParse(from, out var f)) where.Add("rs.created_at >= @from");
+        if (DateTime.TryParse(to, out var t))   where.Add("rs.created_at < @to");
+        var clause = where.Count > 0 ? "WHERE " + string.Join(" AND ", where) : "";
+
+        await using var cmd = new MySqlCommand($@"
+            SELECT ra.submission_id, ra.id, ra.amount, ra.advance_date, COALESCE(ra.note,'')
+              FROM repo_advances ra
+              JOIN repo_submissions rs ON rs.id = ra.submission_id
+              {clause}
+             ORDER BY ra.submission_id, ra.advance_date, ra.id", conn) { CommandTimeout = 60 };
+        if (DateTime.TryParse(from, out var f2)) cmd.Parameters.AddWithValue("@from", f2.Date);
+        if (DateTime.TryParse(to, out var t2))   cmd.Parameters.AddWithValue("@to", t2.Date.AddDays(1));
+
+        var list = new List<object>();
+        await using var rdr = await cmd.ExecuteReaderAsync();
+        while (await rdr.ReadAsync())
+            list.Add(new
+            {
+                submissionId = rdr.GetInt64(0),
+                id     = rdr.GetInt64(1),
+                amount = rdr.GetDecimal(2),
+                date   = rdr.GetDateTime(3).ToString("yyyy-MM-dd"),
+                note   = rdr.GetString(4),
+            });
+        return Results.Ok(list);
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
 app.MapGet("/api/mgr/couriers/submissions/{id:long}/advances", async (HttpContext ctx, long id) =>
 {
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();

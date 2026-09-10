@@ -15,14 +15,40 @@ public partial class CourierRecordWindow : Window
 {
     private readonly List<(string Label, string Value, bool Wide)> _fields;
 
+    /// The live edit panel is borrowed from the page rather than rebuilt, so
+    /// every handler behind it keeps working. It must be handed back before
+    /// this window goes away or the page would lose its controls for good.
+    public event Action<UIElement>? EditPanelReleased;
+
+    private UIElement? _editPanel;
+
     public CourierRecordWindow(string headline, string subline,
-                               List<(string Label, string Value, bool Wide)> fields)
+                               List<(string Label, string Value, bool Wide)> fields,
+                               UIElement? editPanel = null)
     {
         InitializeComponent();
         _fields = fields;
         txtHeadline.Text = headline;
         txtSubline.Text  = subline;
         BuildGrid();
+
+        _editPanel = editPanel;
+        if (editPanel != null)
+        {
+            if (editPanel is FrameworkElement fe) fe.Width = 420;
+            editHost.Content = editPanel;
+        }
+        Closed += (_, __) => ReleaseEditPanel();
+    }
+
+    private void ReleaseEditPanel()
+    {
+        if (_editPanel == null) return;
+        var panel = _editPanel;
+        _editPanel = null;
+        editHost.Content = null;
+        if (panel is FrameworkElement fe) fe.Width = double.NaN;
+        EditPanelReleased?.Invoke(panel);
     }
 
     /// Narrow fields pair up two per row; a wide one takes the full width and

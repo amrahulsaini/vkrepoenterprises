@@ -363,14 +363,27 @@ public partial class CouriersPage : Page
 
     private void ShowRecordPopup(Row r)
     {
+        // Selecting first lets the existing form logic fill the panel in, then
+        // the panel itself is lent to the window — same controls, same
+        // handlers, just a different parent for the duration.
+        if (!ReferenceEquals(grid.SelectedItem, r)) grid.SelectedItem = r;
+
         var veh = string.IsNullOrWhiteSpace(r.VehicleNo) ? r.ChassisNo : r.VehicleNo;
+        var panel = pnlRight;
+        editHostLocal.Children.Remove(panel);
+
         var win = new CourierRecordWindow(
             veh,
             string.Join("  •  ", new[] { r.CustomerName, r.FinanceName, r.RepoDate }
                 .Where(x => !string.IsNullOrWhiteSpace(x))),
-            FieldsOf(r))
+            FieldsOf(r),
+            panel)
         {
             Owner = Window.GetWindow(this),
+        };
+        win.EditPanelReleased += p =>
+        {
+            if (!editHostLocal.Children.Contains(p)) editHostLocal.Children.Add(p);
         };
         win.ShowDialog();
     }
