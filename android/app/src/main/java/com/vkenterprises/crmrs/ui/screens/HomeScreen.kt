@@ -1232,8 +1232,14 @@ private fun Int.formatCount(): String = when {
     else              -> "$this"
 }
 
+// Standard SS + RTO + series + number, with an optional trailing letter
+// (RJ14CS1234S); the older letter-less state series (RJ112222); and both
+// Bharat-series forms (22BH1234AA and BH26AA1234).
 private val RC_REGEX = Regex(
-    "^([A-Z]{2}[0-9]{2}[A-Z]{1,3}[0-9]{4}|[A-Z]{2}[0-9]{5,7}|[0-9]{2}BH[0-9]{4}[A-Z]{1,2})$"
+    "^([A-Z]{2}[0-9]{1,2}[A-Z]{1,3}[0-9]{1,4}[A-Z]?" +
+    "|[A-Z]{2}[0-9]{4,7}" +
+    "|[0-9]{2}BH[0-9]{4}[A-Z]{1,2}" +
+    "|BH[0-9]{2}[A-Z]{1,2}[0-9]{4})$"
 )
 private fun String.isValidRc(): Boolean =
     replace(Regex("[^A-Z0-9]"), "").uppercase().matches(RC_REGEX)

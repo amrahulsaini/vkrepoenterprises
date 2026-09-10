@@ -377,6 +377,9 @@ public partial class AppUsersManagerPage : Page
     {
         if (sender is ScrollViewer sv && sv.ScrollableHeight > 0)
         {
+            bool atTop    = sv.VerticalOffset <= 0.5;
+            bool atBottom = sv.VerticalOffset >= sv.ScrollableHeight - 0.5;
+            if ((e.Delta > 0 && atTop) || (e.Delta < 0 && atBottom)) return;
             sv.ScrollToVerticalOffset(sv.VerticalOffset - e.Delta);
             e.Handled = true;
         }
@@ -407,8 +410,24 @@ public partial class AppUsersManagerPage : Page
         }
     }
 
+    // The outer panel steals the wheel on the way down, which would make the
+    // confirmations log unscrollable. Hand the wheel to that list whenever the
+    // pointer is over it and it still has somewhere to go.
     private void pnlProfile_PreviewMouseWheel(object sender, System.Windows.Input.MouseWheelEventArgs e)
     {
+        if (svConfirmations != null && svConfirmations.IsMouseOver)
+        {
+            bool atTop    = svConfirmations.VerticalOffset <= 0.5;
+            bool atBottom = svConfirmations.VerticalOffset >= svConfirmations.ScrollableHeight - 0.5;
+            bool wantsIt  = svConfirmations.ScrollableHeight > 0
+                            && !((e.Delta > 0 && atTop) || (e.Delta < 0 && atBottom));
+            if (wantsIt)
+            {
+                svConfirmations.ScrollToVerticalOffset(svConfirmations.VerticalOffset - e.Delta);
+                e.Handled = true;
+                return;
+            }
+        }
         if (sender is ScrollViewer sv)
         {
             sv.ScrollToVerticalOffset(sv.VerticalOffset - e.Delta);

@@ -858,6 +858,19 @@ CREATE TABLE IF NOT EXISTS rate_lists (
     INDEX idx_rl_created (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- rate_list_users — which app users may see a rate-list entry. No rows means
+-- nobody sees it, so the office picks the audience deliberately.
+CREATE TABLE IF NOT EXISTS rate_list_users (
+    rate_list_id BIGINT NOT NULL,
+    user_id      BIGINT NOT NULL,
+    PRIMARY KEY (rate_list_id, user_id),
+    INDEX idx_rlu_user (user_id),
+    CONSTRAINT fk_rlu_list FOREIGN KEY (rate_list_id)
+        REFERENCES rate_lists(id) ON DELETE CASCADE,
+    CONSTRAINT fk_rlu_user FOREIGN KEY (user_id)
+        REFERENCES app_users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- id_cards — agent ID-card requests & approvals (one row per user).
 CREATE TABLE IF NOT EXISTS id_cards (
     user_id        BIGINT       NOT NULL,

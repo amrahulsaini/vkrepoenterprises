@@ -139,7 +139,8 @@ internal static class DesktopApiClient
         string AcctHolderName = "", string BankName = "", string BankAccountNo = "",
         string IfscCode = "", string UtrNo = "", string PaymentDate = "",
         decimal? ApplicationCharges = null, decimal? CashAmount = null,
-        string PaymentStatus = "", string BillingRemark = "", string AccountsRemark = "");
+        string PaymentStatus = "", string BillingRemark = "", string AccountsRemark = "",
+        string InventoryRemark = "");
 
     internal static async Task<List<BillingMemberDto>> GetBillingMembersAsync()
     {
@@ -426,8 +427,15 @@ internal static class DesktopApiClient
         public long FileSize { get; set; }
         public string? Mime { get; set; }
         public DateTime CreatedAt { get; set; }
+        public List<long> UserIds { get; set; } = new();
 
         public bool IsLink => Kind.Equals("link", StringComparison.OrdinalIgnoreCase);
+        public string AudienceDisplay => UserIds.Count switch
+        {
+            0 => "No users selected — hidden from everyone",
+            1 => "1 user",
+            _ => $"{UserIds.Count} users",
+        };
         public string Icon => IsLink ? "\U0001F517" : "\U0001F4CE";
         public string SubtitleDisplay
         {
@@ -454,19 +462,35 @@ internal static class DesktopApiClient
         return (await resp.Content.ReadFromJsonAsync<List<RateListItemDto>>(_json))!;
     }
 
-    internal static async Task AddRateListLinkAsync(string title, string url, int? financeId, string? notes)
+    internal static async Task AddRateListLinkAsync(
+        string title, string url, int? financeId, string? notes, List<long> userIds)
     {
         var resp = await Send(HttpMethod.Post, "api/mgr/ratelist",
-            new { Title = title, Kind = "link", Url = url, FinanceId = financeId, Notes = notes });
+            new { Title = title, Kind = "link", Url = url, FinanceId = financeId,
+                  Notes = notes, UserIds = userIds });
         resp.EnsureSuccessStatusCode();
     }
 
     internal static async Task AddRateListFileAsync(
-        string title, string fileName, string mime, string fileBase64, int? financeId, string? notes)
+        string title, string fileName, string mime, string fileBase64,
+        int? financeId, string? notes, List<long> userIds)
     {
         var resp = await Send(HttpMethod.Post, "api/mgr/ratelist",
             new { Title = title, Kind = "file", FileName = fileName, Mime = mime,
-                  FileBase64 = fileBase64, FinanceId = financeId, Notes = notes });
+                  FileBase64 = fileBase64, FinanceId = financeId, Notes = notes, UserIds = userIds });
+        resp.EnsureSuccessStatusCode();
+    }
+
+    internal static async Task SetRateListUsersAsync(long id, List<long> userIds)
+    {
+        var resp = await Send(HttpMethod.Put, $"api/mgr/ratelist/{id}/users", new { UserIds = userIds });
+        resp.EnsureSuccessStatusCode();
+    }
+
+    internal static async Task SaveInventoryRemarkAsync(long submissionId, string? remark)
+    {
+        var resp = await Send(HttpMethod.Post,
+            $"api/mgr/couriers/submissions/{submissionId}/inventory-remark", new { Remark = remark });
         resp.EnsureSuccessStatusCode();
     }
 

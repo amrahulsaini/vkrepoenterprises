@@ -59,6 +59,52 @@
                     <TextBox x:Name="txtNotes" Height="32" Margin="0,2,0,0" VerticalContentAlignment="Center" />
                 </StackPanel>
 
+                <StackPanel Margin="0,0,0,10">
+                    <TextBlock Text="Visible to these app users" FontSize="11" Foreground="{StaticResource Gray600}" />
+                    <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                        <ToggleButton x:Name="btnUsers" Width="300" Height="32" Content="No users selected"
+                                      HorizontalContentAlignment="Left" Padding="8,0" Cursor="Hand"
+                                      ToolTip="Tick the agents who should see this entry in the app" />
+                        <Popup x:Name="popUsers" PlacementTarget="{Binding ElementName=btnUsers}" Placement="Bottom"
+                               StaysOpen="False" AllowsTransparency="True"
+                               IsOpen="{Binding IsChecked, ElementName=btnUsers, Mode=TwoWay}">
+                            <Border Background="White" BorderBrush="#CCCCCC" BorderThickness="1" Padding="8">
+                                <StackPanel Width="340">
+                                    <TextBox x:Name="txtUserSearch" Height="26" Margin="0,0,0,6"
+                                             VerticalContentAlignment="Center" Padding="6,0"
+                                             ToolTip="Type to narrow the list"
+                                             TextChanged="UserSearch_Changed"
+                                             KeyDown="UserPicker_KeyDown" />
+                                    <ListBox x:Name="lstUserPicks" MaxHeight="300" BorderThickness="0"
+                                             HorizontalContentAlignment="Stretch"
+                                             ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                        <ListBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <CheckBox IsChecked="{Binding IsChecked, Mode=TwoWay}"
+                                                          Margin="2" Click="UserPick_Changed">
+                                                    <TextBlock Text="{Binding Display}" TextWrapping="Wrap"
+                                                               Foreground="#222222" FontSize="12.5" />
+                                                </CheckBox>
+                                            </DataTemplate>
+                                        </ListBox.ItemTemplate>
+                                    </ListBox>
+                                    <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                        <Button Content="Select all" Height="26" Padding="10,0" Margin="0,0,6,0"
+                                                Cursor="Hand" Click="btnSelectAllUsers_Click" />
+                                        <Button Content="Clear" Height="26" Padding="10,0" Margin="0,0,6,0"
+                                                Cursor="Hand" Click="btnClearUsers_Click" />
+                                        <Button Content="Done" Height="26" Padding="14,0" Cursor="Hand"
+                                                Background="#1565C0" Foreground="White" BorderThickness="0"
+                                                Click="btnDoneUsers_Click" />
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
+                        </Popup>
+                    </StackPanel>
+                    <TextBlock Text="An entry with nobody selected stays hidden in the app."
+                               FontSize="10.5" Foreground="{StaticResource Gray500}" Margin="0,3,0,0" />
+                </StackPanel>
+
                 <DockPanel>
                     <Button x:Name="btnPublish" DockPanel.Dock="Right" Content="Publish" Padding="22,7"
                             Background="#1565C0" Foreground="White" BorderThickness="0" Cursor="Hand"
@@ -84,6 +130,9 @@
                                     <TextBlock DockPanel.Dock="Left" Text="{Binding Icon}" FontSize="22"
                                                VerticalAlignment="Center" Margin="0,0,12,0" />
                                     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Button Content="Users" Tag="{Binding Id}" Click="EditUsers_Click"
+                                                Padding="12,6" Margin="0,0,8,0" Cursor="Hand"
+                                                ToolTip="Change who can see this entry" />
                                         <Button Content="Open" Tag="{Binding Url}" Click="Open_Click"
                                                 Padding="12,6" Margin="0,0,8,0" Cursor="Hand" />
                                         <Button Content="Delete" Tag="{Binding Id}" Click="Delete_Click" Padding="12,6"
@@ -98,6 +147,8 @@
                                         <TextBlock Text="{Binding Notes}" FontSize="11"
                                                    Foreground="{StaticResource Gray500}"
                                                    TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Text="{Binding AudienceDisplay}" FontSize="11" FontWeight="SemiBold"
+                                                   Foreground="#B45309" Margin="0,2,0,0" />
                                     </StackPanel>
                                 </DockPanel>
                             </Border>

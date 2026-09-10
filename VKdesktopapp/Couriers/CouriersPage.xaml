@@ -81,14 +81,31 @@
 
                 <StackPanel Orientation="Horizontal" Margin="0,0,20,8">
                     <TextBlock Text="Billing Status" />
-                    <ComboBox Name="cmbAction" Width="150" SelectedIndex="0" SelectionChanged="Filter_Changed">
-                        <ComboBoxItem Content="All" />
-                        <ComboBoxItem Content="OK for billing" />
-                        <ComboBoxItem Content="Hold for collection" />
-                        <ComboBoxItem Content="Collection done" />
-                        <ComboBoxItem Content="Cancel" />
-                        <ComboBoxItem Content="Billing Done" />
-                    </ComboBox>
+                    <ToggleButton Name="btnStatuses" Width="190" Content="All statuses"
+                                  HorizontalContentAlignment="Left" Padding="8,0"
+                                  ToolTip="Tick one or more billing statuses to show only those records" />
+                    <Popup Name="popStatuses" PlacementTarget="{Binding ElementName=btnStatuses}" Placement="Bottom"
+                           StaysOpen="False" AllowsTransparency="True"
+                           IsOpen="{Binding IsChecked, ElementName=btnStatuses, Mode=TwoWay}">
+                        <Border Background="White" BorderBrush="#CCCCCC" BorderThickness="1" Padding="8">
+                            <StackPanel Width="230">
+                                <ItemsControl Name="lstStatusPicks">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <CheckBox IsChecked="{Binding IsChecked, Mode=TwoWay}"
+                                                      Margin="2,3" Click="StatusPick_Changed">
+                                                <TextBlock Text="{Binding Name}" Foreground="#222222" FontSize="12.5" />
+                                            </CheckBox>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                                <Button Content="Clear selection" Height="26" Margin="0,6,0,0"
+                                        Cursor="Hand" Click="btnClearStatus_Click" />
+                            </StackPanel>
+                        </Border>
+                    </Popup>
+                    <Button Name="btnClearStatusTop" Content="✕" Width="28" Margin="4,0,0,0"
+                            ToolTip="Clear billing status filter" Click="btnClearStatus_Click" />
                 </StackPanel>
 
                 <StackPanel Orientation="Horizontal" Margin="0,0,20,8">
@@ -113,7 +130,8 @@
                         <StackPanel Width="380">
                             <TextBox Name="txtAgentSearch" Height="26" Margin="0,0,0,6"
                                      VerticalContentAlignment="Center" Padding="6,0"
-                                     ToolTip="Type to narrow the list" TextChanged="AgentSearch_Changed" />
+                                     ToolTip="Type to narrow the list, then press Enter to apply"
+                                     TextChanged="AgentSearch_Changed" KeyDown="AgentPicker_KeyDown" />
                             <ListBox Name="lstAgentPicks" MaxHeight="340" BorderThickness="0"
                                      HorizontalContentAlignment="Stretch"
                                      ScrollViewer.HorizontalScrollBarVisibility="Disabled">
@@ -126,8 +144,13 @@
                                     </DataTemplate>
                                 </ListBox.ItemTemplate>
                             </ListBox>
-                            <Button Content="Clear selection" Height="26" Margin="0,6,0,0"
-                                    Cursor="Hand" Click="btnClearAgent_Click" />
+                            <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                <Button Content="Clear selection" Height="26" Padding="10,0" Margin="0,0,6,0"
+                                        Cursor="Hand" Click="btnClearAgent_Click" />
+                                <Button Content="Apply" Height="26" Padding="16,0" Cursor="Hand"
+                                        Background="#1565C0" Foreground="White" BorderThickness="0"
+                                        Click="btnApplyAgents_Click" />
+                            </StackPanel>
                         </StackPanel>
                     </Border>
                 </Popup>
@@ -153,190 +176,32 @@
 
             <DataGrid Name="grid" AutoGenerateColumns="False" IsReadOnly="True"
                       Style="{StaticResource XlGrid}" CanUserSortColumns="True" FrozenColumnCount="2"
-                      RowDetailsVisibilityMode="VisibleWhenSelected"
-                      PreviewMouseLeftButtonDown="XlGrid_RowClick"
+                      RowDetailsVisibilityMode="Collapsed"
+                      SelectionMode="Extended" SelectionUnit="FullRow"
+                      ClipboardCopyMode="IncludeHeader"
+                      MouseDoubleClick="Grid_MouseDoubleClick"
+                      PreviewMouseLeftButtonUp="Grid_RowLeftClick"
+                      PreviewKeyDown="Grid_PreviewKeyDown"
+                      PreviewMouseRightButtonDown="Grid_PreviewRightClick"
                       SelectionChanged="grid_SelectionChanged">
-                <DataGrid.RowDetailsTemplate>
-                    <DataTemplate>
-                        <Border Background="#FFFBF4" BorderBrush="#EF6C00" BorderThickness="3,0,0,1" Padding="14,12">
-                            <StackPanel>
-                                <TextBlock Text="FULL RECORD" FontSize="10.5" FontWeight="Bold"
-                                           Foreground="#EF6C00" Margin="0,0,0,8" />
-                                <Border BorderBrush="#E4D8C6" BorderThickness="1,1,0,0" HorizontalAlignment="Stretch">
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="150" />
-                                            <ColumnDefinition Width="*" MinWidth="180" />
-                                            <ColumnDefinition Width="150" />
-                                            <ColumnDefinition Width="*" MinWidth="180" />
-                                        </Grid.ColumnDefinitions>
-                                        <Grid.RowDefinitions>
-                                            <RowDefinition Height="Auto" />
-                                            <RowDefinition Height="Auto" />
-                                            <RowDefinition Height="Auto" />
-                                            <RowDefinition Height="Auto" />
-                                            <RowDefinition Height="Auto" />
-                                            <RowDefinition Height="Auto" />
-                                            <RowDefinition Height="Auto" />
-                                            <RowDefinition Height="Auto" />
-                                            <RowDefinition Height="Auto" />
-                                            <RowDefinition Height="Auto" />
-                                            <RowDefinition Height="Auto" />
-                                            <RowDefinition Height="Auto" />
-                                            <RowDefinition Height="Auto" />
-                                            <RowDefinition Height="Auto" />
-                                        </Grid.RowDefinitions>
-                                        <Border Grid.Row="0" Grid.Column="0" Style="{StaticResource TblHead}">
-                                            <TextBlock Text="Vehicle No" Style="{StaticResource TblLabel}" />
-                                        </Border>
-                                        <Border Grid.Row="0" Grid.Column="1" Style="{StaticResource TblBody}">
-                                            <TextBlock Text="{Binding VehicleNo}" Style="{StaticResource TblValue}" />
-                                        </Border>
-                                        <Border Grid.Row="0" Grid.Column="2" Style="{StaticResource TblHead}">
-                                            <TextBlock Text="Chassis No" Style="{StaticResource TblLabel}" />
-                                        </Border>
-                                        <Border Grid.Row="0" Grid.Column="3" Style="{StaticResource TblBody}">
-                                            <TextBlock Text="{Binding ChassisNo}" Style="{StaticResource TblValue}" />
-                                        </Border>
-                                        <Border Grid.Row="1" Grid.Column="0" Style="{StaticResource TblHead}">
-                                            <TextBlock Text="Engine No" Style="{StaticResource TblLabel}" />
-                                        </Border>
-                                        <Border Grid.Row="1" Grid.Column="1" Style="{StaticResource TblBody}">
-                                            <TextBlock Text="{Binding EngineNo}" Style="{StaticResource TblValue}" />
-                                        </Border>
-                                        <Border Grid.Row="1" Grid.Column="2" Style="{StaticResource TblHead}">
-                                            <TextBlock Text="Customer" Style="{StaticResource TblLabel}" />
-                                        </Border>
-                                        <Border Grid.Row="1" Grid.Column="3" Style="{StaticResource TblBody}">
-                                            <TextBlock Text="{Binding CustomerName}" Style="{StaticResource TblValue}" />
-                                        </Border>
-                                        <Border Grid.Row="2" Grid.Column="0" Style="{StaticResource TblHead}">
-                                            <TextBlock Text="Loan No" Style="{StaticResource TblLabel}" />
-                                        </Border>
-                                        <Border Grid.Row="2" Grid.Column="1" Style="{StaticResource TblBody}">
-                                            <TextBlock Text="{Binding LoanNo}" Style="{StaticResource TblValue}" />
-                                        </Border>
-                                        <Border Grid.Row="2" Grid.Column="2" Style="{StaticResource TblHead}">
-                                            <TextBlock Text="Model / Maker" Style="{StaticResource TblLabel}" />
-                                        </Border>
-                                        <Border Grid.Row="2" Grid.Column="3" Style="{StaticResource TblBody}">
-                                            <TextBlock Text="{Binding Model}" Style="{StaticResource TblValue}" />
-                                        </Border>
-                                        <Border Grid.Row="3" Grid.Column="0" Style="{StaticResource TblHead}">
-                                            <TextBlock Text="Finance" Style="{StaticResource TblLabel}" />
-                                        </Border>
-                                        <Border Grid.Row="3" Grid.Column="1" Style="{StaticResource TblBody}">
-                                            <TextBlock Text="{Binding FinanceName}" Style="{StaticResource TblValue}" />
-                                        </Border>
-                                        <Border Grid.Row="3" Grid.Column="2" Style="{StaticResource TblHead}">
-                                            <TextBlock Text="Branch" Style="{StaticResource TblLabel}" />
-                                        </Border>
-                                        <Border Grid.Row="3" Grid.Column="3" Style="{StaticResource TblBody}">
-                                            <TextBlock Text="{Binding BranchName}" Style="{StaticResource TblValue}" />
-                                        </Border>
-                                        <Border Grid.Row="4" Grid.Column="0" Style="{StaticResource TblHead}">
-                                            <TextBlock Text="Agent" Style="{StaticResource TblLabel}" />
-                                        </Border>
-                                        <Border Grid.Row="4" Grid.Column="1" Style="{StaticResource TblBody}">
-                                            <TextBlock Text="{Binding AgentName}" Style="{StaticResource TblValue}" />
-                                        </Border>
-                                        <Border Grid.Row="4" Grid.Column="2" Style="{StaticResource TblHead}">
-                                            <TextBlock Text="Parking Yard" Style="{StaticResource TblLabel}" />
-                                        </Border>
-                                        <Border Grid.Row="4" Grid.Column="3" Style="{StaticResource TblBody}">
-                                            <TextBlock Text="{Binding ParkingYardName}" Style="{StaticResource TblValue}" />
-                                        </Border>
-                                        <Border Grid.Row="5" Grid.Column="0" Style="{StaticResource TblHead}">
-                                            <TextBlock Text="Yard Mobile" Style="{StaticResource TblLabel}" />
-                                        </Border>
-                                        <Border Grid.Row="5" Grid.Column="1" Style="{StaticResource TblBody}">
-                                            <TextBlock Text="{Binding ParkingYardMobile}" Style="{StaticResource TblValue}" />
-                                        </Border>
-                                        <Border Grid.Row="5" Grid.Column="2" Style="{StaticResource TblHead}">
-                                            <TextBlock Text="Executive" Style="{StaticResource TblLabel}" />
-                                        </Border>
-                                        <Border Grid.Row="5" Grid.Column="3" Style="{StaticResource TblBody}">
-                                            <TextBlock Text="{Binding ExecutiveName}" Style="{StaticResource TblValue}" />
-                                        </Border>
-                                        <Border Grid.Row="6" Grid.Column="0" Style="{StaticResource TblHead}">
-                                            <TextBlock Text="Repo Date" Style="{StaticResource TblLabel}" />
-                                        </Border>
-                                        <Border Grid.Row="6" Grid.Column="1" Style="{StaticResource TblBody}">
-                                            <TextBlock Text="{Binding RepoDate}" Style="{StaticResource TblValue}" />
-                                        </Border>
-                                        <Border Grid.Row="6" Grid.Column="2" Style="{StaticResource TblHead}">
-                                            <TextBlock Text="Status" Style="{StaticResource TblLabel}" />
-                                        </Border>
-                                        <Border Grid.Row="6" Grid.Column="3" Style="{StaticResource TblBody}">
-                                            <TextBlock Text="{Binding ActionText}" Style="{StaticResource TblValue}" />
-                                        </Border>
-                                        <Border Grid.Row="7" Grid.Column="0" Style="{StaticResource TblHead}">
-                                            <TextBlock Text="Repo Charges" Style="{StaticResource TblLabel}" />
-                                        </Border>
-                                        <Border Grid.Row="7" Grid.Column="1" Style="{StaticResource TblBody}">
-                                            <TextBlock Text="{Binding RepoChargesText}" Style="{StaticResource TblValue}" />
-                                        </Border>
-                                        <Border Grid.Row="7" Grid.Column="2" Style="{StaticResource TblHead}">
-                                            <TextBlock Text="Advance" Style="{StaticResource TblLabel}" />
-                                        </Border>
-                                        <Border Grid.Row="7" Grid.Column="3" Style="{StaticResource TblBody}">
-                                            <TextBlock Text="{Binding AdvanceText}" Style="{StaticResource TblValue}" />
-                                        </Border>
-                                        <Border Grid.Row="8" Grid.Column="0" Style="{StaticResource TblHead}">
-                                            <TextBlock Text="Inventory" Style="{StaticResource TblLabel}" />
-                                        </Border>
-                                        <Border Grid.Row="8" Grid.Column="1" Style="{StaticResource TblBody}">
-                                            <TextBlock Text="{Binding CourierYn}" Style="{StaticResource TblValue}" />
-                                        </Border>
-                                        <Border Grid.Row="8" Grid.Column="2" Style="{StaticResource TblHead}">
-                                            <TextBlock Text="POD Number" Style="{StaticResource TblLabel}" />
-                                        </Border>
-                                        <Border Grid.Row="8" Grid.Column="3" Style="{StaticResource TblBody}">
-                                            <TextBlock Text="{Binding PodNumber}" Style="{StaticResource TblValue}" />
-                                        </Border>
-                                        <Border Grid.Row="9" Grid.Column="0" Style="{StaticResource TblHead}">
-                                            <TextBlock Text="Invoice No" Style="{StaticResource TblLabel}" />
-                                        </Border>
-                                        <Border Grid.Row="9" Grid.Column="1" Style="{StaticResource TblBody}">
-                                            <TextBlock Text="{Binding InvoiceNo}" Style="{StaticResource TblValue}" />
-                                        </Border>
-                                        <Border Grid.Row="9" Grid.Column="2" Style="{StaticResource TblHead}">
-                                            <TextBlock Text="Load Details" Style="{StaticResource TblLabel}" />
-                                        </Border>
-                                        <Border Grid.Row="9" Grid.Column="3" Style="{StaticResource TblBody}">
-                                            <TextBlock Text="{Binding LoadDetails}" Style="{StaticResource TblValue}" />
-                                        </Border>
-                                        <Border Grid.Row="10" Grid.Column="0" Style="{StaticResource TblHead}">
-                                            <TextBlock Text="Additional Charges (Notes, Amount)" Style="{StaticResource TblLabel}" />
-                                        </Border>
-                                        <Border Grid.Row="10" Grid.Column="1" Grid.ColumnSpan="3" Style="{StaticResource TblBody}">
-                                            <TextBlock Text="{Binding AddlCharges}" Style="{StaticResource TblValue}" />
-                                        </Border>
-                                        <Border Grid.Row="11" Grid.Column="0" Style="{StaticResource TblHead}">
-                                            <TextBlock Text="Confirmation By (Name, Mobile)" Style="{StaticResource TblLabel}" />
-                                        </Border>
-                                        <Border Grid.Row="11" Grid.Column="1" Grid.ColumnSpan="3" Style="{StaticResource TblBody}">
-                                            <TextBlock Text="{Binding ConfirmationBy}" Style="{StaticResource TblValue}" />
-                                        </Border>
-                                        <Border Grid.Row="12" Grid.Column="0" Style="{StaticResource TblHead}">
-                                            <TextBlock Text="Collection Update" Style="{StaticResource TblLabel}" />
-                                        </Border>
-                                        <Border Grid.Row="12" Grid.Column="1" Grid.ColumnSpan="3" Style="{StaticResource TblBody}">
-                                            <TextBlock Text="{Binding CollectionUpdate}" Style="{StaticResource TblValue}" />
-                                        </Border>
-                                        <Border Grid.Row="13" Grid.Column="0" Style="{StaticResource TblHead}">
-                                            <TextBlock Text="Banker Address" Style="{StaticResource TblLabel}" />
-                                        </Border>
-                                        <Border Grid.Row="13" Grid.Column="1" Grid.ColumnSpan="3" Style="{StaticResource TblBody}">
-                                            <TextBlock Text="{Binding BankerAddress}" Style="{StaticResource TblValue}" />
-                                        </Border>
-                                    </Grid>
-                                </Border>
-                            </StackPanel>
-                        </Border>
-                    </DataTemplate>
-                </DataGrid.RowDetailsTemplate>
+                <DataGrid.ContextMenu>
+                    <ContextMenu>
+                        <MenuItem Header="Copy cell"                       Click="CopyCell_Click" />
+                        <MenuItem Header="Copy selected rows"              Click="CopySelection_Click"    InputGestureText="Ctrl+C" />
+                        <MenuItem Header="Copy selected rows + headers"    Click="CopySelectionHdr_Click" InputGestureText="Ctrl+Shift+C" />
+                        <Separator />
+                        <MenuItem Header="Copy this column"                Click="CopyColumn_Click" />
+                        <MenuItem Header="Copy this column for selection"  Click="CopyColumnSel_Click" />
+                        <Separator />
+                        <MenuItem Header="Copy whole table"         Click="CopyTable_Click" />
+                        <Separator />
+                        <MenuItem Header="Open full record…"        Click="OpenRecord_Click" />
+                    </ContextMenu>
+                </DataGrid.ContextMenu>
                 <DataGrid.Columns>
+                    <DataGridTextColumn Header="Billing" Binding="{Binding ActionText}" Width="130" MinWidth="90" ElementStyle="{StaticResource XlText}" />
+                    <DataGridTextColumn Header="Inventory" Binding="{Binding CourierYn}" Width="85" MinWidth="60" ElementStyle="{StaticResource XlText}" />
+                    <DataGridTextColumn Header="Inventory Remark" Binding="{Binding InventoryRemark}" Width="180" MinWidth="100" ElementStyle="{StaticResource XlText}" />
                     <DataGridTextColumn Header="Repo Date" Binding="{Binding RepoDate}" Width="120" MinWidth="90" ElementStyle="{StaticResource XlText}" />
                     <DataGridTextColumn Header="Loan No" Binding="{Binding LoanNo}" Width="150" MinWidth="90" ElementStyle="{StaticResource XlText}" />
                     <DataGridTextColumn Header="Invoice No" Binding="{Binding InvoiceNo}" Width="90" MinWidth="70" ElementStyle="{StaticResource XlText}" />
@@ -355,10 +220,8 @@
                     <DataGridTextColumn Header="Confirmation By (Name, Mobile)" Binding="{Binding ConfirmationBy}" Width="190" MinWidth="110" ElementStyle="{StaticResource XlText}" />
                     <DataGridTextColumn Header="Executive Name" Binding="{Binding ExecutiveName}" Width="130" MinWidth="80" ElementStyle="{StaticResource XlText}" />
                     <DataGridTextColumn Header="Collection Update" Binding="{Binding CollectionUpdate}" Width="150" MinWidth="90" ElementStyle="{StaticResource XlText}" />
-                    <DataGridTextColumn Header="Billing" Binding="{Binding ActionText}" Width="120" MinWidth="80" ElementStyle="{StaticResource XlText}" />
                     <DataGridTextColumn Header="Repo Charges" Binding="{Binding RepoChargesText}" Width="100" MinWidth="70" ElementStyle="{StaticResource XlMoney}" />
                     <DataGridTextColumn Header="Advance" Binding="{Binding AdvanceText}" Width="90" MinWidth="70" ElementStyle="{StaticResource XlMoney}" />
-                    <DataGridTextColumn Header="Inventory" Binding="{Binding CourierYn}" Width="80" MinWidth="60" ElementStyle="{StaticResource XlText}" />
                     <DataGridTextColumn Header="Banker Address" Binding="{Binding BankerAddress}" Width="150" MinWidth="90" ElementStyle="{StaticResource XlText}" />
                     <DataGridTextColumn Header="POD Number" Binding="{Binding PodNumber}" Width="110" MinWidth="70" ElementStyle="{StaticResource XlText}" />
                 </DataGrid.Columns>
@@ -510,6 +373,20 @@
                             <ComboBoxItem Content="No" />
                             <ComboBoxItem Content="Yes" />
                         </ComboBox>
+
+                        <TextBlock Text="Inventory Remark" Foreground="#666" FontSize="12" Margin="0,0,0,3" />
+                        <TextBox Name="txtInventoryRemark" Height="70" TextWrapping="Wrap" AcceptsReturn="True"
+                                 VerticalContentAlignment="Top" Padding="8,4" Margin="0,0,0,6"
+                                 VerticalScrollBarVisibility="Auto"
+                                 ToolTip="Notes about the inventory handover — saved on its own" />
+                        <DockPanel Margin="0,0,0,12">
+                            <Button Name="btnSaveInventoryRemark" DockPanel.Dock="Right" Content="Save remark"
+                                    Height="28" Padding="14,0" Cursor="Hand"
+                                    Background="#2E7D32" Foreground="White" BorderThickness="0"
+                                    Click="btnSaveInventoryRemark_Click" />
+                            <TextBlock Name="txtInvRemarkStatus" FontSize="11" Foreground="#2E7D32"
+                                       VerticalAlignment="Center" TextWrapping="Wrap" />
+                        </DockPanel>
 
                         <TextBlock Text="Banker Address" Foreground="#666" FontSize="12" Margin="0,0,0,3" />
                         <TextBox Name="txtBankerAddress" Height="70" TextWrapping="Wrap" AcceptsReturn="True"

@@ -1958,6 +1958,15 @@ app.MapGet("/api/mgr/users/{id:long}/confirmations", async (HttpContext ctx, lon
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
 
+static async Task SaveRateListAudience(MySqlConnection conn, long listId, List<long>? userIds)
+{
+    await MgrExec("DELETE FROM rate_list_users WHERE rate_list_id=@id", conn, 15, ("@id", listId));
+    foreach (var uid in (userIds ?? new List<long>()).Where(u => u > 0).Distinct())
+        await MgrExec(
+            "INSERT IGNORE INTO rate_list_users (rate_list_id, user_id) VALUES (@id, @uid)",
+            conn, 15, ("@id", listId), ("@uid", uid));
+}
+
 app.MapGet("/api/mgr/ratelist", async (HttpContext ctx) =>
 {
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
@@ -1972,30 +1981,49 @@ app.MapGet("/api/mgr/ratelist", async (HttpContext ctx) =>
             LEFT JOIN finances f ON f.id = r.finance_id
             ORDER BY r.created_at DESC", conn) { CommandTimeout = 20 };
         string baseUrl = $"{ctx.Request.Scheme}://{ctx.Request.Host}";
-        var list = new List<object>();
-        await using var r = await cmd.ExecuteReaderAsync();
-        string? S(int i) => r.IsDBNull(i) ? null : r.GetString(i);
-        while (await r.ReadAsync())
+        var rows = new List<(long Id, string Title, string Kind, string? Url, string? Rel,
+                             string? FileName, long Size, string? Mime, int? FinId,
+                             string? FinName, string? Notes, DateTime Created)>();
+        await using (var r = await cmd.ExecuteReaderAsync())
         {
-            var kind = S(2) ?? "file";
-            var rel  = S(4);
-            list.Add(new
-            {
-                id          = r.GetInt64(0),
-                title       = S(1) ?? "",
-                kind,
-                notes       = S(10),
-                financeId   = r.IsDBNull(8) ? (int?)null : r.GetInt32(8),
-                financeName = S(9),
-                fileName    = S(5),
-                fileSize    = r.GetInt64(6),
-                mime        = S(7),
-                url         = kind == "link"
-                                ? S(3)
-                                : (string.IsNullOrEmpty(rel) ? null : $"{baseUrl}/uploads/{rel.TrimStart('/')}"),
-                createdAt   = r.GetDateTime(11),
-            });
+            string? S(int i) => r.IsDBNull(i) ? null : r.GetString(i);
+            while (await r.ReadAsync())
+                rows.Add((r.GetInt64(0), S(1) ?? "", S(2) ?? "file", S(3), S(4), S(5),
+                          r.GetInt64(6), S(7), r.IsDBNull(8) ? null : r.GetInt32(8),
+                          S(9), S(10), r.GetDateTime(11)));
         }
+
+        // Audience per entry, in one pass rather than a query per row.
+        var audience = new Dictionary<long, List<long>>();
+        await using (var au = new MySqlCommand(
+            "SELECT rate_list_id, user_id FROM rate_list_users", conn) { CommandTimeout = 20 })
+        await using (var ar = await au.ExecuteReaderAsync())
+        {
+            while (await ar.ReadAsync())
+            {
+                var lid = ar.GetInt64(0);
+                if (!audience.TryGetValue(lid, out var l)) audience[lid] = l = new List<long>();
+                l.Add(ar.GetInt64(1));
+            }
+        }
+
+        var list = rows.Select(x => (object)new
+        {
+            id          = x.Id,
+            title       = x.Title,
+            kind        = x.Kind,
+            notes       = x.Notes,
+            financeId   = x.FinId,
+            financeName = x.FinName,
+            fileName    = x.FileName,
+            fileSize    = x.Size,
+            mime        = x.Mime,
+            url         = x.Kind == "link"
+                            ? x.Url
+                            : (string.IsNullOrEmpty(x.Rel) ? null : $"{baseUrl}/uploads/{x.Rel.TrimStart('/')}"),
+            createdAt   = x.Created,
+            userIds     = audience.TryGetValue(x.Id, out var uids) ? uids : new List<long>(),
+        }).ToList();
         return Results.Ok(list);
     }
     catch (Exception ex) { return Results.Problem(ex.Message); }
@@ -2045,6 +2073,21 @@ app.MapPost("/api/mgr/ratelist", async (HttpContext ctx, MgrRateListDto dto) =>
         cmd.Parameters.AddWithValue("@fid", dto.FinanceId is > 0 ? dto.FinanceId : DBNull.Value);
         cmd.Parameters.AddWithValue("@n",   string.IsNullOrWhiteSpace(dto.Notes) ? DBNull.Value : dto.Notes!.Trim());
         await cmd.ExecuteNonQueryAsync();
+        var newId = cmd.LastInsertedId;
+        await SaveRateListAudience(conn, newId, dto.UserIds);
+        return Results.Ok(new { success = true, id = newId });
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+app.MapPut("/api/mgr/ratelist/{id:long}/users", async (HttpContext ctx, long id, MgrRateListUsersDto dto) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        await using var conn = new MySqlConnection(TenantContext.Conn);
+        await conn.OpenAsync();
+        await SaveRateListAudience(conn, id, dto.UserIds);
         return Results.Ok(new { success = true });
     }
     catch (Exception ex) { return Results.Problem(ex.Message); }
@@ -2446,7 +2489,7 @@ app.MapGet("/api/mgr/billing/submissions", async (HttpContext ctx, string? from,
                    rs.total_gross, rs.courier_percent, rs.payment_screenshot, rs.acct_holder_name,
                    rs.bank_name, rs.bank_account_no, rs.ifsc_code, rs.utr_no,
                    rs.payment_date, rs.application_charges, rs.cash_amount, rs.payment_status,
-                   rs.billing_remark, rs.accounts_remark
+                   rs.billing_remark, rs.accounts_remark, rs.inventory_remark
               FROM repo_submissions rs
          LEFT JOIN finances f ON f.id = rs.finance_id
          LEFT JOIN vehicle_records vr ON vr.id = rs.record_id {whereSql}
@@ -2501,7 +2544,8 @@ app.MapGet("/api/mgr/billing/submissions", async (HttpContext ctx, string? from,
                 cashAmount = rdr.IsDBNull(46) ? (decimal?)null : rdr.GetDecimal(46),
                 paymentStatus = rdr.IsDBNull(47) ? "" : rdr.GetString(47),
                 billingRemark = S(48) ?? "",
-                accountsRemark = S(49) ?? ""
+                accountsRemark = S(49) ?? "",
+                inventoryRemark = S(50) ?? ""
             });
         }
         return Results.Ok(list);
@@ -2536,6 +2580,21 @@ app.MapGet("/api/mgr/couriers/submissions/{id:long}/advances", async (HttpContex
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
 
+app.MapPost("/api/mgr/couriers/submissions/{id:long}/inventory-remark", async (HttpContext ctx, long id, MgrInventoryRemarkDto dto) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        await using var conn = new MySqlConnection(TenantContext.Conn);
+        await conn.OpenAsync();
+        await MgrExec("UPDATE repo_submissions SET inventory_remark=@r WHERE id=@id", conn, 15,
+            ("@r", string.IsNullOrWhiteSpace(dto.Remark) ? DBNull.Value : dto.Remark!.Trim()),
+            ("@id", id));
+        return Results.Ok(new { success = true });
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
 app.MapPost("/api/mgr/couriers/submissions/{id:long}/update", async (HttpContext ctx, long id, MgrCourierUpdateDto dto) =>
 {
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
@@ -2558,6 +2617,7 @@ app.MapPost("/api/mgr/couriers/submissions/{id:long}/update", async (HttpContext
             Set("repo_charges", "@rc", null);
             Set("advance", "@adv", null);
             Set("courier_yn", "@cy", null);
+            Set("inventory_remark", "@ir", null);
             Set("banker_address", "@ba", null);
             Set("pod_number", "@pod", null);
             Set("courier_percent", "@cp", null);
@@ -2568,6 +2628,7 @@ app.MapPost("/api/mgr/couriers/submissions/{id:long}/update", async (HttpContext
             if (dto.Advances is not null)       Set("advance", "@adv", await ReplaceAdvances(conn, id, dto.Advances));
             else if (dto.Advance is not null)   Set("advance", "@adv", await SyncAdvanceTotal(conn, id, dto.Advance.Value));
             if (dto.CourierYn is not null)      Set("courier_yn", "@cy", dto.CourierYn);
+            if (dto.InventoryRemark is not null) Set("inventory_remark", "@ir", dto.InventoryRemark);
             if (dto.BankerAddress is not null)  Set("banker_address", "@ba", dto.BankerAddress);
             if (dto.PodNumber is not null)      Set("pod_number", "@pod", dto.PodNumber);
             if (dto.CourierPercent is not null) Set("courier_percent", "@cp", dto.CourierPercent);
@@ -4666,7 +4727,10 @@ record MgrDeclineIdCardDto(string? Reason);
 record MgrUploadRepoKitDto(int FinanceId, string? Title, string? FileName, string? PdfBase64);
 record MgrSetShowFinanceDto(bool Show);
 record MgrRateListDto(string? Title, string? Kind, string? Url, string? FileName,
-                      string? FileBase64, string? Mime, int? FinanceId, string? Notes);
+                      string? FileBase64, string? Mime, int? FinanceId, string? Notes,
+                      List<long>? UserIds = null);
+record MgrRateListUsersDto(List<long>? UserIds);
+record MgrInventoryRemarkDto(string? Remark);
 record MgrCreateMappingDto(int ColumnTypeId, string RawName);
 record MgrCreateColumnTypeDto(string Name);
 record MgrSetStoppedDto(bool Stopped);
@@ -4703,7 +4767,7 @@ record MgrAgentBillingDto(
 
 record MgrCourierUpdateDto(decimal? RepoCharges, decimal? Advance, string? CourierYn,
     string? BankerAddress, string? PodNumber, string? BillingAction, decimal? CourierPercent = null,
-    bool? ClearEntries = null, List<MgrAdvanceDto>? Advances = null);
+    bool? ClearEntries = null, List<MgrAdvanceDto>? Advances = null, string? InventoryRemark = null);
 record MgrAdvanceDto(decimal Amount, string? Date, string? Note);
 record MgrSetFinanceRestrictionsDto(List<int> FinanceIds);
 record MgrSetSubsPasswordDto(string Password);

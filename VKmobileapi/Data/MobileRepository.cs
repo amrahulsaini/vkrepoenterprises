@@ -103,8 +103,9 @@ public class MobileRepository
         return list;
     }
 
-    /// <summary>Rate-list entries published by the office, newest first.</summary>
-    public async Task<List<RateListItemDto>> GetRateListAsync()
+    /// <summary>Rate-list entries this agent has been given, newest first. An
+    /// entry with no audience is deliberately visible to nobody.</summary>
+    public async Task<List<RateListItemDto>> GetRateListAsync(long userId)
     {
         await using var conn = DbFactory.Create();
         await conn.OpenAsync();
@@ -112,9 +113,11 @@ public class MobileRepository
             SELECT r.id, r.title, r.kind, r.url, r.file_path, r.file_name, r.file_size,
                    r.mime, r.finance_id, f.name, r.notes, r.created_at
             FROM rate_lists r
+            JOIN rate_list_users ru ON ru.rate_list_id = r.id AND ru.user_id = @uid
             LEFT JOIN finances f ON f.id = r.finance_id
             ORDER BY r.created_at DESC
             LIMIT 500", conn) { CommandTimeout = 20 };
+        cmd.Parameters.AddWithValue("@uid", userId);
         var list = new List<RateListItemDto>();
         await using var r = await cmd.ExecuteReaderAsync();
         string? S(int i) => r.IsDBNull(i) ? null : r.GetString(i);

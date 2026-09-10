@@ -1,8 +1,12 @@
 using System;
+using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using CRMRSDesktopApp.Data;
 using Microsoft.Win32;
 
@@ -14,6 +18,30 @@ public partial class RateListManagerPage : Page
 
     private byte[]? _fileBytes;
     private string? _fileName;
+
+    private class UserPick : INotifyPropertyChanged
+    {
+        public long   Id     { get; set; }
+        public string Name   { get; set; } = "";
+        public string Mobile { get; set; } = "";
+        public string Display => string.IsNullOrWhiteSpace(Mobile) ? Name : $"{Name}  ·  {Mobile}";
+
+        private bool _isChecked;
+        public bool IsChecked
+        {
+            get => _isChecked;
+            set { _isChecked = value; PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsChecked))); }
+        }
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+    }
+
+    private List<UserPick> _userPicks = new();
+
+    // Non-zero while the picker is editing an already-published entry; the
+    // "Done" button then writes straight back to that entry instead of
+    // feeding the new-entry form.
+    private long _editingListId;
 
     private static readonly (string Ext, string Mime)[] KnownTypes =
     {
@@ -47,7 +75,115 @@ public partial class RateListManagerPage : Page
             MessageBox.Show($"Failed to load head offices:\n{ex.Message}", "Error",
                 MessageBoxButton.OK, MessageBoxImage.Error);
         }
+        try
+        {
+            var users = await DesktopApiClient.GetAllSimpleUsersAsync();
+            _userPicks = users
+                .OrderBy(u => u.Name, StringComparer.OrdinalIgnoreCase)
+                .Select(u => new UserPick { Id = u.Id, Name = u.Name, Mobile = u.Mobile })
+                .ToList();
+            ShowUserPicks();
+            UpdateUsersButton();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Failed to load app users:\n{ex.Message}", "Error",
+                MessageBoxButton.OK, MessageBoxImage.Error);
+        }
         await LoadItemsAsync();
+    }
+
+    // ── Audience picker ──────────────────────────────────────────────────────
+    private void ShowUserPicks()
+    {
+        var term = (txtUserSearch.Text ?? "").Trim();
+        lstUserPicks.ItemsSource = term.Length == 0
+            ? _userPicks
+            : _userPicks.Where(u =>
+                  u.Name.IndexOf(term, StringComparison.OrdinalIgnoreCase) >= 0 ||
+                  u.Mobile.IndexOf(term, StringComparison.OrdinalIgnoreCase) >= 0).ToList();
+    }
+
+    private void UpdateUsersButton()
+    {
+        var picked = _userPicks.Where(u => u.IsChecked).ToList();
+        btnUsers.Content = picked.Count switch
+        {
+            0 => "No users selected",
+            1 => picked[0].Name,
+            _ when picked.Count == _userPicks.Count && _userPicks.Count > 0 => $"All {picked.Count} users",
+            _ => $"{picked.Count} users selected",
+        };
+    }
+
+    private List<long> PickedUserIds() =>
+        _userPicks.Where(u => u.IsChecked).Select(u => u.Id).ToList();
+
+    private void UserSearch_Changed(object sender, TextChangedEventArgs e) => ShowUserPicks();
+
+    private void UserPick_Changed(object sender, RoutedEventArgs e) => UpdateUsersButton();
+
+    // Enter applies the selection and shuts the popup, so the keyboard alone
+    // gets you through the picker.
+    private void UserPicker_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Enter && e.Key != Key.Escape) return;
+        e.Handled = true;
+        if (e.Key == Key.Enter) CommitUserPicks();
+        else btnUsers.IsChecked = false;
+    }
+
+    private void btnSelectAllUsers_Click(object sender, RoutedEventArgs e)
+    {
+        foreach (var u in _userPicks) u.IsChecked = true;
+        UpdateUsersButton();
+    }
+
+    private void btnClearUsers_Click(object sender, RoutedEventArgs e)
+    {
+        foreach (var u in _userPicks) u.IsChecked = false;
+        UpdateUsersButton();
+    }
+
+    private void btnDoneUsers_Click(object sender, RoutedEventArgs e) => CommitUserPicks();
+
+    private async void CommitUserPicks()
+    {
+        UpdateUsersButton();
+        btnUsers.IsChecked = false;
+        if (_editingListId == 0) return;
+
+        var id = _editingListId;
+        _editingListId = 0;
+        try
+        {
+            await DesktopApiClient.SetRateListUsersAsync(id, PickedUserIds());
+            foreach (var u in _userPicks) u.IsChecked = false;
+            txtUserSearch.Text = "";
+            UpdateUsersButton();
+            await LoadItemsAsync();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Could not save the audience:\n{ex.Message}", "Error",
+                MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private void EditUsers_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { Tag: long id }) return;
+        var item = (listItems.ItemsSource as List<DesktopApiClient.RateListItemDto>)
+            ?.FirstOrDefault(x => x.Id == id);
+        if (item == null) return;
+
+        var already = new HashSet<long>(item.UserIds);
+        foreach (var u in _userPicks) u.IsChecked = already.Contains(u.Id);
+        txtUserSearch.Text = "";
+        ShowUserPicks();
+        UpdateUsersButton();
+        _editingListId = id;
+        btnUsers.IsChecked = true;
     }
 
     private async System.Threading.Tasks.Task LoadItemsAsync()
@@ -121,6 +257,12 @@ public partial class RateListManagerPage : Page
         }
         var financeId = cmbFinance.SelectedValue as int?;
         var notes     = txtNotes.Text?.Trim();
+        var audience  = PickedUserIds();
+        if (audience.Count == 0 &&
+            MessageBox.Show(
+                "No app users are selected, so nobody will see this entry in the app.\n\nPublish anyway?",
+                "No audience", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
+            return;
 
         btnPublish.IsEnabled = false;
         try
@@ -136,7 +278,7 @@ public partial class RateListManagerPage : Page
                 if (!url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) &&
                     !url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
                     url = "https://" + url;
-                await DesktopApiClient.AddRateListLinkAsync(title, url, financeId, notes);
+                await DesktopApiClient.AddRateListLinkAsync(title, url, financeId, notes, audience);
                 txtUrl.Text = "";
             }
             else
@@ -148,13 +290,16 @@ public partial class RateListManagerPage : Page
                 }
                 var name = _fileName ?? "ratelist";
                 await DesktopApiClient.AddRateListFileAsync(
-                    title, name, MimeFor(name), Convert.ToBase64String(_fileBytes), financeId, notes);
+                    title, name, MimeFor(name), Convert.ToBase64String(_fileBytes),
+                    financeId, notes, audience);
                 _fileBytes = null; _fileName = null;
                 txtChosen.Text = "No file chosen";
             }
 
             txtTitle.Text = ""; txtNotes.Text = "";
             cmbFinance.SelectedIndex = -1;
+            foreach (var u in _userPicks) u.IsChecked = false;
+            UpdateUsersButton();
             await LoadItemsAsync();
         }
         catch (Exception ex)

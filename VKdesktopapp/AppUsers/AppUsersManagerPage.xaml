@@ -624,14 +624,17 @@
                                     </StackPanel>
 
                                     <Border Background="White" CornerRadius="6" BorderBrush="#FCD34D"
-                                            BorderThickness="1" MaxHeight="260">
+                                            BorderThickness="1" Height="420">
                                         <Grid>
                                             <TextBlock Name="txtConfirmEmpty"
                                                        Text="No confirmations in this range."
                                                        FontSize="11" Foreground="{StaticResource Gray500}"
                                                        HorizontalAlignment="Center" VerticalAlignment="Center"
                                                        Margin="0,18" />
-                                            <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                            <ScrollViewer Name="svConfirmations"
+                                                          VerticalScrollBarVisibility="Visible"
+                                                          HorizontalScrollBarVisibility="Disabled"
+                                                          CanContentScroll="False"
                                                           PreviewMouseWheel="ConfirmList_PreviewMouseWheel">
                                                 <ItemsControl Name="icConfirmations">
                                                     <ItemsControl.ItemTemplate>

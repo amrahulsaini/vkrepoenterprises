@@ -1135,7 +1135,7 @@ public class MobileController : ControllerBase
     {
         try
         {
-            var rows = await _repo.GetRateListAsync();
+            var rows = await _repo.GetRateListAsync(userId);
             return Ok(rows.Select(r => new
             {
                 r.Id, r.Title, r.Kind, r.Notes, r.FinanceId, r.FinanceName,
