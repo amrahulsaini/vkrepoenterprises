@@ -295,7 +295,9 @@ public class MobileRepository
             SELECT name, COALESCE(address,''), mobile1,
                    COALESCE(mobile2,''), COALESCE(mobiles_extra,''),
                    COALESCE(logo_path,''), COALESCE(letterhead_path,''),
-                   COALESCE(watermark_path,'')
+                   COALESCE(watermark_path,''), COALESCE(stamp_path,''),
+                   COALESCE(stamp_x,380), COALESCE(stamp_y,690),
+                   COALESCE(stamp_w,150), COALESCE(stamp_h,80)
               FROM agencies WHERE slug=@s LIMIT 1", conn);
         cmd.Parameters.AddWithValue("@s", slug);
         await using var rdr = await cmd.ExecuteReaderAsync();
@@ -317,18 +319,46 @@ public class MobileRepository
             Mobiles:  mobiles,
             LogoPath: rdr.GetString(5),
             LetterheadPath: rdr.GetString(6),
-            WatermarkPath: rdr.GetString(7));
+            WatermarkPath: rdr.GetString(7),
+            StampPath: rdr.GetString(8),
+            StampX: rdr.GetFloat(9),
+            StampY: rdr.GetFloat(10),
+            StampW: rdr.GetFloat(11),
+            StampH: rdr.GetFloat(12));
     }
 
 
-    public async Task SaveAgencyLetterheadAsync(string slug, string relativePath, bool isWatermark = false)
+    public async Task SaveAgencyLetterheadAsync(string slug, string relativePath, string kind = "letterhead")
     {
+        // Column name is picked from a fixed set, never from caller input.
+        var col = kind switch
+        {
+            "watermark" => "watermark_path",
+            "stamp"     => "stamp_path",
+            _           => "letterhead_path",
+        };
         await using var conn = DbFactory.CreateMaster();
         await conn.OpenAsync();
-        var col = isWatermark ? "watermark_path" : "letterhead_path";
         await using var cmd = new MySqlCommand(
             $"UPDATE agencies SET {col}=@p WHERE slug=@s", conn);
         cmd.Parameters.AddWithValue("@p", relativePath);
+        cmd.Parameters.AddWithValue("@s", slug);
+        await cmd.ExecuteNonQueryAsync();
+    }
+
+    /// <summary>Where the stamp sits on the letter, in A4 points from the
+    /// top-left of the page. One position, used by every letter the agency
+    /// generates.</summary>
+    public async Task SaveStampPositionAsync(string slug, float x, float y, float w, float h)
+    {
+        await using var conn = DbFactory.CreateMaster();
+        await conn.OpenAsync();
+        await using var cmd = new MySqlCommand(
+            "UPDATE agencies SET stamp_x=@x, stamp_y=@y, stamp_w=@w, stamp_h=@h WHERE slug=@s", conn);
+        cmd.Parameters.AddWithValue("@x", x);
+        cmd.Parameters.AddWithValue("@y", y);
+        cmd.Parameters.AddWithValue("@w", w);
+        cmd.Parameters.AddWithValue("@h", h);
         cmd.Parameters.AddWithValue("@s", slug);
         await cmd.ExecuteNonQueryAsync();
     }

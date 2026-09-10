@@ -33,7 +33,11 @@ public record LoginRequest(
 
 public record AgencyListItem(long Id, string Name, string Slug, string LogoPath);
 
-public record AgencyInfo(string Name, string Address, List<string> Mobiles, string LogoPath, string LetterheadPath, string WatermarkPath);
+public record AgencyInfo(string Name, string Address, List<string> Mobiles, string LogoPath,
+    string LetterheadPath, string WatermarkPath, string StampPath = "",
+    float StampX = 380, float StampY = 690, float StampW = 150, float StampH = 80);
+
+public record StampPositionReq(float X, float Y, float W, float H);
 
 public record HeartbeatRequest(long UserId, double? Lat, double? Lng);
 

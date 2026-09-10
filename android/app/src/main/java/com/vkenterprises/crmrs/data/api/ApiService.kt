@@ -235,6 +235,11 @@ interface ApiService {
         @Body request: IdCardSubmitRequest
     ): Response<Map<String, Any>>
 
+    @PUT("api/mobile/agency/stamp-position")
+    suspend fun saveStampPosition(
+        @Body request: com.vkenterprises.crmrs.data.models.StampPositionRequest
+    ): Response<Map<String, Any>>
+
     @GET("api/mobile/confirmations")
     suspend fun getConfirmations(
         @Header("X-User-Id") userId: Long,

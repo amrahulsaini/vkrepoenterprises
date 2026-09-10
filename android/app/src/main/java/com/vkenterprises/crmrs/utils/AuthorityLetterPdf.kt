@@ -31,11 +31,16 @@ object AuthorityLetterPdf {
         val validFrom: String = "",
         val validTo: String = "",
         val letterhead: Bitmap? = null,
-        val watermark: Bitmap? = null
+        val watermark: Bitmap? = null,
+        val stamp: Bitmap? = null,
+        val stampX: Float = 380f,
+        val stampY: Float = 690f,
+        val stampW: Float = 150f,
+        val stampH: Float = 80f
     )
 
-    private const val PAGE_W = 595
-    private const val PAGE_H = 842
+    const val PAGE_W = 595
+    const val PAGE_H = 842
     private const val MARGIN = 42f
 
     private val TERMS = listOf(
@@ -166,6 +171,18 @@ object AuthorityLetterPdf {
         val note = "Note: This document is an internal authorization/compliance format. It should be used only after " +
             "approval by the concerned Bank/NBFC and, where appropriate, review by its legal/compliance team."
         para(canvas, note, MARGIN, y, contentW, small)
+
+        // Stamp and signature go on last so they sit over the signatory block
+        // wherever the office parked them. Coordinates are page points from the
+        // top-left, so the same numbers land identically on every device.
+        d.stamp?.let { bmp ->
+            val left = d.stampX.coerceIn(0f, PAGE_W - 1f)
+            val top  = d.stampY.coerceIn(0f, PAGE_H - 1f)
+            val w    = d.stampW.coerceAtLeast(1f)
+            val h    = d.stampH.coerceAtLeast(1f)
+            canvas.drawBitmap(bmp, null, RectF(left, top, left + w, top + h),
+                Paint(Paint.FILTER_BITMAP_FLAG))
+        }
 
         doc.finishPage(page)
         val file = File(context.cacheDir, fileName(d))

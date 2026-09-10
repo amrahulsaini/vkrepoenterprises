@@ -62,6 +62,30 @@ public class MobileController : ControllerBase
         }
     }
 
+    [HttpPut("agency/stamp-position")]
+    public async Task<IActionResult> SaveStampPosition([FromBody] StampPositionReq req)
+    {
+        var slug = TenantContext.Key;
+        if (string.IsNullOrEmpty(slug) || slug == "default")
+            return Unauthorized(new ApiError(false, "No tenant context"));
+        if (req == null) return BadRequest(new ApiError(false, "No position given."));
+        // Clamp to the A4 page the letter generator draws, so a bad client can
+        // never park the stamp off-paper.
+        static float Clamp(float v, float lo, float hi) => v < lo ? lo : (v > hi ? hi : v);
+        var w = Clamp(req.W, 20f, 595f);
+        var h = Clamp(req.H, 20f, 842f);
+        try
+        {
+            await _repo.SaveStampPositionAsync(slug,
+                Clamp(req.X, 0f, 595f - w), Clamp(req.Y, 0f, 842f - h), w, h);
+            return Ok(new { success = true });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new ApiError(false, $"Could not save the stamp position: {ex.Message}"));
+        }
+    }
+
     [HttpPost("agency/letterhead")]
     public async Task<IActionResult> UploadLetterhead(IFormFile file, [FromQuery] string kind = "letterhead")
     {
@@ -80,8 +104,12 @@ public class MobileController : ControllerBase
             if (ext != ".png" && ext != ".jpg" && ext != ".jpeg")
                 return BadRequest(new ApiError(false, "Letterhead must be a PNG or JPG image."));
 
-            var isWatermark = string.Equals(kind, "watermark", StringComparison.OrdinalIgnoreCase);
-            var folder = isWatermark ? "watermark" : "letterhead";
+            var folder = kind.ToLowerInvariant() switch
+            {
+                "watermark" => "watermark",
+                "stamp"     => "stamp",
+                _           => "letterhead",
+            };
             var dir = Path.Combine(MobileRepository.UploadsPath, folder);
             Directory.CreateDirectory(dir);
             var safeSlug = new string(slug.Where(c => char.IsLetterOrDigit(c) || c == '_' || c == '-').ToArray());
@@ -92,7 +120,7 @@ public class MobileController : ControllerBase
             await using (var fs = new FileStream(full, FileMode.Create))
                 await file.CopyToAsync(fs);
 
-            await _repo.SaveAgencyLetterheadAsync(slug, rel, isWatermark);
+            await _repo.SaveAgencyLetterheadAsync(slug, rel, folder);
             return Ok(new { success = true, path = rel });
         }
         catch (Exception ex)

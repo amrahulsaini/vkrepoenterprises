@@ -90,7 +90,12 @@ data class AgencyInfo(
     val mobiles: List<String> = emptyList(),
     val logoPath: String = "",
     val letterheadPath: String = "",
-    val watermarkPath: String = ""
+    val watermarkPath: String = "",
+    val stampPath: String = "",
+    val stampX: Float = 380f,
+    val stampY: Float = 690f,
+    val stampW: Float = 150f,
+    val stampH: Float = 80f
 )
 
 data class SearchResult(
@@ -522,3 +527,10 @@ data class AdminAddSubRequest(
 data class VerifyAdminPassRequest(val password: String)
 data class SetUserFlagRequest(val value: Boolean)
 data class SetKycStatusRequest(val status: String, val note: String?)
+
+data class StampPositionRequest(
+    val x: Float,
+    val y: Float,
+    val w: Float,
+    val h: Float
+)

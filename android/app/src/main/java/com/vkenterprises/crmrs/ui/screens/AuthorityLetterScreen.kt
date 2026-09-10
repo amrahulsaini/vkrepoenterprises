@@ -2,7 +2,10 @@ package com.vkenterprises.crmrs.ui.screens
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -14,16 +17,22 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import coil.compose.AsyncImage
 import com.vkenterprises.crmrs.BuildConfig
 import com.vkenterprises.crmrs.data.api.ApiClient
 import com.vkenterprises.crmrs.data.models.SearchResult
+import com.vkenterprises.crmrs.data.models.StampPositionRequest
 import com.vkenterprises.crmrs.ui.theme.RobotoFamily
 import com.vkenterprises.crmrs.utils.AuthorityLetterPdf
 import com.vkenterprises.crmrs.utils.RepoPdf
@@ -58,6 +67,12 @@ fun AuthorityLetterScreen(
     var lhBusy by remember { mutableStateOf(false) }
     var hasLetterhead by remember { mutableStateOf(false) }
     var hasWatermark  by remember { mutableStateOf(false) }
+    var stampUrl      by remember { mutableStateOf<String?>(null) }
+    var stampX by remember { mutableStateOf(380f) }
+    var stampY by remember { mutableStateOf(690f) }
+    var stampW by remember { mutableStateOf(150f) }
+    var stampH by remember { mutableStateOf(80f) }
+    var stampSaving by remember { mutableStateOf(false) }
     var validFrom by remember { mutableStateOf("") }
     var validTo   by remember { mutableStateOf("") }
     var execName  by remember { mutableStateOf("") }
@@ -65,12 +80,36 @@ fun AuthorityLetterScreen(
     var pending   by remember { mutableStateOf<SearchResult?>(null) }
     var showSettings by remember { mutableStateOf(false) }
 
+    fun absUrl(p: String): String {
+        if (p.startsWith("http")) return p
+        val rel = if (p.trimStart('/').startsWith("uploads/")) p.trimStart('/')
+                  else "uploads/" + p.trimStart('/')
+        return BuildConfig.BASE_URL.trimEnd('/') + "/" + rel
+    }
+
     suspend fun refreshAgency() {
         runCatching { ApiClient.api.getAgencyInfo() }
             .getOrNull()?.takeIf { it.isSuccessful }?.body()?.let {
                 hasLetterhead = it.letterheadPath.isNotBlank()
                 hasWatermark  = it.watermarkPath.isNotBlank()
+                stampUrl = it.stampPath.takeIf { p -> p.isNotBlank() }?.let { p -> absUrl(p) }
+                stampX = it.stampX; stampY = it.stampY
+                stampW = it.stampW; stampH = it.stampH
             }
+    }
+
+    fun saveStampPosition() {
+        if (stampSaving) return
+        stampSaving = true
+        scope.launch {
+            val ok = runCatching {
+                ApiClient.api.saveStampPosition(
+                    StampPositionRequest(stampX, stampY, stampW, stampH)
+                ).isSuccessful
+            }.getOrDefault(false)
+            msg = if (ok) "Stamp position saved." else "Couldn't save the stamp position."
+            stampSaving = false
+        }
     }
 
     LaunchedEffect(Unit) {
@@ -108,16 +147,12 @@ fun AuthorityLetterScreen(
             runCatching {
                 val info = runCatching { ApiClient.api.getAgencyInfo() }
                     .getOrNull()?.takeIf { it.isSuccessful }?.body()
-                fun abs(p: String): String {
-                    if (p.startsWith("http")) return p
-                    val rel = if (p.trimStart('/').startsWith("uploads/")) p.trimStart('/')
-                              else "uploads/" + p.trimStart('/')
-                    return BuildConfig.BASE_URL.trimEnd('/') + "/" + rel
-                }
                 val lh = info?.letterheadPath.orEmpty()
                 val wm = info?.watermarkPath.orEmpty()
-                val bmp   = if (lh.isNotBlank()) RepoPdf.loadBitmap(abs(lh)) else null
-                val wmBmp = if (wm.isNotBlank()) RepoPdf.loadBitmap(abs(wm)) else null
+                val st = info?.stampPath.orEmpty()
+                val bmp   = if (lh.isNotBlank()) RepoPdf.loadBitmap(absUrl(lh)) else null
+                val wmBmp = if (wm.isNotBlank()) RepoPdf.loadBitmap(absUrl(wm)) else null
+                val stBmp = if (st.isNotBlank()) RepoPdf.loadBitmap(absUrl(st)) else null
                 val data = AuthorityLetterPdf.Data(
                     agencyName   = info?.name?.takeIf { it.isNotBlank() } ?: BuildConfig.AGENCY_NAME,
                     regNo        = "",
@@ -134,7 +169,12 @@ fun AuthorityLetterScreen(
                     validFrom    = validFrom.trim(),
                     validTo      = validTo.trim(),
                     letterhead   = bmp,
-                    watermark    = wmBmp
+                    watermark    = wmBmp,
+                    stamp        = stBmp,
+                    stampX       = info?.stampX ?: stampX,
+                    stampY       = info?.stampY ?: stampY,
+                    stampW       = info?.stampW ?: stampW,
+                    stampH       = info?.stampH ?: stampH
                 )
                 val file = withContext(Dispatchers.IO) { AuthorityLetterPdf.generate(context, data) }
                 RepoPdf.open(context, file, "application/pdf")
@@ -359,6 +399,65 @@ fun AuthorityLetterScreen(
                             Spacer(Modifier.width(6.dp))
                             Text(if (hasWatermark) "Replace Background" else "Upload Background")
                         }
+                        Spacer(Modifier.height(10.dp))
+                        HorizontalDivider()
+                        Spacer(Modifier.height(10.dp))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                if (stampUrl != null) Icons.Default.CheckCircle else Icons.Default.Approval,
+                                null,
+                                tint = if (stampUrl != null) Color(0xFF388E3C)
+                                       else MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Text(
+                                if (stampUrl != null) "STAMP & SIGN UPLOADED" else "STAMP & SIGN NOT UPLOADED",
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = if (stampUrl != null) Color(0xFF388E3C)
+                                        else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            "One stamp and signature image, printed on every authorization letter. " +
+                            "Drag it on the page below to set where it lands. A transparent PNG works best.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(Modifier.height(10.dp))
+                        OutlinedButton(
+                            onClick = { uploadKind = "stamp"; picker.launch("image/*") },
+                            enabled = !lhBusy,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(Icons.Default.Approval, null, Modifier.size(18.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text(if (stampUrl != null) "Replace Stamp & Sign" else "Upload Stamp & Sign")
+                        }
+
+                        if (stampUrl != null) {
+                            Spacer(Modifier.height(12.dp))
+                            StampPlacer(
+                                stampUrl = stampUrl!!,
+                                x = stampX, y = stampY, w = stampW, h = stampH,
+                                onMove = { nx, ny -> stampX = nx; stampY = ny },
+                                onSize = { nw, nh -> stampW = nw; stampH = nh }
+                            )
+                            Spacer(Modifier.height(10.dp))
+                            Button(
+                                onClick = { saveStampPosition() },
+                                enabled = !stampSaving,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Icon(Icons.Default.Save, null, Modifier.size(18.dp))
+                                Spacer(Modifier.width(6.dp))
+                                Text(if (stampSaving) "Saving…" else "Save Stamp Position")
+                            }
+                        }
                     
                 }
             }
@@ -433,5 +532,85 @@ fun AuthorityLetterScreen(
                 }
             }
         )
+    }
+}
+
+
+/// A4 page in miniature: drag the stamp to where it should print, and size it
+/// with the slider. Everything is kept in PDF points so what is set here is
+/// exactly what AuthorityLetterPdf draws.
+@Composable
+private fun StampPlacer(
+    stampUrl: String,
+    x: Float, y: Float, w: Float, h: Float,
+    onMove: (Float, Float) -> Unit,
+    onSize: (Float, Float) -> Unit
+) {
+    val pageW = AuthorityLetterPdf.PAGE_W.toFloat()
+    val pageH = AuthorityLetterPdf.PAGE_H.toFloat()
+    val previewW = 260.dp
+    val previewH = previewW * (pageH / pageW)
+    val density = LocalDensity.current
+    val previewWpx = with(density) { previewW.toPx() }
+    val scale = previewWpx / pageW
+
+    Column {
+        Text("Position on the page",
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary)
+        Spacer(Modifier.height(6.dp))
+        Box(
+            Modifier
+                .width(previewW)
+                .height(previewH)
+                .background(Color.White)
+                .border(1.dp, MaterialTheme.colorScheme.outlineVariant)
+        ) {
+            Box(
+                Modifier
+                    .offset(
+                        x = with(density) { (x * scale).toDp() },
+                        y = with(density) { (y * scale).toDp() }
+                    )
+                    .size(
+                        width  = with(density) { (w * scale).toDp() },
+                        height = with(density) { (h * scale).toDp() }
+                    )
+                    .border(1.dp, MaterialTheme.colorScheme.primary)
+                    .pointerInput(w, h) {
+                        detectDragGestures { change, drag: Offset ->
+                            change.consume()
+                            onMove(
+                                (x + drag.x / scale).coerceIn(0f, pageW - w),
+                                (y + drag.y / scale).coerceIn(0f, pageH - h)
+                            )
+                        }
+                    }
+            ) {
+                AsyncImage(
+                    model = stampUrl,
+                    contentDescription = "Stamp and signature",
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+        }
+        Spacer(Modifier.height(8.dp))
+        Text("Size — ${w.toInt()} x ${h.toInt()} pt",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Slider(
+            value = w,
+            onValueChange = { nw ->
+                val ratio = if (w > 0f) h / w else 0.55f
+                val clamped = nw.coerceIn(40f, pageW - x)
+                onSize(clamped, (clamped * ratio).coerceIn(20f, pageH - y))
+            },
+            valueRange = 40f..300f
+        )
+        Text("Drag the stamp to move it. Coordinates: ${x.toInt()}, ${y.toInt()} pt from the top-left.",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.outline)
     }
 }
