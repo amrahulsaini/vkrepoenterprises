@@ -26,8 +26,8 @@
     <Copyright>Copyright Â© CRMRS 2026</Copyright>
     <AssemblyTitle>CRMRS Recovery</AssemblyTitle>
     <Description>CRMRS Recovery Software â€” multi-tenant vehicle recovery operations</Description>
-    <Version>1.0.28</Version>
-    <FileVersion>1.0.28.0</FileVersion>
+    <Version>1.0.29</Version>
+    <FileVersion>1.0.29.0</FileVersion>
   </PropertyGroup>
 
   <ItemGroup>

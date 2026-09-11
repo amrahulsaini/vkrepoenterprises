@@ -10,8 +10,6 @@ namespace CRMRSDesktopApp;
 
 public partial class LoginWindow : Window
 {
-    private bool _autoLoginTried;
-
     public LoginWindow()
     {
         InitializeComponent();
@@ -20,7 +18,8 @@ public partial class LoginWindow : Window
         Loaded += async (_, __) =>
         {
             LoadCachedAgencyBranding();
-            await TryAutoLoginAsync();
+            SavedSession.PurgeLegacy();
+            await RevokeDeviceAsync();
         };
     }
 
@@ -34,67 +33,6 @@ public partial class LoginWindow : Window
     {
         pnlAgencySaved.Visibility = Visibility.Collapsed;
         pnlAgencyForm.Visibility = Visibility.Visible;
-    }
-
-    private async Task TryAutoLoginAsync()
-    {
-        if (_autoLoginTried) return;
-        _autoLoginTried = true;
-
-        SavedSession.PurgeLegacy();
-
-        var deviceToken = SavedSession.Load();
-        if (string.IsNullOrEmpty(deviceToken)) return;
-
-        ShowAgencyCard();
-        btnLogin.IsEnabled = false;
-        lblStatus.Text = "Signing in...";
-        try
-        {
-            using var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(20));
-            var resp = await App.HttpClient.PostAsync(
-                App.ApiBaseUrl + "api/agency/desktop/session/resume",
-                JsonContent.Create(new { deviceToken }), cts.Token);
-
-            if (!resp.IsSuccessStatusCode)
-            {
-                // Only forget the sign in when the server actually rejects it:
-                // expired, revoked, or the password changed. A server hiccup
-                // must not cost the user their saved sign in.
-                if (resp.StatusCode == System.Net.HttpStatusCode.Unauthorized ||
-                    resp.StatusCode == System.Net.HttpStatusCode.Forbidden)
-                {
-                    SavedSession.Clear();
-                    ShowAgencyForm();
-                }
-                else
-                {
-                    lblSavedState.Text = "Cannot reach the server right now. Change agency to sign in again.";
-                }
-                lblStatus.Text = "";
-                return;
-            }
-
-            var signed = await resp.Content.ReadFromJsonAsync<SignedAppUser>();
-            if (signed == null || string.IsNullOrEmpty(signed.Token))
-            {
-                SavedSession.Clear();
-                ShowAgencyForm();
-                lblStatus.Text = "";
-                return;
-            }
-
-            await EnterAppAsync(signed, deviceToken);
-        }
-        catch
-        {
-            lblSavedState.Text = "Cannot reach the server right now. Change agency to sign in again.";
-            lblStatus.Text = "";
-        }
-        finally
-        {
-            btnLogin.IsEnabled = true;
-        }
     }
 
     private async void btnChangeAgency_Click(object sender, RoutedEventArgs e)
@@ -120,7 +58,6 @@ public partial class LoginWindow : Window
         txtPassword.Clear();
         ShowAgencyForm();
         lblStatus.Text = "";
-        _autoLoginTried = true;
         Show();
         Activate();
         txtEmail.Focus();
@@ -197,7 +134,7 @@ public partial class LoginWindow : Window
         {
             email          = emailIn.Trim().ToLowerInvariant(),
             password       = passwordIn,
-            rememberDevice = "true",
+            rememberDevice = "false",
             deviceLabel    = Environment.MachineName
         };
 
@@ -272,16 +209,14 @@ public partial class LoginWindow : Window
             return;
         }
 
-        await EnterAppAsync(signed, signed.DeviceToken);
+        EnterApp(signed);
     }
 
-    private async Task EnterAppAsync(SignedAppUser signed, string? deviceToken)
+    private void EnterApp(SignedAppUser signed)
     {
         App.SignedAppUser = signed;
         App.LoginEmail = signed.Email;
         App.SetAuthToken(signed.Token);
-
-        if (!string.IsNullOrEmpty(deviceToken)) SavedSession.Save(deviceToken!);
 
         _ = AgencyBranding.SaveAsync(signed.AgencyName, signed.LogoPath);
 
