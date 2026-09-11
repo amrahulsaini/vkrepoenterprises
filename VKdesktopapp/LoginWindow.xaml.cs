@@ -17,7 +17,6 @@ public partial class LoginWindow : Window
             lblAppName.Text = Branding.Name;
         Loaded += async (_, __) =>
         {
-            LoadCachedAgencyBranding();
             SavedSession.PurgeLegacy();
             await RevokeDeviceAsync();
         };
@@ -69,13 +68,6 @@ public partial class LoginWindow : Window
         lblAppName.Text = Branding.IsTenantBuild ? Branding.Name : "CRMRS";
         var def = AgencyBranding.DefaultLogo();
         if (def != null) imgLogo.Source = def;
-    }
-
-    private void LoadCachedAgencyBranding()
-    {
-        lblAppName.Text = AgencyBranding.Name;
-        var logo = AgencyBranding.LoadLogo();
-        if (logo != null) imgLogo.Source = logo;
     }
 
     private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)

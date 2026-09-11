@@ -70,7 +70,11 @@ internal static class AgencyBranding
         }
         catch { }
 
-        if (string.IsNullOrWhiteSpace(logoPath)) return;
+        if (string.IsNullOrWhiteSpace(logoPath))
+        {
+            try { if (File.Exists(LogoPath)) File.Delete(LogoPath); } catch { }
+            return;
+        }
         try
         {
             var url = logoPath.StartsWith("http", StringComparison.OrdinalIgnoreCase)
