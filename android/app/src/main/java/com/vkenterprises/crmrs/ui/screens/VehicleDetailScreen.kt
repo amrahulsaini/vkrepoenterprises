@@ -332,7 +332,10 @@ fun VehicleDetailScreen(
         }
         androidx.compose.ui.window.Dialog(
             onDismissRequest = dismissBranches,
-            properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+            properties = androidx.compose.ui.window.DialogProperties(
+                usePlatformDefaultWidth = false,
+                decorFitsSystemWindows = false
+            )
         ) {
             Box(
                 Modifier
@@ -361,7 +364,7 @@ fun VehicleDetailScreen(
                     .padding(horizontal = 16.dp)
                     .padding(top = 18.dp)
                     .verticalScroll(rememberScrollState())
-                    .padding(bottom = 24.dp),
+                    .padding(bottom = 36.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Row(

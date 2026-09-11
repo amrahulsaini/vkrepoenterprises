@@ -5,6 +5,8 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -232,15 +234,15 @@ private fun ProgressCard(ui: TaskManagerUiState) {
                     Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text("Demand: ${if (ui.demand > 0) ui.demand.toString() else "—"}",
+                    Text("DEMAND: ${if (ui.demand > 0) ui.demand.toString() else "—"}",
                         style = MaterialTheme.typography.labelMedium)
-                    Text("Target: ${if (ui.target > 0) ui.target.toString() else "—"}",
+                    Text("TARGET: ${if (ui.target > 0) ui.target.toString() else "—"}",
                         style = MaterialTheme.typography.labelMedium)
                 }
                 val note = when {
-                    ui.targetMet -> "Target reached — excellent."
-                    ui.demandMet -> "Demand met. ${(ui.target - ui.billedThisMonth).coerceAtLeast(0)} more to hit target."
-                    ui.demand > 0 -> "${(ui.demand - ui.billedThisMonth).coerceAtLeast(0)} more to meet your demand."
+                    ui.targetMet -> "TARGET REACHED — EXCELLENT."
+                    ui.demandMet -> "DEMAND MET. ${(ui.target - ui.billedThisMonth).coerceAtLeast(0)} MORE TO HIT TARGET."
+                    ui.demand > 0 -> "${(ui.demand - ui.billedThisMonth).coerceAtLeast(0)} MORE TO MEET YOUR DEMAND."
                     else -> ""
                 }
                 if (note.isNotBlank()) {
@@ -248,7 +250,7 @@ private fun ProgressCard(ui: TaskManagerUiState) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             } else {
-                Text("No demand/target set by your admin yet.",
+                Text("NO DEMAND/TARGET SET BY YOUR ADMIN YET.",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
@@ -318,7 +320,7 @@ private fun TaskEditSheet(
     item: RepoTaskItem,
     saving: Boolean,
     onCancel: () -> Unit,
-    onSave: (RepoTaskItem, String?) -> Unit
+    onSave: (RepoTaskItem, List<String>) -> Unit
 ) {
     val context = LocalContext.current
     var loanNo      by remember(item.id) { mutableStateOf(item.loanNo) }
@@ -345,16 +347,22 @@ private fun TaskEditSheet(
     var cashAmt     by remember(item.id) { mutableStateOf(if (item.cashAmount > 0) item.cashAmount.toString() else "") }
 
     // Payment screenshot — required when moving to Collection done.
-    var payUri by remember(item.id) { mutableStateOf<Uri?>(null) }
-    var payB64 by remember(item.id) { mutableStateOf<String?>(null) }
+    val payShots = remember(item.id) { mutableStateListOf<Pair<Uri, String>>() }
     var showPaySrc by remember { mutableStateOf(false) }
     var payCamUri by remember { mutableStateOf<Uri?>(null) }
     var editErr by remember { mutableStateOf<String?>(null) }
-    val payGallery = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        if (uri != null) { payUri = uri; payB64 = runCatching { compressImageToBase64(context, uri) }.getOrNull() }
+    val payGallery = rememberLauncherForActivityResult(ActivityResultContracts.GetMultipleContents()) { uris ->
+        uris.forEach { uri ->
+            if (payShots.size >= 10) return@forEach
+            runCatching { compressImageToBase64(context, uri) }.getOrNull()
+                ?.let { payShots.add(uri to it) }
+        }
     }
     val payCamera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { ok ->
-        if (ok) payCamUri?.let { u -> payUri = u; payB64 = runCatching { compressImageToBase64(context, u) }.getOrNull() }
+        if (ok && payShots.size < 10) payCamUri?.let { u ->
+            runCatching { compressImageToBase64(context, u) }.getOrNull()
+                ?.let { payShots.add(u to it) }
+        }
     }
 
     var pendingCameraUripayCamera by remember { mutableStateOf<android.net.Uri?>(null) }
@@ -466,34 +474,49 @@ private fun TaskEditSheet(
                     color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                 val existingUrl = item.paymentScreenshotUrl.takeIf { it.isNotBlank() }
                     ?.let { com.vkenterprises.crmrs.BuildConfig.BASE_URL.trimEnd('/') + "/" + it.trimStart('/') }
-                when {
-                    payUri != null -> {
-                        AsyncImage(
-                            model = payUri, contentDescription = "Payment screenshot",
-                            modifier = Modifier.fillMaxWidth().height(180.dp)
-                                .clip(RoundedCornerShape(10.dp)).clickable { showPaySrc = true }
-                        )
-                        TextButton(onClick = { showPaySrc = true }) { Text("Change screenshot") }
-                    }
-                    existingUrl != null -> {
-                        AsyncImage(
-                            model = existingUrl, contentDescription = "Payment screenshot",
-                            modifier = Modifier.fillMaxWidth().height(180.dp)
-                                .clip(RoundedCornerShape(10.dp)).clickable { showPaySrc = true }
-                        )
-                        TextButton(onClick = { showPaySrc = true }) { Text("Replace screenshot") }
-                    }
-                    else -> {
-                        OutlinedButton(
-                            onClick = { showPaySrc = true },
-                            modifier = Modifier.fillMaxWidth().height(48.dp),
-                            shape = RoundedCornerShape(10.dp)
-                        ) {
-                            Icon(Icons.Default.AttachFile, null, Modifier.size(18.dp))
-                            Spacer(Modifier.width(8.dp))
-                            Text("Attach payment screenshot")
+                if (payShots.isNotEmpty()) {
+                    Row(
+                        Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        payShots.forEachIndexed { i, shot ->
+                            Box(Modifier.size(110.dp)) {
+                                AsyncImage(
+                                    model = shot.first,
+                                    contentDescription = "Payment screenshot ${i + 1}",
+                                    contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(10.dp))
+                                )
+                                IconButton(
+                                    onClick = { payShots.removeAt(i) },
+                                    modifier = Modifier.align(Alignment.TopEnd).size(30.dp)
+                                ) {
+                                    Icon(Icons.Default.Cancel, "Remove screenshot", tint = Color.White)
+                                }
+                            }
                         }
                     }
+                } else if (existingUrl != null) {
+                    AsyncImage(
+                        model = existingUrl, contentDescription = "Payment screenshot",
+                        modifier = Modifier.fillMaxWidth().height(180.dp).clip(RoundedCornerShape(10.dp))
+                    )
+                }
+                OutlinedButton(
+                    onClick = { showPaySrc = true },
+                    enabled = payShots.size < 10,
+                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Icon(Icons.Default.AttachFile, null, Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        when {
+                            payShots.isNotEmpty() -> "Add another screenshot (${payShots.size}/10)"
+                            existingUrl != null   -> "Replace screenshots"
+                            else                  -> "Attach payment screenshots"
+                        }
+                    )
                 }
             }
 
@@ -511,7 +534,7 @@ private fun TaskEditSheet(
                     onClick = save@ {
                         val cashVal = cashAmt.trim().toDoubleOrNull() ?: 0.0
                         if (action == "collection_done" && cashVal <= 0.0 &&
-                            payB64 == null && item.paymentScreenshotUrl.isBlank()) {
+                            payShots.isEmpty() && item.paymentScreenshotUrl.isBlank()) {
                             editErr = "Enter the cash amount or attach the payment screenshot."
                             return@save
                         }
@@ -541,7 +564,7 @@ private fun TaskEditSheet(
                                 holdDays             = if (action == "hold") (holdDays.toIntOrNull() ?: 0) else 0,
                                 cashAmount           = cashVal
                             ),
-                            payB64
+                            payShots.map { it.second }
                         )
                     },
                     enabled = !saving,

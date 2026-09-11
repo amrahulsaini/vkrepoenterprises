@@ -789,7 +789,7 @@ private fun AgencyLandingPanel(
                             style = MaterialTheme.typography.labelLarge,
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF2E7D32).copy(alpha = alpha))
-                        Text("Tap to download for offline use",
+                        Text("TAP TO DOWNLOAD FOR OFFLINE USE",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
@@ -982,14 +982,11 @@ private fun ConfirmationsTile(
                 )
             }
             Spacer(Modifier.height(8.dp))
-            Text("CONFIRMATIONS",
+            Text("TOTAL CONFIRMATIONS",
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.ExtraBold,
                 color = Color(0xFF78350F),
                 letterSpacing = 0.4.sp)
-            Text("Every vehicle you confirmed",
-                style = MaterialTheme.typography.labelSmall,
-                color = Color(0xFF92400E))
         }
     }
 }
@@ -1077,7 +1074,7 @@ private fun LandingTile(
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.Bold,
                     letterSpacing = 0.8.sp)
-                Text(subtitle,
+                Text(subtitle.uppercase(),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
@@ -1157,7 +1154,7 @@ private fun HomeTile(
                     style = MaterialTheme.typography.bodyMedium)
                 if (!subtitle.isNullOrBlank()) {
                     Text(
-                        subtitle,
+                        subtitle.uppercase(),
                         style      = MaterialTheme.typography.labelSmall,
                         color      = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontWeight = FontWeight.Medium
