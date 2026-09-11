@@ -355,7 +355,6 @@ internal static class DesktopApiClient
         resp.EnsureSuccessStatusCode();
     }
 
-    // ── Confirmations, rate list, per-user finance visibility ────────────────
     internal sealed class ConfirmationLogDto
     {
         public long Id { get; set; }

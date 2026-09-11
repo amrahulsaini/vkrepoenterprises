@@ -33,8 +33,6 @@ public partial class AccountsPage : Page
         public event PropertyChangedEventHandler? PropertyChanged;
     }
 
-    // "billed" lives in bill_status rather than billing_action, so it is
-    // matched separately when the filter runs.
     private readonly List<StatusPick> _statusPicks = new()
     {
         new StatusPick { Name = "OK for billing",      Key = "immediate" },
@@ -87,8 +85,6 @@ public partial class AccountsPage : Page
         if (_ready) ApplyFilter();
     }
 
-    // Enter applies the ticks and shuts the popup, so the keyboard alone gets
-    // you through the picker.
     private void AgentPicker_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
     {
         if (e.Key != System.Windows.Input.Key.Enter && e.Key != System.Windows.Input.Key.Escape) return;
@@ -103,8 +99,6 @@ public partial class AccountsPage : Page
         btnAgents.IsChecked = false;
     }
 
-    /// The single agent a bill can be generated for: exactly one ticked, or the
-    /// agent of the selected row.
     private string PickedAgentName()
     {
         var picked = _agentPicks.Where(a => a.IsChecked).Select(a => a.Name).ToList();
@@ -293,7 +287,6 @@ public partial class AccountsPage : Page
         cmbEditAgent.Text = keepEdit;
     }
 
-    // ── Full record popup, on double click only ─────────────────────────────
     private static List<(string, string, bool)> FieldsOf(AcctRow r) => new()
     {
         ("Vehicle No",       r.VehicleNo,        false),
@@ -366,7 +359,6 @@ public partial class AccountsPage : Page
         if (CurrentRow() is { } r) OpenRecordPopup(r);
     }
 
-    // ── Excel-style copying ─────────────────────────────────────────────────
     private AcctRow? CurrentRow() => grid.CurrentItem as AcctRow ?? grid.SelectedItem as AcctRow;
 
     private DataGridColumn? CurrentColumn() =>
@@ -391,8 +383,6 @@ public partial class AccountsPage : Page
         return "";
     }
 
-    /// Tabs and newlines inside a value would break the grid Excel reads, so
-    /// they are flattened on the way to the clipboard.
     private static string Flat(string? v) =>
         (v ?? "").Replace('\t', ' ').Replace('\r', ' ').Replace('\n', ' ');
 
@@ -455,8 +445,6 @@ public partial class AccountsPage : Page
         CopySelected((System.Windows.Input.Keyboard.Modifiers & System.Windows.Input.ModifierKeys.Shift) != 0);
     }
 
-    // Right-clicking a cell aims the copy at that cell without discarding the
-    // rows already selected.
     private void Grid_PreviewRightClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
     {
         var src = e.OriginalSource as System.Windows.DependencyObject;
@@ -466,7 +454,6 @@ public partial class AccountsPage : Page
         if (!grid.SelectedItems.OfType<AcctRow>().Contains(r)) grid.SelectedItem = r;
     }
 
-    // ── Agent name, edited in place ─────────────────────────────────────────
     private void SetAgentEditing(bool on)
     {
         cmbEditAgent.IsEnabled  = on;

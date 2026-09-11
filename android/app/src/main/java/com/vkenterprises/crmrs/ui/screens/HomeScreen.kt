@@ -297,7 +297,8 @@ fun HomeScreen(
                         fontFamily = RobotoFamily,
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp,
-                        letterSpacing = 1.0.sp
+                        letterSpacing = 1.0.sp,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
                     )
                     val fieldColors = OutlinedTextFieldDefaults.colors(
                         focusedContainerColor   = MaterialTheme.colorScheme.surface,
@@ -311,7 +312,9 @@ fun HomeScreen(
                         fontSize = 14.sp,
                         letterSpacing = 0.5.sp,
                         maxLines = 1,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f),
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
                     )
                     Row(
                         Modifier.fillMaxWidth(),
@@ -834,39 +837,8 @@ private fun AgencyLandingPanel(
             }
         ) { }
         Spacer(Modifier.height(10.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            ConfirmationsTile(
-                count    = confirmCount,
-                modifier = Modifier.weight(1f)
-            ) { nav.navigate(Screen.Confirmations.route) }
-            if (isAdmin) {
-                GridTile(
-                    label    = "DOWNLOAD REPOKITS",
-                    icon     = Icons.Default.PictureAsPdf,
-                    subtitle = "Head office repo kits",
-                    accent   = Color(0xFF00897B),
-                    modifier = Modifier.weight(1f)
-                ) { nav.navigate(Screen.RepoKits.route) }
-            } else {
-                GridTile(
-                    label    = "ID CARD",
-                    icon     = Icons.Default.Badge,
-                    subtitle = "Your official agent ID",
-                    accent   = Color(0xFF1565C0),
-                    modifier = Modifier.weight(1f)
-                ) { nav.navigate(Screen.IdCard.route) }
-            }
-        }
         if (isAdmin) {
-            Spacer(Modifier.height(10.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                GridTile(
-                    label    = "TASK MANAGER",
-                    icon     = Icons.Default.Assignment,
-                    subtitle = "Repo logs, demand & target",
-                    accent   = Color(0xFF2E7D32),
-                    modifier = Modifier.weight(1f)
-                ) { nav.navigate(Screen.TaskManager.route) }
                 GridTile(
                     label    = "CONTROL PANEL",
                     icon     = Icons.Default.Lock,
@@ -874,10 +846,24 @@ private fun AgencyLandingPanel(
                     accent   = Color(0xFF6A1B9A),
                     modifier = Modifier.weight(1f)
                 ) { nav.navigate(Screen.ControlPanel.route) }
+                GridTile(
+                    label    = "TASK MANAGER",
+                    icon     = Icons.Default.Assignment,
+                    subtitle = "Repo logs, demand & target",
+                    accent   = Color(0xFF2E7D32),
+                    modifier = Modifier.weight(1f)
+                ) { nav.navigate(Screen.TaskManager.route) }
             }
+            Spacer(Modifier.height(10.dp))
         }
-        Spacer(Modifier.height(10.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            GridTile(
+                label    = "DOWNLOAD REPOKITS",
+                icon     = Icons.Default.PictureAsPdf,
+                subtitle = "Head office repo kits",
+                accent   = Color(0xFF00897B),
+                modifier = Modifier.weight(1f)
+            ) { nav.navigate(Screen.RepoKits.route) }
             if (isAdmin) {
                 GridTile(
                     label    = "PRE POST INTIMATION",
@@ -888,23 +874,23 @@ private fun AgencyLandingPanel(
                 ) { onOpenLetters() }
             } else {
                 GridTile(
-                    label    = "DOWNLOAD REPOKITS",
-                    icon     = Icons.Default.PictureAsPdf,
-                    subtitle = "Head office repo kits",
-                    accent   = Color(0xFF00897B),
+                    label    = "ID CARD",
+                    icon     = Icons.Default.Badge,
+                    subtitle = "Your official agent ID",
+                    accent   = Color(0xFF1565C0),
                     modifier = Modifier.weight(1f)
-                ) { nav.navigate(Screen.RepoKits.route) }
+                ) { nav.navigate(Screen.IdCard.route) }
             }
-            GridTile(
-                label    = "MY ACCOUNT",
-                icon     = Icons.Default.AccountCircle,
-                subtitle = "Profile, KYC, subscriptions",
-                accent   = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.weight(1f)
-            ) { nav.navigate(Screen.Profile.route) }
         }
         Spacer(Modifier.height(10.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            GridTile(
+                label    = "RATE LIST",
+                icon     = Icons.Default.Assignment,
+                subtitle = "Rates, links and attachments",
+                accent   = Color(0xFF3F51B5),
+                modifier = Modifier.weight(1f)
+            ) { nav.navigate(Screen.RateList.route) }
             if (isAdmin) {
                 GridTile(
                     label    = "AUTHORIZATION LETTER",
@@ -913,15 +899,23 @@ private fun AgencyLandingPanel(
                     accent   = Color(0xFF00695C),
                     modifier = Modifier.weight(1f)
                 ) { nav.navigate(Screen.AuthorityLetter.route) }
+            } else {
+                Spacer(Modifier.weight(1f))
             }
-            GridTile(
-                label    = "RATE LIST",
-                icon     = Icons.Default.Assignment,
-                subtitle = "Rates, links and attachments",
-                accent   = Color(0xFF3F51B5),
+        }
+        Spacer(Modifier.height(10.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            ConfirmationsTile(
+                count    = confirmCount,
                 modifier = Modifier.weight(1f)
-            ) { nav.navigate(Screen.RateList.route) }
-            if (!isAdmin) Spacer(Modifier.weight(1f))
+            ) { nav.navigate(Screen.Confirmations.route) }
+            GridTile(
+                label    = "MY ACCOUNT",
+                icon     = Icons.Default.AccountCircle,
+                subtitle = "Profile, KYC, subscriptions",
+                accent   = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.weight(1f)
+            ) { nav.navigate(Screen.Profile.route) }
         }
         Spacer(Modifier.height(16.dp))
         RbiGuidelinesCard()
@@ -1249,9 +1243,6 @@ private fun Int.formatCount(): String = when {
     else              -> "$this"
 }
 
-// Standard SS + RTO + series + number, with an optional trailing letter
-// (RJ14CS1234S); the older letter-less state series (RJ112222); and both
-// Bharat-series forms (22BH1234AA and BH26AA1234).
 private val RC_REGEX = Regex(
     "^([A-Z]{2}[0-9]{1,2}[A-Z]{1,3}[0-9]{1,4}[A-Z]?" +
     "|[A-Z]{2}[0-9]{4,7}" +

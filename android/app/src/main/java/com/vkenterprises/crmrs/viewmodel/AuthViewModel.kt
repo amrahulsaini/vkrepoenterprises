@@ -118,8 +118,6 @@ class AuthViewModel @Inject constructor(
 
     fun clearBlockedReason() = viewModelScope.launch { prefs.clearBlockedReason() }
 
-    // The heartbeat carries this flag too, but that first beat is 15s out — a
-    // detail screen opened straight after login would show a stale value.
     fun refreshFinanceFlag() {
         viewModelScope.launch {
             val uid = prefs.userId.first()
@@ -272,9 +270,6 @@ class AuthViewModel @Inject constructor(
 
     private var blockedWatchJob: Job? = null
 
-    /// Re-runs the login for whoever is signed in, resolving the mobile from
-    /// storage rather than trusting the in-memory field — after a cold start
-    /// that field is empty, which is why "check again" used to do nothing.
     fun recheckBlocked() = viewModelScope.launch {
         val mobile = lastMobile.takeIf { it.isNotBlank() }
             ?: prefs.userMobile.first().takeIf { it.isNotBlank() }
@@ -285,8 +280,6 @@ class AuthViewModel @Inject constructor(
         login(mobile, slug, name)
     }
 
-    /// While a blocked screen is up, poll the server so the moment an admin
-    /// lifts the block the agent is let back in without touching anything.
     fun startBlockedWatch() {
         if (blockedWatchJob?.isActive == true) return
         blockedWatchJob = viewModelScope.launch {

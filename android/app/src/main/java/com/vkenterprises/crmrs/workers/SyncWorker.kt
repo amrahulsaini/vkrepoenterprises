@@ -6,7 +6,6 @@ import androidx.work.*
 import com.vkenterprises.crmrs.data.repository.SyncRepository
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
-import java.util.concurrent.TimeUnit
 
 @HiltWorker
 class SyncWorker @AssistedInject constructor(
@@ -21,22 +20,6 @@ class SyncWorker @AssistedInject constructor(
             Result.success()
         }.getOrElse {
             if (runAttemptCount < 2) Result.retry() else Result.failure()
-        }
-
-        if (result == Result.success()) {
-            val next = OneTimeWorkRequestBuilder<SyncWorker>()
-                .setInitialDelay(60, TimeUnit.SECONDS)
-                .setConstraints(
-                    Constraints.Builder()
-                        .setRequiredNetworkType(NetworkType.CONNECTED)
-                        .build()
-                )
-                .build()
-            WorkManager.getInstance(applicationContext).enqueueUniqueWork(
-                "vehicle_sync_chain",
-                ExistingWorkPolicy.REPLACE,
-                next
-            )
         }
 
         return result

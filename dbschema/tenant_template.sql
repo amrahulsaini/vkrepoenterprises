@@ -789,7 +789,6 @@ CREATE TABLE IF NOT EXISTS confirm_captures (
     INDEX idx_cc_captured (captured_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- rate_lists — links and attachments published by the office to every agent.
 CREATE TABLE IF NOT EXISTS rate_lists (
     id          BIGINT       NOT NULL AUTO_INCREMENT,
     title       VARCHAR(200) NOT NULL,
@@ -807,8 +806,6 @@ CREATE TABLE IF NOT EXISTS rate_lists (
     INDEX idx_rl_created (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- rate_list_users — which app users may see a rate-list entry. No rows means
--- nobody sees it, so the office picks the audience deliberately.
 CREATE TABLE IF NOT EXISTS rate_list_users (
     rate_list_id BIGINT NOT NULL,
     user_id      BIGINT NOT NULL,

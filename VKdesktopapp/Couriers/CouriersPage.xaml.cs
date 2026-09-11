@@ -50,8 +50,6 @@ public partial class CouriersPage : Page
         };
         public string RepoChargesText => Src.RepoCharges?.ToString("0.##") ?? "";
         public string AdvanceText => Src.Advance?.ToString("0.##") ?? "";
-        // Nothing saved yet reads as "No" rather than an empty cell, so the
-        // column always says where a record stands.
         public string CourierYn =>
             string.Equals(Src.CourierYn?.Trim(), "Yes", StringComparison.OrdinalIgnoreCase) ? "Yes" : "No";
         public string InventoryRemark => Src.InventoryRemark ?? "";
@@ -114,8 +112,6 @@ public partial class CouriersPage : Page
         public event PropertyChangedEventHandler? PropertyChanged;
     }
 
-    // "billed" is not a billing_action — it lives in bill_status — so it is
-    // matched separately when the filter runs.
     private readonly List<StatusPick> _statusPicks = new()
     {
         new StatusPick { Name = "OK for billing",       Key = "immediate" },
@@ -282,7 +278,6 @@ public partial class CouriersPage : Page
     private void Finance_Key(object sender, KeyEventArgs e) { if (_ready) ApplyFilters(); }
     private void btnClearFinance_Click(object sender, RoutedEventArgs e) { cmbFinance.Text = ""; if (_ready) ApplyFilters(); }
 
-    // ── Billing status picker ────────────────────────────────────────────────
     private void UpdateStatusButton()
     {
         var picked = _statusPicks.Where(p => p.IsChecked).Select(p => p.Name).ToList();
@@ -307,7 +302,6 @@ public partial class CouriersPage : Page
         if (_ready) await LoadAsync();
     }
 
-    // ── Agent picker: Enter applies and shuts the popup ──────────────────────
     private void AgentPicker_KeyDown(object sender, KeyEventArgs e)
     {
         if (e.Key != Key.Enter && e.Key != Key.Escape) return;
@@ -322,7 +316,6 @@ public partial class CouriersPage : Page
         btnAgents.IsChecked = false;
     }
 
-    // ── Full record popup ────────────────────────────────────────────────────
     private static List<(string, string, bool)> FieldsOf(Row r) => new()
     {
         ("Vehicle No",        r.VehicleNo,          false),
@@ -363,9 +356,6 @@ public partial class CouriersPage : Page
 
     private void ShowRecordPopup(Row r)
     {
-        // Selecting first lets the existing form logic fill the panel in, then
-        // the panel itself is lent to the window — same controls, same
-        // handlers, just a different parent for the duration.
         if (!ReferenceEquals(grid.SelectedItem, r)) grid.SelectedItem = r;
 
         var veh = string.IsNullOrWhiteSpace(r.VehicleNo) ? r.ChassisNo : r.VehicleNo;
@@ -397,14 +387,10 @@ public partial class CouriersPage : Page
         return src as DataGridRow;
     }
 
-    // A plain click on a row opens the full record. Ctrl/Shift clicks are left
-    // alone — those are how you build a selection to copy out of the table.
     private void Grid_RowLeftClick(object sender, MouseButtonEventArgs e)
     {
         if ((Keyboard.Modifiers & (ModifierKeys.Control | ModifierKeys.Shift)) != 0) return;
         if (RowUnder(e.OriginalSource)?.Item is not Row r) return;
-        // Let the click finish selecting first, so the edit panel on the right
-        // is already filled in behind the popup.
         Dispatcher.BeginInvoke(new Action(() => OpenRecordPopup(r)),
             System.Windows.Threading.DispatcherPriority.Input);
     }
@@ -419,7 +405,6 @@ public partial class CouriersPage : Page
         if (CurrentRow() is { } r) OpenRecordPopup(r);
     }
 
-    // ── Excel-style copying ──────────────────────────────────────────────────
     private Row? CurrentRow() => grid.CurrentItem as Row ?? grid.SelectedItem as Row;
 
     private DataGridColumn? CurrentColumn() =>
@@ -445,8 +430,6 @@ public partial class CouriersPage : Page
         return "";
     }
 
-    /// Tabs and newlines inside a value would break the row/column grid Excel
-    /// reads, so they are flattened to spaces on the way out.
     private static string Clean(string? v) =>
         (v ?? "").Replace('\t', ' ').Replace('\r', ' ').Replace('\n', ' ');
 
@@ -483,8 +466,6 @@ public partial class CouriersPage : Page
     private void CopySelection_Click(object sender, RoutedEventArgs e) => CopySelected(false);
     private void CopySelectionHdr_Click(object sender, RoutedEventArgs e) => CopySelected(true);
 
-    /// Copies the highlighted rows across every visible column, in the order
-    /// they appear on screen, so the block pastes into Excel unchanged.
     private void CopySelected(bool headers)
     {
         var rows = SelectedRows();
@@ -516,7 +497,6 @@ public partial class CouriersPage : Page
         ToClipboard(BuildBlock(rows, OrderedColumns(), true));
     }
 
-    // Ctrl+C copies the highlighted rows; Ctrl+Shift+C adds the header line.
     private void Grid_PreviewKeyDown(object sender, KeyEventArgs e)
     {
         if (e.Key != Key.C || (Keyboard.Modifiers & ModifierKeys.Control) == 0) return;
@@ -524,8 +504,6 @@ public partial class CouriersPage : Page
         CopySelected((Keyboard.Modifiers & ModifierKeys.Shift) != 0);
     }
 
-    // Right-clicking a cell should aim the copy at that cell, not at whatever
-    // was current before, and must not throw away the existing row selection.
     private void Grid_PreviewRightClick(object sender, MouseButtonEventArgs e)
     {
         var src = e.OriginalSource as DependencyObject;
@@ -535,7 +513,6 @@ public partial class CouriersPage : Page
         if (!grid.SelectedItems.OfType<Row>().Contains(r)) grid.SelectedItem = r;
     }
 
-    // ── Inventory remark, saved on its own ───────────────────────────────────
     private async void btnSaveInventoryRemark_Click(object sender, RoutedEventArgs e)
     {
         if (grid.SelectedItem is not Row r)

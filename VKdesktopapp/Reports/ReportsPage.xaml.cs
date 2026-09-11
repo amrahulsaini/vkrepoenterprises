@@ -460,8 +460,6 @@ public partial class ReportsPage : Page
         }
         catch (Exception ex)
         {
-            // An older server without the bulk endpoint must not sink the whole
-            // export — the sheet just goes out without the advance breakdown.
             advances = new List<DesktopApiClient.BulkAdvanceDto>();
             Log("Advances unavailable (" + ex.Message + ") — exporting without them.");
         }

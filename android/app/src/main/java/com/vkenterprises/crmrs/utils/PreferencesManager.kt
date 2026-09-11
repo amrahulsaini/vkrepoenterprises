@@ -70,8 +70,6 @@ class PreferencesManager(private val context: Context) {
     val isAdmin: Flow<Boolean> = context.dataStore.data
         .map { it[KEY_IS_ADMIN] ?: false }
 
-    // Set by the office from the desktop app; decides whether the vehicle
-    // detail screen fills in the Finance line or leaves it blank.
     val showFinanceName: Flow<Boolean> = context.dataStore.data
         .map { it[KEY_SHOW_FINANCE] ?: false }
 

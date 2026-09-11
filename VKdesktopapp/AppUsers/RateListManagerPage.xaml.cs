@@ -38,9 +38,6 @@ public partial class RateListManagerPage : Page
 
     private List<UserPick> _userPicks = new();
 
-    // Non-zero while the picker is editing an already-published entry; the
-    // "Done" button then writes straight back to that entry instead of
-    // feeding the new-entry form.
     private long _editingListId;
 
     private static readonly (string Ext, string Mime)[] KnownTypes =
@@ -93,7 +90,6 @@ public partial class RateListManagerPage : Page
         await LoadItemsAsync();
     }
 
-    // ── Audience picker ──────────────────────────────────────────────────────
     private void ShowUserPicks()
     {
         var term = (txtUserSearch.Text ?? "").Trim();
@@ -123,8 +119,6 @@ public partial class RateListManagerPage : Page
 
     private void UserPick_Changed(object sender, RoutedEventArgs e) => UpdateUsersButton();
 
-    // Enter applies the selection and shuts the popup, so the keyboard alone
-    // gets you through the picker.
     private void UserPicker_KeyDown(object sender, KeyEventArgs e)
     {
         if (e.Key != Key.Enter && e.Key != Key.Escape) return;

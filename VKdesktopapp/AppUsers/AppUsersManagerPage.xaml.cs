@@ -325,7 +325,6 @@ public partial class AppUsersManagerPage : Page
         catch (Exception ex) { MessageBox.Show(ex.Message, "Delete User", MessageBoxButton.OK, MessageBoxImage.Error); }
     }
 
-    // ── Confirmations ────────────────────────────────────────────────────────
     private async Task LoadConfirmationsAsync(long userId)
     {
         try
@@ -385,7 +384,6 @@ public partial class AppUsersManagerPage : Page
         }
     }
 
-    // ── Display finance name ─────────────────────────────────────────────────
     private async void ShowFinanceToggle_Checked(object sender, RoutedEventArgs e)
         => await SetShowFinanceAsync(true);
 
@@ -410,9 +408,6 @@ public partial class AppUsersManagerPage : Page
         }
     }
 
-    // The outer panel steals the wheel on the way down, which would make the
-    // confirmations log unscrollable. Hand the wheel to that list whenever the
-    // pointer is over it and it still has somewhere to go.
     private void pnlProfile_PreviewMouseWheel(object sender, System.Windows.Input.MouseWheelEventArgs e)
     {
         if (svConfirmations != null && svConfirmations.IsMouseOver)

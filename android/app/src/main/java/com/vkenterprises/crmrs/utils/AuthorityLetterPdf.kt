@@ -172,9 +172,6 @@ object AuthorityLetterPdf {
             "approval by the concerned Bank/NBFC and, where appropriate, review by its legal/compliance team."
         para(canvas, note, MARGIN, y, contentW, small)
 
-        // Stamp and signature go on last so they sit over the signatory block
-        // wherever the office parked them. Coordinates are page points from the
-        // top-left, so the same numbers land identically on every device.
         d.stamp?.let { bmp ->
             val left = d.stampX.coerceIn(0f, PAGE_W - 1f)
             val top  = d.stampY.coerceIn(0f, PAGE_H - 1f)

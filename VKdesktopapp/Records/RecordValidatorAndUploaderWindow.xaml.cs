@@ -150,12 +150,6 @@ public partial class RecordValidatorAndUploaderWindow : Window
         "AN|AP|AR|AS|BR|CG|CH|DD|DL|DN|GA|GJ|HP|HR|JH|JK|KA|KL|LA|LD|MH|ML|MN|MP|" +
         "MZ|NL|OD|OR|PB|PY|RJ|SK|TG|TN|TR|TS|UA|UK|UP|WB";
 
-    /// Standard: SS + RTO(1-2) + series(1-3 letters) + number(1-4), with an
-    ///           optional trailing letter (RJ14CS1234S).
-    /// Plain:    SS + 4-7 digits, older state series with no letter block
-    ///           (RJ112222).
-    /// Bharat:   YY + BH + 4 digits + 1-2 letters, and the BH-first form
-    ///           plates are also issued in (BH26AA1234).
     private static readonly Regex RcRegex =
         new($@"^(?:(?:{StateCodes})\d{{1,2}}[A-Z]{{1,3}}\d{{1,4}}[A-Z]?" +
             $@"|(?:{StateCodes})\d{{4,7}}" +

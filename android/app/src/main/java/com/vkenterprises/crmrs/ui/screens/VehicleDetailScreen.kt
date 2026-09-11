@@ -63,9 +63,6 @@ import java.text.SimpleDateFormat
 import java.util.Locale
 import com.vkenterprises.crmrs.ui.theme.RobotoFamily
 
-// Standard SS + RTO + series + number, with an optional trailing letter
-// (RJ14CS1234S); the older letter-less state series (RJ112222); and both
-// Bharat-series forms (22BH1234AA and BH26AA1234).
 private val RC_REGEX = Regex(
     "^([A-Z]{2}[0-9]{1,2}[A-Z]{1,3}[0-9]{1,4}[A-Z]?" +
     "|[A-Z]{2}[0-9]{4,7}" +
@@ -273,8 +270,6 @@ fun VehicleDetailScreen(
             sheetState = waSheetState,
             onDismissRequest = { showWaSheet = false }
         ) {
-            // Back closes the keypad first. Without this the sheet's own back
-            // handling wins and the half-filled form is thrown away.
             BackHandler(enabled = WindowInsets.isImeVisible) {
                 focusManager.clearFocus()
                 keyboardController?.hide()
@@ -330,22 +325,41 @@ fun VehicleDetailScreen(
     }
 
     if (showBranchSheet && uniqueBranches.isNotEmpty()) {
-        // Skipping the partially-expanded stop is what stops the sheet snapping
-        // up over the action bar and fighting the drag on the way back down.
-        val branchSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-        ModalBottomSheet(
-            sheetState = branchSheetState,
-            onDismissRequest = {
-                showBranchSheet = false
-                focusManager.clearFocus()
-                keyboardController?.hide()
-            }
+        val dismissBranches: () -> Unit = {
+            showBranchSheet = false
+            focusManager.clearFocus()
+            keyboardController?.hide()
+        }
+        androidx.compose.ui.window.Dialog(
+            onDismissRequest = dismissBranches,
+            properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
         ) {
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .clickable(
+                        interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                        indication = null,
+                        onClick = dismissBranches
+                    ),
+                contentAlignment = Alignment.BottomCenter
+            ) {
+            Surface(
+                shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+                color = MaterialTheme.colorScheme.surface,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(
+                        interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                        indication = null
+                    ) {}
+            ) {
             Column(
                 Modifier
                     .navigationBarsPadding()
                     .heightIn(max = 460.dp)
                     .padding(horizontal = 16.dp)
+                    .padding(top = 18.dp)
                     .verticalScroll(rememberScrollState())
                     .padding(bottom = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -408,6 +422,8 @@ fun VehicleDetailScreen(
                         }
                     }
                 }
+            }
+            }
             }
         }
     }
@@ -592,7 +608,8 @@ private fun QuickSearchBar(
         fontFamily = RobotoFamily,
         fontWeight = FontWeight.Bold,
         fontSize = 16.sp,
-        letterSpacing = 1.0.sp
+        letterSpacing = 1.0.sp,
+        textAlign = androidx.compose.ui.text.style.TextAlign.Center
     )
     val fieldContainer = if (surfaceColor == Color.Unspecified)
         MaterialTheme.colorScheme.surface else Color.White
@@ -609,7 +626,9 @@ private fun QuickSearchBar(
         fontSize = 14.sp,
         letterSpacing = 0.5.sp,
         maxLines = 1,
-        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
+        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f),
+        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+        modifier = Modifier.fillMaxWidth()
     )
 
     Surface(
@@ -880,8 +899,6 @@ private fun BasicDetailView(
             DetailRow("Engine No",     item.engineNo,     alwaysShow = true, upper = true)
             DetailRow("Model / Make",  item.model,        alwaysShow = true, upper = true)
             DetailRow("Customer Name", item.customerName, alwaysShow = true, upper = true)
-            // The office decides per agent whether the head office is named here;
-            // with it off the row still shows, blank, so the layout never shifts.
             DetailRow("Finance",
                 if (showFinanceName) item.financer.orEmpty() else "",
                 alwaysShow = true, upper = true)

@@ -1,9 +1,4 @@
--- ─────────────────────────────────────────────────────────────────────────
---  Rate-list audience + courier inventory remark. Runs on every tenant DB.
--- ─────────────────────────────────────────────────────────────────────────
 
--- rate_list_users — which app users may see a rate-list entry. An entry with
--- no rows here is visible to nobody, so the office must pick its audience.
 CREATE TABLE IF NOT EXISTS rate_list_users (
     rate_list_id BIGINT NOT NULL,
     user_id      BIGINT NOT NULL,

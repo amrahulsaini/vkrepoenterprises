@@ -43,9 +43,6 @@ public class MobileRepository
         string.IsNullOrWhiteSpace(s) ? (object)DBNull.Value : s.Trim();
 
     /// <summary>
-    /// Logs one confirmation send by a field agent: the vehicle, everything that
-    /// went into the message, the channel it left on, and the photo if one was
-    /// taken. Returns the stored relative image path when there was an image.
     /// </summary>
     public async Task<string?> LogConfirmationAsync(long userId, ConfirmCaptureReq req, DateTime capturedAt)
     {
@@ -85,8 +82,6 @@ public class MobileRepository
         return rel;
     }
 
-    /// <summary>One agent's confirmation log, newest first, optionally windowed
-    /// to a date range (inclusive, on the captured date).</summary>
     public async Task<List<ConfirmationLogDto>> GetConfirmationsAsync(
         long userId, DateTime? from, DateTime? to)
     {
@@ -118,7 +113,6 @@ public class MobileRepository
         return list;
     }
 
-    /// <summary>How many confirmations one agent sent in a calendar month.</summary>
     public async Task<int> GetConfirmationCountAsync(long userId, int year, int month)
     {
         await using var conn = DbFactory.Create();
@@ -134,8 +128,6 @@ public class MobileRepository
         return Convert.ToInt32(await cmd.ExecuteScalarAsync() ?? 0);
     }
 
-    /// <summary>Rate-list entries this agent has been given, newest first. An
-    /// entry with no audience is deliberately visible to nobody.</summary>
     public async Task<List<RateListItemDto>> GetRateListAsync(long userId)
     {
         await using var conn = DbFactory.Create();
@@ -364,7 +356,6 @@ public class MobileRepository
 
     public async Task SaveAgencyLetterheadAsync(string slug, string relativePath, string kind = "letterhead")
     {
-        // Column name is picked from a fixed set, never from caller input.
         var col = kind switch
         {
             "watermark" => "watermark_path",
@@ -380,9 +371,6 @@ public class MobileRepository
         await cmd.ExecuteNonQueryAsync();
     }
 
-    /// <summary>Where the stamp sits on the letter, in A4 points from the
-    /// top-left of the page. One position, used by every letter the agency
-    /// generates.</summary>
     public async Task SaveStampPositionAsync(string slug, float x, float y, float w, float h)
     {
         await using var conn = DbFactory.CreateMaster();

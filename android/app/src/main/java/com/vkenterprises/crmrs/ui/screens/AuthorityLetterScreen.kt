@@ -536,9 +536,6 @@ fun AuthorityLetterScreen(
 }
 
 
-/// A4 page in miniature: drag the stamp to where it should print, and size it
-/// with the slider. Everything is kept in PDF points so what is set here is
-/// exactly what AuthorityLetterPdf draws.
 @Composable
 private fun StampPlacer(
     stampUrl: String,

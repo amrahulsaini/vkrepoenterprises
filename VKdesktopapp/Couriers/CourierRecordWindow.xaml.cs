@@ -7,17 +7,10 @@ using System.Windows.Controls;
 
 namespace CRMRSDesktopApp.Couriers;
 
-/// <summary>
-/// The full courier record, opened from a row click. Replaces the old inline
-/// row-details expander that forced a long drag to the right.
-/// </summary>
 public partial class CourierRecordWindow : Window
 {
     private readonly List<(string Label, string Value, bool Wide)> _fields;
 
-    /// The live edit panel is borrowed from the page rather than rebuilt, so
-    /// every handler behind it keeps working. It must be handed back before
-    /// this window goes away or the page would lose its controls for good.
     public event Action<UIElement>? EditPanelReleased;
 
     private UIElement? _editPanel;
@@ -51,8 +44,6 @@ public partial class CourierRecordWindow : Window
         EditPanelReleased?.Invoke(panel);
     }
 
-    /// Narrow fields pair up two per row; a wide one takes the full width and
-    /// closes off whatever half-row was open.
     private void BuildGrid()
     {
         int row = 0, col = 0;

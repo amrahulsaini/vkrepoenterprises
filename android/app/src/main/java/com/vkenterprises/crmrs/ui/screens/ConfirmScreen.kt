@@ -277,10 +277,6 @@ fun ConfirmScreen(
         }
     }
 
-    // Every confirmation a field agent sends is logged, on either channel, with
-    // or without a photo — that log is what the Confirmations card and the
-    // desktop user panel count. A server hiccup must not strand an agent, so a
-    // failed log still sends the message; only the record is lost.
     suspend fun logConfirmation(channel: String) {
         if (isAdmin || userId <= 0L) return
         val b64 = photoUri?.let { withContext(Dispatchers.IO) { compressImageToBase64(context, it) } }

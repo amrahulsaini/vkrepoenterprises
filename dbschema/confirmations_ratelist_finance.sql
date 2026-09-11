@@ -1,10 +1,4 @@
--- ─────────────────────────────────────────────────────────────────────────
---  Confirmation log, rate list, and the per-user "show finance name" flag.
---  Run on every tenant DB; also folded into tenant_template.sql.
--- ─────────────────────────────────────────────────────────────────────────
 
--- confirm_captures grows from a photo table into a full confirmation log:
--- one row per WhatsApp/SMS send by a field agent, photo optional.
 ALTER TABLE confirm_captures
     MODIFY COLUMN image_path VARCHAR(255) DEFAULT NULL;
 
@@ -25,8 +19,6 @@ ALTER TABLE confirm_captures
 ALTER TABLE app_users
     ADD COLUMN show_finance_name TINYINT(1) NOT NULL DEFAULT 0;
 
--- rate_lists — links and attachments published by the office, visible to
--- every app user. A row is either a link (url) or a file (file_path).
 CREATE TABLE IF NOT EXISTS rate_lists (
     id          BIGINT       NOT NULL AUTO_INCREMENT,
     title       VARCHAR(200) NOT NULL,

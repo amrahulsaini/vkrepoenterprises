@@ -109,6 +109,11 @@ class SearchViewModel @Inject constructor(
             }
         }
         viewModelScope.launch(Dispatchers.IO) {
+            prefs.userId.filter { it > 0 }.distinctUntilChanged().collect { uid ->
+                runCatching { serverRepo.searchRc("0000", uid) }
+            }
+        }
+        viewModelScope.launch(Dispatchers.IO) {
             applyUpdateCheck()
             refreshOfflineCount()
         }
@@ -146,11 +151,9 @@ class SearchViewModel @Inject constructor(
         _ui.update { it.copy(letterResults = emptyList(), letterSearching = false) }
     }
 
-    /// Leaves the flag untouched when the check could not reach the server, so
-    /// a dropped request never turns a real "new records" light back off.
     private suspend fun applyUpdateCheck() {
         val pending = runCatching { syncRepo.hasUpdates() }.getOrNull() ?: return
-        _ui.update { it.copy(syncHasUpdates = pending) }
+        if (pending) _ui.update { it.copy(syncHasUpdates = true) }
     }
 
     fun refreshSyncStatus() {
@@ -219,7 +222,7 @@ class SearchViewModel @Inject constructor(
             val prefix = if (mode == SearchMode.RC) _ui.value.prefixInput else ""
             searchJob?.cancel()
             _ui.update { it.copy(inputText = "", isSearching = true, errorMsg = null) }
-            searchJob = viewModelScope.launch { delay(90); executeSearch(capped, mode, userId, prefix) }
+            searchJob = viewModelScope.launch { executeSearch(capped, mode, userId, prefix) }
         }
     }
 
@@ -375,6 +378,14 @@ class SearchViewModel @Inject constructor(
             return
         }
 
+        val quick = localSearch(q, mode, statePrefix)
+        if (quick.second.isNotEmpty()) {
+            _ui.update {
+                it.copy(results = quick.first, allResults = quick.second, lastQuery = q,
+                    errorMsg = null, offlineNotice = false, isSearching = false)
+            }
+        }
+
         val result = try {
             withContext(Dispatchers.IO) {
                 withTimeout(20_000) {
@@ -446,9 +457,6 @@ class SearchViewModel @Inject constructor(
     }
 }
 
-// Standard SS + RTO + series + number, with an optional trailing letter
-// (RJ14CS1234S); the older letter-less state series (RJ112222); and both
-// Bharat-series forms (22BH1234AA and BH26AA1234).
 private val RC_REGEX = Regex(
     "^([A-Z]{2}[0-9]{1,2}[A-Z]{1,3}[0-9]{1,4}[A-Z]?" +
     "|[A-Z]{2}[0-9]{4,7}" +

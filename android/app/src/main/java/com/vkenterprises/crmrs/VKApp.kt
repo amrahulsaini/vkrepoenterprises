@@ -6,7 +6,6 @@ import androidx.work.*
 import com.vkenterprises.crmrs.data.api.SessionTokens
 import com.vkenterprises.crmrs.utils.DeviceIdUtil
 import com.vkenterprises.crmrs.workers.LocationWorker
-import com.vkenterprises.crmrs.workers.SyncWorker
 import dagger.hilt.android.HiltAndroidApp
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
@@ -25,9 +24,8 @@ class VKApp : Application(), Configuration.Provider {
         Thread {
             runCatching {
                 com.vkenterprises.crmrs.data.api.ApiClient.warmUp()
-                scheduleSyncWork()
+                stopBackgroundSync()
                 scheduleLocationWork()
-                kickStartSyncChain()
             }
         }.start()
     }
@@ -47,36 +45,10 @@ class VKApp : Application(), Configuration.Provider {
         )
     }
 
-    private fun kickStartSyncChain() {
-        val immediate = OneTimeWorkRequestBuilder<SyncWorker>()
-            .setConstraints(
-                Constraints.Builder()
-                    .setRequiredNetworkType(NetworkType.CONNECTED)
-                    .build()
-            )
-            .build()
-        WorkManager.getInstance(this).enqueueUniqueWork(
-            "vehicle_sync_chain",
-            ExistingWorkPolicy.REPLACE,
-            immediate
-        )
-    }
-
-    private fun scheduleSyncWork() {
-        WorkManager.getInstance(this).cancelUniqueWork("vehicle_sync")
-
-        val request = PeriodicWorkRequestBuilder<SyncWorker>(15, TimeUnit.MINUTES)
-            .setConstraints(
-                Constraints.Builder()
-                    .setRequiredNetworkType(NetworkType.CONNECTED)
-                    .build()
-            )
-            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 5, TimeUnit.MINUTES)
-            .build()
-        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
-            "vehicle_sync_v2",
-            ExistingPeriodicWorkPolicy.KEEP,
-            request
-        )
+    private fun stopBackgroundSync() {
+        val wm = WorkManager.getInstance(this)
+        wm.cancelUniqueWork("vehicle_sync")
+        wm.cancelUniqueWork("vehicle_sync_v2")
+        wm.cancelUniqueWork("vehicle_sync_chain")
     }
 }

@@ -69,8 +69,6 @@ public class MobileController : ControllerBase
         if (string.IsNullOrEmpty(slug) || slug == "default")
             return Unauthorized(new ApiError(false, "No tenant context"));
         if (req == null) return BadRequest(new ApiError(false, "No position given."));
-        // Clamp to the A4 page the letter generator draws, so a bad client can
-        // never park the stamp off-paper.
         static float Clamp(float v, float lo, float hi) => v < lo ? lo : (v > hi ? hi : v);
         var w = Clamp(req.W, 20f, 595f);
         var h = Clamp(req.H, 20f, 842f);

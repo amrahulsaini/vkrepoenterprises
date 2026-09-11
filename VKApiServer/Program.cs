@@ -1884,8 +1884,6 @@ app.MapMethods("/api/mgr/users/{id:long}/show-finance", new[] { "PATCH" }, async
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
 
-// One agent's confirmation log. `from`/`to` are inclusive yyyy-MM-dd days; both
-// optional, so an empty range means everything the agent has ever sent.
 app.MapGet("/api/mgr/users/{id:long}/confirmations", async (HttpContext ctx, long id, string? from, string? to) =>
 {
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
@@ -2007,7 +2005,6 @@ app.MapGet("/api/mgr/ratelist", async (HttpContext ctx) =>
                           S(9), S(10), r.GetDateTime(11)));
         }
 
-        // Audience per entry, in one pass rather than a query per row.
         var audience = new Dictionary<long, List<long>>();
         await using (var au = new MySqlCommand(
             "SELECT rate_list_id, user_id FROM rate_list_users", conn) { CommandTimeout = 20 })
@@ -2568,8 +2565,6 @@ app.MapGet("/api/mgr/billing/submissions", async (HttpContext ctx, string? from,
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
 
-// Every advance for the submissions in a date window, in one shot — a report
-// over a few thousand records would otherwise need one request per record.
 app.MapGet("/api/mgr/couriers/advances", async (HttpContext ctx, string? from, string? to) =>
 {
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
