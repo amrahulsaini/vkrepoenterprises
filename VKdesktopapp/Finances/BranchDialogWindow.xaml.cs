@@ -25,10 +25,7 @@ public partial class BranchDialogWindow : Window
 
     private void Window_Loaded(object sender, RoutedEventArgs e)
     {
-        foreach (var branch in Branches)
-        {
-            BranchesFiltered.Add(branch);
-        }
+        RebuildFiltered();
         txtTerm.Focus();
     }
 
@@ -46,7 +43,7 @@ public partial class BranchDialogWindow : Window
         var term = txtTerm.Text;
         var list = Branches
             .Where(b => MatchesAllWords(b.BranchName, term))
-            .OrderBy(b => b.BranchName)
+            .OrderBy(b => (b.BranchName ?? "").Trim(), StringComparer.OrdinalIgnoreCase)
             .ToList();
         foreach (var item in list)
         {

@@ -138,6 +138,9 @@ public partial class AccountsPage : Page
     {
         InitializeComponent();
         grid.ItemsSource = _shown;
+        colBilling.ItemsSource = CRMRSDesktopApp.Couriers.CouriersPage.BillingPicks;
+        colInventory.ItemsSource = CRMRSDesktopApp.Couriers.CouriersPage.YesNo;
+        colPayment.ItemsSource = new List<string> { "PAID", "UNPAID" };
         lstStatusPicks.ItemsSource = _statusPicks;
         UpdateStatusButton();
         dpFrom.DisplayDateEnd = DateTime.Today;
@@ -150,12 +153,23 @@ public partial class AccountsPage : Page
 
     internal class AcctRow : INotifyPropertyChanged
     {
-        internal DesktopApiClient.RepoSubmissionDto Src { get; init; } = null!;
+        internal DesktopApiClient.RepoSubmissionDto Src { get; private set; } = null!;
+        internal HashSet<string> Dirty { get; } = new();
         private decimal? _repo;
         private decimal? _adv;
 
         internal static AcctRow From(DesktopApiClient.RepoSubmissionDto d) =>
             new() { Src = d, _repo = d.RepoCharges, _adv = d.Advance };
+
+        private void Put(string field, string? old, string? value, Func<string, DesktopApiClient.RepoSubmissionDto> apply,
+                         [CallerMemberName] string? prop = null)
+        {
+            var v = (value ?? "").Trim();
+            if (v == (old ?? "").Trim()) return;
+            Src = apply(v);
+            Dirty.Add(field);
+            Changed(prop);
+        }
 
         public long Id => Src.Id;
         public string RepoDate => Src.CreatedAt;
@@ -166,54 +180,86 @@ public partial class AccountsPage : Page
                 var a = (Src.AgentName ?? "").Trim();
                 return a.Length > 0 ? a : (Src.SubmittedByName ?? "").Trim();
             }
+            set => Put(nameof(AgentName), AgentName, value, v => Src with { AgentName = v });
         }
         public string VehicleNo => string.IsNullOrWhiteSpace(Src.VehicleNo) ? Src.ChassisNo : Src.VehicleNo;
-        public string CustomerName => Src.CustomerName;
-        public string FinanceName => (Src.FinanceName ?? "").ToUpperInvariant();
-        public string BranchName => (Src.BranchName ?? "").ToUpperInvariant();
-        public string ActionText => Src.BillingAction switch
+        public string CustomerName { get => Src.CustomerName; set => Put(nameof(CustomerName), Src.CustomerName, value, v => Src with { CustomerName = v }); }
+        public string FinanceName { get => (Src.FinanceName ?? "").ToUpperInvariant(); set => Put(nameof(FinanceName), FinanceName, value, v => Src with { FinanceName = v }); }
+        public string BranchName { get => (Src.BranchName ?? "").ToUpperInvariant(); set => Put(nameof(BranchName), BranchName, value, v => Src with { BranchName = v }); }
+        public string ActionKey { get => Src.BillingAction; set => Put(nameof(ActionKey), Src.BillingAction, value, v => Src with { BillingAction = v }); }
+        public string ActionText =>
+            CRMRSDesktopApp.Couriers.CouriersPage.BillingPicks.FirstOrDefault(p => p.Key == Src.BillingAction)?.Name ?? Src.BillingAction;
+        public string CourierYn
         {
-            "immediate"       => "OK for billing",
-            "hold"            => "Hold for collection",
-            "collection_done" => "Collection done",
-            "cancel"          => "Cancel",
-            _                 => Src.BillingAction
-        };
+            get => string.Equals(Src.CourierYn?.Trim(), "Yes", StringComparison.OrdinalIgnoreCase) ? "Yes" : "No";
+            set => Put(nameof(CourierYn), CourierYn, value, v => Src with { CourierYn = v });
+        }
         public string GrossText => Src.TotalGross?.ToString("0.##") ?? "";
-        public string PercentText => Src.CourierPercent?.ToString("0.##") ?? "";
+        public string PercentText
+        {
+            get => Src.CourierPercent?.ToString("0.##") ?? "";
+            set
+            {
+                var n = ParseAmt(value);
+                if (n == Src.CourierPercent) return;
+                Src = Src with { CourierPercent = n };
+                Dirty.Add("CourierPercent");
+                Changed();
+            }
+        }
         public Visibility HasScreenshot =>
             string.IsNullOrWhiteSpace(Src.ScreenshotUrl) ? Visibility.Collapsed : Visibility.Visible;
         public string ScreenshotUrl => Src.ScreenshotUrl;
 
         public decimal? RepoCharges => _repo;
         public decimal? Advance => _adv;
-        public string ChassisNo => Src.ChassisNo;
-        public string LoanNo => Src.LoanNo;
-        public string Model => Src.Model;
-        public string ParkingYardName => Src.ParkingYardName;
-        public string CollectionUpdate => Src.CollectionUpdate;
+        public string ChassisNo { get => Src.ChassisNo; set => Put(nameof(ChassisNo), Src.ChassisNo, value, v => Src with { ChassisNo = v }); }
+        public string EngineNo { get => Src.EngineNo; set => Put(nameof(EngineNo), Src.EngineNo, value, v => Src with { EngineNo = v }); }
+        public string LoanNo { get => Src.LoanNo; set => Put(nameof(LoanNo), Src.LoanNo, value, v => Src with { LoanNo = v }); }
+        public string Model { get => Src.Model; set => Put(nameof(Model), Src.Model, value, v => Src with { Model = v }); }
+        public string ParkingYardName { get => Src.ParkingYardName; set => Put(nameof(ParkingYardName), Src.ParkingYardName, value, v => Src with { ParkingYardName = v }); }
+        public string CollectionUpdate { get => Src.CollectionUpdate; set => Put(nameof(CollectionUpdate), Src.CollectionUpdate, value, v => Src with { CollectionUpdate = v }); }
+        public string BillingRemark { get => Src.BillingRemark ?? ""; set => Put(nameof(BillingRemark), Src.BillingRemark, value, v => Src with { BillingRemark = v }); }
+        public string InventoryRemark { get => Src.InventoryRemark ?? ""; set => Put(nameof(InventoryRemark), Src.InventoryRemark, value, v => Src with { InventoryRemark = v }); }
+        public string AccountsRemark { get => Src.AccountsRemark ?? ""; set => Put("Payment", Src.AccountsRemark, value, v => Src with { AccountsRemark = v }); }
         public string Remark => Src.Remark;
-        public string UtrNo => Src.UtrNo;
+        public string UtrNo { get => Src.UtrNo; set => Put("Payment", Src.UtrNo, value, v => Src with { UtrNo = v }); }
         public string InvoiceNo => Src.InvoiceNo ?? "";
         public string PaymentDate => Src.PaymentDate;
-        public string PaymentStatusText => (Src.PaymentStatus ?? "").Trim().ToLowerInvariant() switch
+        public string PaymentStatusText
         {
-            "paid"   => "PAID",
-            "unpaid" => "UNPAID",
-            _        => ""
-        };
+            get => (Src.PaymentStatus ?? "").Trim().ToLowerInvariant() switch
+            {
+                "paid"   => "PAID",
+                "unpaid" => "UNPAID",
+                _        => ""
+            };
+            set => Put("Payment", PaymentStatusText, value, v => Src with { PaymentStatus = v.ToLowerInvariant() });
+        }
         public decimal CashAmount => Src.CashAmount ?? 0m;
         public string CashText => (Src.CashAmount ?? 0m) == 0m ? "" : (Src.CashAmount ?? 0m).ToString("0.##");
 
         public string RepoChargesText
         {
             get => _repo?.ToString("0.##") ?? "";
-            set { _repo = ParseAmt(value); Changed(nameof(RepoChargesText)); Changed(nameof(FinalText)); }
+            set
+            {
+                var n = ParseAmt(value);
+                if (n == _repo) return;
+                _repo = n; Dirty.Add("RepoCharges");
+                Changed(nameof(RepoChargesText)); Changed(nameof(FinalText));
+            }
         }
         public string AdvanceText
         {
             get => _adv?.ToString("0.##") ?? "";
-            set { _adv = ParseAmt(value); Changed(nameof(AdvanceText)); Changed(nameof(FinalText)); }
+            set
+            {
+                var n = ParseAmt(value);
+                if (n == _adv) return;
+                _adv = n; Dirty.Add("Advance");
+                Changed(nameof(AdvanceText)); Changed(nameof(FinalText));
+            }
         }
         public string FinalText => ((_repo ?? 0m) - (_adv ?? 0m) - CashAmount).ToString("0.##");
 
@@ -347,12 +393,11 @@ public partial class AccountsPage : Page
         return src as DataGridRow;
     }
 
-    private void Grid_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
-    {
-        if (RowUnder(e.OriginalSource)?.Item is not AcctRow r) return;
-        e.Handled = true;
-        OpenRecordPopup(r);
-    }
+    private void Grid_CellClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        => CRMRSDesktopApp.Couriers.CouriersPage.BeginEditOnClick(grid, e);
+
+    private void Pick_Changed(object sender, SelectionChangedEventArgs e)
+        => CRMRSDesktopApp.Couriers.CouriersPage.CommitPick(grid, sender);
 
     private void OpenRecord_Click(object sender, RoutedEventArgs e)
     {
@@ -604,28 +649,47 @@ public partial class AccountsPage : Page
         if (_ready) ApplyFilter();
     }
 
-    private async void grid_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
+    private void grid_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
     {
         if (e.EditAction != DataGridEditAction.Commit) return;
         if (e.Row.Item is not AcctRow r) return;
-        // Let the binding push the new text into the VM first.
-        await Dispatcher.BeginInvoke(new Action(async () => await SaveRow(r)),
+        Dispatcher.BeginInvoke(new Action(async () => await SaveRow(r)),
             System.Windows.Threading.DispatcherPriority.Background);
     }
 
     private async System.Threading.Tasks.Task SaveRow(AcctRow r)
     {
+        if (r.Dirty.Count == 0) return;
+        var dirty = r.Dirty.ToList();
+        r.Dirty.Clear();
+        txtStatus.Text = "Saving…";
         try
         {
-            await DesktopApiClient.UpdateCourierSubmissionAsync(r.Id, new
-            {
-                RepoCharges = r.RepoCharges,
-                Advance = r.Advance
-            });
+            var courier = new Dictionary<string, object?>();
+            if (dirty.Remove("RepoCharges"))    courier["RepoCharges"] = r.RepoCharges;
+            if (dirty.Remove("Advance"))        courier["Advance"] = r.Advance;
+            if (dirty.Remove("CourierPercent")) courier["CourierPercent"] = r.Src.CourierPercent;
+            if (courier.Count > 0) await DesktopApiClient.UpdateCourierSubmissionAsync(r.Id, courier);
+
+            if (dirty.Remove("Payment"))
+                await DesktopApiClient.UpdateAccountsPaymentAsync(r.Id, new
+                {
+                    UtrNo = r.Src.UtrNo ?? "",
+                    PaymentDate = DateTime.TryParse(r.Src.PaymentDate, out var pd) ? pd.ToString("yyyy-MM-dd") : null,
+                    PaymentStatus = r.Src.PaymentStatus ?? "",
+                    AccountsRemark = r.Src.AccountsRemark ?? ""
+                });
+
+            await CRMRSDesktopApp.Couriers.CouriersPage.SaveFields(r.Id, r.Src, dirty);
             txtStatus.Text = "Saved.";
             BuildSummary(_shown.ToList());
+            if (ReferenceEquals(r, _selected)) ShowPanel(r);
         }
-        catch (Exception ex) { txtStatus.Text = "Save failed: " + ex.Message; }
+        catch (Exception ex)
+        {
+            txtStatus.Text = "Save failed: " + ex.Message;
+            await LoadAsync();
+        }
     }
 
     private AcctRow? _selected;
@@ -640,6 +704,11 @@ public partial class AccountsPage : Page
             txtPaySel.Text = "Click a vehicle row to enter its payment details.";
             return;
         }
+        ShowPanel(r);
+    }
+
+    private void ShowPanel(AcctRow r)
+    {
         var veh = string.IsNullOrWhiteSpace(r.VehicleNo) ? r.Src.ChassisNo : r.VehicleNo;
         txtPaySel.Text = $"{veh}  •  {r.CustomerName}  •  Agent: {r.AgentName}";
         cmbEditAgent.Text = r.AgentName;

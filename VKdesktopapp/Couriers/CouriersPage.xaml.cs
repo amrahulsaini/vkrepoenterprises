@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
@@ -18,68 +17,112 @@ public partial class CouriersPage : Page
 {
     private List<Row> _rows = new();
 
+    internal record Pick(string Key, string Name);
+
+    internal static readonly List<Pick> BillingPicks = new()
+    {
+        new("immediate",       "OK for billing"),
+        new("hold",            "Hold for collection"),
+        new("collection_done", "Collection done"),
+        new("cancel",          "Cancel"),
+    };
+
+    internal static readonly List<string> YesNo = new() { "Yes", "No" };
+
+    internal static readonly HashSet<string> CourierFields = new()
+    {
+        "CourierYn", "InventoryRemark", "BankerAddress", "PodNumber"
+    };
+
     private class Row
     {
         public DesktopApiClient.RepoSubmissionDto Src { get; set; } = null!;
+        public HashSet<string> Dirty { get; } = new();
+
+        private void Put(string field, string? old, string? value, Func<string, DesktopApiClient.RepoSubmissionDto> apply)
+        {
+            var v = (value ?? "").Trim();
+            if (v == (old ?? "").Trim()) return;
+            Src = apply(v);
+            Dirty.Add(field);
+        }
+
         public long Id => Src.Id;
         public string RepoDate => Src.CreatedAt;
-        public string LoanNo => Src.LoanNo;
         public string InvoiceNo => Src.InvoiceNo;
         public string VehicleNo => Src.VehicleNo;
-        public string CustomerName => Src.CustomerName;
-        public string BranchName => (Src.BranchName ?? "").ToUpperInvariant();
-        public string Model => Src.Model;
-        public string ChassisNo => Src.ChassisNo;
-        public string EngineNo => Src.EngineNo;
-        public string AgentName => Src.AgentName;
-        public string ParkingYardName => Src.ParkingYardName;
-        public string ParkingYardMobile => Src.ParkingYardMobile;
-        public string LoadDetails => Src.LoadDetails;
-        public string AddlCharges => JoinParts(Src.AddlChargesNotes, Src.AddlChargesAmount?.ToString("0.##"));
-        public string ConfirmationBy => JoinParts(Src.ConfirmationByName, Src.ConfirmationByMobile);
-        public string ExecutiveName => Src.ExecutiveName;
-        public string CollectionUpdate => Src.CollectionUpdate;
-        public string FinanceName => (Src.FinanceName ?? "").ToUpperInvariant();
-        public string ActionText => Src.BillingAction switch
-        {
-            "immediate"       => "OK for billing",
-            "hold"            => "Hold for collection",
-            "collection_done" => "Collection done",
-            "cancel"          => "Cancel",
-            _                 => Src.BillingAction
-        };
-        public string RepoChargesText => Src.RepoCharges?.ToString("0.##") ?? "";
-        public string AdvanceText => Src.Advance?.ToString("0.##") ?? "";
-        public string CourierYn =>
-            string.Equals(Src.CourierYn?.Trim(), "Yes", StringComparison.OrdinalIgnoreCase) ? "Yes" : "No";
-        public string InventoryRemark => Src.InventoryRemark ?? "";
-        public string BankerAddress => Src.BankerAddress;
-        public string PodNumber => Src.PodNumber;
+        public string LoanNo { get => Src.LoanNo; set => Put(nameof(LoanNo), Src.LoanNo, value, v => Src with { LoanNo = v }); }
+        public string CustomerName { get => Src.CustomerName; set => Put(nameof(CustomerName), Src.CustomerName, value, v => Src with { CustomerName = v }); }
+        public string BranchName { get => (Src.BranchName ?? "").ToUpperInvariant(); set => Put(nameof(BranchName), BranchName, value, v => Src with { BranchName = v }); }
+        public string Model { get => Src.Model; set => Put(nameof(Model), Src.Model, value, v => Src with { Model = v }); }
+        public string ChassisNo { get => Src.ChassisNo; set => Put(nameof(ChassisNo), Src.ChassisNo, value, v => Src with { ChassisNo = v }); }
+        public string EngineNo { get => Src.EngineNo; set => Put(nameof(EngineNo), Src.EngineNo, value, v => Src with { EngineNo = v }); }
+        public string AgentName { get => Src.AgentName; set => Put(nameof(AgentName), Src.AgentName, value, v => Src with { AgentName = v }); }
+        public string ParkingYardName { get => Src.ParkingYardName; set => Put(nameof(ParkingYardName), Src.ParkingYardName, value, v => Src with { ParkingYardName = v }); }
+        public string ParkingYardMobile { get => Src.ParkingYardMobile; set => Put(nameof(ParkingYardMobile), Src.ParkingYardMobile, value, v => Src with { ParkingYardMobile = v }); }
+        public string LoadDetails { get => Src.LoadDetails; set => Put(nameof(LoadDetails), Src.LoadDetails, value, v => Src with { LoadDetails = v }); }
+        public string ExecutiveName { get => Src.ExecutiveName; set => Put(nameof(ExecutiveName), Src.ExecutiveName, value, v => Src with { ExecutiveName = v }); }
+        public string CollectionUpdate { get => Src.CollectionUpdate; set => Put(nameof(CollectionUpdate), Src.CollectionUpdate, value, v => Src with { CollectionUpdate = v }); }
+        public string FinanceName { get => (Src.FinanceName ?? "").ToUpperInvariant(); set => Put(nameof(FinanceName), FinanceName, value, v => Src with { FinanceName = v }); }
+        public string BillingRemark { get => Src.BillingRemark ?? ""; set => Put(nameof(BillingRemark), Src.BillingRemark, value, v => Src with { BillingRemark = v }); }
+        public string InventoryRemark { get => Src.InventoryRemark ?? ""; set => Put(nameof(InventoryRemark), Src.InventoryRemark, value, v => Src with { InventoryRemark = v }); }
+        public string BankerAddress { get => Src.BankerAddress; set => Put(nameof(BankerAddress), Src.BankerAddress, value, v => Src with { BankerAddress = v }); }
+        public string PodNumber { get => Src.PodNumber; set => Put(nameof(PodNumber), Src.PodNumber, value, v => Src with { PodNumber = v }); }
 
-        /// Joins the paired fields the way the app's OK-for-repo message does,
-        /// skipping whichever side is blank so no stray comma is left behind.
+        public string CourierYn
+        {
+            get => string.Equals(Src.CourierYn?.Trim(), "Yes", StringComparison.OrdinalIgnoreCase) ? "Yes" : "No";
+            set => Put(nameof(CourierYn), CourierYn, value, v => Src with { CourierYn = v });
+        }
+
+        public string ActionKey
+        {
+            get => Src.BillingAction;
+            set => Put(nameof(ActionKey), Src.BillingAction, value, v => Src with { BillingAction = v });
+        }
+
+        public string ActionText => BillingPicks.FirstOrDefault(p => p.Key == Src.BillingAction)?.Name ?? Src.BillingAction;
+
+        public string AddlCharges
+        {
+            get => JoinParts(Src.AddlChargesNotes, Src.AddlChargesAmount?.ToString("0.##"));
+            set
+            {
+                var (head, tail) = SplitLast(value);
+                decimal? amt = ParseAmt(tail);
+                var notes = amt.HasValue ? head : (value ?? "").Trim();
+                Put(nameof(AddlCharges), AddlCharges, value, _ => Src with
+                {
+                    AddlChargesNotes = notes,
+                    AddlChargesAmount = amt ?? Src.AddlChargesAmount
+                });
+            }
+        }
+
+        public string ConfirmationBy
+        {
+            get => JoinParts(Src.ConfirmationByName, Src.ConfirmationByMobile);
+            set
+            {
+                var (head, tail) = SplitLast(value);
+                Put(nameof(ConfirmationBy), ConfirmationBy, value, _ => Src with
+                {
+                    ConfirmationByName = head,
+                    ConfirmationByMobile = tail
+                });
+            }
+        }
+
+        private static (string, string) SplitLast(string? value)
+        {
+            var v = (value ?? "").Trim();
+            int i = v.LastIndexOf(',');
+            return i < 0 ? (v, "") : (v[..i].Trim(), v[(i + 1)..].Trim());
+        }
+
         private static string JoinParts(params string?[] parts)
             => string.Join(", ", parts.Where(p => !string.IsNullOrWhiteSpace(p)).Select(p => p!.Trim()));
     }
-
-    private class AdvRow : INotifyPropertyChanged
-    {
-        public long Id { get; set; }
-        public DateTime Date { get; set; }
-        public string DateText => Date.ToString("dd-MM-yyyy");
-        public string Note { get; set; } = "";
-
-        private string _amountText = "";
-        public string AmountText
-        {
-            get => _amountText;
-            set { _amountText = value; PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(AmountText))); }
-        }
-
-        public event PropertyChangedEventHandler? PropertyChanged;
-    }
-
-    private readonly ObservableCollection<AdvRow> _advances = new();
 
     private class AgentPick : INotifyPropertyChanged
     {
@@ -123,8 +166,6 @@ public partial class CouriersPage : Page
 
     private bool _ready;
 
-    private static long RowIdOf(object? item) => item is Row r ? r.Id : 0;
-
     private static string Squash4(string? s) =>
         new string((s ?? "").Where(char.IsLetterOrDigit).ToArray()).ToUpperInvariant();
 
@@ -132,18 +173,17 @@ public partial class CouriersPage : Page
     public CouriersPage()
     {
         InitializeComponent();
+        colBilling.ItemsSource = BillingPicks;
+        colInventory.ItemsSource = YesNo;
         dpFrom.DisplayDateEnd = DateTime.Today;
         dpTo.DisplayDateEnd = DateTime.Today;
         dpFrom.SelectedDate = DateTime.Today.AddDays(-7);
         dpTo.SelectedDate = DateTime.Today;
-        dpAdvDate.SelectedDate = DateTime.Today;
-        lstAdvances.ItemsSource = _advances;
         lstStatusPicks.ItemsSource = _statusPicks;
         UpdateStatusButton();
         Loaded += async (_, __) => { _ready = true; await LoadAsync(); };
     }
 
-    // Instant filtering — no Load button; any filter/date change reloads.
     private async void btnRefresh_Click(object sender, RoutedEventArgs e)
     {
         long keepId = (grid.SelectedItem as Row)?.Id ?? 0L;
@@ -204,10 +244,6 @@ public partial class CouriersPage : Page
         _agentPicks = agents.Select(a => new AgentPick { Name = a, IsChecked = ticked.Contains(a) }).ToList();
         ShowAgentPicks();
         UpdateAgentButton();
-
-        var keepEdit = cmbEditAgent.Text;
-        cmbEditAgent.ItemsSource = agents;
-        cmbEditAgent.Text = keepEdit;
 
         static List<string> Distinct(IEnumerable<string?> values) => values
             .Select(v => (v ?? "").Trim())
@@ -316,93 +352,98 @@ public partial class CouriersPage : Page
         btnAgents.IsChecked = false;
     }
 
-    private static List<(string, string, bool)> FieldsOf(Row r) => new()
-    {
-        ("Vehicle No",        r.VehicleNo,          false),
-        ("Chassis No",        r.ChassisNo,          false),
-        ("Engine No",         r.EngineNo,           false),
-        ("Customer",          r.CustomerName,       false),
-        ("Loan No",           r.LoanNo,             false),
-        ("Model / Maker",     r.Model,              false),
-        ("Finance",           r.FinanceName,        false),
-        ("Branch",            r.BranchName,         false),
-        ("Agent",             r.AgentName,          false),
-        ("Parking Yard",      r.ParkingYardName,    false),
-        ("Yard Mobile",       r.ParkingYardMobile,  false),
-        ("Executive",         r.ExecutiveName,      false),
-        ("Repo Date",         r.RepoDate,           false),
-        ("Billing Status",    r.ActionText,         false),
-        ("Repo Charges",      r.RepoChargesText,    false),
-        ("Advance",           r.AdvanceText,        false),
-        ("Inventory",         r.CourierYn,          false),
-        ("POD Number",        r.PodNumber,          false),
-        ("Invoice No",        r.InvoiceNo,          false),
-        ("Load Details",      r.LoadDetails,        false),
-        ("Inventory Remark",  r.InventoryRemark,    true),
-        ("Additional Charges (Notes, Amount)", r.AddlCharges,    true),
-        ("Confirmation By (Name, Mobile)",     r.ConfirmationBy, true),
-        ("Collection Update", r.CollectionUpdate,   true),
-        ("Banker Address",    r.BankerAddress,      true),
-    };
+    private void AgentSearch_Changed(object sender, TextChangedEventArgs e) => ShowAgentPicks();
 
-    private bool _popupOpen;
-
-    private void OpenRecordPopup(Row r)
+    private void AgentPick_Changed(object sender, RoutedEventArgs e)
     {
-        if (_popupOpen) return;
-        _popupOpen = true;
-        try { ShowRecordPopup(r); } finally { _popupOpen = false; }
+        UpdateAgentButton();
+        if (_ready) ApplyFilters();
     }
 
-    private void ShowRecordPopup(Row r)
+    private void btnClearAgent_Click(object sender, RoutedEventArgs e)
     {
-        if (!ReferenceEquals(grid.SelectedItem, r)) grid.SelectedItem = r;
-
-        var veh = string.IsNullOrWhiteSpace(r.VehicleNo) ? r.ChassisNo : r.VehicleNo;
-        var panel = pnlRight;
-        editHostLocal.Children.Remove(panel);
-
-        var win = new CourierRecordWindow(
-            veh,
-            string.Join("  •  ", new[] { r.CustomerName, r.FinanceName, r.RepoDate }
-                .Where(x => !string.IsNullOrWhiteSpace(x))),
-            FieldsOf(r),
-            panel)
-        {
-            Owner = Window.GetWindow(this),
-        };
-        win.EditPanelReleased += p =>
-        {
-            if (!editHostLocal.Children.Contains(p)) editHostLocal.Children.Add(p);
-        };
-        win.ShowDialog();
+        foreach (var a in _agentPicks) a.IsChecked = false;
+        txtAgentSearch.Text = "";
+        ShowAgentPicks();
+        UpdateAgentButton();
+        if (_ready) ApplyFilters();
     }
 
-    private static DataGridRow? RowUnder(object? originalSource)
-    {
-        var src = originalSource as DependencyObject;
-        while (src != null && src is not DataGridRow &&
-               src is not System.Windows.Controls.Primitives.DataGridColumnHeader)
-            src = System.Windows.Media.VisualTreeHelper.GetParent(src);
-        return src as DataGridRow;
-    }
-
-    private void Grid_RowLeftClick(object sender, MouseButtonEventArgs e)
+    internal static void BeginEditOnClick(DataGrid grid, MouseButtonEventArgs e)
     {
         if ((Keyboard.Modifiers & (ModifierKeys.Control | ModifierKeys.Shift)) != 0) return;
-        if (RowUnder(e.OriginalSource)?.Item is not Row r) return;
-        Dispatcher.BeginInvoke(new Action(() => OpenRecordPopup(r)),
-            System.Windows.Threading.DispatcherPriority.Input);
+        var src = e.OriginalSource as DependencyObject;
+        while (src != null && src is not DataGridCell)
+            src = src is System.Windows.Media.Visual ? System.Windows.Media.VisualTreeHelper.GetParent(src) : null;
+        if (src is not DataGridCell cell || cell.IsEditing || cell.IsReadOnly) return;
+        if (!cell.IsFocused) cell.Focus();
+        grid.BeginEdit(e);
     }
 
-    private void Grid_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+    private void Grid_CellClick(object sender, MouseButtonEventArgs e) => BeginEditOnClick(grid, e);
+
+    internal static void CommitPick(DataGrid grid, object sender)
     {
-        if (RowUnder(e.OriginalSource) != null) e.Handled = true;
+        if (sender is not ComboBox { IsLoaded: true }) return;
+        grid.Dispatcher.BeginInvoke(new Action(() => grid.CommitEdit(DataGridEditingUnit.Cell, true)),
+            System.Windows.Threading.DispatcherPriority.Background);
     }
 
-    private void OpenRecord_Click(object sender, RoutedEventArgs e)
+    private void Pick_Changed(object sender, SelectionChangedEventArgs e) => CommitPick(grid, sender);
+
+    private void grid_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
     {
-        if (CurrentRow() is { } r) OpenRecordPopup(r);
+        if (e.EditAction != DataGridEditAction.Commit || e.Row.Item is not Row r) return;
+        Dispatcher.BeginInvoke(new Action(async () => await SaveRow(r)),
+            System.Windows.Threading.DispatcherPriority.Background);
+    }
+
+    private async System.Threading.Tasks.Task SaveRow(Row r)
+    {
+        if (r.Dirty.Count == 0) return;
+        var dirty = r.Dirty.ToList();
+        r.Dirty.Clear();
+        txtStatus.Text = "Saving…";
+        try
+        {
+            await SaveFields(r.Id, r.Src, dirty);
+            txtStatus.Text = "Saved.";
+        }
+        catch (Exception ex)
+        {
+            txtStatus.Text = "Save failed: " + ex.Message;
+            await LoadAsync();
+        }
+    }
+
+    internal static async System.Threading.Tasks.Task SaveFields(long id, DesktopApiClient.RepoSubmissionDto s, List<string> dirty)
+    {
+        var fields  = new Dictionary<string, object?>();
+        var courier = new Dictionary<string, object?>();
+        foreach (var f in dirty)
+        {
+            switch (f)
+            {
+                case "ActionKey":
+                    await DesktopApiClient.UpdateBillingActionAsync(id, s.BillingAction);
+                    break;
+                case "AddlCharges":
+                    fields["AddlChargesNotes"]  = s.AddlChargesNotes;
+                    fields["AddlChargesAmount"] = s.AddlChargesAmount;
+                    break;
+                case "ConfirmationBy":
+                    fields["ConfirmationByName"]   = s.ConfirmationByName;
+                    fields["ConfirmationByMobile"] = s.ConfirmationByMobile;
+                    break;
+                default:
+                    var value = typeof(DesktopApiClient.RepoSubmissionDto).GetProperty(f)?.GetValue(s);
+                    if (CourierFields.Contains(f)) courier[f] = value ?? "";
+                    else fields[f] = value ?? "";
+                    break;
+            }
+        }
+        if (courier.Count > 0) await DesktopApiClient.UpdateCourierSubmissionAsync(id, courier);
+        if (fields.Count > 0)  await DesktopApiClient.UpdateSubmissionFieldsAsync(id, fields);
     }
 
     private Row? CurrentRow() => grid.CurrentItem as Row ?? grid.SelectedItem as Row;
@@ -421,13 +462,14 @@ public partial class CouriersPage : Page
 
     private static string Cell(DataGridColumn col, object item)
     {
-        if (col is DataGridBoundColumn { Binding: System.Windows.Data.Binding b } &&
-            !string.IsNullOrEmpty(b.Path?.Path))
+        var path = col switch
         {
-            var prop = item.GetType().GetProperty(b.Path.Path);
-            if (prop != null) return prop.GetValue(item)?.ToString() ?? "";
-        }
-        return "";
+            DataGridBoundColumn { Binding: System.Windows.Data.Binding b } => b.Path?.Path,
+            DataGridComboBoxColumn c => c.SortMemberPath,
+            _ => null
+        };
+        if (string.IsNullOrEmpty(path)) return "";
+        return item.GetType().GetProperty(path)?.GetValue(item)?.ToString() ?? "";
     }
 
     private static string Clean(string? v) =>
@@ -499,6 +541,7 @@ public partial class CouriersPage : Page
 
     private void Grid_PreviewKeyDown(object sender, KeyEventArgs e)
     {
+        if (e.OriginalSource is TextBox) return;
         if (e.Key != Key.C || (Keyboard.Modifiers & ModifierKeys.Control) == 0) return;
         e.Handled = true;
         CopySelected((Keyboard.Modifiers & ModifierKeys.Shift) != 0);
@@ -513,332 +556,21 @@ public partial class CouriersPage : Page
         if (!grid.SelectedItems.OfType<Row>().Contains(r)) grid.SelectedItem = r;
     }
 
-    private async void btnSaveInventoryRemark_Click(object sender, RoutedEventArgs e)
+    private void OpenScreenshots_Click(object sender, RoutedEventArgs e)
     {
-        if (grid.SelectedItem is not Row r)
-        {
-            txtInvRemarkStatus.Text = "Pick a record first.";
-            return;
-        }
-        btnSaveInventoryRemark.IsEnabled = false;
-        txtInvRemarkStatus.Text = "Saving…";
-        try
-        {
-            var remark = txtInventoryRemark.Text?.Trim() ?? "";
-            await DesktopApiClient.SaveInventoryRemarkAsync(r.Id, remark);
-            r.Src = r.Src with { InventoryRemark = remark };
-            grid.Items.Refresh();
-            txtInvRemarkStatus.Text = "Saved.";
-        }
-        catch (Exception ex)
-        {
-            txtInvRemarkStatus.Text = "Failed: " + ex.Message;
-        }
-        finally { btnSaveInventoryRemark.IsEnabled = true; }
-    }
-
-    private void AgentSearch_Changed(object sender, TextChangedEventArgs e) => ShowAgentPicks();
-
-    private void AgentPick_Changed(object sender, RoutedEventArgs e)
-    {
-        UpdateAgentButton();
-        if (_ready) ApplyFilters();
-    }
-
-    private void btnClearAgent_Click(object sender, RoutedEventArgs e)
-    {
-        foreach (var a in _agentPicks) a.IsChecked = false;
-        txtAgentSearch.Text = "";
-        ShowAgentPicks();
-        UpdateAgentButton();
-        if (_ready) ApplyFilters();
-    }
-
-    private async void btnLoad_Click(object sender, RoutedEventArgs e) => await LoadAsync();
-
-    private void grid_SelectionChanged(object sender, SelectionChangedEventArgs e)
-    {
-        if (grid.SelectedItem is not Row r)
-        {
-            pnlForm.IsEnabled = false;
-            btnSubmit.IsEnabled = false;
-            btnClear.IsEnabled = false;
-            btnDetails.IsEnabled = false;
-            pnlBilled.Visibility = System.Windows.Visibility.Collapsed;
-            txtSel.Text = "Select a record from the list.";
-            return;
-        }
-
-        btnDetails.IsEnabled = true;
-
-        var veh = string.IsNullOrWhiteSpace(r.VehicleNo) ? r.Src.ChassisNo : r.VehicleNo;
-        txtSel.Text = $"{veh}  •  {r.CustomerName}  •  {r.FinanceName}";
-
-        bool hasRealBill = !string.IsNullOrWhiteSpace(r.Src.InvoiceNo)
-                        || !string.IsNullOrWhiteSpace(r.Src.BillUrl);
-        if (hasRealBill)
-        {
-            pnlBilled.Visibility = System.Windows.Visibility.Visible;
-            txtInvoice.Text = string.IsNullOrWhiteSpace(r.Src.InvoiceNo)
-                ? "Bill generated." : "Invoice No: " + r.Src.InvoiceNo;
-            btnDownloadBill.IsEnabled = !string.IsNullOrWhiteSpace(r.Src.BillUrl);
-        }
-        else pnlBilled.Visibility = System.Windows.Visibility.Collapsed;
-
-        _suppressCalc = true;
-        txtInventoryRemark.Text = r.InventoryRemark;
-        txtInvRemarkStatus.Text = "";
-        txtBillingStatus.Text = r.ActionText;
-        txtRemark.Text = r.Src.Remark;
-        txtGross.Text = r.Src.TotalGross?.ToString("0.##") ?? "";
-        txtPercent.Text = r.Src.CourierPercent?.ToString("0.##") ?? "";
-        txtRepoCharges.Text = r.Src.RepoCharges?.ToString("0.##") ?? "";
-        cmbCourier.SelectedIndex = string.Equals(r.Src.CourierYn, "Yes", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
-        cmbEditAgent.Text = r.AgentName;
-        SetAgentEditing(false);
-        txtBankerAddress.Text = r.Src.BankerAddress;
-        txtPod.Text = r.Src.PodNumber;
-        _suppressCalc = false;
-
-        ShowAppInfo(r);
-        ConfigureForStatus(r.Src.BillingAction);
-        _ = LoadAdvancesAsync(r);
-        _allShots = (r.Src.ScreenshotUrls ?? new List<string>())
+        if (CurrentRow() is not { } r) return;
+        var urls = (r.Src.ScreenshotUrls ?? new List<string>())
             .Where(u => !string.IsNullOrWhiteSpace(u)).ToList();
-        LoadScreenshot(r.Src.ScreenshotUrl);
-        lblScreenshot.Text = _allShots.Count > 1
-            ? $"Payment Screenshots ({_allShots.Count}) — click to open all"
-            : "Payment Screenshot";
-
-        pnlForm.IsEnabled = true;
-        btnSubmit.IsEnabled = true;
-        btnClear.IsEnabled = true;
-        txtFormStatus.Text = "";
-    }
-
-    private void ShowAppInfo(Row r)
-    {
-        var vis = System.Windows.Visibility.Visible;
-        var gone = System.Windows.Visibility.Collapsed;
-        bool showUpdate = r.Src.BillingAction is "hold" or "collection_done";
-        lblCollectionUpdate.Visibility = showUpdate ? vis : gone;
-        txtCollectionUpdate.Visibility = showUpdate ? vis : gone;
-        txtCollectionUpdate.Text = r.Src.CollectionUpdate;
-
-        lblAddlCharges.Visibility = showUpdate ? vis : gone;
-        txtAddlChargesInfo.Visibility = showUpdate ? vis : gone;
-        txtAddlChargesInfo.Text = r.AddlCharges;
-
-        decimal cash = r.Src.CashAmount ?? 0m;
-        bool showCash = r.Src.BillingAction == "collection_done" && cash > 0m;
-        pnlCash.Visibility = showCash ? vis : gone;
-        if (!showCash) return;
-
-        txtCashPaid.Text = cash.ToString("0.##");
-        decimal repo = ParseAmt(txtRepoCharges.Text) ?? 0m;
-        decimal net = repo - cash;
-        txtCashNote.Text = net < 0m
-            ? $"Agent holds this cash. Against repo charges {repo:0.##}, the agent owes the agency {(-net):0.##}."
-            : $"Agent holds this cash. Against repo charges {repo:0.##}, agency still owes {net:0.##}.";
-    }
-
-    private bool _suppressCalc;
-
-    /// Percentage only applies to "OK for billing" (gross × %). Hold-for-collection
-    /// disables charge entry entirely; Collection-done allows manual repo charges.
-    private void ConfigureForStatus(string action)
-    {
-        bool ok = action == "immediate";
-        bool chargesEditable = action is "immediate" or "hold" or "collection_done";
-
-        var showIfOk = ok ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
-        lblPercent.Visibility = showIfOk;
-        txtPercent.Visibility = showIfOk;
-        lblGross.Visibility   = showIfOk;
-        txtGross.Visibility   = showIfOk;
-
-        txtPercent.IsReadOnly     = !ok;
-        txtRepoCharges.IsReadOnly = !chargesEditable;
-        pnlAddAdvance.IsEnabled   = chargesEditable;
-        lstAdvances.IsEnabled     = chargesEditable;
-
-        var disabled = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFrom("#F0F0F0")!;
-        txtRepoCharges.Background = chargesEditable ? System.Windows.Media.Brushes.White : disabled;
-    }
-
-    private long _advLoadedFor;
-
-    private async System.Threading.Tasks.Task LoadAdvancesAsync(Row r)
-    {
-        _advLoadedFor = r.Id;
-        _suppressCalc = true;
-        _advances.Clear();
-        _suppressCalc = false;
-        RecalcAdvance();
-
-        List<DesktopApiClient.CourierAdvanceDto> list;
-        try { list = await DesktopApiClient.GetCourierAdvancesAsync(r.Id); }
-        catch { return; }
-        if (_advLoadedFor != r.Id) return;
-
-        _suppressCalc = true;
-        if (list.Count == 0 && (r.Src.Advance ?? 0m) != 0m)
-            _advances.Add(new AdvRow
-            {
-                Date = DateTime.TryParse(r.Src.CreatedAt, out var seeded) ? seeded.Date : DateTime.Today,
-                AmountText = r.Src.Advance!.Value.ToString("0.##")
-            });
-        foreach (var a in list)
-            _advances.Add(new AdvRow
-            {
-                Id = a.Id,
-                Date = DateTime.TryParse(a.Date, out var d) ? d.Date : DateTime.Today,
-                AmountText = a.Amount.ToString("0.##"),
-                Note = a.Note ?? ""
-            });
-        _suppressCalc = false;
-        RecalcAdvance();
-    }
-
-    private void RecalcAdvance()
-    {
-        var total = _advances.Sum(a => ParseAmt(a.AmountText) ?? 0m);
-        txtAdvance.Text = total == 0m ? "" : total.ToString("0.##");
-        txtNoAdvances.Visibility = _advances.Count == 0
-            ? System.Windows.Visibility.Visible
-            : System.Windows.Visibility.Collapsed;
-        UpdateFinal();
-    }
-
-    private void btnAddAdvance_Click(object sender, RoutedEventArgs e)
-    {
-        var amt = ParseAmt(txtAdvAmount.Text);
-        if (amt is null || amt == 0m)
-        {
-            txtFormStatus.Foreground = System.Windows.Media.Brushes.Firebrick;
-            txtFormStatus.Text = "Enter the advance amount first.";
-            return;
-        }
-        _advances.Add(new AdvRow { Date = dpAdvDate.SelectedDate ?? DateTime.Today, AmountText = amt.Value.ToString("0.##") });
-        txtAdvAmount.Text = "";
-        dpAdvDate.SelectedDate = DateTime.Today;
-        txtFormStatus.Foreground = System.Windows.Media.Brushes.Gray;
-        txtFormStatus.Text = "Advance added — press Submit to save it.";
-        RecalcAdvance();
-    }
-
-    private void AdvAmount_Key(object sender, KeyEventArgs e)
-    {
-        if (e.Key == Key.Enter) btnAddAdvance_Click(sender, new RoutedEventArgs());
-    }
-
-    private void btnRemoveAdvance_Click(object sender, RoutedEventArgs e)
-    {
-        if ((sender as FrameworkElement)?.DataContext is not AdvRow a) return;
-        _advances.Remove(a);
-        txtFormStatus.Foreground = System.Windows.Media.Brushes.Gray;
-        txtFormStatus.Text = "Advance removed — press Submit to save it.";
-        RecalcAdvance();
-    }
-
-    private void Advance_Edited(object sender, TextChangedEventArgs e)
-    {
-        if (_suppressCalc) return;
-        Dispatcher.BeginInvoke(new Action(RecalcAdvance), System.Windows.Threading.DispatcherPriority.Background);
-    }
-
-    private void Calc_Changed(object sender, TextChangedEventArgs e)
-    {
-        if (_suppressCalc) return;
-        var gross = ParseAmt(txtGross.Text);
-        if (ReferenceEquals(sender, txtPercent))
-        {
-            var pct = ParseAmt(txtPercent.Text);
-            if (gross.HasValue && pct.HasValue)
-            {
-                _suppressCalc = true;
-                txtRepoCharges.Text = (gross.Value * pct.Value / 100m).ToString("0.##");
-                _suppressCalc = false;
-            }
-        }
-        else if (ReferenceEquals(sender, txtRepoCharges))
-        {
-            var repo = ParseAmt(txtRepoCharges.Text);
-            if (gross.HasValue && gross.Value != 0m && repo.HasValue)
-            {
-                _suppressCalc = true;
-                txtPercent.Text = (repo.Value * 100m / gross.Value).ToString("0.##");
-                _suppressCalc = false;
-            }
-        }
-        UpdateFinal();
-    }
-
-    private void UpdateFinal()
-    {
-        var repo = ParseAmt(txtRepoCharges.Text) ?? 0m;
-        var adv  = ParseAmt(txtAdvance.Text) ?? 0m;
-        txtFinal.Text = (repo - adv).ToString("0.##");
-        if (pnlCash.Visibility == System.Windows.Visibility.Visible &&
-            grid.SelectedItem is Row sel)
-        {
-            decimal cash = sel.Src.CashAmount ?? 0m;
-            decimal net = repo - cash;
-            txtCashNote.Text = net < 0m
-                ? $"Agent holds this cash. Against repo charges {repo:0.##}, the agent owes the agency {(-net):0.##}."
-                : $"Agent holds this cash. Against repo charges {repo:0.##}, agency still owes {net:0.##}.";
-        }
-    }
-
-    private string? _screenshotUrl;
-    private List<string> _allShots = new();
-    private async void LoadScreenshot(string? url)
-    {
-        _screenshotUrl = url;
-        if (string.IsNullOrWhiteSpace(url))
-        {
-            lblScreenshot.Visibility = System.Windows.Visibility.Collapsed;
-            pnlScreenshot.Visibility = System.Windows.Visibility.Collapsed;
-            imgScreenshot.Source = null;
-            return;
-        }
-        lblScreenshot.Visibility = System.Windows.Visibility.Visible;
-        pnlScreenshot.Visibility = System.Windows.Visibility.Visible;
-        try
-        {
-            var bytes = await App.HttpClient.GetByteArrayAsync(url);
-            using var ms = new MemoryStream(bytes);
-            var bmp = new System.Windows.Media.Imaging.BitmapImage();
-            bmp.BeginInit();
-            bmp.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
-            bmp.StreamSource = ms;
-            bmp.EndInit();
-            bmp.Freeze();
-            imgScreenshot.Source = bmp;
-        }
-        catch { imgScreenshot.Source = null; }
-    }
-
-    private void imgScreenshot_Click(object sender, MouseButtonEventArgs e)
-    {
-        var urls = _allShots.Count > 0 ? _allShots
-                 : string.IsNullOrWhiteSpace(_screenshotUrl) ? new List<string>()
-                 : new List<string> { _screenshotUrl! };
+        if (urls.Count == 0 && !string.IsNullOrWhiteSpace(r.Src.ScreenshotUrl)) urls.Add(r.Src.ScreenshotUrl);
+        if (urls.Count == 0) { txtStatus.Text = "No payment screenshot on this record."; return; }
         foreach (var u in urls)
             try { Process.Start(new ProcessStartInfo(u) { UseShellExecute = true }); } catch { }
     }
 
-    private void btnDetails_Click(object sender, RoutedEventArgs e)
+    private async void DownloadBill_Click(object sender, RoutedEventArgs e)
     {
-        if (grid.SelectedItem is Row r) OpenRecordPopup(r);
-    }
-
-    /// Fetches the bill and saves it locally rather than handing the URL to a
-    /// browser, which blocks the download. The suggested name carries the
-    /// vehicle, invoice and a timestamp so no two saves collide.
-    private async void btnDownloadBill_Click(object sender, RoutedEventArgs e)
-    {
-        if (grid.SelectedItem is not Row r || string.IsNullOrWhiteSpace(r.Src.BillUrl)) return;
+        if (CurrentRow() is not { } r) return;
+        if (string.IsNullOrWhiteSpace(r.Src.BillUrl)) { txtStatus.Text = "No bill generated for this record yet."; return; }
 
         var ext = Path.GetExtension(new Uri(r.Src.BillUrl).AbsolutePath);
         if (string.IsNullOrWhiteSpace(ext)) ext = ".pdf";
@@ -864,149 +596,18 @@ public partial class CouriersPage : Page
 
         try
         {
-            btnDownloadBill.IsEnabled = false;
-            txtFormStatus.Foreground = System.Windows.Media.Brushes.Gray;
-            txtFormStatus.Text = "Downloading bill…";
-
+            txtStatus.Text = "Downloading bill…";
             var bytes = await App.HttpClient.GetByteArrayAsync(r.Src.BillUrl);
             await File.WriteAllBytesAsync(dlg.FileName, bytes);
-
-            txtFormStatus.Foreground = System.Windows.Media.Brushes.Green;
-            txtFormStatus.Text = "Bill saved.";
+            txtStatus.Text = "Bill saved.";
             Process.Start(new ProcessStartInfo(dlg.FileName) { UseShellExecute = true });
         }
         catch (Exception ex)
         {
-            txtFormStatus.Foreground = System.Windows.Media.Brushes.Firebrick;
-            txtFormStatus.Text = "Could not download the bill: " + ex.Message;
+            txtStatus.Text = "Could not download the bill: " + ex.Message;
         }
-        finally { btnDownloadBill.IsEnabled = true; }
     }
 
-    private static decimal? ParseAmt(string s)
+    private static decimal? ParseAmt(string? s)
         => decimal.TryParse(s?.Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out var v) ? v : (decimal?)null;
-
-    private async void btnSubmit_Click(object sender, RoutedEventArgs e)
-    {
-        if (grid.SelectedItem is not Row r) return;
-        var courier = cmbCourier.SelectedIndex == 1 ? "Yes" : "No";
-
-        await SaveAsync(r.Id, new
-        {
-            RepoCharges = ParseAmt(txtRepoCharges.Text),
-            Advances = _advances
-                .Where(a => (ParseAmt(a.AmountText) ?? 0m) != 0m)
-                .Select(a => new
-                {
-                    Amount = ParseAmt(a.AmountText) ?? 0m,
-                    Date = a.Date.ToString("yyyy-MM-dd"),
-                    Note = a.Note
-                }).ToList(),
-            CourierYn = courier,
-            BankerAddress = txtBankerAddress.Text.Trim(),
-            PodNumber = txtPod.Text.Trim(),
-            CourierPercent = ParseAmt(txtPercent.Text)
-        }, "Saved.");
-    }
-
-    private void SetAgentEditing(bool on)
-    {
-        cmbEditAgent.IsEnabled = on;
-        btnAgentEdit.Visibility   = on ? System.Windows.Visibility.Collapsed : System.Windows.Visibility.Visible;
-        btnAgentSave.Visibility   = on ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
-        btnAgentCancel.Visibility = on ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
-    }
-
-    private void btnAgentEdit_Click(object sender, RoutedEventArgs e)
-    {
-        if (grid.SelectedItem is not Row) return;
-        SetAgentEditing(true);
-        cmbEditAgent.Focus();
-    }
-
-    private void btnAgentCancel_Click(object sender, RoutedEventArgs e)
-    {
-        if (grid.SelectedItem is Row r) cmbEditAgent.Text = r.AgentName;
-        SetAgentEditing(false);
-    }
-
-    private async void btnAgentSave_Click(object sender, RoutedEventArgs e)
-    {
-        if (grid.SelectedItem is not Row r) return;
-        var agent = (cmbEditAgent.Text ?? "").Trim();
-        if (agent.Length == 0)
-        {
-            txtFormStatus.Foreground = System.Windows.Media.Brushes.Firebrick;
-            txtFormStatus.Text = "Agent name cannot be blank.";
-            return;
-        }
-        if (string.Equals(agent, (r.AgentName ?? "").Trim(), StringComparison.Ordinal))
-        {
-            SetAgentEditing(false);
-            return;
-        }
-
-        try
-        {
-            btnAgentSave.IsEnabled = false;
-            txtFormStatus.Foreground = System.Windows.Media.Brushes.Gray;
-            txtFormStatus.Text = "Saving agent name…";
-
-            await DesktopApiClient.UpdateSubmissionFieldsAsync(r.Id, new { AgentName = agent });
-
-            txtFormStatus.Foreground = System.Windows.Media.Brushes.Green;
-            txtFormStatus.Text = "Agent name saved.";
-            SetAgentEditing(false);
-            await LoadAsync();
-
-            var again = _rows.FirstOrDefault(x => x.Id == r.Id);
-            if (again != null) { grid.SelectedItem = again; grid.ScrollIntoView(again); }
-        }
-        catch (Exception ex)
-        {
-            txtFormStatus.Foreground = System.Windows.Media.Brushes.Firebrick;
-            txtFormStatus.Text = "Could not save the agent name: " + ex.Message;
-        }
-        finally { btnAgentSave.IsEnabled = true; }
-    }
-
-    private async void btnClear_Click(object sender, RoutedEventArgs e)
-    {
-        if (grid.SelectedItem is not Row r) return;
-        if (MessageBox.Show("Clear this record's courier entries (Repo Charges, Advance, Inventory, Banker Address, POD)?",
-                "Couriers", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
-
-        await SaveAsync(r.Id, new { ClearEntries = true }, "Entries cleared.");
-    }
-
-    private async System.Threading.Tasks.Task SaveAsync(long id, object dto, string okText)
-    {
-        try
-        {
-            btnSubmit.IsEnabled = false;
-            btnClear.IsEnabled = false;
-            txtFormStatus.Foreground = System.Windows.Media.Brushes.Gray;
-            txtFormStatus.Text = "Saving…";
-
-            await DesktopApiClient.UpdateCourierSubmissionAsync(id, dto);
-
-            txtFormStatus.Foreground = System.Windows.Media.Brushes.Green;
-            txtFormStatus.Text = okText;
-            await LoadAsync();
-
-            // Keep the same record selected so it can be edited again right away.
-            var again = _rows.FirstOrDefault(x => x.Id == id);
-            if (again != null)
-            {
-                grid.SelectedItem = again;
-                grid.ScrollIntoView(again);
-            }
-        }
-        catch (Exception ex)
-        {
-            txtFormStatus.Foreground = System.Windows.Media.Brushes.Firebrick;
-            txtFormStatus.Text = "Failed: " + ex.Message;
-        }
-        finally { btnSubmit.IsEnabled = true; btnClear.IsEnabled = true; }
-    }
 }

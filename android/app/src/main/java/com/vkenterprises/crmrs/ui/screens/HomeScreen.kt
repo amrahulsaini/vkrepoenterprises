@@ -92,14 +92,18 @@ fun HomeScreen(
             else -> Unit
         }
     }
+    val savedToken by authVm.tenantToken.collectAsState(initial = null)
     var agencyInfo by remember { mutableStateOf<com.vkenterprises.crmrs.data.models.AgencyInfo?>(null) }
-    LaunchedEffect(Unit) {
+    LaunchedEffect(savedToken) {
+        if (savedToken.isNullOrBlank()) return@LaunchedEffect
+        com.vkenterprises.crmrs.data.api.SessionTokens.tenantToken = savedToken
         runCatching { com.vkenterprises.crmrs.data.api.ApiClient.api.getAgencyInfo() }
             .getOrNull()?.takeIf { it.isSuccessful }?.body()?.let { agencyInfo = it }
     }
 
-    LaunchedEffect(userId) {
-        if (userId <= 0L) return@LaunchedEffect
+    LaunchedEffect(userId, savedToken) {
+        if (userId <= 0L || savedToken.isNullOrBlank()) return@LaunchedEffect
+        com.vkenterprises.crmrs.data.api.SessionTokens.tenantToken = savedToken
         authVm.refreshFinanceFlag()
         runCatching { com.vkenterprises.crmrs.data.api.ApiClient.api.getConfirmations(userId) }
             .getOrNull()?.takeIf { it.isSuccessful }?.body()?.let { confirmCount = it.total }

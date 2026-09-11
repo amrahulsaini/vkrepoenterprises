@@ -193,10 +193,28 @@ internal static class DesktopApiClient
                   TotalGross = totalGross, BillingRemark = billingRemark })).Dispose();
 
     internal static async Task UpdateSubmissionFieldsAsync(long id, object dto)
-        => (await Send(HttpMethod.Post, $"api/mgr/billing/submissions/{id}/fields", dto)).Dispose();
+        => await EnsureSaved(await Send(HttpMethod.Post, $"api/mgr/billing/submissions/{id}/fields", dto));
+
+    private static async Task EnsureSaved(HttpResponseMessage resp)
+    {
+        using (resp)
+        {
+            if (resp.IsSuccessStatusCode) return;
+            var body = await resp.Content.ReadAsStringAsync();
+            try
+            {
+                using var doc = JsonDocument.Parse(body);
+                foreach (var key in new[] { "message", "detail", "title" })
+                    if (doc.RootElement.TryGetProperty(key, out var m) && m.ValueKind == JsonValueKind.String)
+                        throw new Exception(m.GetString());
+            }
+            catch (JsonException) { }
+            throw new Exception($"{(int)resp.StatusCode} {resp.ReasonPhrase}");
+        }
+    }
 
     internal static async Task UpdateAccountsPaymentAsync(long id, object dto)
-        => (await Send(HttpMethod.Post, $"api/mgr/accounts/submissions/{id}/payment", dto)).Dispose();
+        => await EnsureSaved(await Send(HttpMethod.Post, $"api/mgr/accounts/submissions/{id}/payment", dto));
 
     internal record AgentBillingDto(string AcctHolderName, string BankName, string BankAccountNo,
         string IfscCode, decimal? ApplicationCharges, int LastInvoiceNo);
@@ -786,11 +804,11 @@ internal static class DesktopApiClient
 
     /// Changes only the billing decision, leaving courier entries untouched.
     internal static async Task UpdateBillingActionAsync(long id, string billingAction)
-        => (await Send(HttpMethod.Post, $"api/mgr/billing/submissions/{id}/action",
-                new { BillingAction = billingAction })).Dispose();
+        => await EnsureSaved(await Send(HttpMethod.Post, $"api/mgr/billing/submissions/{id}/action",
+                new { BillingAction = billingAction }));
 
     internal static async Task UpdateCourierSubmissionAsync(long id, object dto)
-        => (await Send(HttpMethod.Post, $"api/mgr/couriers/submissions/{id}/update", dto)).Dispose();
+        => await EnsureSaved(await Send(HttpMethod.Post, $"api/mgr/couriers/submissions/{id}/update", dto));
 
     internal record CourierAdvanceDto(long Id, decimal Amount, string Date, string Note);
 

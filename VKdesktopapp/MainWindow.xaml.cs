@@ -216,57 +216,23 @@ public partial class MainWindow : Window
             case "Reports": LoadPage(_reportsPage); break;
             case "Blacklist": LoadPage(_blacklistPage); break;
             case "DirectData": LoadPage(_directDataPage); break;
-            case "Billing": LoadPage(new Billing.BillingLoginPage()); break;
+            case "Billing": LoadPage(new Billing.BillingPage(null)); break;
             case "Allocations": _ = OpenAllocationsAsync(); break;
-            case "Couriers": _ = OpenCouriersAsync(); break;
-            case "Accounts": _ = OpenAccountsAsync(); break;
+            case "Couriers": OpenCouriers(); break;
+            case "Accounts": OpenAccounts(); break;
         }
     }
 
-    private async Task OpenCouriersAsync()
+    private void OpenCouriers()
     {
-        var prompt = new Billing.PasswordPromptWindow("Couriers") { Owner = this };
-        if (prompt.ShowDialog() != true) return;
-
-        DesktopApiClient.GateVerifyResult result;
-        try { result = await DesktopApiClient.VerifyGateAsync("courier", prompt.EnteredPassword); }
-        catch
-        {
-            MessageBox.Show("Cannot reach the server to check the password. Try again.",
-                "Couriers", MessageBoxButton.OK, MessageBoxImage.Warning);
-            return;
-        }
-
-        if (!result.Ok)
-        {
-            MessageBox.Show("Wrong password.", "Couriers", MessageBoxButton.OK, MessageBoxImage.Warning);
-            return;
-        }
         var shell = new CourierShellWindow { Owner = this };
         Hide();
         try { shell.ShowDialog(); }
         finally { Show(); Activate(); }
     }
 
-    private async Task OpenAccountsAsync()
+    private void OpenAccounts()
     {
-        var prompt = new Billing.PasswordPromptWindow("Accounts") { Owner = this };
-        if (prompt.ShowDialog() != true) return;
-
-        DesktopApiClient.GateVerifyResult result;
-        try { result = await DesktopApiClient.VerifyGateAsync("accounts", prompt.EnteredPassword); }
-        catch
-        {
-            MessageBox.Show("Cannot reach the server to check the password. Try again.",
-                "Accounts", MessageBoxButton.OK, MessageBoxImage.Warning);
-            return;
-        }
-
-        if (!result.Ok)
-        {
-            MessageBox.Show("Wrong password.", "Accounts", MessageBoxButton.OK, MessageBoxImage.Warning);
-            return;
-        }
         var shell = new AccountsShellWindow { Owner = this };
         Hide();
         try { shell.ShowDialog(); }

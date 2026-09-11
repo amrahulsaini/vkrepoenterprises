@@ -172,16 +172,22 @@
             </StackPanel>
             </ScrollViewer>
 
-            <DataGrid Name="grid" AutoGenerateColumns="False" IsReadOnly="True"
+            <DataGrid Name="grid" AutoGenerateColumns="False" IsReadOnly="False"
+                      CanUserAddRows="False" CanUserDeleteRows="False"
                       Style="{StaticResource XlGrid}" CanUserSortColumns="True" FrozenColumnCount="2"
                       RowDetailsVisibilityMode="Collapsed"
                       SelectionMode="Extended" SelectionUnit="FullRow"
                       ClipboardCopyMode="IncludeHeader"
-                      MouseDoubleClick="Grid_MouseDoubleClick"
-                      PreviewMouseLeftButtonUp="Grid_RowLeftClick"
+                      PreviewMouseLeftButtonDown="Grid_CellClick"
                       PreviewKeyDown="Grid_PreviewKeyDown"
                       PreviewMouseRightButtonDown="Grid_PreviewRightClick"
-                      SelectionChanged="grid_SelectionChanged">
+                      CellEditEnding="grid_CellEditEnding">
+                <DataGrid.Resources>
+                    <Style x:Key="PickEdit" TargetType="ComboBox">
+                        <Setter Property="IsDropDownOpen" Value="True" />
+                        <EventSetter Event="SelectionChanged" Handler="Pick_Changed" />
+                    </Style>
+                </DataGrid.Resources>
                 <DataGrid.ContextMenu>
                     <ContextMenu>
                         <MenuItem Header="Copy cell"                       Click="CopyCell_Click" />
@@ -193,20 +199,26 @@
                         <Separator />
                         <MenuItem Header="Copy whole table"         Click="CopyTable_Click" />
                         <Separator />
-                        <MenuItem Header="Open full record…"        Click="OpenRecord_Click" />
+                        <MenuItem Header="Download bill…"           Click="DownloadBill_Click" />
+                        <MenuItem Header="Open payment screenshots" Click="OpenScreenshots_Click" />
                     </ContextMenu>
                 </DataGrid.ContextMenu>
                 <DataGrid.Columns>
-                    <DataGridTextColumn Header="Billing" Binding="{Binding ActionText}" Width="130" MinWidth="90" ElementStyle="{StaticResource XlText}" />
-                    <DataGridTextColumn Header="Inventory" Binding="{Binding CourierYn}" Width="85" MinWidth="60" ElementStyle="{StaticResource XlText}" />
+                    <DataGridComboBoxColumn x:Name="colBilling" Header="Billing" SortMemberPath="ActionText"
+                                            SelectedValueBinding="{Binding ActionKey}" SelectedValuePath="Key" DisplayMemberPath="Name"
+                                            EditingElementStyle="{StaticResource PickEdit}" Width="150" MinWidth="100" />
+                    <DataGridComboBoxColumn x:Name="colInventory" Header="Inventory" SortMemberPath="CourierYn"
+                                            SelectedItemBinding="{Binding CourierYn}"
+                                            EditingElementStyle="{StaticResource PickEdit}" Width="85" MinWidth="60" />
                     <DataGridTextColumn Header="Inventory Remark" Binding="{Binding InventoryRemark}" Width="180" MinWidth="100" ElementStyle="{StaticResource XlText}" />
-                    <DataGridTextColumn Header="Repo Date" Binding="{Binding RepoDate}" Width="120" MinWidth="90" ElementStyle="{StaticResource XlText}" />
+                    <DataGridTextColumn Header="Billing Remark" Binding="{Binding BillingRemark}" Width="180" MinWidth="100" ElementStyle="{StaticResource XlText}" />
+                    <DataGridTextColumn Header="Repo Date" Binding="{Binding RepoDate}" Width="120" MinWidth="90" IsReadOnly="True" ElementStyle="{StaticResource XlText}" />
                     <DataGridTextColumn Header="Loan No" Binding="{Binding LoanNo}" Width="150" MinWidth="90" ElementStyle="{StaticResource XlText}" />
-                    <DataGridTextColumn Header="Invoice No" Binding="{Binding InvoiceNo}" Width="90" MinWidth="70" ElementStyle="{StaticResource XlText}" />
+                    <DataGridTextColumn Header="Invoice No" Binding="{Binding InvoiceNo}" Width="90" MinWidth="70" IsReadOnly="True" ElementStyle="{StaticResource XlText}" />
                     <DataGridTextColumn Header="Customer Name" Binding="{Binding CustomerName}" Width="150" MinWidth="90" ElementStyle="{StaticResource XlText}" />
                     <DataGridTextColumn Header="Finance" Binding="{Binding FinanceName}" Width="130" MinWidth="80" ElementStyle="{StaticResource XlText}" />
                     <DataGridTextColumn Header="Branch" Binding="{Binding BranchName}" Width="120" MinWidth="80" ElementStyle="{StaticResource XlText}" />
-                    <DataGridTextColumn Header="Vehicle No" Binding="{Binding VehicleNo}" Width="110" MinWidth="80" ElementStyle="{StaticResource XlText}" />
+                    <DataGridTextColumn Header="Vehicle No" Binding="{Binding VehicleNo}" Width="110" MinWidth="80" IsReadOnly="True" ElementStyle="{StaticResource XlText}" />
                     <DataGridTextColumn Header="Model/Maker" Binding="{Binding Model}" Width="160" MinWidth="90" ElementStyle="{StaticResource XlText}" />
                     <DataGridTextColumn Header="Chassis No" Binding="{Binding ChassisNo}" Width="150" MinWidth="90" ElementStyle="{StaticResource XlText}" />
                     <DataGridTextColumn Header="Engine No" Binding="{Binding EngineNo}" Width="140" MinWidth="90" ElementStyle="{StaticResource XlText}" />
@@ -218,191 +230,10 @@
                     <DataGridTextColumn Header="Confirmation By (Name, Mobile)" Binding="{Binding ConfirmationBy}" Width="190" MinWidth="110" ElementStyle="{StaticResource XlText}" />
                     <DataGridTextColumn Header="Executive Name" Binding="{Binding ExecutiveName}" Width="130" MinWidth="80" ElementStyle="{StaticResource XlText}" />
                     <DataGridTextColumn Header="Collection Update" Binding="{Binding CollectionUpdate}" Width="150" MinWidth="90" ElementStyle="{StaticResource XlText}" />
-                    <DataGridTextColumn Header="Repo Charges" Binding="{Binding RepoChargesText}" Width="100" MinWidth="70" ElementStyle="{StaticResource XlMoney}" />
-                    <DataGridTextColumn Header="Advance" Binding="{Binding AdvanceText}" Width="90" MinWidth="70" ElementStyle="{StaticResource XlMoney}" />
                     <DataGridTextColumn Header="Banker Address" Binding="{Binding BankerAddress}" Width="150" MinWidth="90" ElementStyle="{StaticResource XlText}" />
                     <DataGridTextColumn Header="POD Number" Binding="{Binding PodNumber}" Width="110" MinWidth="70" ElementStyle="{StaticResource XlText}" />
                 </DataGrid.Columns>
             </DataGrid>
         </DockPanel>
-
-        <Grid Name="editHostLocal" Visibility="Collapsed">
-        <Border Name="pnlRight" Background="White" CornerRadius="8" BorderBrush="#E0E0E0" BorderThickness="1" Padding="16">
-            <DockPanel>
-                <TextBlock DockPanel.Dock="Top" Text="Update Courier Details" FontSize="15" FontWeight="Bold"
-                           Foreground="{StaticResource Accent}" Margin="0,0,0,4" />
-                <TextBlock DockPanel.Dock="Top" Name="txtSel" Text="Select a record from the list."
-                           FontSize="12" Foreground="#888" TextWrapping="Wrap" Margin="0,0,0,8" />
-
-                <Button DockPanel.Dock="Top" Name="btnDetails" Content="View all details" Height="30" IsEnabled="False"
-                        Margin="0,0,0,10" Cursor="Hand" Click="btnDetails_Click" Visibility="Collapsed" />
-
-                <Border DockPanel.Dock="Top" Name="pnlBilled" Background="#EAF4EA" CornerRadius="6" Padding="10,8"
-                        Margin="0,0,0,12" Visibility="Collapsed">
-                    <StackPanel>
-                        <TextBlock Name="txtInvoice" Text="" FontSize="12.5" FontWeight="Bold" Foreground="#2E7D32" Margin="0,0,0,6" />
-                        <Button Name="btnDownloadBill" Content="Download bill" Height="28" Padding="10,0"
-                                HorizontalAlignment="Left" Background="#1565C0" Foreground="White" BorderThickness="0"
-                                Cursor="Hand" Click="btnDownloadBill_Click" />
-                    </StackPanel>
-                </Border>
-
-                <StackPanel DockPanel.Dock="Bottom">
-                    <TextBlock Name="txtFormStatus" Foreground="#2E7D32" FontSize="12" TextWrapping="Wrap" Margin="0,0,0,8" />
-                    <Button Name="btnSubmit" Content="Submit" Height="40" FontWeight="Bold" IsEnabled="False"
-                            Background="{StaticResource Accent}" Foreground="White" BorderThickness="0"
-                            Cursor="Hand" Click="btnSubmit_Click" />
-                    <Button Name="btnClear" Content="Clear this record's entries" Height="32" Margin="0,8,0,0" IsEnabled="False"
-                            Background="White" Foreground="#C62828" BorderBrush="#E0A0A0" BorderThickness="1"
-                            Cursor="Hand" Click="btnClear_Click" />
-                </StackPanel>
-
-                <ScrollViewer VerticalScrollBarVisibility="Auto">
-                    <StackPanel Name="pnlForm" IsEnabled="False">
-                        <TextBlock Text="Billing Status" Foreground="#666" FontSize="12" Margin="0,0,0,3" />
-                        <TextBox Name="txtBillingStatus" Style="{StaticResource Fld}" IsReadOnly="True"
-                                 Background="#F5F5F5" />
-
-                        <TextBlock Text="Remark (from Ok for Repo)" Foreground="#666" FontSize="12" Margin="0,0,0,3" />
-                        <TextBox Name="txtRemark" IsReadOnly="True" Background="#F5F5F5" Height="52"
-                                 TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto"
-                                 VerticalContentAlignment="Top" Padding="8,4" Margin="0,0,0,10" />
-
-                        <TextBlock Name="lblAddlCharges" Text="Additional Charges (from app)" Foreground="#666" FontSize="12" Margin="0,0,0,3" Visibility="Collapsed" />
-                        <TextBox Name="txtAddlChargesInfo" IsReadOnly="True" Background="#F5F5F5" Height="46"
-                                 TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto"
-                                 VerticalContentAlignment="Top" Padding="8,4" Margin="0,0,0,10" Visibility="Collapsed" />
-
-                        <TextBlock Name="lblCollectionUpdate" Text="Collection Update (from app)" Foreground="#666" FontSize="12" Margin="0,0,0,3" Visibility="Collapsed" />
-                        <TextBox Name="txtCollectionUpdate" IsReadOnly="True" Background="#F5F5F5" Height="52"
-                                 TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto"
-                                 VerticalContentAlignment="Top" Padding="8,4" Margin="0,0,0,10" Visibility="Collapsed" />
-
-                        <Border Name="pnlCash" Background="#FFF6E5" CornerRadius="6" Padding="10,8" Margin="0,0,0,10" Visibility="Collapsed">
-                            <StackPanel>
-                                <TextBlock Text="Total Cash Paid by Customer" Foreground="#8A6D00" FontSize="12" />
-                                <TextBlock Name="txtCashPaid" Text="0" FontSize="18" FontWeight="Bold" Foreground="#B26A00" />
-                                <TextBlock Name="txtCashNote" Text="" FontSize="11" Foreground="#8A6D00" TextWrapping="Wrap" Margin="0,4,0,0" />
-                            </StackPanel>
-                        </Border>
-
-                        <TextBlock Name="lblGross" Text="Total Gross (from billing)" Foreground="#666" FontSize="12" Margin="0,0,0,3" />
-                        <TextBox Name="txtGross" Style="{StaticResource Fld}" IsReadOnly="True" Background="#F5F5F5" />
-
-                        <TextBlock Name="lblPercent" Text="Percentage (%) of gross" Foreground="#666" FontSize="12" Margin="0,0,0,3" />
-                        <TextBox Name="txtPercent" Style="{StaticResource Fld}" TextChanged="Calc_Changed" />
-
-                        <TextBlock Text="Repo Charges" Foreground="#666" FontSize="12" Margin="0,0,0,3" />
-                        <TextBox Name="txtRepoCharges" Style="{StaticResource Fld}" TextChanged="Calc_Changed" />
-
-                        <TextBlock Text="Advance" Foreground="#666" FontSize="12" Margin="0,0,0,3" />
-                        <Border BorderBrush="#E0E0E0" BorderThickness="1" CornerRadius="6" Padding="8,6" Margin="0,0,0,10">
-                            <StackPanel>
-                                <TextBlock Name="txtNoAdvances" Text="No advance paid yet." FontSize="11.5"
-                                           Foreground="#999" Margin="0,0,0,4" />
-                                <ItemsControl Name="lstAdvances">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <Grid Margin="0,0,0,4">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="90" />
-                                                    <ColumnDefinition Width="*" />
-                                                    <ColumnDefinition Width="Auto" />
-                                                </Grid.ColumnDefinitions>
-                                                <TextBlock Grid.Column="0" Text="{Binding DateText}" FontSize="12"
-                                                           Foreground="#666" VerticalAlignment="Center" />
-                                                <TextBox Grid.Column="1" Text="{Binding AmountText, UpdateSourceTrigger=PropertyChanged}"
-                                                         Height="26" VerticalContentAlignment="Center" Padding="6,0"
-                                                         TextChanged="Advance_Edited" />
-                                                <Button Grid.Column="2" Content="✕" Width="24" Height="24" Margin="4,0,0,0"
-                                                        Cursor="Hand" ToolTip="Remove this advance"
-                                                        Click="btnRemoveAdvance_Click" />
-                                            </Grid>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-                                <Grid Name="pnlAddAdvance" Margin="0,4,0,0">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="90" />
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="Auto" />
-                                    </Grid.ColumnDefinitions>
-                                    <DatePicker Grid.Column="0" Name="dpAdvDate" Height="26" Padding="0" />
-                                    <TextBox Grid.Column="1" Name="txtAdvAmount" Height="26" Margin="4,0,0,0"
-                                             VerticalContentAlignment="Center" Padding="6,0"
-                                             ToolTip="Amount of the new advance" KeyUp="AdvAmount_Key" />
-                                    <Button Grid.Column="2" Name="btnAddAdvance" Content="+ Add" Height="26" Margin="4,0,0,0"
-                                            Padding="8,0" Cursor="Hand" Background="#1565C0" Foreground="White"
-                                            BorderThickness="0" Click="btnAddAdvance_Click" />
-                                </Grid>
-                            </StackPanel>
-                        </Border>
-
-                        <TextBlock Text="Total Advance" Foreground="#666" FontSize="12" Margin="0,0,0,3" />
-                        <TextBox Name="txtAdvance" Style="{StaticResource Fld}" IsReadOnly="True" Background="#F5F5F5" />
-
-                        <TextBlock Text="Final Amount (Repo Charges − Advance)" Foreground="#666" FontSize="12" Margin="0,0,0,3" />
-                        <TextBox Name="txtFinal" Style="{StaticResource Fld}" IsReadOnly="True" Background="#F5F5F5" FontWeight="Bold" />
-
-                        <TextBlock Text="Agent Name" Foreground="#666" FontSize="12" Margin="0,0,0,3" />
-                        <Grid Margin="0,0,0,10">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <ComboBox Grid.Column="0" Name="cmbEditAgent" Height="32" IsEditable="True"
-                                      IsTextSearchEnabled="True" StaysOpenOnEdit="True" VerticalContentAlignment="Center"
-                                      IsEnabled="False"
-                                      ToolTip="Pick the agent from the list, or type a correction" />
-                            <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="4,0,0,0">
-                                <Button Name="btnAgentEdit" Content="&#x270E;" Width="30" Height="32" FontSize="15"
-                                        Cursor="Hand" ToolTip="Edit the agent name" Click="btnAgentEdit_Click" />
-                                <Button Name="btnAgentSave" Content="&#x2714;" Width="30" Height="32" FontSize="13"
-                                        Background="#2E7D32" Foreground="White" BorderThickness="0"
-                                        Cursor="Hand" Visibility="Collapsed"
-                                        ToolTip="Save the agent name" Click="btnAgentSave_Click" />
-                                <Button Name="btnAgentCancel" Content="&#x2715;" Width="30" Height="32" FontSize="13"
-                                        Margin="4,0,0,0" Cursor="Hand" Visibility="Collapsed"
-                                        ToolTip="Cancel" Click="btnAgentCancel_Click" />
-                            </StackPanel>
-                        </Grid>
-
-                        <TextBlock Text="Inventory" Foreground="#666" FontSize="12" Margin="0,0,0,3" />
-                        <ComboBox Name="cmbCourier" Height="32" Margin="0,0,0,10" SelectedIndex="0">
-                            <ComboBoxItem Content="No" />
-                            <ComboBoxItem Content="Yes" />
-                        </ComboBox>
-
-                        <TextBlock Text="Inventory Remark" Foreground="#666" FontSize="12" Margin="0,0,0,3" />
-                        <TextBox Name="txtInventoryRemark" Height="70" TextWrapping="Wrap" AcceptsReturn="True"
-                                 VerticalContentAlignment="Top" Padding="8,4" Margin="0,0,0,6"
-                                 VerticalScrollBarVisibility="Auto"
-                                 ToolTip="Notes about the inventory handover — saved on its own" />
-                        <DockPanel Margin="0,0,0,12">
-                            <Button Name="btnSaveInventoryRemark" DockPanel.Dock="Right" Content="Save remark"
-                                    Height="28" Padding="14,0" Cursor="Hand"
-                                    Background="#2E7D32" Foreground="White" BorderThickness="0"
-                                    Click="btnSaveInventoryRemark_Click" />
-                            <TextBlock Name="txtInvRemarkStatus" FontSize="11" Foreground="#2E7D32"
-                                       VerticalAlignment="Center" TextWrapping="Wrap" />
-                        </DockPanel>
-
-                        <TextBlock Text="Banker Address" Foreground="#666" FontSize="12" Margin="0,0,0,3" />
-                        <TextBox Name="txtBankerAddress" Height="70" TextWrapping="Wrap" AcceptsReturn="True"
-                                 VerticalContentAlignment="Top" Padding="8,4" Margin="0,0,0,10"
-                                 VerticalScrollBarVisibility="Auto" />
-
-                        <TextBlock Text="POD Number" Foreground="#666" FontSize="12" Margin="0,0,0,3" />
-                        <TextBox Name="txtPod" Style="{StaticResource Fld}" />
-
-                        <TextBlock Name="lblScreenshot" Text="Payment Screenshot" Foreground="#666" FontSize="12" Margin="0,8,0,3" Visibility="Collapsed" />
-                        <Border Name="pnlScreenshot" Visibility="Collapsed" BorderBrush="#E0E0E0" BorderThickness="1" CornerRadius="6" Padding="4" Margin="0,0,0,10">
-                            <Image Name="imgScreenshot" MaxHeight="180" Stretch="Uniform" Cursor="Hand" MouseLeftButtonUp="imgScreenshot_Click" />
-                        </Border>
-                    </StackPanel>
-                </ScrollViewer>
-            </DockPanel>
-        </Border>
-        </Grid>
     </Grid>
 </Page>

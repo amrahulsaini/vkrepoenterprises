@@ -159,12 +159,19 @@
                       CanUserSortColumns="True" FrozenColumnCount="2"
                       RowDetailsVisibilityMode="Collapsed"
                       SelectionMode="Extended" SelectionUnit="FullRow"
+                      CanUserAddRows="False" CanUserDeleteRows="False"
                       ClipboardCopyMode="IncludeHeader"
-                      MouseDoubleClick="Grid_MouseDoubleClick"
+                      PreviewMouseLeftButtonDown="Grid_CellClick"
                       PreviewKeyDown="Grid_PreviewKeyDown"
                       PreviewMouseRightButtonDown="Grid_PreviewRightClick"
                       CellEditEnding="grid_CellEditEnding"
                       SelectionChanged="grid_SelectionChanged">
+                <DataGrid.Resources>
+                    <Style x:Key="PickEdit" TargetType="ComboBox">
+                        <Setter Property="IsDropDownOpen" Value="True" />
+                        <EventSetter Event="SelectionChanged" Handler="Pick_Changed" />
+                    </Style>
+                </DataGrid.Resources>
                 <DataGrid.ContextMenu>
                     <ContextMenu>
                         <MenuItem Header="Copy cell"                    Click="CopyCell_Click" />
@@ -179,10 +186,21 @@
                     </ContextMenu>
                 </DataGrid.ContextMenu>
                 <DataGrid.Columns>
-                    <DataGridTextColumn Header="Repo Date" Binding="{Binding RepoDate}" Width="120" IsReadOnly="True" ElementStyle="{StaticResource XlText}" />
                     <DataGridTextColumn Header="Vehicle No" Binding="{Binding VehicleNo}" Width="110" IsReadOnly="True" ElementStyle="{StaticResource XlText}" />
+                    <DataGridTextColumn Header="Make/Model" Binding="{Binding Model}" Width="150" ElementStyle="{StaticResource XlText}" />
+                    <DataGridTextColumn Header="Finance" Binding="{Binding FinanceName}" Width="130" ElementStyle="{StaticResource XlText}" />
+                    <DataGridTextColumn Header="Yard Name" Binding="{Binding ParkingYardName}" Width="150" ElementStyle="{StaticResource XlText}" />
+                    <DataGridTextColumn Header="Billing Remark" Binding="{Binding BillingRemark}" Width="170" ElementStyle="{StaticResource XlText}" />
+                    <DataGridTextColumn Header="Inventory Remark" Binding="{Binding InventoryRemark}" Width="170" ElementStyle="{StaticResource XlText}" />
+                    <DataGridTextColumn Header="Repo Date" Binding="{Binding RepoDate}" Width="120" IsReadOnly="True" ElementStyle="{StaticResource XlText}" />
+                    <DataGridComboBoxColumn x:Name="colBilling" Header="Billing" SortMemberPath="ActionText"
+                                            SelectedValueBinding="{Binding ActionKey}" SelectedValuePath="Key" DisplayMemberPath="Name"
+                                            EditingElementStyle="{StaticResource PickEdit}" Width="140" />
+                    <DataGridComboBoxColumn x:Name="colInventory" Header="Inventory" SortMemberPath="CourierYn"
+                                            SelectedItemBinding="{Binding CourierYn}"
+                                            EditingElementStyle="{StaticResource PickEdit}" Width="85" />
                     <DataGridTextColumn Header="Gross" Binding="{Binding GrossText}" Width="90" IsReadOnly="True" ElementStyle="{StaticResource XlText}" />
-                    <DataGridTextColumn Header="%" Binding="{Binding PercentText}" Width="60" IsReadOnly="True" ElementStyle="{StaticResource XlText}" />
+                    <DataGridTextColumn Header="%" Binding="{Binding PercentText}" Width="60" ElementStyle="{StaticResource XlText}" />
                     <DataGridTextColumn Header="Repo Charges" Binding="{Binding RepoChargesText, UpdateSourceTrigger=PropertyChanged}" Width="110" ElementStyle="{StaticResource XlText}" />
                     <DataGridTextColumn Header="Advance" Binding="{Binding AdvanceText, UpdateSourceTrigger=PropertyChanged}" Width="90" ElementStyle="{StaticResource XlText}" />
                     <DataGridTextColumn Header="Cash Collected" Binding="{Binding CashText}" Width="110" IsReadOnly="True"
@@ -194,27 +212,33 @@
                             </Style>
                         </DataGridTextColumn.ElementStyle>
                     </DataGridTextColumn>
-                    <DataGridTextColumn Header="Payment" Binding="{Binding PaymentStatusText}" Width="90" IsReadOnly="True">
-                        <DataGridTextColumn.ElementStyle>
-                            <Style TargetType="TextBlock" BasedOn="{StaticResource XlText}">
+                    <DataGridComboBoxColumn x:Name="colPayment" Header="Payment" SortMemberPath="PaymentStatusText"
+                                            SelectedItemBinding="{Binding PaymentStatusText}"
+                                            EditingElementStyle="{StaticResource PickEdit}" Width="90">
+                        <DataGridComboBoxColumn.ElementStyle>
+                            <Style TargetType="ComboBox">
                                 <Setter Property="FontWeight" Value="Bold" />
                                 <Style.Triggers>
-                                    <Trigger Property="Text" Value="PAID">
+                                    <DataTrigger Binding="{Binding PaymentStatusText}" Value="PAID">
                                         <Setter Property="Foreground" Value="#1B7F3B" />
-                                    </Trigger>
-                                    <Trigger Property="Text" Value="UNPAID">
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding PaymentStatusText}" Value="UNPAID">
                                         <Setter Property="Foreground" Value="#C62828" />
-                                    </Trigger>
+                                    </DataTrigger>
                                 </Style.Triggers>
                             </Style>
-                        </DataGridTextColumn.ElementStyle>
-                    </DataGridTextColumn>
+                        </DataGridComboBoxColumn.ElementStyle>
+                    </DataGridComboBoxColumn>
+                    <DataGridTextColumn Header="UTR No" Binding="{Binding UtrNo}" Width="120" ElementStyle="{StaticResource XlText}" />
                     <DataGridTextColumn Header="Invoice No" Binding="{Binding InvoiceNo}" Width="110" IsReadOnly="True" ElementStyle="{StaticResource XlText}" />
-                    <DataGridTextColumn Header="Agent" Binding="{Binding AgentName}" Width="140" IsReadOnly="True" ElementStyle="{StaticResource XlText}" />
-                    <DataGridTextColumn Header="Customer" Binding="{Binding CustomerName}" Width="150" IsReadOnly="True" ElementStyle="{StaticResource XlText}" />
-                    <DataGridTextColumn Header="Finance" Binding="{Binding FinanceName}" Width="130" IsReadOnly="True" ElementStyle="{StaticResource XlText}" />
-                    <DataGridTextColumn Header="Branch" Binding="{Binding BranchName}" Width="120" IsReadOnly="True" ElementStyle="{StaticResource XlText}" />
-                    <DataGridTextColumn Header="Status" Binding="{Binding ActionText}" Width="120" IsReadOnly="True" ElementStyle="{StaticResource XlText}" />
+                    <DataGridTextColumn Header="Agent" Binding="{Binding AgentName}" Width="140" ElementStyle="{StaticResource XlText}" />
+                    <DataGridTextColumn Header="Customer" Binding="{Binding CustomerName}" Width="150" ElementStyle="{StaticResource XlText}" />
+                    <DataGridTextColumn Header="Branch" Binding="{Binding BranchName}" Width="120" ElementStyle="{StaticResource XlText}" />
+                    <DataGridTextColumn Header="Loan No" Binding="{Binding LoanNo}" Width="140" ElementStyle="{StaticResource XlText}" />
+                    <DataGridTextColumn Header="Chassis No" Binding="{Binding ChassisNo}" Width="150" ElementStyle="{StaticResource XlText}" />
+                    <DataGridTextColumn Header="Engine No" Binding="{Binding EngineNo}" Width="140" ElementStyle="{StaticResource XlText}" />
+                    <DataGridTextColumn Header="Collection Update" Binding="{Binding CollectionUpdate}" Width="150" ElementStyle="{StaticResource XlText}" />
+                    <DataGridTextColumn Header="Accounts Remark" Binding="{Binding AccountsRemark}" Width="170" ElementStyle="{StaticResource XlText}" />
                     <DataGridTemplateColumn Header="Screenshot" Width="90">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
