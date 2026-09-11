@@ -147,7 +147,7 @@ private fun RcSearchBar(value: String, onChange: (String) -> Unit) {
                 IconButton(onClick = { onChange("") }) { Icon(Icons.Default.Close, "Clear") }
         },
         keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-            capitalization = KeyboardCapitalization.Characters)
+            keyboardType = androidx.compose.ui.text.input.KeyboardType.Number)
     )
 }
 

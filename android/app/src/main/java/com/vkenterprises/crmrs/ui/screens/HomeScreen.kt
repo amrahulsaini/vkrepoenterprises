@@ -542,19 +542,7 @@ fun HomeScreen(
                     }
                 }
             } else if (ui.isSearching) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement  = Arrangement.spacedBy(14.dp)
-                    ) {
-                        CircularProgressIndicator()
-                        Text(
-                            "Searching…",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
+                Box(Modifier.fillMaxSize())
             } else if (ui.errorMsg == null) {
                 AgencyLandingPanel(
                     agencyName    = dynAgencyName,
@@ -836,7 +824,7 @@ private fun AgencyLandingPanel(
                 null -> "NO ACTIVE SUBSCRIPTION"
                 0L   -> "EXPIRES TODAY"
                 1L   -> "1 DAY LEFT"
-                else -> "$DAYS LEFT "
+                else -> "$daysLeft DAYS LEFT"
             },
             accent   = when {
                 daysLeft == null  -> MaterialTheme.colorScheme.error
@@ -847,21 +835,18 @@ private fun AgencyLandingPanel(
         ) { }
         Spacer(Modifier.height(10.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            GridTile(
-                label    = "MY ACCOUNT",
-                icon     = Icons.Default.AccountCircle,
-                subtitle = "Profile, KYC, subscriptions",
-                accent   = MaterialTheme.colorScheme.primary,
+            ConfirmationsTile(
+                count    = confirmCount,
                 modifier = Modifier.weight(1f)
-            ) { nav.navigate(Screen.Profile.route) }
+            ) { nav.navigate(Screen.Confirmations.route) }
             if (isAdmin) {
                 GridTile(
-                    label    = "PRE POST INTIMATION",
-                    icon     = Icons.Default.Description,
-                    subtitle = "Generate Pre / Post letter",
-                    accent   = Color(0xFFF57F17),
+                    label    = "DOWNLOAD REPOKITS",
+                    icon     = Icons.Default.PictureAsPdf,
+                    subtitle = "Head office repo kits",
+                    accent   = Color(0xFF00897B),
                     modifier = Modifier.weight(1f)
-                ) { onOpenLetters() }
+                ) { nav.navigate(Screen.RepoKits.route) }
             } else {
                 GridTile(
                     label    = "ID CARD",
@@ -876,44 +861,50 @@ private fun AgencyLandingPanel(
             Spacer(Modifier.height(10.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 GridTile(
-                    label    = "CONTROL PANEL",
-                    icon     = Icons.Default.Lock,
-                    subtitle = "Users, subscriptions, logs",
-                    accent   = Color(0xFF6A1B9A),
-                    modifier = Modifier.weight(1f)
-                ) { nav.navigate(Screen.ControlPanel.route) }
-                GridTile(
                     label    = "TASK MANAGER",
                     icon     = Icons.Default.Assignment,
                     subtitle = "Repo logs, demand & target",
                     accent   = Color(0xFF2E7D32),
                     modifier = Modifier.weight(1f)
                 ) { nav.navigate(Screen.TaskManager.route) }
+                GridTile(
+                    label    = "CONTROL PANEL",
+                    icon     = Icons.Default.Lock,
+                    subtitle = "Users, subscriptions, logs",
+                    accent   = Color(0xFF6A1B9A),
+                    modifier = Modifier.weight(1f)
+                ) { nav.navigate(Screen.ControlPanel.route) }
             }
         }
         Spacer(Modifier.height(10.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            if (isAdmin) {
+                GridTile(
+                    label    = "PRE POST INTIMATION",
+                    icon     = Icons.Default.Description,
+                    subtitle = "Generate Pre / Post letter",
+                    accent   = Color(0xFFF57F17),
+                    modifier = Modifier.weight(1f)
+                ) { onOpenLetters() }
+            } else {
+                GridTile(
+                    label    = "DOWNLOAD REPOKITS",
+                    icon     = Icons.Default.PictureAsPdf,
+                    subtitle = "Head office repo kits",
+                    accent   = Color(0xFF00897B),
+                    modifier = Modifier.weight(1f)
+                ) { nav.navigate(Screen.RepoKits.route) }
+            }
             GridTile(
-                label    = "DOWNLOAD REPOKITS",
-                icon     = Icons.Default.PictureAsPdf,
-                subtitle = "Head office repo kits",
-                accent   = Color(0xFF00897B),
+                label    = "MY ACCOUNT",
+                icon     = Icons.Default.AccountCircle,
+                subtitle = "Profile, KYC, subscriptions",
+                accent   = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.weight(1f)
-            ) { nav.navigate(Screen.RepoKits.route) }
-            ConfirmationsTile(
-                count    = confirmCount,
-                modifier = Modifier.weight(1f)
-            ) { nav.navigate(Screen.Confirmations.route) }
+            ) { nav.navigate(Screen.Profile.route) }
         }
         Spacer(Modifier.height(10.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            GridTile(
-                label    = "RATE LIST",
-                icon     = Icons.Default.Assignment,
-                subtitle = "Rates, links and attachments",
-                accent   = Color(0xFF3F51B5),
-                modifier = Modifier.weight(1f)
-            ) { nav.navigate(Screen.RateList.route) }
             if (isAdmin) {
                 GridTile(
                     label    = "AUTHORIZATION LETTER",
@@ -922,9 +913,15 @@ private fun AgencyLandingPanel(
                     accent   = Color(0xFF00695C),
                     modifier = Modifier.weight(1f)
                 ) { nav.navigate(Screen.AuthorityLetter.route) }
-            } else {
-                Spacer(Modifier.weight(1f))
             }
+            GridTile(
+                label    = "RATE LIST",
+                icon     = Icons.Default.Assignment,
+                subtitle = "Rates, links and attachments",
+                accent   = Color(0xFF3F51B5),
+                modifier = Modifier.weight(1f)
+            ) { nav.navigate(Screen.RateList.route) }
+            if (!isAdmin) Spacer(Modifier.weight(1f))
         }
         Spacer(Modifier.height(16.dp))
         RbiGuidelinesCard()

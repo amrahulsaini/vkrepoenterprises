@@ -9,6 +9,21 @@ public class MobileRepository
 {
     public static string UploadsPath { get; set; } = Path.Combine(Directory.GetCurrentDirectory(), "uploads");
 
+    private static async Task<List<string>> SaveScreenshotsAsync(string? first, List<string>? rest, string prefix)
+    {
+        var all = new List<string>();
+        if (!string.IsNullOrWhiteSpace(first)) all.Add(first);
+        if (rest != null) all.AddRange(rest.Where(b => !string.IsNullOrWhiteSpace(b)));
+        var stamp = DateTime.UtcNow.ToString("yyyyMMddHHmmssfff");
+        var rels = new List<string>();
+        for (int i = 0; i < all.Count && i < 10; i++)
+        {
+            var rel = await SaveBase64ImageAsync(all[i], "payments", $"{prefix}_{stamp}_{i + 1}.jpg");
+            if (rel != null) rels.Add(rel);
+        }
+        return rels;
+    }
+
     private static async Task<string?> SaveBase64ImageAsync(string? base64, string subFolder, string fileName)
     {
         if (string.IsNullOrWhiteSpace(base64)) return null;
@@ -1702,9 +1717,9 @@ public class MobileRepository
         if (!string.IsNullOrWhiteSpace(req.HoldUntil) &&
             DateTime.TryParse(req.HoldUntil, out var hu)) holdUntil = hu.Date;
 
-        string? screenshotRel = await SaveBase64ImageAsync(
-            req.PaymentScreenshotB64, "payments",
-            $"sub_{DateTime.UtcNow:yyyyMMddHHmmssfff}.jpg");
+        var shots = await SaveScreenshotsAsync(req.PaymentScreenshotB64, req.PaymentScreenshotsB64, "sub");
+        string? screenshotRel = shots.FirstOrDefault();
+        string? shotsJson = shots.Count > 0 ? System.Text.Json.JsonSerializer.Serialize(shots) : null;
 
         await using var cmd = new MySqlCommand(@"
             INSERT INTO repo_submissions
@@ -1715,7 +1730,7 @@ public class MobileRepository
                  confirmation_by_name, confirmation_by_mobile, executive_name,
                  collection_update, remark,
                  billing_action, hold_until, hold_days, submitted_by_name, submitted_by_user_id,
-                 bill_status, billed_at, payment_screenshot, cash_amount)
+                 bill_status, billed_at, payment_screenshot, payment_screenshots, cash_amount)
             VALUES
                 (@rid, @fid, @fname, @branch,
                  @loan, @cust, @veh, @model, @chassis, @engine,
@@ -1724,7 +1739,7 @@ public class MobileRepository
                  @cbn, @cbm, @exec,
                  @colup, @rmk,
                  @action, @holdu, @holdd, @subby, @subuid,
-                 @bstatus, @battime, @pscreen, @cash)", conn) { CommandTimeout = 15 };
+                 @bstatus, @battime, @pscreen, @pshots, @cash)", conn) { CommandTimeout = 15 };
 
         void P(string n, object? v) => cmd.Parameters.AddWithValue(n, v ?? DBNull.Value);
         P("@rid",   req.RecordId is > 0 ? req.RecordId : (object?)null);
@@ -1760,6 +1775,7 @@ public class MobileRepository
         P("@bstatus", autoBilled ? "billed" : "pending");
         P("@battime", autoBilled ? (object)DateTime.Now : DBNull.Value);
         P("@pscreen", screenshotRel);
+        P("@pshots", shotsJson);
         P("@cash", req.CashAmount is > 0 ? req.CashAmount : (object?)null);
         try
         {
@@ -1855,9 +1871,9 @@ public class MobileRepository
         DateTime? holdUntil = null;
         if (!string.IsNullOrWhiteSpace(req.HoldUntil) && DateTime.TryParse(req.HoldUntil, out var hu)) holdUntil = hu.Date;
 
-        string? screenshotRel = await SaveBase64ImageAsync(
-            req.PaymentScreenshotB64, "payments",
-            $"sub_{id}_{DateTime.UtcNow:yyyyMMddHHmmssfff}.jpg");
+        var shots = await SaveScreenshotsAsync(req.PaymentScreenshotB64, req.PaymentScreenshotsB64, $"sub_{id}");
+        string? screenshotRel = shots.FirstOrDefault();
+        string? shotsJson = shots.Count > 0 ? System.Text.Json.JsonSerializer.Serialize(shots) : null;
         bool autoBill = action is "hold" or "collection_done";
 
         await using var cmd = new MySqlCommand(@"
@@ -1870,6 +1886,7 @@ public class MobileRepository
                 collection_update=@colup, remark=@rmk,
                 billing_action=@action, hold_until=@holdu, hold_days=@holdd,
                 payment_screenshot=COALESCE(@pscreen, payment_screenshot),
+                payment_screenshots=COALESCE(@pshots, payment_screenshots),
                 cash_amount=@cash,
                 bill_status = CASE WHEN @autobill=1 THEN 'billed'
                                    WHEN invoice_no IS NOT NULL OR bill_file IS NOT NULL THEN bill_status
@@ -1886,7 +1903,7 @@ public class MobileRepository
         P("@cbn", req.ConfirmationByName); P("@cbm", req.ConfirmationByMobile); P("@exec", req.ExecutiveName);
         P("@colup", req.CollectionUpdate); P("@rmk", req.Remark);
         P("@action", action); P("@holdu", holdUntil); P("@holdd", req.HoldDays);
-        P("@pscreen", screenshotRel); P("@autobill", autoBill ? 1 : 0);
+        P("@pscreen", screenshotRel); P("@pshots", shotsJson); P("@autobill", autoBill ? 1 : 0);
         P("@cash", req.CashAmount is > 0 ? req.CashAmount : (object?)null);
         P("@id", id); P("@uid", userId);
         try

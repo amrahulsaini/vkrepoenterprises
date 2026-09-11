@@ -626,7 +626,12 @@ public partial class CouriersPage : Page
         ShowAppInfo(r);
         ConfigureForStatus(r.Src.BillingAction);
         _ = LoadAdvancesAsync(r);
+        _allShots = (r.Src.ScreenshotUrls ?? new List<string>())
+            .Where(u => !string.IsNullOrWhiteSpace(u)).ToList();
         LoadScreenshot(r.Src.ScreenshotUrl);
+        lblScreenshot.Text = _allShots.Count > 1
+            ? $"Payment Screenshots ({_allShots.Count}) — click to open all"
+            : "Payment Screenshot";
 
         pnlForm.IsEnabled = true;
         btnSubmit.IsEnabled = true;
@@ -809,6 +814,7 @@ public partial class CouriersPage : Page
     }
 
     private string? _screenshotUrl;
+    private List<string> _allShots = new();
     private async void LoadScreenshot(string? url)
     {
         _screenshotUrl = url;
@@ -838,8 +844,11 @@ public partial class CouriersPage : Page
 
     private void imgScreenshot_Click(object sender, MouseButtonEventArgs e)
     {
-        if (string.IsNullOrWhiteSpace(_screenshotUrl)) return;
-        try { Process.Start(new ProcessStartInfo(_screenshotUrl) { UseShellExecute = true }); } catch { }
+        var urls = _allShots.Count > 0 ? _allShots
+                 : string.IsNullOrWhiteSpace(_screenshotUrl) ? new List<string>()
+                 : new List<string> { _screenshotUrl! };
+        foreach (var u in urls)
+            try { Process.Start(new ProcessStartInfo(u) { UseShellExecute = true }); } catch { }
     }
 
     private void btnDetails_Click(object sender, RoutedEventArgs e)

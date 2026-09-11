@@ -200,7 +200,8 @@ data class RepoTaskEditRequest(
     val holdUntil: String?,
     val holdDays: Int?,
     val paymentScreenshotB64: String? = null,
-    val cashAmount: Double? = null
+    val cashAmount: Double? = null,
+    val paymentScreenshotsB64: List<String>? = null
 )
 
 data class UserSettings(
@@ -260,7 +261,8 @@ data class RepoSubmitRequest(
     val holdDays: Int?,
     val submittedByName: String?,
     val paymentScreenshotB64: String? = null,
-    val cashAmount: Double? = null
+    val cashAmount: Double? = null,
+    val paymentScreenshotsB64: List<String>? = null
 )
 
 data class RepoStatusesResponse(

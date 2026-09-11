@@ -140,7 +140,7 @@ internal static class DesktopApiClient
         string IfscCode = "", string UtrNo = "", string PaymentDate = "",
         decimal? ApplicationCharges = null, decimal? CashAmount = null,
         string PaymentStatus = "", string BillingRemark = "", string AccountsRemark = "",
-        string InventoryRemark = "");
+        string InventoryRemark = "", List<string>? ScreenshotUrls = null);
 
     internal static async Task<List<BillingMemberDto>> GetBillingMembersAsync()
     {

@@ -7,6 +7,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -124,15 +125,21 @@ fun OkForRepoScreen(
     LaunchedEffect(item?.id, item?.vehicleNo, item?.chassisNo) { reloadUsedStatuses() }
 
     // Payment screenshot — mandatory for Collection done.
-    var paymentUri by remember { mutableStateOf<Uri?>(null) }
-    var paymentB64 by remember { mutableStateOf<String?>(null) }
+    val paymentShots = remember { mutableStateListOf<Pair<Uri, String>>() }
     var showPaymentSource by remember { mutableStateOf(false) }
     var paymentCameraUri  by remember { mutableStateOf<Uri?>(null) }
-    val paymentGallery = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        if (uri != null) { paymentUri = uri; paymentB64 = runCatching { compressImageToBase64(context, uri) }.getOrNull() }
+    val paymentGallery = rememberLauncherForActivityResult(ActivityResultContracts.GetMultipleContents()) { uris ->
+        uris.forEach { uri ->
+            if (paymentShots.size >= 10) return@forEach
+            runCatching { compressImageToBase64(context, uri) }.getOrNull()
+                ?.let { paymentShots.add(uri to it) }
+        }
     }
     val paymentCamera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { ok ->
-        if (ok) paymentCameraUri?.let { u -> paymentUri = u; paymentB64 = runCatching { compressImageToBase64(context, u) }.getOrNull() }
+        if (ok && paymentShots.size < 10) paymentCameraUri?.let { u ->
+            runCatching { compressImageToBase64(context, u) }.getOrNull()
+                ?.let { paymentShots.add(u to it) }
+        }
     }
 
     var pendingCameraUripaymentCamera by remember { mutableStateOf<android.net.Uri?>(null) }
@@ -223,7 +230,7 @@ fun OkForRepoScreen(
             return
         }
         val cashVal = cashAmount.trim().toDoubleOrNull() ?: 0.0
-        if (billingAction == "collection_done" && cashVal <= 0.0 && paymentB64.isNullOrBlank()) {
+        if (billingAction == "collection_done" && cashVal <= 0.0 && paymentShots.isEmpty()) {
             errorMsg = "For Collection done, enter the cash amount or attach the payment screenshot."
             return
         }
@@ -259,7 +266,8 @@ fun OkForRepoScreen(
                         holdUntil         = holdDate.trim().ifBlank { null },
                         holdDays          = holdDays.trim().toIntOrNull(),
                         submittedByName   = agentNameAuth.trim().ifBlank { null },
-                        paymentScreenshotB64 = paymentB64,
+                        paymentScreenshotB64 = paymentShots.firstOrNull()?.second,
+                        paymentScreenshotsB64 = paymentShots.drop(1).map { it.second }.ifEmpty { null },
                         cashAmount        = cashVal.takeIf { it > 0.0 }
                     )
                 )
@@ -375,25 +383,43 @@ fun OkForRepoScreen(
                     cashAmount = it.filter { c -> c.isDigit() || c == '.' }
                 }
 
-                Text("Online payment screenshot", style = MaterialTheme.typography.labelMedium,
+                Text("Online payment screenshots", style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
-                if (paymentUri != null) {
-                    AsyncImage(
-                        model = paymentUri, contentDescription = "Payment screenshot",
-                        modifier = Modifier.fillMaxWidth().height(200.dp)
-                            .clip(RoundedCornerShape(10.dp)).clickable { showPaymentSource = true }
-                    )
-                    TextButton(onClick = { showPaymentSource = true }) { Text("Change screenshot") }
-                } else {
-                    OutlinedButton(
-                        onClick = { showPaymentSource = true },
-                        modifier = Modifier.fillMaxWidth().height(52.dp),
-                        shape = RoundedCornerShape(10.dp)
+                if (paymentShots.isNotEmpty()) {
+                    Row(
+                        Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Icon(Icons.Default.AttachFile, null, Modifier.size(18.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text("Attach payment screenshot")
+                        paymentShots.forEachIndexed { i, shot ->
+                            Box(Modifier.size(110.dp)) {
+                                AsyncImage(
+                                    model = shot.first,
+                                    contentDescription = "Payment screenshot ${i + 1}",
+                                    contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(10.dp))
+                                )
+                                IconButton(
+                                    onClick = { paymentShots.removeAt(i) },
+                                    modifier = Modifier.align(Alignment.TopEnd).size(30.dp)
+                                ) {
+                                    Icon(Icons.Default.Cancel, "Remove screenshot", tint = Color.White)
+                                }
+                            }
+                        }
                     }
+                }
+                OutlinedButton(
+                    onClick = { showPaymentSource = true },
+                    enabled = paymentShots.size < 10,
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Icon(Icons.Default.AttachFile, null, Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        if (paymentShots.isEmpty()) "Attach payment screenshots"
+                        else "Add another screenshot (${paymentShots.size}/10)"
+                    )
                 }
             }
 

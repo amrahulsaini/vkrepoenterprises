@@ -850,8 +850,12 @@ public partial class AccountsPage : Page
 
     private void ViewScreenshot_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is FrameworkElement fe && fe.Tag is AcctRow r && !string.IsNullOrWhiteSpace(r.ScreenshotUrl))
-            try { Process.Start(new ProcessStartInfo(r.ScreenshotUrl) { UseShellExecute = true }); } catch { }
+        if (sender is not FrameworkElement fe || fe.Tag is not AcctRow r) return;
+        var urls = (r.Src.ScreenshotUrls ?? new List<string>())
+            .Where(u => !string.IsNullOrWhiteSpace(u)).ToList();
+        if (urls.Count == 0 && !string.IsNullOrWhiteSpace(r.ScreenshotUrl)) urls.Add(r.ScreenshotUrl);
+        foreach (var u in urls)
+            try { Process.Start(new ProcessStartInfo(u) { UseShellExecute = true }); } catch { }
     }
 
     private void btnAgentBill_Click(object sender, RoutedEventArgs e)

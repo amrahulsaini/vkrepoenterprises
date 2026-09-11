@@ -649,6 +649,7 @@ CREATE TABLE IF NOT EXISTS `repo_submissions` (
   `billing_remark`         VARCHAR(512)    NULL,
   `courier_percent`        DECIMAL(6,2)    NULL,
   `payment_screenshot`     VARCHAR(255)    NULL,
+  `payment_screenshots`    TEXT            NULL,
   `cash_amount`            DECIMAL(12,2)   NULL,
   `acct_holder_name`       VARCHAR(255)    NULL,
   `bank_name`              VARCHAR(255)    NULL,

@@ -323,7 +323,8 @@ public record RepoSubmitRequest(
     int?     HoldDays,
     string?  SubmittedByName,
     string?  PaymentScreenshotB64 = null,
-    decimal? CashAmount = null);
+    decimal? CashAmount = null,
+    List<string>? PaymentScreenshotsB64 = null);
 
 public record RepoTaskItem(
     long     Id,
@@ -386,7 +387,8 @@ public record RepoTaskEditRequest(
     string?  HoldUntil,
     int?     HoldDays,
     string?  PaymentScreenshotB64 = null,
-    decimal? CashAmount = null);
+    decimal? CashAmount = null,
+    List<string>? PaymentScreenshotsB64 = null);
 
 public record BillingSettings(
     string? AgencyName,

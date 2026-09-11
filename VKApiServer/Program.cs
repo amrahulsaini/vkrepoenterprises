@@ -1958,6 +1958,20 @@ app.MapGet("/api/mgr/users/{id:long}/confirmations", async (HttpContext ctx, lon
     catch (Exception ex) { return Results.Problem(ex.Message); }
 });
 
+static List<string> ScreenshotUrls(string? json, string? single, string baseUrl)
+{
+    var rels = new List<string>();
+    if (!string.IsNullOrWhiteSpace(json))
+    {
+        try { rels = System.Text.Json.JsonSerializer.Deserialize<List<string>>(json) ?? new List<string>(); }
+        catch { rels = new List<string>(); }
+    }
+    if (rels.Count == 0 && !string.IsNullOrWhiteSpace(single)) rels.Add(single!);
+    return rels.Where(r => !string.IsNullOrWhiteSpace(r))
+               .Select(r => $"{baseUrl}/uploads/{r.TrimStart('/')}")
+               .ToList();
+}
+
 static async Task SaveRateListAudience(MySqlConnection conn, long listId, List<long>? userIds)
 {
     await MgrExec("DELETE FROM rate_list_users WHERE rate_list_id=@id", conn, 15, ("@id", listId));
@@ -2489,7 +2503,7 @@ app.MapGet("/api/mgr/billing/submissions", async (HttpContext ctx, string? from,
                    rs.total_gross, rs.courier_percent, rs.payment_screenshot, rs.acct_holder_name,
                    rs.bank_name, rs.bank_account_no, rs.ifsc_code, rs.utr_no,
                    rs.payment_date, rs.application_charges, rs.cash_amount, rs.payment_status,
-                   rs.billing_remark, rs.accounts_remark, rs.inventory_remark
+                   rs.billing_remark, rs.accounts_remark, rs.inventory_remark, rs.payment_screenshots
               FROM repo_submissions rs
          LEFT JOIN finances f ON f.id = rs.finance_id
          LEFT JOIN vehicle_records vr ON vr.id = rs.record_id {whereSql}
@@ -2545,7 +2559,8 @@ app.MapGet("/api/mgr/billing/submissions", async (HttpContext ctx, string? from,
                 paymentStatus = rdr.IsDBNull(47) ? "" : rdr.GetString(47),
                 billingRemark = S(48) ?? "",
                 accountsRemark = S(49) ?? "",
-                inventoryRemark = S(50) ?? ""
+                inventoryRemark = S(50) ?? "",
+                screenshotUrls = ScreenshotUrls(S(51), S(38), billBaseUrl)
             });
         }
         return Results.Ok(list);
