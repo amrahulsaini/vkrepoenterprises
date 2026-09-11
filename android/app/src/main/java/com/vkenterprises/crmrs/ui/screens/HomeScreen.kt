@@ -833,10 +833,10 @@ private fun AgencyLandingPanel(
             label    = "REMAINING DAYS",
             icon     = Icons.Default.Schedule,
             subtitle = when (daysLeft) {
-                null -> "No active subscription"
-                0L   -> "Expires today"
-                1L   -> "1 day left"
-                else -> "$daysLeft days left"
+                null -> "NO ACTIVE SUBSCRIPTION"
+                0L   -> "EXPIRES TODAY"
+                1L   -> "1 DAY LEFT"
+                else -> "$DAYS LEFT "
             },
             accent   = when {
                 daysLeft == null  -> MaterialTheme.colorScheme.error
