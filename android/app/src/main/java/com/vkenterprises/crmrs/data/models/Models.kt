@@ -2,16 +2,6 @@ package com.vkenterprises.crmrs.data.models
 
 import com.google.gson.annotations.SerializedName
 
-data class FpApproveRequest(
-    val challengeId: String,
-    val signature: String,
-    val geoTried: Boolean = true,
-    val lat: Double? = null,
-    val lng: Double? = null,
-    val accuracy: Double? = null,
-    val mock: Boolean? = null
-)
-
 data class RegisterRequest(
     val mobile: String,
     val name: String,

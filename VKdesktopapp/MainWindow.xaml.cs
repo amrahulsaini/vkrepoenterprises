@@ -39,15 +39,6 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
-        Loaded += async (_, __) =>
-        {
-            if (!await ProfileGate.EnsureAsync(this, "Super Admin")) { Close(); return; }
-            ProfileGate.Stamp(this);
-            ApplyModulePermissions();
-            btnMyHrms.Visibility =
-                App.SignedAppUser?.HrmsEnabled == true && Data.DesktopApiClient.ProfileToken.Length > 0
-                    ? Visibility.Visible : Visibility.Collapsed;
-        };
 
         _homePage = new HomePage();
         _findVehiclePage = new FindVehiclePage();
@@ -115,12 +106,6 @@ public partial class MainWindow : Window
         btnConfirmations.Foreground = brush;
         btnReports.Foreground = brush;
         btnDirectData.Foreground = brush;
-    }
-
-    private void btnMyHrms_Click(object sender, RoutedEventArgs e)
-    {
-        var w = new MyHrmsWindow { Owner = this };
-        w.ShowDialog();
     }
 
     private void btnSettings_Click(object sender, RoutedEventArgs e)
@@ -213,16 +198,9 @@ public partial class MainWindow : Window
     {
         if (sender is not Button btn) return;
         var tag = (btn.Tag ?? string.Empty).ToString();
-        if (!App.CanOpen(tag))
-        {
-            MessageBox.Show("Your role does not include this section.",
-                "Not available", MessageBoxButton.OK, MessageBoxImage.Information);
-            return;
-        }
 
         switch (tag)
         {
-            case "Hrms": OpenHrms(); break;
             case "Home": LoadPage(_homePage); break;
             case "Search": LoadPage(_findVehiclePage); break;
             case "Finances": LoadPage(_financesManagerPage); break;
@@ -361,50 +339,6 @@ public partial class MainWindow : Window
         _recordsEditorWindow.Activate();
     }
 
-
-    /// Hides every tile and rail button whose Tag is a module this profile was
-    /// not granted. Walking the visual tree by Tag means a module added to the
-    /// XAML later is covered without touching this method.
-    private void ApplyModulePermissions()
-    {
-        var u = App.ProfileUser;
-        if (u == null || u.Modules.Length == 0) return;
-
-        foreach (var btn in FindButtons(this))
-        {
-            var tag = (btn.Tag ?? "").ToString();
-            if (string.IsNullOrEmpty(tag)) continue;
-            if (!App.CanOpen(tag)) btn.Visibility = Visibility.Collapsed;
-        }
-
-        if (FindName("btnSupport")  is Button bs && !App.CanOpen("Support"))  bs.Visibility = Visibility.Collapsed;
-        if (FindName("btnMessages") is Button bm && !App.CanOpen("Messages")) bm.Visibility = Visibility.Collapsed;
-        if (FindName("btnSettings") is Button bg && !App.CanOpen("Settings")) bg.Visibility = Visibility.Collapsed;
-
-        if (!App.CanOpen("Home")) LoadFirstAllowedPage();
-    }
-
-    private static System.Collections.Generic.IEnumerable<Button> FindButtons(DependencyObject root)
-    {
-        int n = System.Windows.Media.VisualTreeHelper.GetChildrenCount(root);
-        for (int i = 0; i < n; i++)
-        {
-            var child = System.Windows.Media.VisualTreeHelper.GetChild(root, i);
-            if (child is Button b) yield return b;
-            foreach (var inner in FindButtons(child)) yield return inner;
-        }
-    }
-
-    private void LoadFirstAllowedPage()
-    {
-        foreach (var key in new[] { "Search", "Users", "Finances", "Billing", "Reports", "Confirmations" })
-        {
-            if (!App.CanOpen(key)) continue;
-            TileButton_Click(new Button { Tag = key }, new RoutedEventArgs());
-            return;
-        }
-    }
-
     private void RefreshFirmLabels()
     {
         var u = App.SignedAppUser;
@@ -417,33 +351,6 @@ public partial class MainWindow : Window
         if (FindName("lblFirmName")    is TextBlock nameTb)   nameTb.Text   = name;
         if (FindName("lblFirmMobile")  is TextBlock mobileTb) mobileTb.Text = mobile;
         if (FindName("lblFirmAddress") is TextBlock addrTb)   addrTb.Text   = addr;
-
-        if (FindName("tileHrms") is Button hrmsTile)
-            hrmsTile.Visibility = (u?.HrmsEnabled == true) ? Visibility.Visible : Visibility.Collapsed;
-    }
-
-    private void OpenHrms()
-    {
-        var u = App.SignedAppUser;
-        if (u == null || !u.HrmsEnabled)
-        {
-            MessageBox.Show("HRMS is not enabled for this agency. Contact CRMRS to enable it.",
-                "HRMS", MessageBoxButton.OK, MessageBoxImage.Information);
-            return;
-        }
-        if (string.IsNullOrWhiteSpace(u.Slug))
-        {
-            MessageBox.Show("Could not determine this agency. Sign out and sign in again.",
-                "HRMS", MessageBoxButton.OK, MessageBoxImage.Warning);
-            return;
-        }
-        var url = "https://agency.crmrecoverysoftware.com/hrms/" + Uri.EscapeDataString(u.Slug);
-        try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true }); }
-        catch (Exception ex)
-        {
-            MessageBox.Show("Could not open your browser: " + ex.Message,
-                "HRMS", MessageBoxButton.OK, MessageBoxImage.Warning);
-        }
     }
 
     private async void LoadAgencyLogo()

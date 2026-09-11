@@ -46,10 +46,6 @@
                 <TextBlock Text="RECOVERY SOFTWARE" FontSize="11" FontWeight="SemiBold"
                            Foreground="{StaticResource Gray400}" VerticalAlignment="Center" />
             </StackPanel>
-            <TextBlock Name="lblProfile" Grid.Column="0" Foreground="{StaticResource Gray400}"
-                       FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"
-                       HorizontalAlignment="Right" Margin="0,0,14,0" Visibility="Collapsed"
-                       WindowChrome.IsHitTestVisibleInChrome="True" />
 
             <Button Name="btnMinimize" Click="btnMinimize_Click"
                     Grid.Column="1" Width="40" Height="40"
@@ -202,14 +198,6 @@
                            FontSize="11" FontWeight="Bold" Foreground="White"
                            HorizontalAlignment="Center" VerticalAlignment="Center" />
             </Border>
-            <Button Name="btnMyHrms" Click="btnMyHrms_Click"
-                    Grid.Row="8" Width="64" Height="56"
-                    Background="Transparent" BorderThickness="0"
-                    VerticalAlignment="Bottom" Margin="0,0,0,112"
-                    Content="&#x1F464;" FontFamily="{StaticResource FontBody}" FontSize="20"
-                    Foreground="{StaticResource Gray400}" Cursor="Hand"
-                    Visibility="Collapsed"
-                    ToolTip="My HRMS - attendance, leave and profile" />
             <Button Name="btnSettings" Click="btnSettings_Click"
                     Grid.Row="9" Width="64" Height="56"
                     Background="Transparent" BorderThickness="0"
@@ -427,17 +415,6 @@
                                 </Border>
                                 <StackPanel Margin="0,8,0,0" HorizontalAlignment="Center">
                                     <TextBlock Text="Accounts" FontWeight="SemiBold" Foreground="{StaticResource Gray900}" FontSize="14" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" />
-                                </StackPanel>
-                            </StackPanel>
-                        </Button>
-                        <Button Name="tileHrms" Tag="Hrms" Click="TileButton_Click" MinHeight="80" Margin="8" HorizontalAlignment="Stretch" Visibility="Collapsed" Style="{StaticResource DashboardTileButton}" ToolTip="Open HRMS in your browser">
-                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                                <Border Width="48" Height="48" CornerRadius="24" Background="#FFFF5500" HorizontalAlignment="Center">
-                                    <Path Width="22" Height="22" Stretch="Uniform" Fill="White"
-                                          Data="M16 11c1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3 1.34 3 3 3zm-8 0c1.66 0 3-1.34 3-3S9.66 5 8 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z" />
-                                </Border>
-                                <StackPanel Margin="0,8,0,0" HorizontalAlignment="Center">
-                                    <TextBlock Text="HRMS" FontWeight="Bold" Foreground="#FFCC3C00" FontSize="14" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" />
                                 </StackPanel>
                             </StackPanel>
                         </Button>

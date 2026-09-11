@@ -25,8 +25,6 @@ sealed class Screen(val route: String) {
     object Confirm             : Screen("confirm")
     object OkForRepo           : Screen("ok_for_repo")
     object Settings            : Screen("settings")
-    object Fingerprint         : Screen("fingerprint")
-    object FingerprintScan     : Screen("fingerprint_scan")
     object LiveUsers           : Screen("live_users")
     object ManageSubscriptions : Screen("manage_subscriptions")
     object ControlPanel        : Screen("control_panel")

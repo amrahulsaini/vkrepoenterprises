@@ -127,6 +127,13 @@ Database-per-tenant on **MariaDB 10.11**. Local DB (not remote). Env vars use `M
 - DB users: `crm_master_app` (master), `tu_<slug>` per tenant, each on hosts `127.0.0.1` and `localhost`.
 - Tenant DB password is **derived**: `"T1!" + base64url(HMAC_SHA256(TENANT_DB_SECRET, "tenant:"+slug))[..25]` — so `TENANT_DB_SECRET` MUST match or tenant queries 500 while health stays green.
 
+HRMS, staff profiles, roles, attendance and fingerprint/QR sign-in were removed in September 2026. The desktop now signs in with the agency email and password only and opens straight into the full software. `dbschema/tenant_template.sql` matches a live tenant exactly (35 tables). Drop migrations, run once after the code that stops using them is deployed:
+```bash
+sudo mysqldump --single-transaction --databases crm_master crmr_v_k_enterprises crmr_rk_enterprises | gzip > ~/pre_hrms_drop_$(date +%F).sql.gz
+for db in crmr_v_k_enterprises crmr_rk_enterprises; do sudo mysql $db < /home/vkapp/dbschema/drop_hrms_fingerprint.sql; done
+sudo mysql crm_master < /home/vkapp/dbschema/drop_hrms_fingerprint_master.sql
+```
+
 ### 5.1 Tuning (persisted in `/etc/mysql/mariadb.conf.d/99-crmrs-tuning.cnf`)
 ```
 innodb_buffer_pool_size = 8G

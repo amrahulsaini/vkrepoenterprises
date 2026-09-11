@@ -24,7 +24,5 @@ public class SignedAppUser
     public string Address    { get; set; } = string.Empty;
     public string LogoPath   { get; set; } = string.Empty;
 
-    public bool HrmsEnabled { get; set; }
-
     public string DeviceToken { get; set; } = string.Empty;
 }

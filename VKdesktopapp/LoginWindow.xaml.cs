@@ -115,7 +115,6 @@ public partial class LoginWindow : Window
         await RevokeDeviceAsync();
         ClearCachedAgencyBranding();
         App.SignedAppUser = null;
-        App.ProfileUser = null;
         App.HttpClient.DefaultRequestHeaders.Authorization = null;
         txtEmail.Clear();
         txtPassword.Clear();
@@ -286,65 +285,15 @@ public partial class LoginWindow : Window
 
         _ = AgencyBranding.SaveAsync(signed.AgencyName, signed.LogoPath);
 
-        // Agencies that use HRMS sign in as a person, not by picking a mode:
-        // the profile decides which modules exist, and MainWindow already
-        // reaches Billing, Couriers, Accounts and Allocations from its own
-        // tiles, so the chooser has nothing left to choose. Agencies without
-        // HRMS have no profiles to sign in with and keep the chooser.
-        bool profileGated = false;
-        try { profileGated = await CRMRSDesktopApp.Data.DesktopApiClient.ProfileLoginRequiredAsync(); } catch { }
-
-        if (profileGated)
-        {
-            ShowAgencyCard();
-            lblStatus.Text = "";
-            Hide();
-
-            if (!await ProfileGate.EnsureAsync(this, "CRMRS", standalone: true))
-            {
-                txtPassword.Clear();
-                if (ProfileGate.ChangeAgencyRequested) await ChangeAgencyAsync();
-                else Application.Current.Shutdown();
-                return;
-            }
-
-            var main = new MainWindow();
-            main.Closed += (_, __) => Application.Current.Shutdown();
-            Hide();
-            main.Show();
-            main.Activate();
-            return;
-        }
-
-        // The chooser is shown non-modally so it can be hidden while a mode is
-        // on screen and brought straight back when that mode closes. Hiding a
-        // window that is itself running a modal loop ends the loop, which is
-        // what previously made the app quit when a mode was closed.
-        var chooser = new ModeChooserWindow();
-        chooser.Closed += async (_, __) =>
-        {
-            txtPassword.Clear();
-            if (chooser.ChangeAgencyRequested || chooser.LoggedOut)
-            {
-                await RevokeDeviceAsync();
-                ClearCachedAgencyBranding();
-                ShowAgencyForm();
-                txtEmail.Clear();
-                lblStatus.Text = "";
-                Show();
-                Activate();
-                txtEmail.Focus();
-            }
-            else
-            {
-                Application.Current.Shutdown();
-            }
-        };
-
+        ShowAgencyCard();
+        txtPassword.Clear();
         lblStatus.Text = "";
+
+        var main = new MainWindow();
+        main.Closed += (_, __) => Application.Current.Shutdown();
         Hide();
-        chooser.Show();
-        chooser.Activate();
+        main.Show();
+        main.Activate();
     }
 
     private static async Task RevokeDeviceAsync()

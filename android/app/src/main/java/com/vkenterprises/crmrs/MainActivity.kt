@@ -188,16 +188,6 @@ fun VKNavHost() {
             AuthorityLetterScreen(searchVm, authVm, navController)
         }
 
-        composable(Screen.Fingerprint.route) {
-            val api = com.vkenterprises.crmrs.data.api.ApiClient.api
-            FingerprintScreen(api = api, onBack = { navController.popBackStack() })
-        }
-
-        composable(Screen.FingerprintScan.route) {
-            val api = com.vkenterprises.crmrs.data.api.ApiClient.api
-            FingerprintScanScreen(api = api, onDone = { navController.popBackStack() })
-        }
-
         composable(Screen.Settings.route) {
             val settingsVm: SettingsViewModel = hiltViewModel()
             SettingsScreen(settingsVm, searchVm, authVm, navController)

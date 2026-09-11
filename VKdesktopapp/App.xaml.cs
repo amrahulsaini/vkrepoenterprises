@@ -17,24 +17,6 @@ public partial class App : Application
 
     public static SignedAppUser? SignedAppUser { get; set; }
 
-    public static ProfileSession? ProfileUser { get; set; }
-
-    public sealed class ProfileSession
-    {
-        public string Name { get; init; } = "";
-        public string Mobile { get; init; } = "";
-        public string Role { get; init; } = "";
-        public string[] Modules { get; init; } = System.Array.Empty<string>();
-
-        /// No profile signed in, or the agency does not gate the desktop at all,
-        /// means every module stays visible. Only an explicit list restricts.
-        public bool Can(string key) =>
-            Modules.Length == 0 ||
-            System.Array.Exists(Modules, m => string.Equals(m, key, System.StringComparison.OrdinalIgnoreCase));
-    }
-
-    public static bool CanOpen(string key) => ProfileUser?.Can(key) ?? true;
-
     public static string LoginEmail { get; set; } = "";
 
     public static Firm Firm => new Firm
