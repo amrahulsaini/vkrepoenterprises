@@ -298,6 +298,16 @@
                                 </StackPanel>
                             </StackPanel>
                         </Button>
+                        <Button Tag="YardList" Click="TileButton_Click" MinHeight="80" Margin="8" HorizontalAlignment="Stretch" Style="{StaticResource DashboardTileButton}">
+                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                                <Border Width="48" Height="48" CornerRadius="24" Background="{StaticResource Gray100}" HorizontalAlignment="Center">
+                                    <TextBlock Text="📍" FontSize="18" VerticalAlignment="Center" HorizontalAlignment="Center" />
+                                </Border>
+                                <StackPanel Margin="0,8,0,0" HorizontalAlignment="Center">
+                                    <TextBlock Text="Yard List" FontWeight="SemiBold" Foreground="{StaticResource Gray900}" FontSize="14" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Button>
                         <Button Tag="RateList" Click="TileButton_Click" MinHeight="80" Margin="8" HorizontalAlignment="Stretch" Style="{StaticResource DashboardTileButton}">
                             <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
                                 <Border Width="48" Height="48" CornerRadius="24" Background="{StaticResource Gray100}" HorizontalAlignment="Center">

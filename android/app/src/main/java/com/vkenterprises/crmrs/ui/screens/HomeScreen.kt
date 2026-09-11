@@ -900,7 +900,13 @@ private fun AgencyLandingPanel(
                     modifier = Modifier.weight(1f)
                 ) { nav.navigate(Screen.AuthorityLetter.route) }
             } else {
-                Spacer(Modifier.weight(1f))
+                GridTile(
+                    label    = "YARD LIST",
+                    icon     = Icons.Default.Warehouse,
+                    subtitle = "Yards, links and files",
+                    accent   = Color(0xFF5D4037),
+                    modifier = Modifier.weight(1f)
+                ) { nav.navigate(Screen.YardList.route) }
             }
         }
         Spacer(Modifier.height(10.dp))

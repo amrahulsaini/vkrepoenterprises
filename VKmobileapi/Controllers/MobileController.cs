@@ -1148,6 +1148,25 @@ public class MobileController : ControllerBase
         }
     }
 
+    [HttpGet("yardlist")]
+    public async Task<IActionResult> GetYardList([FromHeader(Name = "X-User-Id")] long userId)
+    {
+        try
+        {
+            var rows = await _repo.GetYardListAsync();
+            return Ok(rows.Select(r => new
+            {
+                r.Id, r.Title, r.Kind, r.Notes, r.FinanceId, r.FinanceName,
+                r.FileName, r.FileSize, r.Mime, r.CreatedAt,
+                Url = r.Kind == "link" ? r.Url : AbsUrl(r.FilePath),
+            }));
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new ApiError(false, $"Fetch failed: {ex.Message}"));
+        }
+    }
+
     [HttpGet("ratelist")]
     public async Task<IActionResult> GetRateList([FromHeader(Name = "X-User-Id")] long userId)
     {

@@ -66,7 +66,7 @@ private fun sizeLabel(bytes: Long): String = when {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun RateListScreen(vm: AuthViewModel, nav: NavController) {
+fun RateListScreen(vm: AuthViewModel, nav: NavController, yard: Boolean = false) {
     val context = LocalContext.current
 
     var items   by remember { mutableStateOf<List<RateListItem>>(emptyList()) }
@@ -78,9 +78,9 @@ fun RateListScreen(vm: AuthViewModel, nav: NavController) {
         loading = true
         runCatching {
             val uid = vm.userId.first()
-            val r = ApiClient.api.getRateList(uid)
+            val r = if (yard) ApiClient.api.getYardList(uid) else ApiClient.api.getRateList(uid)
             if (r.isSuccessful) items = r.body().orEmpty()
-            else error = "Couldn't load the rate list."
+            else error = if (yard) "Couldn't load the yard list." else "Couldn't load the rate list."
         }.onFailure { error = "Couldn't reach the server." }
         loading = false
     }
@@ -102,7 +102,7 @@ fun RateListScreen(vm: AuthViewModel, nav: NavController) {
             val dm = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
             val req = DownloadManager.Request(Uri.parse(url))
                 .setTitle(name)
-                .setDescription("Rate list — ${item.title}")
+                .setDescription("${if (yard) "Yard list" else "Rate list"} — ${item.title}")
                 .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
                 .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, name)
             item.mime?.takeIf { it.isNotBlank() }?.let { req.setMimeType(it) }
@@ -127,7 +127,7 @@ fun RateListScreen(vm: AuthViewModel, nav: NavController) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Rate List", fontWeight = FontWeight.Bold) },
+                title = { Text(if (yard) "Yard List" else "Rate List", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = { nav.popBackStack() }) { Icon(Icons.Default.ArrowBack, null) }
                 }
@@ -138,7 +138,7 @@ fun RateListScreen(vm: AuthViewModel, nav: NavController) {
             OutlinedTextField(
                 value = query,
                 onValueChange = { query = it },
-                label = { Text("Search rate list") },
+                label = { Text(if (yard) "Search yard list" else "Search rate list") },
                 leadingIcon = { Icon(Icons.Default.Search, null) },
                 trailingIcon = {
                     if (query.isNotEmpty())
@@ -166,7 +166,7 @@ fun RateListScreen(vm: AuthViewModel, nav: NavController) {
                         modifier = Modifier.size(48.dp))
                     Spacer(Modifier.height(10.dp))
                     Text(
-                        if (items.isEmpty()) "The office hasn't published a rate list yet."
+                        if (items.isEmpty()) if (yard) "The office hasn't published a yard list yet." else "The office hasn't published a rate list yet."
                         else "Nothing matches that search.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant

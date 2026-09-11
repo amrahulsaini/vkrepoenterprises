@@ -480,6 +480,35 @@ internal static class DesktopApiClient
         resp.EnsureSuccessStatusCode();
     }
 
+    internal static async Task<List<RateListItemDto>> GetYardListAsync()
+    {
+        var resp = await Send(HttpMethod.Get, "api/mgr/yardlist");
+        resp.EnsureSuccessStatusCode();
+        return (await resp.Content.ReadFromJsonAsync<List<RateListItemDto>>(_json))!;
+    }
+
+    internal static async Task AddYardListLinkAsync(string title, string url, string? notes)
+    {
+        var resp = await Send(HttpMethod.Post, "api/mgr/yardlist",
+            new { Title = title, Kind = "link", Url = url, Notes = notes });
+        resp.EnsureSuccessStatusCode();
+    }
+
+    internal static async Task AddYardListFileAsync(
+        string title, string fileName, string mime, string fileBase64, string? notes)
+    {
+        var resp = await Send(HttpMethod.Post, "api/mgr/yardlist",
+            new { Title = title, Kind = "file", FileName = fileName, Mime = mime,
+                  FileBase64 = fileBase64, Notes = notes });
+        resp.EnsureSuccessStatusCode();
+    }
+
+    internal static async Task DeleteYardListAsync(long id)
+    {
+        var resp = await Send(HttpMethod.Delete, $"api/mgr/yardlist/{id}");
+        resp.EnsureSuccessStatusCode();
+    }
+
     internal static async Task SetRateListUsersAsync(long id, List<long> userIds)
     {
         var resp = await Send(HttpMethod.Put, $"api/mgr/ratelist/{id}/users", new { UserIds = userIds });

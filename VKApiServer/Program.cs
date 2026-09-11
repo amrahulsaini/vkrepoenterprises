@@ -1979,6 +1979,116 @@ static async Task SaveRateListAudience(MySqlConnection conn, long listId, List<l
             conn, 15, ("@id", listId), ("@uid", uid));
 }
 
+app.MapGet("/api/mgr/yardlist", async (HttpContext ctx) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        await using var conn = new MySqlConnection(TenantContext.Conn);
+        await conn.OpenAsync();
+        await using var cmd = new MySqlCommand(@"
+            SELECT id, title, kind, url, file_path, file_name, file_size, mime, notes, created_at
+            FROM yard_lists ORDER BY created_at DESC", conn) { CommandTimeout = 20 };
+        string baseUrl = $"{ctx.Request.Scheme}://{ctx.Request.Host}";
+        var list = new List<object>();
+        await using var r = await cmd.ExecuteReaderAsync();
+        string? S(int i) => r.IsDBNull(i) ? null : r.GetString(i);
+        while (await r.ReadAsync())
+        {
+            var kind = S(2) ?? "file";
+            var rel  = S(4);
+            list.Add(new
+            {
+                id        = r.GetInt64(0),
+                title     = S(1) ?? "",
+                kind,
+                notes     = S(8),
+                fileName  = S(5),
+                fileSize  = r.GetInt64(6),
+                mime      = S(7),
+                url       = kind == "link"
+                              ? S(3)
+                              : (string.IsNullOrEmpty(rel) ? null : $"{baseUrl}/uploads/{rel.TrimStart('/')}"),
+                createdAt = r.GetDateTime(9),
+            });
+        }
+        return Results.Ok(list);
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+app.MapPost("/api/mgr/yardlist", async (HttpContext ctx, MgrRateListDto dto) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    var title = dto.Title?.Trim();
+    if (string.IsNullOrWhiteSpace(title))
+        return Results.BadRequest(new { message = "A title is required." });
+
+    var isLink = string.Equals(dto.Kind, "link", StringComparison.OrdinalIgnoreCase);
+    if (isLink && string.IsNullOrWhiteSpace(dto.Url))
+        return Results.BadRequest(new { message = "A link needs a URL." });
+    if (!isLink && string.IsNullOrWhiteSpace(dto.FileBase64))
+        return Results.BadRequest(new { message = "Choose a file to upload." });
+
+    try
+    {
+        string? rel = null; long size = 0;
+        if (!isLink)
+        {
+            var bytes = Convert.FromBase64String(dto.FileBase64!);
+            size = bytes.LongLength;
+            var dir = "/opt/vkmobileapi/uploads/yardlist";
+            Directory.CreateDirectory(dir);
+            var ext = Path.GetExtension(dto.FileName ?? "").Trim();
+            if (ext.Length > 12 || ext.Any(c => Path.GetInvalidFileNameChars().Contains(c))) ext = "";
+            var fname = $"{DateTime.UtcNow:yyyyMMddHHmmssfff}{ext}";
+            await File.WriteAllBytesAsync(Path.Combine(dir, fname), bytes);
+            rel = $"yardlist/{fname}";
+        }
+
+        await using var conn = new MySqlConnection(TenantContext.Conn);
+        await conn.OpenAsync();
+        await using var cmd = new MySqlCommand(@"
+            INSERT INTO yard_lists (title, kind, url, file_path, file_name, file_size, mime, notes)
+            VALUES (@t, @k, @u, @p, @fn, @sz, @m, @n)", conn) { CommandTimeout = 30 };
+        cmd.Parameters.AddWithValue("@t",  title);
+        cmd.Parameters.AddWithValue("@k",  isLink ? "link" : "file");
+        cmd.Parameters.AddWithValue("@u",  isLink ? (object)dto.Url!.Trim() : DBNull.Value);
+        cmd.Parameters.AddWithValue("@p",  (object?)rel ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@fn", string.IsNullOrWhiteSpace(dto.FileName) ? DBNull.Value : dto.FileName!.Trim());
+        cmd.Parameters.AddWithValue("@sz", size);
+        cmd.Parameters.AddWithValue("@m",  string.IsNullOrWhiteSpace(dto.Mime) ? DBNull.Value : dto.Mime!.Trim());
+        cmd.Parameters.AddWithValue("@n",  string.IsNullOrWhiteSpace(dto.Notes) ? DBNull.Value : dto.Notes!.Trim());
+        await cmd.ExecuteNonQueryAsync();
+        return Results.Ok(new { success = true });
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
+app.MapDelete("/api/mgr/yardlist/{id:long}", async (HttpContext ctx, long id) =>
+{
+    if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();
+    try
+    {
+        await using var conn = new MySqlConnection(TenantContext.Conn);
+        await conn.OpenAsync();
+        string? rel = null;
+        await using (var q = new MySqlCommand("SELECT file_path FROM yard_lists WHERE id=@id", conn) { CommandTimeout = 10 })
+        {
+            q.Parameters.AddWithValue("@id", id);
+            rel = (await q.ExecuteScalarAsync()) as string;
+        }
+        await MgrExec("DELETE FROM yard_lists WHERE id=@id", conn, 10, ("@id", id));
+        if (!string.IsNullOrWhiteSpace(rel))
+        {
+            var full = Path.Combine("/opt/vkmobileapi/uploads", rel.TrimStart('/'));
+            try { if (File.Exists(full)) File.Delete(full); } catch { }
+        }
+        return Results.Ok(new { success = true });
+    }
+    catch (Exception ex) { return Results.Problem(ex.Message); }
+});
+
 app.MapGet("/api/mgr/ratelist", async (HttpContext ctx) =>
 {
     if (!MgrAuth(ctx, desktopLoginPassword)) return Results.Unauthorized();

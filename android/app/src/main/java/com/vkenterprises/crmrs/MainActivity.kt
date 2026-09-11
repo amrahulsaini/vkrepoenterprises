@@ -184,6 +184,9 @@ fun VKNavHost() {
         composable(Screen.RateList.route) {
             RateListScreen(authVm, navController)
         }
+        composable(Screen.YardList.route) {
+            RateListScreen(authVm, navController, yard = true)
+        }
         composable(Screen.AuthorityLetter.route) {
             AuthorityLetterScreen(searchVm, authVm, navController)
         }

@@ -240,6 +240,11 @@ interface ApiService {
         @Query("month") month: Int
     ): Response<ConfirmationCountResponse>
 
+    @GET("api/mobile/yardlist")
+    suspend fun getYardList(
+        @Header("X-User-Id") userId: Long
+    ): Response<List<RateListItem>>
+
     @GET("api/mobile/ratelist")
     suspend fun getRateList(
         @Header("X-User-Id") userId: Long

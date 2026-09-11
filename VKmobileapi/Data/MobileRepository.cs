@@ -128,6 +128,25 @@ public class MobileRepository
         return Convert.ToInt32(await cmd.ExecuteScalarAsync() ?? 0);
     }
 
+    public async Task<List<RateListItemDto>> GetYardListAsync()
+    {
+        await using var conn = DbFactory.Create();
+        await conn.OpenAsync();
+        await using var cmd = new MySqlCommand(@"
+            SELECT id, title, kind, url, file_path, file_name, file_size, mime, notes, created_at
+            FROM yard_lists
+            ORDER BY created_at DESC
+            LIMIT 500", conn) { CommandTimeout = 20 };
+        var list = new List<RateListItemDto>();
+        await using var r = await cmd.ExecuteReaderAsync();
+        string? S(int i) => r.IsDBNull(i) ? null : r.GetString(i);
+        while (await r.ReadAsync())
+            list.Add(new RateListItemDto(
+                r.GetInt64(0), S(1) ?? "", S(2) ?? "file", S(3), S(4), S(5),
+                r.GetInt64(6), S(7), null, null, S(8), r.GetDateTime(9)));
+        return list;
+    }
+
     public async Task<List<RateListItemDto>> GetRateListAsync(long userId)
     {
         await using var conn = DbFactory.Create();
