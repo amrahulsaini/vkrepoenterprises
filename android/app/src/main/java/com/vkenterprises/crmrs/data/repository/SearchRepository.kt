@@ -34,14 +34,14 @@ class SearchRepository {
             SearchResult2.Error(com.vkenterprises.crmrs.utils.NetworkError.friendly(e))
         }
 
-    suspend fun getVehicleBranches(key: String, userId: Long): List<SearchResult> =
+    suspend fun getVehicleBranches(key: String, userId: Long): SearchResult2 =
         try {
             val resp = api.getVehicleBranches(key, userId)
-            if (resp.isSuccessful) resp.body()?.results ?: emptyList() else emptyList()
+            mapSearchResponse(resp)
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (e: Exception) {
-            emptyList()
+            SearchResult2.Error(com.vkenterprises.crmrs.utils.NetworkError.friendly(e))
         }
 
     suspend fun getRecord(id: Long, userId: Long): SearchResult? =

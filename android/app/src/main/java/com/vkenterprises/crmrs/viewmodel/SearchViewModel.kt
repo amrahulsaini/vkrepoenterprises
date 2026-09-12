@@ -12,6 +12,7 @@ import com.vkenterprises.crmrs.data.repository.SearchRepository
 import com.vkenterprises.crmrs.data.repository.SearchResult2
 import com.vkenterprises.crmrs.data.repository.SyncRepository
 import com.vkenterprises.crmrs.utils.PreferencesManager
+import com.vkenterprises.crmrs.utils.matchesVehicle
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
@@ -30,6 +31,9 @@ data class SearchUiState(
     val fullRecord: SearchResult?     = null,
     val fullRecordId: Long?           = null,
     val vehicleBranches: List<SearchResult> = emptyList(),
+    val branchesLoading: Boolean = false,
+    val branchesLoaded: Boolean = false,
+    val branchesError: String? = null,
     val errorMsg: String?             = null,
     val isSearching: Boolean          = false,
     val subscriptionExpired: Boolean  = false,
@@ -253,26 +257,44 @@ class SearchViewModel @Inject constructor(
     fun selectResult(result: SearchResult) {
         branchesJob?.cancel()
         fullRecordJob?.cancel()
-        _ui.update { it.copy(selectedResult = result, fullRecord = null, fullRecordId = null, vehicleBranches = emptyList()) }
+        _ui.update { it.copy(selectedResult = result, fullRecord = null, fullRecordId = null,
+            vehicleBranches = emptyList(), branchesLoading = false, branchesLoaded = false, branchesError = null) }
     }
 
     fun loadVehicleBranches(userId: Long) {
         val current = _ui.value.selectedResult ?: return
         val key = current.vehicleNo.trim().ifBlank { current.chassisNo.trim() }
         if (key.isBlank()) return
+        if (_ui.value.branchesLoaded || branchesJob?.isActive == true) return
         branchesJob?.cancel()
+        _ui.update { it.copy(branchesLoading = true, branchesError = null) }
         branchesJob = viewModelScope.launch {
-            val rows = withContext(Dispatchers.IO) { serverRepo.getVehicleBranches(key, userId) }
+            val result = withContext(Dispatchers.IO) { serverRepo.getVehicleBranches(key, userId) }
             if (_ui.value.selectedResult?.id != current.id) return@launch
-            if (rows.isNotEmpty()) _ui.update { it.copy(vehicleBranches = rows) }
+            _ui.update {
+                when (result) {
+                    is SearchResult2.Success -> it.copy(vehicleBranches = result.data, branchesLoaded = true,
+                        branchesLoading = false, branchesError = null)
+                    else -> it.copy(branchesLoading = false, branchesError =
+                        "Could not load all finance records. " +
+                            if (result is SearchResult2.Error) result.message else "Please check your account and try again.")
+                }
+            }
         }
     }
 
     fun fetchFullRecord(id: Long, userId: Long) {
         fullRecordJob?.cancel()
+        val cached = _ui.value.vehicleBranches.firstOrNull { it.id == id }
+        if (_ui.value.branchesLoaded && cached != null) {
+            _ui.update { it.copy(fullRecord = cached, fullRecordId = id) }
+            return
+        }
+        val selected = _ui.value.selectedResult?.id
         fullRecordJob = viewModelScope.launch {
             val rec = withContext(Dispatchers.IO) { serverRepo.getRecord(id, userId) }
-            if (rec != null) _ui.update { it.copy(fullRecord = rec, fullRecordId = id) }
+            if (rec != null && _ui.value.selectedResult?.id == selected)
+                _ui.update { it.copy(fullRecord = rec, fullRecordId = id) }
         }
     }
 
@@ -347,7 +369,7 @@ class SearchViewModel @Inject constructor(
             }
             if (result is SearchResult2.Success) {
                 val match = result.data.firstOrNull {
-                    it.vehicleNo == current.vehicleNo || it.chassisNo == current.chassisNo
+                    it.matchesVehicle(current)
                 }
                 if (match != null && _ui.value.selectedResult?.id == current.id) {
                     _ui.update { it.copy(selectedResult = match, results = result.data, allResults = result.data) }

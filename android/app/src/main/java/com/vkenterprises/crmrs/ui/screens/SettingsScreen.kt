@@ -227,7 +227,7 @@ fun SettingsScreen(
                         color = MaterialTheme.colorScheme.primary,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.clickable { openSite() })
-                    Text("rahul@loopwar.dev",
+                    Text("team@crmrecoverysoftware.com",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center)

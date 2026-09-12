@@ -1075,12 +1075,8 @@ public class MobileRepository
         COALESCE(f.name,'') AS financer, b.name AS branch_name,
         COALESCE(DATE_FORMAT(vr.created_at,'%d %b %Y, %h:%i %p'),'') AS created_on";
 
-    private static string BestPerGroupFilter(string groupCol) => $@"
-        AND NOT EXISTS (
-            SELECT 1 FROM vehicle_records dup
-            WHERE dup.{groupCol} = vr.{groupCol}
-              AND (dup.completeness, dup.id) > (vr.completeness, vr.id)
-        )";
+    public static string NormalizeVehicleKey(string? value) =>
+        System.Text.RegularExpressions.Regex.Replace((value ?? "").ToUpperInvariant(), "[^A-Z0-9]", "");
 
     public async Task<List<SearchResult>> SearchByRcLiteAsync(string last4, long userId, int financeId = 0)
     {
@@ -1094,7 +1090,7 @@ public class MobileRepository
             INNER JOIN branches b ON b.id = vr.branch_id
             LEFT  JOIN finances f ON f.id = b.finance_id
             WHERE ri.last4 = @q {filter} {FinanceScope(financeId)}
-            {BestPerGroupFilter("vehicle_no")}", last4.ToUpper());
+            ORDER BY vr.completeness DESC, vr.id DESC", last4.ToUpper());
     }
 
     public async Task<List<SearchResult>> SearchByChassisLiteAsync(string last5, long userId, int financeId = 0)
@@ -1109,21 +1105,31 @@ public class MobileRepository
             INNER JOIN branches b ON b.id = vr.branch_id
             LEFT  JOIN finances f ON f.id = b.finance_id
             WHERE ci.last5 = @q {filter} {FinanceScope(financeId)}
-            {BestPerGroupFilter("chassis_no")}", last5.ToUpper());
+            ORDER BY vr.completeness DESC, vr.id DESC", last5.ToUpper(), byChassis: true);
     }
 
     public async Task<List<SearchResult>> GetVehicleBranchesAsync(string key, long userId, int financeId = 0)
     {
+        var normalized = NormalizeVehicleKey(key);
+        if (normalized.Length == 0) return new List<SearchResult>();
         var restricted = await GetFinanceRestrictionsAsync(userId);
         var filter = restricted.Count > 0
             ? $"AND b.finance_id NOT IN ({string.Join(",", restricted)})" : "";
         return await SearchAsync($@"
             SELECT {SelectFields}
-            FROM vehicle_records vr
+            FROM (
+                SELECT vehicle_record_id FROM rc_info
+                WHERE last4 = LEFT(REGEXP_SUBSTR(@q, '[0-9]{{4}}[^0-9]*$'), 4)
+                UNION
+                SELECT vehicle_record_id FROM chassis_info WHERE last5 = RIGHT(@q, 5)
+            ) matches
+            INNER JOIN vehicle_records vr ON vr.id = matches.vehicle_record_id
             INNER JOIN branches b ON b.id = vr.branch_id
             LEFT  JOIN finances f ON f.id = b.finance_id
-            WHERE (vr.vehicle_no = @q OR vr.chassis_no = @q) {filter} {FinanceScope(financeId)}
-            ORDER BY vr.completeness DESC, vr.id DESC", key.ToUpper());
+            WHERE (REGEXP_REPLACE(UPPER(COALESCE(vr.vehicle_no,'')), '[^A-Z0-9]', '') = @q
+                OR REGEXP_REPLACE(UPPER(COALESCE(vr.chassis_no,'')), '[^A-Z0-9]', '') = @q)
+                {filter} {FinanceScope(financeId)}
+            ORDER BY vr.completeness DESC, vr.id DESC", normalized);
     }
 
     public async Task<List<HeadOffice>> GetHeadOfficesAsync(long userId)
@@ -1329,7 +1335,7 @@ public class MobileRepository
         }
     }
 
-    private static async Task<List<SearchResult>> SearchLiteAsync(string sql, string query)
+    private static async Task<List<SearchResult>> SearchLiteAsync(string sql, string query, bool byChassis = false)
     {
         var list = new List<SearchResult>();
         await using var conn = DbFactory.Create();
@@ -1349,11 +1355,17 @@ public class MobileRepository
                 Level2Contact: "", Level3: "", Level3Contact: "", Level4: "", Level4Contact: "",
                 SenderMail1: "", SenderMail2: "", ExecutiveName: "", Pos: "", Toss: "",
                 Remark: "", BranchFromExcel: ""));
-        return list;
+        // The query has already applied the user's finance visibility and sorted
+        // by completeness. A record in a hidden finance must not suppress one
+        // the user can see. Normalize formatting variants before deduplication.
+        return list.DistinctBy(r => NormalizeVehicleKey(byChassis ? r.ChassisNo : r.VehicleNo)).ToList();
     }
 
-    public async Task<SearchResult?> GetRecordByIdAsync(long id)
+    public async Task<SearchResult?> GetRecordByIdAsync(long id, long userId)
     {
+        var restricted = await GetFinanceRestrictionsAsync(userId);
+        var filter = restricted.Count > 0
+            ? $"AND b.finance_id NOT IN ({string.Join(",", restricted)})" : "";
         await using var conn = DbFactory.Create();
         await conn.OpenAsync();
         await using var cmd = new MySqlCommand($@"
@@ -1361,7 +1373,7 @@ public class MobileRepository
             FROM vehicle_records vr
             INNER JOIN branches b ON b.id = vr.branch_id
             LEFT  JOIN finances f ON f.id = b.finance_id
-            WHERE vr.id = @id LIMIT 1", conn);
+            WHERE vr.id = @id {filter} LIMIT 1", conn);
         cmd.Parameters.AddWithValue("@id", id);
         await using var r = await cmd.ExecuteReaderAsync();
         string S(int i) => r.IsDBNull(i) ? "" : r.GetString(i);

@@ -347,7 +347,7 @@ public class MobileController : ControllerBase
             if (!await _repo.HasActiveSubscriptionAsync(userId))
                 return StatusCode(402, new ApiError(false, "subscription_expired"));
 
-            var rec = await _repo.GetRecordByIdAsync(id);
+            var rec = await _repo.GetRecordByIdAsync(id, userId);
             if (rec is null) return NotFound(new ApiError(false, "Record not found."));
             return Ok(rec);
         }

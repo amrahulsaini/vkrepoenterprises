@@ -39,6 +39,7 @@ import com.vkenterprises.crmrs.utils.googleMapsLink
 import com.vkenterprises.crmrs.utils.reverseGeocodeAddress
 import com.vkenterprises.crmrs.viewmodel.AuthViewModel
 import com.vkenterprises.crmrs.viewmodel.SearchViewModel
+import com.vkenterprises.crmrs.utils.matchesVehicle
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -72,7 +73,7 @@ fun ConfirmScreen(
     val skinny     = ui.selectedResult
     val full       = ui.fullRecord
     val item       = full?.takeIf {
-        skinny == null || it.vehicleNo == skinny.vehicleNo || it.chassisNo == skinny.chassisNo
+        skinny == null || it.matchesVehicle(skinny)
     } ?: skinny
     val actionType = ui.actionType
     val agentName  by authVm.userName.collectAsState(initial = "")

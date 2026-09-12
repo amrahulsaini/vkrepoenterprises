@@ -54,6 +54,7 @@ import com.vkenterprises.crmrs.viewmodel.AuthViewModel
 import com.vkenterprises.crmrs.viewmodel.SearchViewModel
 import com.vkenterprises.crmrs.utils.AuthorityLetterPdf
 import com.vkenterprises.crmrs.utils.RepoPdf
+import com.vkenterprises.crmrs.utils.matchesVehicle
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -182,7 +183,7 @@ fun VehicleDetailScreen(
     var showSelection    by remember { mutableStateOf(false) }
     var showBranchSheet  by remember { mutableStateOf(false) }
     var popped by remember { mutableStateOf(false) }
-    var selectedBranchIdx by remember { mutableStateOf(0) }
+    var selectedBranchId by remember(item?.id) { mutableStateOf<Long?>(null) }
     val selChecked = remember { mutableStateMapOf<String, Boolean>() }
 
     LaunchedEffect(isAdmin, item?.id) {
@@ -192,14 +193,13 @@ fun VehicleDetailScreen(
         }
     }
 
-    val vehicleRecords = remember(item?.vehicleNo, item?.chassisNo, ui.vehicleBranches, ui.allResults) {
+    val vehicleRecords = remember(item, ui.vehicleBranches, ui.allResults, ui.branchesLoaded) {
         if (item == null) emptyList()
         else {
-            val source = ui.vehicleBranches.ifEmpty { ui.allResults }
-            source.filter { r ->
-                (item.vehicleNo.isNotBlank() && r.vehicleNo == item.vehicleNo) ||
-                (item.chassisNo.isNotBlank() && r.chassisNo == item.chassisNo)
-            }.ifEmpty { listOf(item) }
+            val source = if (ui.branchesLoaded) ui.vehicleBranches else ui.allResults
+            source.filter { it.matchesVehicle(item) }.let {
+                if (it.isEmpty() && !ui.branchesLoaded) listOf(item) else it
+            }
         }
     }
 
@@ -215,22 +215,23 @@ fun VehicleDetailScreen(
          .sortedByDescending { it.createdOn.toBranchTime() }
     }
 
-    val branchRecord: SearchResult? = uniqueBranches.getOrNull(selectedBranchIdx)?.record ?: item
+    val branchRecord: SearchResult? = uniqueBranches.firstOrNull { it.record.id == selectedBranchId }?.record
+        ?: uniqueBranches.firstOrNull { it.record.id == item?.id }?.record
+        ?: uniqueBranches.firstOrNull()?.record ?: item
 
     val selectedId = branchRecord?.id
-    LaunchedEffect(selectedId) {
+    LaunchedEffect(selectedId, ui.branchesLoaded) {
         if (selectedId != null) {
             val uid = authVm.userId.first()
-            if (uid != 0L) searchVm.fetchFullRecord(selectedId, uid)
+            if (uid > 0L) searchVm.fetchFullRecord(selectedId, uid)
         }
     }
     val detailRecord: SearchResult? =
-        if (selectedId != null && ui.fullRecordId == selectedId) ui.fullRecord else branchRecord
+        ui.fullRecord?.takeIf { it.id == selectedId } ?: branchRecord
 
     var branchSheetAutoShown by remember(item?.id) { mutableStateOf(false) }
     LaunchedEffect(isAdmin, item?.id, uniqueBranches.size) {
         if (!isAdmin || item == null || branchSheetAutoShown) return@LaunchedEffect
-        if (uniqueBranches.isEmpty()) return@LaunchedEffect
         branchSheetAutoShown = true
         showBranchSheet      = true
     }
@@ -238,7 +239,7 @@ fun VehicleDetailScreen(
     LaunchedEffect(item?.id) {
         focusManager.clearFocus()
         keyboardController?.hide()
-        selectedBranchIdx = 0
+        selectedBranchId = null
         selChecked.clear()
         ALL_SEL_KEYS.forEach { selChecked[it] = true }
 
@@ -358,7 +359,7 @@ fun VehicleDetailScreen(
         CopyDialog(item = detailRecord ?: item, onDismiss = { showCopyDialog = false }, context = context)
     }
 
-    if (showBranchSheet && uniqueBranches.isNotEmpty()) {
+    if (showBranchSheet) {
         val dismissBranches: () -> Unit = {
             showBranchSheet = false
             focusManager.clearFocus()
@@ -416,10 +417,24 @@ fun VehicleDetailScreen(
                         color = Color(0xFFF57F17)
                     )
                 }
-                uniqueBranches.forEachIndexed { idx, entry ->
+                if (ui.branchesLoading) {
+                    LinearProgressIndicator(Modifier.fillMaxWidth())
+                    Text("Loading all finance records…", style = MaterialTheme.typography.bodySmall)
+                }
+                ui.branchesError?.let { error ->
+                    Text(error, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                    TextButton(onClick = { scope.launch {
+                        val uid = authVm.userId.first()
+                        if (uid > 0L) searchVm.loadVehicleBranches(uid)
+                    } }) { Text("Retry") }
+                }
+                if (ui.branchesLoaded && uniqueBranches.isEmpty()) {
+                    Text("No finance records available for this vehicle.")
+                }
+                uniqueBranches.forEach { entry ->
                     Card(
                         onClick  = {
-                            selectedBranchIdx = idx
+                            selectedBranchId = entry.record.id
                             showBranchSheet = false
                             focusManager.clearFocus()
                             keyboardController?.hide()

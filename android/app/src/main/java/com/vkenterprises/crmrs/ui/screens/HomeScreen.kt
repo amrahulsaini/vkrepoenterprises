@@ -970,7 +970,7 @@ private fun AgencyLandingPanel(
             fontWeight = FontWeight.ExtraBold,
             color = MaterialTheme.colorScheme.primary,
             letterSpacing = 2.sp)
-        Text("rahul@loopwar.dev",
+        Text("team@crmrecoverysoftware.com",
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.outline)
         val footerCtx = LocalContext.current
