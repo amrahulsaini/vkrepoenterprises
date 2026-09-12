@@ -282,8 +282,7 @@ public partial class AccountsPage : Page
 
             data = data.Where(d =>
                 d.BillingAction is "hold" or "collection_done"
-                || (d.BillingAction == "immediate"
-                    && string.Equals(d.CourierYn, "Yes", StringComparison.OrdinalIgnoreCase))
+                || d.BillingAction == "immediate"
             ).ToList();
 
             var wanted = _statusPicks.Where(p => p.IsChecked).Select(p => p.Key)
