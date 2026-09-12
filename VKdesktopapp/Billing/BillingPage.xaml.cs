@@ -360,7 +360,8 @@ public partial class BillingPage : Page
             ConfirmationByMobile = txtConfirmationByMobile.Text.Trim(),
             ExecutiveName        = txtExecutiveName.Text.Trim(),
             CollectionUpdate     = txtCollectionUpdate.Text.Trim(),
-            Remark               = txtRemark.Text.Trim()
+            Remark               = txtRemark.Text.Trim(),
+            BillingRemark       = txtBillingRemark.Text.Trim()
         });
     }
 
