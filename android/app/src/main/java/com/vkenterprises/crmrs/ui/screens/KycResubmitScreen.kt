@@ -5,6 +5,7 @@ import android.content.pm.PackageManager
 import android.graphics.BitmapFactory
 import android.location.Geocoder
 import android.net.Uri
+import android.os.SystemClock
 import android.util.Base64
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
@@ -17,6 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -46,6 +48,8 @@ import com.vkenterprises.crmrs.utils.createCameraImageUri
 import com.vkenterprises.crmrs.utils.extractAadhaarNumber
 import com.vkenterprises.crmrs.viewmodel.AuthViewModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
@@ -75,12 +79,20 @@ fun KycResubmitScreen(vm: AuthViewModel, nav: NavController) {
     var selfieUri by remember { mutableStateOf<Uri?>(null) }
     var selfieB64 by remember { mutableStateOf<String?>(null) }
 
-    var aadhaarNumber by remember { mutableStateOf("") }
+    var aadhaarNumber by rememberSaveable { mutableStateOf("") }
     var ocrRunning by remember { mutableStateOf(false) }
-    var otpRefId by remember { mutableStateOf<String?>(null) }
+    var otpRefId by rememberSaveable { mutableStateOf<String?>(null) }
     var otp by remember { mutableStateOf("") }
     var sending by remember { mutableStateOf(false) }
     var verifying by remember { mutableStateOf(false) }
+    var resendAt by rememberSaveable { mutableStateOf(0L) }
+    var resendSeconds by remember { mutableStateOf(0) }
+    LaunchedEffect(resendAt) {
+        do {
+            resendSeconds = ((resendAt - SystemClock.elapsedRealtime() + 999) / 1000).toInt().coerceAtLeast(0)
+            if (resendSeconds > 0) delay(250)
+        } while (resendSeconds > 0)
+    }
     var msg by remember { mutableStateOf("") }
     var verified by remember { mutableStateOf(false) }
     var aaName by remember { mutableStateOf<String?>(null) }
@@ -88,6 +100,75 @@ fun KycResubmitScreen(vm: AuthViewModel, nav: NavController) {
     var aaGender by remember { mutableStateOf<String?>(null) }
     var aaAddress by remember { mutableStateOf<String?>(null) }
     var aaPhoto by remember { mutableStateOf<String?>(null) }
+
+    fun responseMessage(response: retrofit2.Response<*>?, fallback: String): String =
+        runCatching {
+            response?.errorBody()?.string()?.let { org.json.JSONObject(it).optString("message") }
+        }.getOrNull()?.takeIf { it.isNotBlank() } ?: fallback
+
+    fun sendOtp() {
+        if (sending || verifying || ocrRunning || SystemClock.elapsedRealtime() < resendAt) return
+        val number = aadhaarNumber
+        if (number.length != 12) return
+        sending = true
+        // A resend can invalidate the old session even if the response times out.
+        otpRefId = null
+        otp = ""
+        msg = ""
+        resendAt = SystemClock.elapsedRealtime() + 45_000
+        scope.launch {
+            try {
+                val r = ApiClient.api.kycAadhaarOtp(mapOf("aadhaarNumber" to number))
+                if (aadhaarNumber != number) return@launch
+                val b = r.body()
+                if (r.isSuccessful && b?.ok == true && !b.referenceId.isNullOrBlank()) {
+                    otpRefId = b.referenceId
+                    resendAt = SystemClock.elapsedRealtime() + 45_000
+                    msg = "OTP sent. Enter the latest code sent to your Aadhaar-linked mobile."
+                } else {
+                    msg = responseMessage(r, b?.message ?: "Could not send OTP. Please try again.")
+                    if (msg.contains("try after", ignoreCase = true))
+                        resendAt = SystemClock.elapsedRealtime() + 45_000
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                msg = "Could not confirm OTP delivery. Wait for the resend timer, then request a fresh OTP."
+            } finally { sending = false }
+        }
+    }
+
+    fun verifyOtp() {
+        if (sending || verifying || ocrRunning || otp.length != 6) return
+        val reference = otpRefId ?: return
+        val number = aadhaarNumber
+        val code = otp
+        verifying = true
+        msg = ""
+        scope.launch {
+            try {
+                val r = ApiClient.api.kycAadhaarVerifyAnon(
+                    mapOf("referenceId" to reference, "otp" to code, "aadhaarNumber" to number))
+                if (aadhaarNumber != number || otpRefId != reference) return@launch
+                val b = r.body()
+                if (r.isSuccessful && b?.ok == true && b.verified) {
+                    verified = true; aaName = b.name; aaDob = b.dob; aaGender = b.gender; aaAddress = b.address
+                    aaPhoto = b.photo?.takeIf { it.isNotBlank() }; otp = ""; msg = ""
+                } else {
+                    msg = responseMessage(r, b?.message ?: "Verification could not complete. Please try again.")
+                    if (msg.contains("expired", ignoreCase = true) || msg.contains("invalid reference", ignoreCase = true)) {
+                        otpRefId = null
+                        otp = ""
+                        msg = "The verification provider says this OTP session has expired. Request a fresh OTP and enter only the latest code."
+                    }
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                msg = "Could not reach the verification service. Please check your connection and try again."
+            } finally { verifying = false }
+        }
+    }
 
     var regLat by remember { mutableStateOf<Double?>(null) }
     var regLng by remember { mutableStateOf<Double?>(null) }
@@ -164,7 +245,7 @@ fun KycResubmitScreen(vm: AuthViewModel, nav: NavController) {
                 if (uri != null) scope.launch {
                     aadhaarFrontB64 = b64(uri); ocrRunning = true
                     val num = runCatching { extractAadhaarNumber(context, uri) }.getOrNull()
-                    if (!num.isNullOrBlank()) { aadhaarNumber = num; verified = false; otpRefId = null; otp = "" }
+                    if (!num.isNullOrBlank() && num != aadhaarNumber) { aadhaarNumber = num; verified = false; otpRefId = null; otp = "" }
                     ocrRunning = false
                 }
             }
@@ -204,7 +285,10 @@ fun KycResubmitScreen(vm: AuthViewModel, nav: NavController) {
         }
     }
 
-    fun startPick(target: KycPick) { pickTarget = target; showSourceDialog = true }
+    fun startPick(target: KycPick) {
+        if (sending || verifying) return
+        pickTarget = target; showSourceDialog = true
+    }
 
     if (showSourceDialog) {
         ImageSourceDialog(
@@ -252,46 +336,34 @@ fun KycResubmitScreen(vm: AuthViewModel, nav: NavController) {
             }
             OutlinedTextField(
                 value = aadhaarNumber,
-                onValueChange = { v -> aadhaarNumber = v.filter { it.isDigit() }.take(12); verified = false; otpRefId = null },
+                onValueChange = { v ->
+                    val number = v.filter { it in '0'..'9' }.take(12)
+                    if (number != aadhaarNumber) {
+                        aadhaarNumber = number; verified = false; otpRefId = null; otp = ""; msg = ""
+                    }
+                },
                 label = { Text("Aadhaar Number *") }, leadingIcon = { Icon(Icons.Default.Badge, null) },
                 trailingIcon = { if (ocrRunning) RSpinner() else if (verified) Icon(Icons.Default.CheckCircle, null, tint = OK) },
-                enabled = !verified, singleLine = true,
+                enabled = !verified && !sending && !verifying && !ocrRunning, singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth()
             )
             if (!verified) {
                 if (otpRefId == null) {
-                    Button(onClick = {
-                        msg = ""; scope.launch {
-                            sending = true
-                            val r = runCatching { ApiClient.api.kycAadhaarOtp(mapOf("aadhaarNumber" to aadhaarNumber)) }.getOrNull()
-                            val b = r?.body()
-                            if (r?.isSuccessful == true && b?.ok == true && b.referenceId != null) { otpRefId = b.referenceId; msg = "OTP sent." }
-                            else msg = b?.message ?: "Could not send OTP."
-                            sending = false
-                        }
-                    }, enabled = aadhaarNumber.length == 12 && !sending, modifier = Modifier.fillMaxWidth()) {
-                        if (sending) RSpinner(true) else Text("SEND OTP")
+                    Button(onClick = { sendOtp() },
+                        enabled = aadhaarNumber.length == 12 && !sending && !verifying && !ocrRunning && resendSeconds == 0,
+                        modifier = Modifier.fillMaxWidth()) {
+                        if (sending) RSpinner(true) else Text(if (resendSeconds > 0) "Wait ${resendSeconds}s" else "SEND OTP")
                     }
                 } else {
-                    OutlinedTextField(value = otp, onValueChange = { otp = it.filter { c -> c.isDigit() }.take(6) },
+                    OutlinedTextField(value = otp, onValueChange = { otp = it.filter { c -> c in '0'..'9' }.take(6) },
+                        enabled = !sending && !verifying,
                         label = { Text("Enter OTP *") }, leadingIcon = { Icon(Icons.Default.Sms, null) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true, modifier = Modifier.fillMaxWidth())
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        OutlinedButton(onClick = { otpRefId = null; otp = ""; msg = "" }, modifier = Modifier.weight(1f)) { Text("Resend") }
-                        Button(onClick = {
-                            msg = ""; scope.launch {
-                                verifying = true
-                                val r = runCatching {
-                                    ApiClient.api.kycAadhaarVerifyAnon(mapOf("referenceId" to otpRefId, "otp" to otp, "aadhaarNumber" to aadhaarNumber))
-                                }.getOrNull()
-                                val b = r?.body()
-                                if (r?.isSuccessful == true && b?.ok == true && b.verified) {
-                                    verified = true; aaName = b.name; aaDob = b.dob; aaGender = b.gender; aaAddress = b.address
-                                    aaPhoto = b.photo?.takeIf { it.isNotBlank() }; msg = ""
-                                } else msg = b?.message ?: "OTP verification failed."
-                                verifying = false
-                            }
-                        }, enabled = otp.length >= 4 && !verifying, modifier = Modifier.weight(1f)) {
+                        OutlinedButton(onClick = { sendOtp() }, enabled = !sending && !verifying && !ocrRunning && resendSeconds == 0,
+                            modifier = Modifier.weight(1f)) { Text(if (resendSeconds > 0) "Resend in ${resendSeconds}s" else "Resend OTP") }
+                        Button(onClick = { verifyOtp() }, enabled = otp.length == 6 && !sending && !verifying && !ocrRunning,
+                            modifier = Modifier.weight(1f)) {
                             if (verifying) RSpinner(true) else Text("VERIFY OTP")
                         }
                     }
