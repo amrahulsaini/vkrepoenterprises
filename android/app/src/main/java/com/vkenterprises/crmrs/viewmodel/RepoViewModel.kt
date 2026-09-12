@@ -102,7 +102,7 @@ class RepoViewModel @Inject constructor() : ViewModel() {
     }
 
     fun onInputChange(text: String, userId: Long) {
-        val capped = text.filter { it.isDigit() }.take(requiredLen)
+        val capped = text.filter { it.isLetterOrDigit() }.uppercase().take(requiredLen)
         _ui.update { it.copy(inputText = capped, searchError = null) }
         if (capped.length == requiredLen) {
             val q    = capped.uppercase()

@@ -312,7 +312,7 @@ fun HomeScreen(
                     fun fadedHint(text: String) = Text(
                         text,
                         fontFamily = RobotoFamily,
-                        fontWeight = FontWeight.Normal,
+                        fontWeight = FontWeight.SemiBold,
                         fontSize = 14.sp,
                         letterSpacing = 0.5.sp,
                         maxLines = 1,
@@ -358,8 +358,12 @@ fun HomeScreen(
                         OutlinedTextField(
                             value = ui.inputText,
                             onValueChange = { searchVm.onInputChange(it, userId) },
-                            placeholder = { fadedHint(if (ui.mode == SearchMode.RC) "1234" else "Last 5") },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            placeholder = { fadedHint(if (ui.mode == SearchMode.RC) "1234" else "LAST 5") },
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = if (ui.mode == SearchMode.RC) KeyboardType.Number else KeyboardType.Text,
+                                capitalization = if (ui.mode == SearchMode.CHASSIS)
+                                    KeyboardCapitalization.Characters else KeyboardCapitalization.None
+                            ),
                             singleLine = true,
                             modifier = Modifier.weight(1f).height(52.dp).focusRequester(focusRequester),
                             shape = RoundedCornerShape(8.dp),

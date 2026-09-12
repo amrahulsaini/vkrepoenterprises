@@ -625,7 +625,7 @@ private fun QuickSearchBar(
     fun fadedHint(text: String) = Text(
         text,
         fontFamily = RobotoFamily,
-        fontWeight = FontWeight.Normal,
+        fontWeight = FontWeight.SemiBold,
         fontSize = 14.sp,
         letterSpacing = 0.5.sp,
         maxLines = 1,
@@ -677,15 +677,20 @@ private fun QuickSearchBar(
             OutlinedTextField(
                 value = ui.inputText,
                 onValueChange = { raw ->
-                    val digits = raw.filter { it.isDigit() }.take(maxLen)
-                    searchVm.onInputChange(digits, userId)
-                    if (digits.length == maxLen) onSubmit()
+                    val input = raw.filter { it.isLetterOrDigit() }.uppercase().take(maxLen)
+                    searchVm.onInputChange(input, userId)
+                    if (input.length == maxLen) onSubmit()
                 },
                 placeholder = {
-                    fadedHint(if (mode == com.vkenterprises.crmrs.viewmodel.SearchMode.RC) "1234" else "Last 5")
+                    fadedHint(if (mode == com.vkenterprises.crmrs.viewmodel.SearchMode.RC) "1234" else "LAST 5")
                 },
                 keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                    keyboardType = androidx.compose.ui.text.input.KeyboardType.Number
+                    keyboardType = if (mode == com.vkenterprises.crmrs.viewmodel.SearchMode.RC)
+                        androidx.compose.ui.text.input.KeyboardType.Number
+                    else androidx.compose.ui.text.input.KeyboardType.Text,
+                    capitalization = if (mode == com.vkenterprises.crmrs.viewmodel.SearchMode.CHASSIS)
+                        androidx.compose.ui.text.input.KeyboardCapitalization.Characters
+                    else androidx.compose.ui.text.input.KeyboardCapitalization.None
                 ),
                 singleLine = true,
                 modifier = Modifier.weight(1f).height(52.dp),

@@ -216,7 +216,7 @@ class SearchViewModel @Inject constructor(
     fun onInputChange(text: String, userId: Long) {
         val mode = _ui.value.mode
         val len  = if (mode == SearchMode.RC) 4 else 5
-        val capped = text.filter { it.isDigit() }.take(len)
+        val capped = text.filter { it.isLetterOrDigit() }.uppercase().take(len)
         _ui.update { it.copy(inputText = capped, errorMsg = null) }
         if (capped.length == len) {
             val prefix = if (mode == SearchMode.RC) _ui.value.prefixInput else ""

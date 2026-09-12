@@ -187,8 +187,8 @@ fun RepoSearchScreen(
                         value = ui.inputText,
                         onValueChange = { repoVm.onInputChange(it, userId) },
                         placeholder = {
-                            Text(if (ui.mode == SearchMode.RC) "Last 4 digits of RC" else "Last 5 digits of Chassis",
-                                style = MaterialTheme.typography.bodySmall)
+                                Text(if (ui.mode == SearchMode.RC) "1234" else "LAST 5",
+                                style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold))
                         },
                         leadingIcon = { Icon(Icons.Default.Search, null, Modifier.size(18.dp)) },
                         trailingIcon = {
@@ -196,7 +196,12 @@ fun RepoSearchScreen(
                                 repoVm.setMode(if (ui.mode == SearchMode.RC) SearchMode.CHASSIS else SearchMode.RC)
                             }) { Text(if (ui.mode == SearchMode.RC) "RC" else "CH", fontWeight = FontWeight.Bold) }
                         },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = if (ui.mode == SearchMode.RC) KeyboardType.Number else KeyboardType.Text,
+                            capitalization = if (ui.mode == SearchMode.CHASSIS)
+                                androidx.compose.ui.text.input.KeyboardCapitalization.Characters
+                            else androidx.compose.ui.text.input.KeyboardCapitalization.None
+                        ),
                         singleLine = true,
                         shape = RoundedCornerShape(8.dp),
                         textStyle = MaterialTheme.typography.bodyMedium.copy(
