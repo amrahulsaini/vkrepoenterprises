@@ -49,6 +49,31 @@ public partial class BillingPage : Page
         Loaded += BillingPage_Loaded;
         txtRepoAmount.TextChanged += (_, __) => Recompute();
         txtAddlAmount.TextChanged += (_, __) => Recompute();
+        var fields = new Dictionary<TextBox, string>
+        {
+            [txtAgriLoan] = "LoanNo", [txtCustomer] = "CustomerName", [txtMakeModel] = "Model",
+            [txtRcNo] = "VehicleNo", [txtBranch] = "BranchName", [txtAgentName] = "AgentName",
+            [txtParkingYard] = "ParkingYardName", [txtParkingYardMobile] = "ParkingYardMobile",
+            [txtLoadDetails] = "LoadDetails", [txtAddlCharges] = "AddlChargesNotes",
+            [txtAddlAmount] = "AddlChargesAmount", [txtConfirmationBy] = "ConfirmationByName",
+            [txtConfirmationByMobile] = "ConfirmationByMobile", [txtExecutiveName] = "ExecutiveName",
+            [txtCollectionUpdate] = "CollectionUpdate", [txtRemark] = "Remark", [txtBillingRemark] = "BillingRemark"
+        };
+        foreach (var pair in fields)
+            pair.Key.PreviewKeyDown += async (_, e) =>
+            {
+                if (e.Key != Key.Enter || _currentSubmissionId <= 0) return;
+                e.Handled = true;
+                try
+                {
+                    object value = pair.Key.Text.Trim();
+                    if (pair.Key == txtAddlAmount) value = ParseAmt(pair.Key.Text);
+                    await DesktopApiClient.UpdateSubmissionFieldsAsync(_currentSubmissionId,
+                        new Dictionary<string, object> { [pair.Value] = value });
+                    txtGenStatus.Text = "Saved.";
+                }
+                catch (Exception ex) { txtGenStatus.Text = "Save failed: " + ex.Message; }
+            };
     }
 
     private void Recompute()
@@ -252,6 +277,7 @@ public partial class BillingPage : Page
         txtConfirmationByMobile.Text = txtExecutiveName.Text = "";
         txtCollectionUpdate.Text = txtRemark.Text = "";
         _currentSubmissionId = 0;
+        txtRepoAmount.Text = "";
         SetSubmissionFieldsReadOnly(false);
     }
 
@@ -315,6 +341,7 @@ public partial class BillingPage : Page
         if (!string.IsNullOrWhiteSpace(s.ParkingYardName)) txtParkingYard.Text = Up(s.ParkingYardName);
         if (!string.IsNullOrWhiteSpace(s.AddlChargesNotes)) txtAddlCharges.Text = Up(s.AddlChargesNotes);
         if (s.AddlChargesAmount is decimal amt && amt > 0) txtAddlAmount.Text = amt.ToString("0.##");
+        txtRepoAmount.Text = s.RepoCharges?.ToString("0.##") ?? "";
         SetSubmissionFieldsReadOnly(false);
         txtGenStatus.Foreground = System.Windows.Media.Brushes.Green;
         txtGenStatus.Text = $"Loaded submission for {s.VehicleNo}. Edit any field, then generate.";
@@ -500,9 +527,9 @@ public partial class BillingPage : Page
                     await DesktopApiClient.MarkSubmissionBilledAsync(
                         _currentSubmissionId, _session?.MemberId ?? 0,
                         txtInvoiceNo.Text.Trim(), billB64, ext, ParseAmt(txtTotalAmount.Text),
-                        txtBillingRemark.Text.Trim());
+                        txtBillingRemark.Text.Trim(), ParseAmt(txtRepoAmount.Text), ParseAmt(txtAddlAmount.Text));
                 }
-                catch { }
+                catch (Exception ex) { MessageBox.Show("Bill created, but saving billing amounts failed: " + ex.Message); return; }
                 _currentSubmissionId = 0;
             }
             ResetVehicle();

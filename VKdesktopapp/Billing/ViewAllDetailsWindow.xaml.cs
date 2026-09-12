@@ -336,8 +336,10 @@ public partial class ViewAllDetailsWindow : Window
     }
 
     // Inline editing of the app-filled fields; saves the edited row to the server.
-    private async void BillingRemark_LostFocus(object sender, RoutedEventArgs e)
+    private async void BillingRemark_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
     {
+        if (e.Key != System.Windows.Input.Key.Enter) return;
+        e.Handled = true;
         if (sender is not TextBox box || box.DataContext is not Row r) return;
         var text = (box.Text ?? "").Trim();
         if (text == (_lastSavedRemark.TryGetValue(r.Id, out var prev) ? prev : r.BillingRemark)) return;
@@ -356,7 +358,7 @@ public partial class ViewAllDetailsWindow : Window
 
     private async void grid_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
     {
-        if (e.EditAction != DataGridEditAction.Commit) return;
+        if (!EnterOnlyGridSave.AllowCommit(grid, e)) return;
         if (e.Row.Item is not Row r) return;
         await Dispatcher.BeginInvoke(new Action(async () =>
         {

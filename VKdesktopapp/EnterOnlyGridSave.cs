@@ -15,7 +15,6 @@ internal static class EnterOnlyGridSave
     private sealed class GridState
     {
         public int AllowedCellEditEndings;
-        public DispatcherTimer? ResetTimer;
     }
 
     private static readonly ConditionalWeakTable<DataGrid, GridState> States = new();
@@ -79,23 +78,8 @@ internal static class EnterOnlyGridSave
 
         UpdateEditorSource(source);
 
-        var state = States.GetOrCreateValue(grid);
-        state.AllowedCellEditEndings = 2;
-        state.ResetTimer?.Stop();
-        state.ResetTimer = new DispatcherTimer(DispatcherPriority.Background)
-        {
-            Interval = TimeSpan.FromSeconds(1)
-        };
-        state.ResetTimer.Tick += (_, _) =>
-        {
-            state.ResetTimer?.Stop();
-            state.AllowedCellEditEndings = 0;
-        };
-        state.ResetTimer.Start();
-
         e.Handled = true;
-        grid.CommitEdit(DataGridEditingUnit.Cell, true);
-        grid.CommitEdit(DataGridEditingUnit.Row, true);
+        Commit(grid);
 
         // Leave the editor immediately so there is no lingering caret/focus border.
         grid.Dispatcher.BeginInvoke(new Action(() => grid.Focus()),
@@ -108,8 +92,30 @@ internal static class EnterOnlyGridSave
         var grid = FindAncestor<DataGrid>(combo);
         if (grid == null || !IsTargetGrid(grid)) return;
 
-        // Keep the binding/model updated. Couriers/Accounts save only after Enter commits the cell.
-        e.Handled = true;
+        if (!combo.IsLoaded || !combo.IsKeyboardFocusWithin || e.AddedItems.Count == 0) return;
+        UpdateEditorSource(combo);
+        grid.Dispatcher.BeginInvoke(new Action(() => Commit(grid)), DispatcherPriority.Background);
+    }
+
+    internal static bool AllowCommit(DataGrid grid, DataGridCellEditEndingEventArgs e)
+    {
+        if (e.EditAction != DataGridEditAction.Commit) return false;
+        if (States.GetOrCreateValue(grid).AllowedCellEditEndings > 0) return true;
+        // Keep text in its editor until explicitly submitted with Enter (Escape cancels).
+        e.Cancel = true;
+        return false;
+    }
+
+    private static void Commit(DataGrid grid)
+    {
+        var state = States.GetOrCreateValue(grid);
+        state.AllowedCellEditEndings++;
+        try
+        {
+            grid.CommitEdit(DataGridEditingUnit.Cell, true);
+            grid.CommitEdit(DataGridEditingUnit.Row, true);
+        }
+        finally { state.AllowedCellEditEndings--; }
     }
 
     private static void OnGridTextBoxLostFocus(object sender, RoutedEventArgs e)

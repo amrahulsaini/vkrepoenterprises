@@ -187,10 +187,10 @@ internal static class DesktopApiClient
 
     internal static async Task MarkSubmissionBilledAsync(long id, long memberId,
         string? invoiceNo = null, string? billBase64 = null, string? billExt = null, decimal? totalGross = null,
-        string? billingRemark = null)
-        => (await Send(HttpMethod.Post, $"api/mgr/billing/submissions/{id}/billed",
+        string? billingRemark = null, decimal? repoCharges = null, decimal? addlChargesAmount = null)
+        => await EnsureSaved(await Send(HttpMethod.Post, $"api/mgr/billing/submissions/{id}/billed",
             new { MemberId = memberId, InvoiceNo = invoiceNo, BillBase64 = billBase64, BillExt = billExt,
-                  TotalGross = totalGross, BillingRemark = billingRemark })).Dispose();
+                  TotalGross = totalGross, BillingRemark = billingRemark, RepoCharges = repoCharges, AddlChargesAmount = addlChargesAmount }));
 
     internal static async Task UpdateSubmissionFieldsAsync(long id, object dto)
         => await EnsureSaved(await Send(HttpMethod.Post, $"api/mgr/billing/submissions/{id}/fields", dto));

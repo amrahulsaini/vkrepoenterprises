@@ -140,7 +140,7 @@ public partial class AccountsPage : Page
         grid.ItemsSource = _shown;
         colBilling.ItemsSource = CRMRSDesktopApp.Couriers.CouriersPage.BillingPicks;
         colInventory.ItemsSource = CRMRSDesktopApp.Couriers.CouriersPage.YesNo;
-        colPayment.ItemsSource = new List<string> { "PAID", "UNPAID" };
+
         lstStatusPicks.ItemsSource = _statusPicks;
         UpdateStatusButton();
         dpFrom.DisplayDateEnd = DateTime.Today;
@@ -222,10 +222,11 @@ public partial class AccountsPage : Page
         public string BillingRemark { get => Src.BillingRemark ?? ""; set => Put(nameof(BillingRemark), Src.BillingRemark, value, v => Src with { BillingRemark = v }); }
         public string InventoryRemark { get => Src.InventoryRemark ?? ""; set => Put(nameof(InventoryRemark), Src.InventoryRemark, value, v => Src with { InventoryRemark = v }); }
         public string AccountsRemark { get => Src.AccountsRemark ?? ""; set => Put("Payment", Src.AccountsRemark, value, v => Src with { AccountsRemark = v }); }
-        public string Remark => Src.Remark;
+        public string Remark { get => Src.Remark; set => Put(nameof(Remark), Src.Remark, value, v => Src with { Remark = v }); }
+        public string AddlAmountText => Src.AddlChargesAmount?.ToString("0.##") ?? "";
         public string UtrNo { get => Src.UtrNo; set => Put("Payment", Src.UtrNo, value, v => Src with { UtrNo = v }); }
         public string InvoiceNo => Src.InvoiceNo ?? "";
-        public string PaymentDate => Src.PaymentDate;
+        public string PaymentDate { get => Src.PaymentDate; set => Put("Payment", Src.PaymentDate, value, v => Src with { PaymentDate = v }); }
         public string PaymentStatusText
         {
             get => (Src.PaymentStatus ?? "").Trim().ToLowerInvariant() switch
@@ -237,7 +238,12 @@ public partial class AccountsPage : Page
             set => Put("Payment", PaymentStatusText, value, v => Src with { PaymentStatus = v.ToLowerInvariant() });
         }
         public decimal CashAmount => Src.CashAmount ?? 0m;
-        public string CashText => (Src.CashAmount ?? 0m) == 0m ? "" : (Src.CashAmount ?? 0m).ToString("0.##");
+        public string CashText
+        {
+            get => Src.CashAmount?.ToString("0.##") ?? "";
+            set { var n = ParseAmt(value) ?? 0m; if (n == Src.CashAmount) return;
+                Src = Src with { CashAmount = n }; Dirty.Add("CashAmount"); Changed(); Changed(nameof(FinalText)); }
+        }
 
         public string RepoChargesText
         {
@@ -246,7 +252,7 @@ public partial class AccountsPage : Page
             {
                 var n = ParseAmt(value);
                 if (n == _repo) return;
-                _repo = n; Dirty.Add("RepoCharges");
+                _repo = n; Src = Src with { RepoCharges = n }; Dirty.Add("RepoCharges");
                 Changed(nameof(RepoChargesText)); Changed(nameof(FinalText));
             }
         }
@@ -255,9 +261,9 @@ public partial class AccountsPage : Page
             get => _adv?.ToString("0.##") ?? "";
             set
             {
-                var n = ParseAmt(value);
+                var n = ParseAmt(value) ?? 0m;
                 if (n == _adv) return;
-                _adv = n; Dirty.Add("Advance");
+                _adv = n; Src = Src with { Advance = n }; Dirty.Add("Advance");
                 Changed(nameof(AdvanceText)); Changed(nameof(FinalText));
             }
         }
@@ -296,9 +302,11 @@ public partial class AccountsPage : Page
                     (actions.Count > 0 && actions.Contains(d.BillingAction ?? ""))).ToList();
             }
 
+            var selectedId = _selected?.Id;
             _all = data.Select(AcctRow.From).ToList();
             RefreshAgentList();
             ApplyFilter();
+            if (selectedId.HasValue) grid.SelectedItem = _shown.FirstOrDefault(r => r.Id == selectedId.Value);
         }
         catch (Exception ex) { txtStatus.Text = "Failed: " + ex.Message; }
     }
@@ -632,7 +640,7 @@ public partial class AccountsPage : Page
         decimal cashTot = rows.Sum(x => x.CashAmount);
         decimal finalTot = rows.Sum(x => (x.RepoCharges ?? 0m) - (x.Advance ?? 0m) - x.CashAmount);
         txtGrandCash.Text = "Total Cash Collected: " + cashTot.ToString("0.##");
-        txtGrandFinal.Text = (finalTot < 0m ? "Recoverable from agent: " : "Total Final: ") + finalTot.ToString("0.##");
+        txtGrandFinal.Text = (finalTot < 0m ? "Recoverable from agent: " : "Total Seizing Charges: ") + finalTot.ToString("0.##");
         txtGrandFinal.Foreground = finalTot < 0m
             ? System.Windows.Media.Brushes.Firebrick
             : (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFrom("#1565C0")!;
@@ -650,7 +658,7 @@ public partial class AccountsPage : Page
 
     private void grid_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
     {
-        if (e.EditAction != DataGridEditAction.Commit) return;
+        if (!EnterOnlyGridSave.AllowCommit(grid, e)) return;
         if (e.Row.Item is not AcctRow r) return;
         Dispatcher.BeginInvoke(new Action(async () => await SaveRow(r)),
             System.Windows.Threading.DispatcherPriority.Background);
@@ -659,6 +667,7 @@ public partial class AccountsPage : Page
     private async System.Threading.Tasks.Task SaveRow(AcctRow r)
     {
         if (r.Dirty.Count == 0) return;
+        var snapshot = r.Src;
         var dirty = r.Dirty.ToList();
         r.Dirty.Clear();
         txtStatus.Text = "Saving…";
@@ -667,27 +676,27 @@ public partial class AccountsPage : Page
             var courier = new Dictionary<string, object?>();
             if (dirty.Remove("RepoCharges"))    courier["RepoCharges"] = r.RepoCharges;
             if (dirty.Remove("Advance"))        courier["Advance"] = r.Advance;
-            if (dirty.Remove("CourierPercent")) courier["CourierPercent"] = r.Src.CourierPercent;
+            if (dirty.Remove("CourierPercent")) courier["CourierPercent"] = snapshot.CourierPercent;
             if (courier.Count > 0) await DesktopApiClient.UpdateCourierSubmissionAsync(r.Id, courier);
 
             if (dirty.Remove("Payment"))
                 await DesktopApiClient.UpdateAccountsPaymentAsync(r.Id, new
                 {
-                    UtrNo = r.Src.UtrNo ?? "",
-                    PaymentDate = DateTime.TryParse(r.Src.PaymentDate, out var pd) ? pd.ToString("yyyy-MM-dd") : null,
-                    PaymentStatus = r.Src.PaymentStatus ?? "",
-                    AccountsRemark = r.Src.AccountsRemark ?? ""
+                    UtrNo = snapshot.UtrNo ?? "",
+                    PaymentDate = DateTime.TryParse(snapshot.PaymentDate, out var pd) ? pd.ToString("yyyy-MM-dd") : null,
+                    PaymentStatus = snapshot.PaymentStatus ?? "",
+                    AccountsRemark = snapshot.AccountsRemark ?? ""
                 });
 
-            await CRMRSDesktopApp.Couriers.CouriersPage.SaveFields(r.Id, r.Src, dirty);
+            await CRMRSDesktopApp.Couriers.CouriersPage.SaveFields(r.Id, snapshot, dirty);
             txtStatus.Text = "Saved.";
             BuildSummary(_shown.ToList());
             if (ReferenceEquals(r, _selected)) ShowPanel(r);
         }
         catch (Exception ex)
         {
-            txtStatus.Text = "Save failed: " + ex.Message;
             await LoadAsync();
+            txtStatus.Text = "Save failed: " + ex.Message;
         }
     }
 
@@ -706,8 +715,11 @@ public partial class AccountsPage : Page
         ShowPanel(r);
     }
 
+    private bool _loadingPanel;
+
     private void ShowPanel(AcctRow r)
     {
+        _loadingPanel = true;
         var veh = string.IsNullOrWhiteSpace(r.VehicleNo) ? r.Src.ChassisNo : r.VehicleNo;
         txtPaySel.Text = $"{veh}  •  {r.CustomerName}  •  Agent: {r.AgentName}";
         cmbEditAgent.Text = r.AgentName;
@@ -723,6 +735,7 @@ public partial class AccountsPage : Page
         txtAcRemark.Text = r.Src.AccountsRemark;
         LoadCharges(r);
         pnlPay.IsEnabled = true;
+        _loadingPanel = false;
     }
 
     private bool _suppressAcCalc;
@@ -731,33 +744,29 @@ public partial class AccountsPage : Page
     {
         var vis  = Visibility.Visible;
         var gone = Visibility.Collapsed;
-        bool isOk   = r.Src.BillingAction == "immediate";
-        bool isHold = r.Src.BillingAction is "hold" or "collection_done";
 
         txtChargesHead.Text = "CHARGES — " + r.ActionText.ToUpperInvariant();
         txtChargesMsg.Text = "";
 
-        lblGross.Visibility    = isOk ? vis : gone;
-        txtAcGross.Visibility  = isOk ? vis : gone;
-        lblAcPercent.Visibility   = isOk ? vis : gone;
-        txtAcPercent.Visibility   = isOk ? vis : gone;
+        lblGross.Visibility    = vis;
+        txtAcGross.Visibility  = vis;
+        lblAcPercent.Visibility   = gone;
+        txtAcPercent.Visibility   = gone;
 
-        var addl = JoinAddl(r.Src.AddlChargesNotes, r.Src.AddlChargesAmount);
-        lblAcAddl.Visibility   = isHold ? vis : gone;
-        txtAcAddl.Visibility   = isHold ? vis : gone;
+        lblAcAddl.Visibility   = vis;
+        txtAcAddl.Visibility   = vis;
 
         _suppressAcCalc = true;
         txtAcGross.Text   = r.Src.TotalGross?.ToString("0.##") ?? "";
-        txtAcAddl.Text    = addl;
+        txtAcAddl.Text    = r.AddlAmountText;
         txtAcPercent.Text = r.Src.CourierPercent?.ToString("0.##") ?? "";
         txtAcRepo.Text    = r.RepoCharges?.ToString("0.##") ?? "";
         txtAcAdvance.Text = r.Advance?.ToString("0.##") ?? "";
         txtAcCash.Text    = r.CashAmount == 0m ? "" : r.CashAmount.ToString("0.##");
         _suppressAcCalc = false;
 
-        bool showCash = r.Src.BillingAction == "collection_done" || r.CashAmount > 0m;
-        lblAcCash.Visibility = showCash ? vis : gone;
-        txtAcCash.Visibility = showCash ? vis : gone;
+        lblAcCash.Visibility = vis;
+        txtAcCash.Visibility = vis;
 
         UpdateAcFinal();
         LoadAcScreenshot(r.Src.ScreenshotUrl);
@@ -827,14 +836,35 @@ public partial class AccountsPage : Page
     {
         decimal repo = ParseAmt(txtAcRepo.Text) ?? 0m;
         decimal adv  = ParseAmt(txtAcAdvance.Text) ?? 0m;
-        decimal cash = _selected?.CashAmount ?? 0m;
+        decimal cash = ParseAmt(txtAcCash.Text) ?? 0m;
         decimal net  = repo - adv - cash;
         txtAcFinal.Text = cash > 0m
-            ? $"Final: {repo:0.##} − {adv:0.##} − {cash:0.##} cash = {net:0.##}"
-            : $"Final: {repo:0.##} − {adv:0.##} = {net:0.##}";
+            ? $"Seizing Charges: {repo:0.##} − {adv:0.##} − {cash:0.##} cash = {net:0.##}"
+            : $"Seizing Charges: {repo:0.##} − {adv:0.##} = {net:0.##}";
         txtAcFinal.Foreground = net < 0m
             ? System.Windows.Media.Brushes.Firebrick
             : (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFrom("#1565C0")!;
+    }
+
+    private async void Panel_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+    {
+        if (e.Key != System.Windows.Input.Key.Enter || _selected is not { } r) return;
+        e.Handled = true;
+        if (e.OriginalSource == txtAcAdvance) r.AdvanceText = txtAcAdvance.Text;
+        else if (e.OriginalSource == txtAcCash) r.CashText = txtAcCash.Text;
+        else if (e.OriginalSource == txtAcRemark) r.AccountsRemark = txtAcRemark.Text;
+        else if (e.OriginalSource == txtUtr) r.UtrNo = txtUtr.Text;
+        else if (cmbEditAgent.IsKeyboardFocusWithin) r.AgentName = cmbEditAgent.Text;
+        else if (dpPayDate.IsKeyboardFocusWithin) r.PaymentDate = dpPayDate.SelectedDate?.ToString("yyyy-MM-dd") ?? "";
+        else return;
+        await SaveRow(r);
+    }
+
+    private async void PaymentStatus_Changed(object sender, SelectionChangedEventArgs e)
+    {
+        if (_loadingPanel || !_ready || _selected is not { } r || !cmbPayStatus.IsKeyboardFocusWithin) return;
+        r.PaymentStatusText = cmbPayStatus.SelectedIndex == 1 ? "PAID" : "UNPAID";
+        await SaveRow(r);
     }
 
     private async void btnSaveCharges_Click(object sender, RoutedEventArgs e)
@@ -845,12 +875,9 @@ public partial class AccountsPage : Page
         txtChargesMsg.Text = "Saving…";
         try
         {
-            await DesktopApiClient.UpdateCourierSubmissionAsync(r.Id, new
-            {
-                RepoCharges = ParseAmt(txtAcRepo.Text),
-                Advance = ParseAmt(txtAcAdvance.Text),
-                CourierPercent = ParseAmt(txtAcPercent.Text)
-            });
+            r.AdvanceText = txtAcAdvance.Text;
+            r.CashText = txtAcCash.Text;
+            await SaveRow(r);
             long keepId = r.Id;
             await LoadAsync();
             var again = _shown.FirstOrDefault(x => x.Id == keepId);
@@ -913,7 +940,7 @@ public partial class AccountsPage : Page
             try { Process.Start(new ProcessStartInfo(u) { UseShellExecute = true }); } catch { }
     }
 
-    private void btnAgentBill_Click(object sender, RoutedEventArgs e)
+    private async void btnAgentBill_Click(object sender, RoutedEventArgs e)
     {
         var sel = grid.SelectedItem as AcctRow ?? _selected;
         string agent = (sel?.AgentName ?? "").Trim();
@@ -934,6 +961,7 @@ public partial class AccountsPage : Page
             return;
         }
 
+        await LoadAsync();
         var rows = _all
             .Where(r => string.Equals((r.AgentName ?? "").Trim(), agent, StringComparison.OrdinalIgnoreCase))
             .ToList();

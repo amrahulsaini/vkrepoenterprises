@@ -384,16 +384,14 @@ public partial class CouriersPage : Page
 
     internal static void CommitPick(DataGrid grid, object sender)
     {
-        if (sender is not ComboBox { IsLoaded: true }) return;
-        grid.Dispatcher.BeginInvoke(new Action(() => grid.CommitEdit(DataGridEditingUnit.Cell, true)),
-            System.Windows.Threading.DispatcherPriority.Background);
+        // The shared handler commits user dropdown changes immediately.
     }
 
     private void Pick_Changed(object sender, SelectionChangedEventArgs e) => CommitPick(grid, sender);
 
     private void grid_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
     {
-        if (e.EditAction != DataGridEditAction.Commit || e.Row.Item is not Row r) return;
+        if (!EnterOnlyGridSave.AllowCommit(grid, e) || e.Row.Item is not Row r) return;
         Dispatcher.BeginInvoke(new Action(async () => await SaveRow(r)),
             System.Windows.Threading.DispatcherPriority.Background);
     }

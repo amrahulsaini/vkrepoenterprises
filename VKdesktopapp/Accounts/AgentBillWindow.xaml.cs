@@ -206,13 +206,13 @@ public partial class AgentBillWindow : Window
         // Vehicle table
         var t = sec.AddTable();
         int rowsN = _rows.Count + 1;
-        t.ResetCells(rowsN, 11);
+        t.ResetCells(rowsN, 12);
         t.TableFormat.Borders.BorderType = BorderStyle.Single;
         t.TableFormat.Borders.LineWidth = 0.5f;
         t.TableFormat.Borders.Color = SFColor.Black;
 
-        string[] heads = { "#", "VEHICLE NO", "MAKE/MODEL", "FINANCE", "PARKING YARD", "REPO DATE", "PAYMENT DATE", "UTR NO", "REPO", "ADVANCE", "CASH COLLECTED" };
-        for (int c = 0; c < 11; c++) Cell(t, 0, c, heads[c], bold: true);
+        string[] heads = { "#", "VEHICLE NO", "MAKE/MODEL", "FINANCE", "PARKING YARD", "REPO DATE", "PAYMENT DATE", "UTR NO", "REPO", "ADVANCE", "CASH COLLECTED", "SEIZING CHARGES" };
+        for (int c = 0; c < 12; c++) Cell(t, 0, c, heads[c], bold: true);
 
         decimal repoTot = 0m, advTot = 0m, cashTot = 0m;
         for (int i = 0; i < _rows.Count; i++)
@@ -233,6 +233,7 @@ public partial class AgentBillWindow : Window
             Cell(t, i + 1, 8, repo.ToString("0.##"));
             Cell(t, i + 1, 9, adv.ToString("0.##"));
             Cell(t, i + 1, 10, cash == 0m ? "" : cash.ToString("0.##"));
+            Cell(t, i + 1, 11, (repo - adv - cash).ToString("0.##"));
         }
 
         sec.AddParagraph();
@@ -249,7 +250,7 @@ public partial class AgentBillWindow : Window
         TotRow(tot, 2, "LESS: APPLICATION CHARGES", appc.ToString("0.##"));
         TotRow(tot, 3, "LESS: CASH COLLECTED BY AGENT", cashTot.ToString("0.##"));
         TotRow(tot, 4,
-            net < 0m ? "NET RECOVERABLE FROM AGENT" : "NET PAYABLE TO AGENT",
+            net < 0m ? "NET RECOVERABLE FROM AGENT" : "SEIZING CHARGES PAYABLE TO AGENT",
             Math.Abs(net).ToString("0.##"), bold: true);
 
         if (net < 0m)

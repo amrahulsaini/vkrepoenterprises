@@ -116,7 +116,7 @@
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
-                <DataGridTextColumn Header="Repo Date" Binding="{Binding CreatedAt}" Width="120" MinWidth="90" IsReadOnly="True" ElementStyle="{StaticResource XlText}" />
+                <DataGridTextColumn Header="Repo Date" Binding="{Binding CreatedAt, UpdateSourceTrigger=Explicit}" Width="120" MinWidth="90" IsReadOnly="True" ElementStyle="{StaticResource XlText}" />
                 <DataGridTemplateColumn Header="Vehicle / VIN" Width="130" MinWidth="90">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
@@ -141,27 +141,27 @@
                     </DataGridTemplateColumn.HeaderStyle>
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
-                            <TextBox Text="{Binding BillingRemark, UpdateSourceTrigger=LostFocus, Mode=TwoWay}"
+                            <TextBox Text="{Binding BillingRemark, UpdateSourceTrigger=Explicit, Mode=TwoWay}"
                                      Height="26" Margin="4,2" Padding="6,0" VerticalContentAlignment="Center"
                                      Background="#FFFDF2" BorderBrush="#E0B870" BorderThickness="1"
-                                     ToolTip="Type a billing remark and click away to save it"
-                                     LostFocus="BillingRemark_LostFocus" />
+                                     ToolTip="Type a billing remark and press Enter to save"
+                                     PreviewKeyDown="BillingRemark_KeyDown" />
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
-                <DataGridTextColumn Header="Customer" Binding="{Binding CustomerName}" Width="160" MinWidth="90" ElementStyle="{StaticResource XlText}" />
-                <DataGridTextColumn Header="Finance" Binding="{Binding FinanceName}" Width="140" MinWidth="90" ElementStyle="{StaticResource XlText}" />
-                <DataGridTextColumn Header="Branch" Binding="{Binding BranchName}" Width="120" MinWidth="80" ElementStyle="{StaticResource XlText}" />
-                <DataGridTextColumn Header="Loan No" Binding="{Binding LoanNo}" Width="120" MinWidth="80" ElementStyle="{StaticResource XlText}" />
-                <DataGridTextColumn Header="Agent" Binding="{Binding AgentName}" Width="120" MinWidth="80" ElementStyle="{StaticResource XlText}" />
-                <DataGridTextColumn Header="Parking Yard" Binding="{Binding ParkingYardName}" Width="130" MinWidth="90" ElementStyle="{StaticResource XlText}" />
-                <DataGridTextColumn Header="Addl Amt" Binding="{Binding AddlChargesAmount}" Width="90" MinWidth="70" ElementStyle="{StaticResource XlText}" />
-                <DataGridTextColumn Header="Collection Update" Binding="{Binding CollectionUpdate}" Width="160" MinWidth="100" ElementStyle="{StaticResource XlText}" />
-                <DataGridTextColumn Header="Remark" Binding="{Binding Remark}" Width="160" MinWidth="100" ElementStyle="{StaticResource XlText}" />
-                <DataGridTextColumn Header="Executive Name" Binding="{Binding ExecutiveName}" Width="140" MinWidth="90" IsReadOnly="True" ElementStyle="{StaticResource XlText}" />
-                <DataGridTextColumn Header="Confirmation By (Name, Mobile)" Binding="{Binding ConfirmationBy}" Width="200" MinWidth="110" IsReadOnly="True" ElementStyle="{StaticResource XlText}" />
-                <DataGridTextColumn Header="Billing" Binding="{Binding ActionText}" Width="130" MinWidth="90" IsReadOnly="True" ElementStyle="{StaticResource XlText}" />
-                <DataGridTextColumn Header="Status" Binding="{Binding StatusText}" Width="90" MinWidth="70" IsReadOnly="True" ElementStyle="{StaticResource XlText}" />
+                <DataGridTextColumn Header="Customer" Binding="{Binding CustomerName, UpdateSourceTrigger=Explicit}" Width="160" MinWidth="90" ElementStyle="{StaticResource XlText}" />
+                <DataGridTextColumn Header="Finance" Binding="{Binding FinanceName, UpdateSourceTrigger=Explicit}" Width="140" MinWidth="90" ElementStyle="{StaticResource XlText}" />
+                <DataGridTextColumn Header="Branch" Binding="{Binding BranchName, UpdateSourceTrigger=Explicit}" Width="120" MinWidth="80" ElementStyle="{StaticResource XlText}" />
+                <DataGridTextColumn Header="Loan No" Binding="{Binding LoanNo, UpdateSourceTrigger=Explicit}" Width="120" MinWidth="80" ElementStyle="{StaticResource XlText}" />
+                <DataGridTextColumn Header="Agent" Binding="{Binding AgentName, UpdateSourceTrigger=Explicit}" Width="120" MinWidth="80" ElementStyle="{StaticResource XlText}" />
+                <DataGridTextColumn Header="Parking Yard" Binding="{Binding ParkingYardName, UpdateSourceTrigger=Explicit}" Width="130" MinWidth="90" ElementStyle="{StaticResource XlText}" />
+                <DataGridTextColumn Header="Addl Amt" Binding="{Binding AddlChargesAmount, UpdateSourceTrigger=Explicit}" Width="90" MinWidth="70" ElementStyle="{StaticResource XlText}" />
+                <DataGridTextColumn Header="Collection Update" Binding="{Binding CollectionUpdate, UpdateSourceTrigger=Explicit}" Width="160" MinWidth="100" ElementStyle="{StaticResource XlText}" />
+                <DataGridTextColumn Header="Remark" Binding="{Binding Remark, UpdateSourceTrigger=Explicit}" Width="160" MinWidth="100" ElementStyle="{StaticResource XlText}" />
+                <DataGridTextColumn Header="Executive Name" Binding="{Binding ExecutiveName, UpdateSourceTrigger=Explicit}" Width="140" MinWidth="90" IsReadOnly="True" ElementStyle="{StaticResource XlText}" />
+                <DataGridTextColumn Header="Confirmation By (Name, Mobile)" Binding="{Binding ConfirmationBy, UpdateSourceTrigger=Explicit}" Width="200" MinWidth="110" IsReadOnly="True" ElementStyle="{StaticResource XlText}" />
+                <DataGridTextColumn Header="Billing" Binding="{Binding ActionText, UpdateSourceTrigger=Explicit}" Width="130" MinWidth="90" IsReadOnly="True" ElementStyle="{StaticResource XlText}" />
+                <DataGridTextColumn Header="Status" Binding="{Binding StatusText, UpdateSourceTrigger=Explicit}" Width="90" MinWidth="70" IsReadOnly="True" ElementStyle="{StaticResource XlText}" />
                 <DataGridTemplateColumn Header="Change Billing" Width="120" MinWidth="110" CanUserResize="False">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
