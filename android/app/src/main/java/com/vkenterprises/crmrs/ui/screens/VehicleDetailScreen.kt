@@ -313,9 +313,9 @@ fun VehicleDetailScreen(
                     val message = buildBankerWaMessage(
                         record, agentName, agentPhone, waAgencyName, vehicleLocation, loadDetails)
                     scope.launch {
-                        runCatching {
+                        val recorded = runCatching {
                             val userId = authVm.userId.first()
-                            ApiClient.api.confirmCapture(
+                            val response = ApiClient.api.confirmCapture(
                                 userId,
                                 com.vkenterprises.crmrs.data.models.ConfirmCaptureRequest(
                                     vehicleNo = record.vehicleNo,
@@ -334,7 +334,9 @@ fun VehicleDetailScreen(
                                     messageText = message
                                 )
                             )
-                        }.onFailure {
+                            response.isSuccessful
+                        }.getOrDefault(false)
+                        if (!recorded) {
                             Toast.makeText(context,
                                 "Couldn't record this bank confirmation, sending anyway.",
                                 Toast.LENGTH_SHORT).show()

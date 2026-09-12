@@ -768,7 +768,7 @@ CREATE TABLE IF NOT EXISTS confirm_captures (
     user_id       BIGINT       NOT NULL,
     vehicle_no    VARCHAR(32)           DEFAULT NULL,
     chassis_no    VARCHAR(40)           DEFAULT NULL,
-    action_type   VARCHAR(16)  NOT NULL DEFAULT 'confirm',
+    action_type   VARCHAR(32)  NOT NULL DEFAULT 'confirm',
     channel       VARCHAR(16)  NOT NULL DEFAULT 'whatsapp',
     customer_name VARCHAR(190)          DEFAULT NULL,
     model         VARCHAR(190)          DEFAULT NULL,

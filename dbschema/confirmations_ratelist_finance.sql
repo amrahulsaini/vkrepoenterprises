@@ -1,9 +1,7 @@
-
 ALTER TABLE confirm_captures
     MODIFY COLUMN image_path VARCHAR(255) DEFAULT NULL;
-
 ALTER TABLE confirm_captures
-    ADD COLUMN action_type    VARCHAR(16)  NOT NULL DEFAULT 'confirm' AFTER chassis_no,
+    ADD COLUMN action_type    VARCHAR(32)  NOT NULL DEFAULT 'confirm' AFTER chassis_no,
     ADD COLUMN channel        VARCHAR(16)  NOT NULL DEFAULT 'whatsapp' AFTER action_type,
     ADD COLUMN customer_name  VARCHAR(190) DEFAULT NULL AFTER channel,
     ADD COLUMN model          VARCHAR(190) DEFAULT NULL AFTER customer_name,
