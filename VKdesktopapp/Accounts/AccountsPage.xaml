@@ -203,7 +203,7 @@
                     <DataGridTextColumn Header="Collection Update" Binding="{Binding CollectionUpdate, UpdateSourceTrigger=Explicit, ValidatesOnExceptions=True}" Width="150" ElementStyle="{StaticResource XlText}" />
                     <DataGridTextColumn Header="Addln Amount" Binding="{Binding AddlAmountText, UpdateSourceTrigger=Explicit, ValidatesOnExceptions=True}" Width="140" IsReadOnly="False" ElementStyle="{StaticResource XlText}" />
                     <DataGridTextColumn Header="Repo Charges" Binding="{Binding BillingRepoChargesText, UpdateSourceTrigger=Explicit, ValidatesOnExceptions=True}" Width="140" IsReadOnly="False" ElementStyle="{StaticResource XlText}" />
-                    <DataGridTextColumn Header="Gross Amount" Binding="{Binding GrossText, UpdateSourceTrigger=Explicit, ValidatesOnExceptions=True}" Width="140" IsReadOnly="False" ElementStyle="{StaticResource XlText}" />
+                    <DataGridTextColumn Header="Gross Amount" Binding="{Binding GrossText}" Width="140" IsReadOnly="True" ElementStyle="{StaticResource XlText}" />
                     <DataGridTextColumn Header="Remark" Binding="{Binding Remark, UpdateSourceTrigger=Explicit, ValidatesOnExceptions=True}" Width="140" IsReadOnly="False" ElementStyle="{StaticResource XlText}" />
                     <DataGridTextColumn Header="Cash Collected" Binding="{Binding CashText, UpdateSourceTrigger=Explicit, ValidatesOnExceptions=True}" Width="140" IsReadOnly="False" ElementStyle="{StaticResource XlText}" />
                     <DataGridTextColumn Header="Advance" Binding="{Binding AdvanceText, UpdateSourceTrigger=Explicit, ValidatesOnExceptions=True}" Width="140" IsReadOnly="False" ElementStyle="{StaticResource XlText}" />
@@ -249,7 +249,7 @@
                                            Foreground="{StaticResource Accent}" Margin="0,0,0,8" />
 
                                 <TextBlock Name="lblGross" Text="Gross Amount" Style="{StaticResource PLbl}" />
-                                <TextBox Name="txtAcGross" Style="{StaticResource PFld}" IsReadOnly="False" />
+                                <TextBox Name="txtAcGross" Style="{StaticResource PFld}" IsReadOnly="True" Background="#E8EAED" />
 
                                 <TextBlock Name="lblAcAddl" Text="Addln Amount (from billing)" Style="{StaticResource PLbl}" />
                                 <TextBox Name="txtAcAddl" Style="{StaticResource PFld}" IsReadOnly="False" />

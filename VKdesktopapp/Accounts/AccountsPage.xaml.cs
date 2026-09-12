@@ -205,10 +205,25 @@ public partial class AccountsPage : Page
             if (n == old) return;
             Src = apply(n); Dirty.Add(field); Changed(prop);
         }
-        public string GrossText { get => Src.TotalGross?.ToString("0.##") ?? "";
-            set => PutAmount("TotalGross", Src.TotalGross, value, v => Src with { TotalGross = v }); }
+        public string GrossText => BillingGross.ToString("0.##");
+        private decimal BillingGross => (Src.BillingRepoCharges ?? 0m) + (Src.AddlChargesAmount ?? 0m);
+
+        private void UpdateBillingGross()
+        {
+            var gross = BillingGross;
+            if (Src.TotalGross == gross) return;
+            Src = Src with { TotalGross = gross };
+            Dirty.Add("TotalGross");
+            Changed(nameof(GrossText));
+        }
+
         public string BillingRepoChargesText { get => Src.BillingRepoCharges?.ToString("0.##") ?? "";
-            set => PutAmount("BillingRepoCharges", Src.BillingRepoCharges, value, v => Src with { BillingRepoCharges = v }); }
+            set
+            {
+                PutAmount("BillingRepoCharges", Src.BillingRepoCharges, value, v => Src with { BillingRepoCharges = v });
+                UpdateBillingGross();
+            }
+        }
         public string PercentText
         {
             get => Src.CourierPercent?.ToString("0.##") ?? "";
@@ -237,7 +252,13 @@ public partial class AccountsPage : Page
         public string InventoryRemark { get => Src.InventoryRemark ?? ""; set => Put(nameof(InventoryRemark), Src.InventoryRemark, value, v => Src with { InventoryRemark = v }); }
         public string AccountsRemark { get => Src.AccountsRemark ?? ""; set => Put("Payment", Src.AccountsRemark, value, v => Src with { AccountsRemark = v }); }
         public string Remark { get => Src.Remark; set => Put(nameof(Remark), Src.Remark, value, v => Src with { Remark = v }); }
-        public string AddlAmountText { get => Src.AddlChargesAmount?.ToString("0.##") ?? ""; set => PutAmount("AddlChargesAmount", Src.AddlChargesAmount, value, v => Src with { AddlChargesAmount = v }); }
+        public string AddlAmountText { get => Src.AddlChargesAmount?.ToString("0.##") ?? "";
+            set
+            {
+                PutAmount("AddlChargesAmount", Src.AddlChargesAmount, value, v => Src with { AddlChargesAmount = v });
+                UpdateBillingGross();
+            }
+        }
         public string UtrNo { get => Src.UtrNo; set => Put("Payment", Src.UtrNo, value, v => Src with { UtrNo = v }); }
         public string InvoiceNo => Src.InvoiceNo ?? "";
         public string PaymentDate { get => Src.PaymentDate; set => Put("Payment", Src.PaymentDate, value, v => Src with { PaymentDate = v }); }
@@ -770,7 +791,7 @@ public partial class AccountsPage : Page
         txtAcAddl.Visibility   = vis;
 
         _suppressAcCalc = true;
-        txtAcGross.Text   = r.Src.TotalGross?.ToString("0.##") ?? "";
+        txtAcGross.Text   = r.GrossText;
         txtAcAddl.Text    = r.AddlAmountText;
         txtAcBillingRepo.Text = r.BillingRepoChargesText;
         txtAcPercent.Text = r.Src.CourierPercent?.ToString("0.##") ?? "";
@@ -869,7 +890,6 @@ public partial class AccountsPage : Page
         if (e.OriginalSource == txtAcAdvance) r.AdvanceText = txtAcAdvance.Text;
         else if (e.OriginalSource == txtAcCash) r.CashText = txtAcCash.Text;
         else if (e.OriginalSource == txtAcRepo) r.RepoChargesText = txtAcRepo.Text;
-        else if (e.OriginalSource == txtAcGross) r.GrossText = txtAcGross.Text;
         else if (e.OriginalSource == txtAcAddl) r.AddlAmountText = txtAcAddl.Text;
         else if (e.OriginalSource == txtAcBillingRepo) r.BillingRepoChargesText = txtAcBillingRepo.Text;
         else if (e.OriginalSource == txtAcPercent)
@@ -924,7 +944,6 @@ public partial class AccountsPage : Page
         {
             r.RepoChargesText = txtAcRepo.Text;
             r.PercentText = txtAcPercent.Text;
-            r.GrossText = txtAcGross.Text;
             r.AddlAmountText = txtAcAddl.Text;
             r.BillingRepoChargesText = txtAcBillingRepo.Text;
             r.AdvanceText = txtAcAdvance.Text;

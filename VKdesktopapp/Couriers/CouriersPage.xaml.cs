@@ -377,7 +377,16 @@ public partial class CouriersPage : Page
             src = src is System.Windows.Media.Visual ? System.Windows.Media.VisualTreeHelper.GetParent(src) : null;
         if (src is not DataGridCell cell || cell.IsEditing || cell.IsReadOnly) return;
         if (!cell.IsFocused) cell.Focus();
-        grid.BeginEdit(e);
+        grid.CurrentCell = new DataGridCellInfo(cell);
+        grid.Dispatcher.BeginInvoke(new Action(() =>
+        {
+            if (!cell.IsReadOnly && !cell.IsEditing)
+            {
+                cell.Focus();
+                grid.CurrentCell = new DataGridCellInfo(cell);
+                grid.BeginEdit();
+            }
+        }), System.Windows.Threading.DispatcherPriority.Input);
     }
 
     private void Grid_CellClick(object sender, MouseButtonEventArgs e) => BeginEditOnClick(grid, e);
