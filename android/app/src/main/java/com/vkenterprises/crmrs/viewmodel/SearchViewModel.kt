@@ -76,7 +76,6 @@ class SearchViewModel @Inject constructor(
         private set
     var scrollOffset = 0
         private set
-    var lastScrolledToken = 0L
 
     private val vehicleDao get() = db.vehicleCacheDao()
     private val branchStateDao get() = db.branchSyncStateDao()
@@ -236,7 +235,8 @@ class SearchViewModel @Inject constructor(
         val s = _ui.value
         if (s.mode != SearchMode.RC) return
         val filtered = s.allResults.filter { it.vehicleNo.isValidRc() && matchesPrefix(it.vehicleNo, prefix) }
-        _ui.update { it.copy(results = filtered.bestPerVehicle(SearchMode.RC)) }
+        resetScroll()
+        _ui.update { it.copy(results = filtered.bestPerVehicle(SearchMode.RC), searchToken = it.searchToken + 1) }
     }
 
     private fun matchesPrefix(vehicleNo: String, prefix: String): Boolean {
@@ -247,7 +247,7 @@ class SearchViewModel @Inject constructor(
     fun setMode(mode: SearchMode) {
         searchJob?.cancel()
         resetScroll()
-        _ui.update { it.copy(mode = mode, inputText = "", prefixInput = "", results = emptyList(), allResults = emptyList(), errorMsg = null) }
+        _ui.update { it.copy(mode = mode, inputText = "", prefixInput = "", results = emptyList(), allResults = emptyList(), errorMsg = null, isSearching = false) }
     }
 
     fun selectResult(result: SearchResult) {
@@ -299,7 +299,8 @@ class SearchViewModel @Inject constructor(
     }
 
     fun setOnlineOnly(v: Boolean) {
-        _ui.update { it.copy(onlineOnly = v, results = emptyList(), allResults = emptyList(), errorMsg = null, inputText = "") }
+        searchJob?.cancel()
+        _ui.update { it.copy(onlineOnly = v, results = emptyList(), allResults = emptyList(), errorMsg = null, inputText = "", isSearching = false) }
         resetScroll()
         viewModelScope.launch { prefs.setOnlineOnly(v) }
         pushCloudSettings(SaveUserSettingsRequest(onlineOnly = v))
@@ -356,13 +357,13 @@ class SearchViewModel @Inject constructor(
     }
 
     private suspend fun executeSearch(q: String, mode: SearchMode, userId: Long, statePrefix: String = "") {
-        resetScroll()
-        _ui.update { it.copy(isSearching = true, errorMsg = null, offlineNotice = false, searchToken = it.searchToken + 1) }
+        _ui.update { it.copy(isSearching = true, errorMsg = null, offlineNotice = false) }
 
         if (!_ui.value.onlineOnly) {
             val (unique, full) = localSearch(q, mode, statePrefix)
+            resetScroll()
             _ui.update {
-                it.copy(results = unique, allResults = full, lastQuery = q,
+                it.copy(results = unique, allResults = full, lastQuery = q, searchToken = it.searchToken + 1,
                     errorMsg = null, offlineNotice = false, isSearching = false)
             }
             return
@@ -370,20 +371,13 @@ class SearchViewModel @Inject constructor(
 
         if (!hasNetwork()) {
             val (unique, full) = localSearch(q, mode, statePrefix)
+            resetScroll()
             _ui.update {
-                it.copy(results = unique, allResults = full, lastQuery = q,
+                it.copy(results = unique, allResults = full, lastQuery = q, searchToken = it.searchToken + 1,
                     errorMsg = if (full.isEmpty()) "No internet connection." else null,
                     offlineNotice = full.isNotEmpty(), isSearching = false)
             }
             return
-        }
-
-        val quick = localSearch(q, mode, statePrefix)
-        if (quick.second.isNotEmpty()) {
-            _ui.update {
-                it.copy(results = quick.first, allResults = quick.second, lastQuery = q,
-                    errorMsg = null, offlineNotice = false, isSearching = false)
-            }
         }
 
         val result = try {
@@ -399,6 +393,7 @@ class SearchViewModel @Inject constructor(
         val fallback = if (result is SearchResult2.Error)
             localSearch(q, mode, statePrefix) else null
 
+        resetScroll()
         _ui.update {
             when (result) {
                 is SearchResult2.Success -> {
@@ -406,13 +401,14 @@ class SearchViewModel @Inject constructor(
                         result.data.filter { it.vehicleNo.isValidRc() }.sortedBy { it.vehicleNo }
                     else
                         result.data.sortedBy { it.chassisNo }
+                    val prefix = it.prefixInput
                     val filtered = if (mode == SearchMode.RC)
-                        full.filter { matchesPrefix(it.vehicleNo, statePrefix) } else full
+                        full.filter { matchesPrefix(it.vehicleNo, prefix) } else full
                     val unique = filtered.bestPerVehicle(mode).sortedWith(
                         compareBy<SearchResult> { if (mode == SearchMode.RC) it.vehicleNo else it.chassisNo }
                             .thenBy { it.id }
                     )
-                    it.copy(results = unique, allResults = full, lastQuery = q, errorMsg = null, isSearching = false)
+                    it.copy(results = unique, allResults = full, lastQuery = q, errorMsg = null, isSearching = false, searchToken = it.searchToken + 1)
                 }
                 is SearchResult2.SubscriptionExpired -> it.copy(subscriptionExpired = true, isSearching = false)
                 is SearchResult2.AppStopped          -> it.copy(appStopped = true, appStoppedMsg = result.msg, isSearching = false)
@@ -421,7 +417,7 @@ class SearchViewModel @Inject constructor(
                 is SearchResult2.Error               ->
                     if (fallback != null && fallback.second.isNotEmpty())
                         it.copy(results = fallback.first, allResults = fallback.second,
-                            lastQuery = q, errorMsg = null, offlineNotice = true, isSearching = false)
+                            lastQuery = q, errorMsg = null, offlineNotice = true, isSearching = false, searchToken = it.searchToken + 1)
                     else
                         it.copy(errorMsg = result.message, isSearching = false)
             }

@@ -368,7 +368,7 @@ fun VehicleDetailScreen(
             onDismissRequest = dismissBranches,
             properties = androidx.compose.ui.window.DialogProperties(
                 usePlatformDefaultWidth = false,
-                decorFitsSystemWindows = false
+                decorFitsSystemWindows = true
             )
         ) {
             Box(
@@ -386,6 +386,8 @@ fun VehicleDetailScreen(
                 color = MaterialTheme.colorScheme.surface,
                 modifier = Modifier
                     .fillMaxWidth()
+                    .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal))
+                    .padding(bottom = 16.dp)
                     .clickable(
                         interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
                         indication = null
@@ -393,7 +395,6 @@ fun VehicleDetailScreen(
             ) {
             Column(
                 Modifier
-                    .navigationBarsPadding()
                     .heightIn(max = 460.dp)
                     .padding(horizontal = 16.dp)
                     .padding(top = 18.dp)

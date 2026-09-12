@@ -48,7 +48,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.*
 import androidx.navigation.NavController
-import kotlinx.coroutines.flow.distinctUntilChanged
 import coil.compose.AsyncImage
 import com.vkenterprises.crmrs.BuildConfig
 import com.vkenterprises.crmrs.R
@@ -457,15 +456,11 @@ fun HomeScreen(
                 }
             }
 
+            // A completed query gets fresh list state in the same composition as
+            // its rows, so Compose cannot retain an old vehicle as the scroll anchor.
+            key(ui.searchToken) {
             val gridState = rememberLazyGridState(searchVm.scrollIndex, searchVm.scrollOffset)
             val listState = rememberLazyListState(searchVm.scrollIndex, searchVm.scrollOffset)
-            LaunchedEffect(ui.searchToken) {
-                if (ui.searchToken != searchVm.lastScrolledToken) {
-                    searchVm.lastScrolledToken = ui.searchToken
-                    gridState.scrollToItem(0)
-                    listState.scrollToItem(0)
-                }
-            }
             LaunchedEffect(ui.twoColumnView) {
                 if (ui.twoColumnView) {
                     snapshotFlow { gridState.firstVisibleItemIndex to gridState.firstVisibleItemScrollOffset }
@@ -476,23 +471,6 @@ fun HomeScreen(
                 }
             }
 
-            LaunchedEffect(ui.twoColumnView, ui.results.isEmpty()) {
-                if (ui.results.isEmpty()) return@LaunchedEffect
-                snapshotFlow {
-                    if (ui.twoColumnView)
-                        gridState.firstVisibleItemIndex == 0 && gridState.firstVisibleItemScrollOffset == 0
-                    else
-                        listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset == 0
-                }
-                    .distinctUntilChanged()
-                    .collect { atTop ->
-                        if (atTop) runCatching { focusRequester.requestFocus() }
-                        else {
-                            focusManager.clearFocus()
-                            keyboardController?.hide()
-                        }
-                    }
-            }
 
             if (ui.results.isNotEmpty()) {
                 Surface(color = MaterialTheme.colorScheme.primaryContainer) {
@@ -577,6 +555,7 @@ fun HomeScreen(
                         nav.navigate(Screen.RepoHeadOffices.route)
                     }
                 )
+            }
             }
         }
     }

@@ -139,25 +139,31 @@ fun ConfirmScreen(
     }
 
     fun buildUserMessage(): String = buildString {
+        // Imported cells and addresses can contain embedded newlines/tabs.
+        // Keep each label and its value together in the shared message.
+        fun line(label: String, value: String?) {
+            val clean = value.orEmpty().replace(Regex("[\\s\\u00A0]+"), " ").trim().ifBlank { "-" }
+            appendLine("$label: *$clean*")
+        }
         val status = when (actionType) {
             "okrepo" -> "Ok for repo."
             "cancel" -> "Cancel"
             else     -> "Please confirm this vehicle."
         }
         appendLine("*Respected sir,*")
-        appendLine("Customer Name: *${item?.customerName?.trim().orEmpty().ifBlank { "-" }}*")
-        appendLine("Vehicle No: *${item?.vehicleNo?.trim().orEmpty()}*")
-        appendLine("Model/Maker: *${item?.model?.trim().orEmpty().ifBlank { "-" }}*")
-        appendLine("Chassis No: *${item?.chassisNo?.trim().orEmpty()}*")
-        appendLine("Engine No: *${item?.engineNo?.trim().orEmpty().ifBlank { "-" }}*")
-        appendLine("Vehicle location: *${vehicleAddress.trim().ifBlank { "-" }}*")
-        mapLink?.let { appendLine("Location on Map: $it") }
-        appendLine("Load details: *${carriesGoods.trim().ifBlank { "-" }}*")
+        line("Customer", item?.customerName)
+        line("Vehicle", item?.vehicleNo)
+        line("Model", item?.model)
+        line("Chassis", item?.chassisNo)
+        line("Engine", item?.engineNo)
+        line("Location", vehicleAddress)
+        mapLink?.let { appendLine("Map: $it") }
+        line("Load", carriesGoods)
         appendLine()
         appendLine("Status: *$status*")
         val person = listOf(agentName.trim(), agentPhone.trim()).filter { it.isNotBlank() }.joinToString(" - ")
-        if (person.isNotBlank()) appendLine(person)
-        append("Agency Name: *${agencyName}*")
+        if (person.isNotBlank()) line("Agent", person)
+        line("Agency", agencyName)
     }
 
     fun buildMessage(): String {

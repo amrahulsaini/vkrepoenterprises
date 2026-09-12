@@ -49,8 +49,8 @@ android {
         applicationId = "com.crmrecoverysoftware.crmrs"
         minSdk        = 26
         targetSdk     = 36
-        versionCode   = 188
-        versionName   = "1.0.187"
+        versionCode   = 189
+        versionName   = "1.0.188"
 
         buildConfigField("String", "BASE_URL", "\"https://api.crmrecoverysoftware.com/\"")
     }
@@ -78,8 +78,8 @@ android {
             create(t.flavor) {
                 dimension      = "agency"
                 applicationId  = "com.crmrecoverysoftware.${t.pkg}"
-                versionCode    = 188
-                versionName    = "1.0.187"
+                versionCode    = 189
+                versionName    = "1.0.188"
                 // Bundled into BuildConfig so the app pre-binds to this tenant
                 // — no agency picker on the login screen.
                 buildConfigField("String", "AGENCY_SLUG",    "\"${t.slug}\"")
