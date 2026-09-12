@@ -1,11 +1,9 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Data;
-using System.Windows.Input;
 using System.Runtime.CompilerServices;
 
 namespace CRMRSDesktopApp;
@@ -19,29 +17,29 @@ internal static class SubmissionLengthValidation
     private static readonly IReadOnlyDictionary<string, Rule> Rules =
         new Dictionary<string, Rule>(StringComparer.OrdinalIgnoreCase)
         {
-            ["FinanceName"]        = new("Finance", 255),
-            ["BranchName"]         = new("Branch", 255),
-            ["LoanNo"]             = new("Loan No", 128),
-            ["CustomerName"]       = new("Customer Name", 255),
-            ["VehicleNo"]          = new("Vehicle No", 64),
-            ["Model"]              = new("Model / Maker", 255),
-            ["ChassisNo"]          = new("Chassis No", 128),
-            ["EngineNo"]           = new("Engine No", 128),
-            ["AgentName"]           = new("Agent Name", 255),
-            ["ParkingYardName"]     = new("Parking Yard Name", 255),
-            ["ParkingYardMobile"]   = new("Parking Yard Mobile", 64),
-            ["LoadDetails"]         = new("Load Details", 512),
-            ["AddlChargesNotes"]    = new("Additional Charges Notes", 512),
-            ["ConfirmationByName"]  = new("Confirmation By Name", 255),
+            ["FinanceName"]          = new("Finance", 255),
+            ["BranchName"]           = new("Branch", 255),
+            ["LoanNo"]               = new("Loan No", 128),
+            ["CustomerName"]         = new("Customer Name", 255),
+            ["VehicleNo"]            = new("Vehicle No", 64),
+            ["Model"]                = new("Model / Maker", 255),
+            ["ChassisNo"]            = new("Chassis No", 128),
+            ["EngineNo"]             = new("Engine No", 128),
+            ["AgentName"]            = new("Agent Name", 255),
+            ["ParkingYardName"]      = new("Parking Yard Name", 255),
+            ["ParkingYardMobile"]    = new("Parking Yard Mobile", 64),
+            ["LoadDetails"]          = new("Load Details", 512),
+            ["AddlChargesNotes"]     = new("Additional Charges Notes", 512),
+            ["ConfirmationByName"]   = new("Confirmation By Name", 255),
             ["ConfirmationByMobile"] = new("Confirmation By Mobile", 64),
-            ["ExecutiveName"]       = new("Executive Name", 255),
-            ["CollectionUpdate"]    = new("Collection Update", 512),
-            ["Remark"]              = new("Remark", 512),
-            ["BillingRemark"]       = new("Billing Remark", 512),
-            ["AccountsRemark"]      = new("Accounts Remark", 512),
-            ["PodNumber"]           = new("POD Number", 128),
-            ["InvoiceNo"]           = new("Invoice No", 64),
-            ["UtrNo"]               = new("UTR No", 64),
+            ["ExecutiveName"]        = new("Executive Name", 255),
+            ["CollectionUpdate"]     = new("Collection Update", 512),
+            ["Remark"]               = new("Remark", 512),
+            ["BillingRemark"]        = new("Billing Remark", 512),
+            ["AccountsRemark"]       = new("Accounts Remark", 512),
+            ["PodNumber"]            = new("POD Number", 128),
+            ["InvoiceNo"]            = new("Invoice No", 64),
+            ["UtrNo"]                = new("UTR No", 64),
         };
 
     [ModuleInitializer]
@@ -55,7 +53,7 @@ internal static class SubmissionLengthValidation
 
         EventManager.RegisterClassHandler(
             typeof(TextBox),
-            Keyboard.PreviewKeyboardFocusChangedEvent,
+            UIElement.PreviewLostKeyboardFocusEvent,
             new KeyboardFocusChangedEventHandler(OnPreviewKeyboardFocusChanged),
             handledEventsToo: true);
 
@@ -80,7 +78,6 @@ internal static class SubmissionLengthValidation
         if (!TryGetError(property, box.Text, out var message)) return;
 
         e.Cancel = true;
-        e.Handled = true;
         ShowError(message);
         box.SelectAll();
         box.Focus();
