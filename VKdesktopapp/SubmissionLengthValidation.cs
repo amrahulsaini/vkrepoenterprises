@@ -4,6 +4,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Data;
+using System.Windows.Input;
 using System.Runtime.CompilerServices;
 
 namespace CRMRSDesktopApp;
@@ -46,12 +47,6 @@ internal static class SubmissionLengthValidation
     internal static void Initialize()
     {
         EventManager.RegisterClassHandler(
-            typeof(DataGrid),
-            DataGrid.CellEditEndingEvent,
-            new EventHandler<DataGridCellEditEndingEventArgs>(OnDataGridCellEditEnding),
-            handledEventsToo: true);
-
-        EventManager.RegisterClassHandler(
             typeof(TextBox),
             UIElement.PreviewLostKeyboardFocusEvent,
             new KeyboardFocusChangedEventHandler(OnPreviewKeyboardFocusChanged),
@@ -68,19 +63,6 @@ internal static class SubmissionLengthValidation
             ButtonBase.ClickEvent,
             new RoutedEventHandler(OnButtonClick),
             handledEventsToo: true);
-    }
-
-    private static void OnDataGridCellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
-    {
-        if (e.EditAction != DataGridEditAction.Commit || e.EditingElement is not TextBox box) return;
-
-        var property = GetBoundProperty(e.Column);
-        if (!TryGetError(property, box.Text, out var message)) return;
-
-        e.Cancel = true;
-        ShowError(message);
-        box.SelectAll();
-        box.Focus();
     }
 
     private static void OnPreviewKeyboardFocusChanged(object sender, KeyboardFocusChangedEventArgs e)
@@ -121,8 +103,8 @@ internal static class SubmissionLengthValidation
 
     private static string? GetBoundProperty(DataGridColumn column)
     {
-        return column is DataGridBoundColumn bound
-            ? NormalizePath(bound.Binding?.Path?.Path)
+        return column is DataGridBoundColumn bound && bound.Binding is Binding binding
+            ? NormalizePath(binding.Path?.Path)
             : null;
     }
 
