@@ -87,7 +87,12 @@ public class MobileRepository
     {
         await using var conn = DbFactory.Create();
         await conn.OpenAsync();
-        var where = new List<string> { "user_id=@uid" };
+        var isAdmin = await IsAdminAsync(userId);
+        var where = new List<string>
+        {
+            "user_id=@uid",
+            isAdmin ? "action_type='bank_confirmation'" : "COALESCE(action_type,'confirm') <> 'bank_confirmation'"
+        };
         if (from.HasValue) where.Add("DATE(COALESCE(captured_at, created_at)) >= @from");
         if (to.HasValue)   where.Add("DATE(COALESCE(captured_at, created_at)) <= @to");
         await using var cmd = new MySqlCommand($@"
@@ -117,9 +122,11 @@ public class MobileRepository
     {
         await using var conn = DbFactory.Create();
         await conn.OpenAsync();
-        await using var cmd = new MySqlCommand(@"
+         var isAdmin = await IsAdminAsync(userId);
+         await using var cmd = new MySqlCommand($@"
             SELECT COUNT(*) FROM confirm_captures
              WHERE user_id = @uid
+             AND {(isAdmin ? "action_type='bank_confirmation'" : "COALESCE(action_type,'confirm') <> 'bank_confirmation'")}
                AND YEAR(COALESCE(captured_at, created_at))  = @y
                AND MONTH(COALESCE(captured_at, created_at)) = @m", conn) { CommandTimeout = 15 };
         cmd.Parameters.AddWithValue("@uid", userId);

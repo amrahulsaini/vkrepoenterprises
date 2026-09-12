@@ -1898,14 +1898,27 @@ app.MapGet("/api/mgr/users/{id:long}/confirmations", async (HttpContext ctx, lon
         await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
 
-        var where = new List<string> { "user_id=@uid" };
+        bool targetIsAdmin;
+        await using (var roleCmd = new MySqlCommand(
+            "SELECT COALESCE(is_admin,0) FROM app_users WHERE id=@uid LIMIT 1", conn))
+        {
+            roleCmd.Parameters.AddWithValue("@uid", id);
+            targetIsAdmin = Convert.ToInt32(await roleCmd.ExecuteScalarAsync() ?? 0) == 1;
+        }
+
+        var where = new List<string>
+        {
+            "user_id=@uid",
+            targetIsAdmin ? "action_type='bank_confirmation'" : "COALESCE(action_type,'confirm') <> 'bank_confirmation'"
+        };
         if (dFrom.HasValue) where.Add("DATE(COALESCE(captured_at, created_at)) >= @from");
         if (dTo.HasValue)   where.Add("DATE(COALESCE(captured_at, created_at)) <= @to");
         var clause = string.Join(" AND ", where);
 
         long grandTotal = 0;
         await using (var cnt = new MySqlCommand(
-            "SELECT COUNT(*) FROM confirm_captures WHERE user_id=@uid", conn) { CommandTimeout = 15 })
+            $"SELECT COUNT(*) FROM confirm_captures WHERE user_id=@uid AND " +
+            (targetIsAdmin ? "action_type='bank_confirmation'" : "COALESCE(action_type,'confirm') <> 'bank_confirmation'"), conn) { CommandTimeout = 15 })
         {
             cnt.Parameters.AddWithValue("@uid", id);
             grandTotal = Convert.ToInt64(await cnt.ExecuteScalarAsync() ?? 0L);
