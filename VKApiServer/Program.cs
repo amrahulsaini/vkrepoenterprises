@@ -3033,7 +3033,6 @@ app.MapPost("/api/mgr/billing/submissions/{id:long}/fields", async (HttpContext 
         void M(string col, object? val) { sets.Add($"{col}=@{col}"); ps.Add(($"@{col}", val ?? DBNull.Value)); }
 
         if (dto.CustomerName      != null) M("customer_name", dto.CustomerName);
-        if (dto.FinanceName       != null) M("finance_name", dto.FinanceName);
         if (dto.BranchName        != null) M("branch_name", dto.BranchName);
         if (dto.LoanNo            != null) M("loan_no", dto.LoanNo);
         if (dto.AgentName         != null) M("agent_name", dto.AgentName);
@@ -3062,12 +3061,40 @@ app.MapPost("/api/mgr/billing/submissions/{id:long}/fields", async (HttpContext 
         if (dto.ExecutiveName        != null) M("executive_name", dto.ExecutiveName);
         if (dto.BillingRemark        != null) M("billing_remark", dto.BillingRemark);
 
-        if (sets.Count == 0) return Results.Ok(new { success = true });
-
         await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
-        await MgrExec($"UPDATE repo_submissions SET {string.Join(", ", sets)} WHERE id=@id",
-            conn, 20, ps.ToArray());
+
+        // Finance names are owned by the master finances row. Saving only the
+        // submission's cached name made Accounts appear changed while the
+        // Finances screen (and every other linked record) retained the old name.
+        // Rename the linked finance and synchronize the cached submission names.
+        if (dto.FinanceName != null)
+        {
+            var financeName = dto.FinanceName.Trim();
+            if (financeName.Length == 0)
+                return Results.BadRequest(new { message = "Finance name cannot be blank." });
+
+            await using var financeIdCmd = new MySqlCommand(
+                "SELECT finance_id FROM repo_submissions WHERE id=@id LIMIT 1", conn);
+            financeIdCmd.Parameters.AddWithValue("@id", id);
+            var financeIdValue = await financeIdCmd.ExecuteScalarAsync();
+            if (financeIdValue is not null and not DBNull)
+            {
+                var financeId = Convert.ToInt32(financeIdValue);
+                await MgrExec("UPDATE finances SET name=@name WHERE id=@financeId", conn, 20,
+                    ("@name", financeName), ("@financeId", financeId));
+                await MgrExec("UPDATE repo_submissions SET finance_name=@name WHERE finance_id=@financeId", conn, 20,
+                    ("@name", financeName), ("@financeId", financeId));
+            }
+            else
+            {
+                M("finance_name", financeName);
+            }
+        }
+
+        if (sets.Count > 0)
+            await MgrExec($"UPDATE repo_submissions SET {string.Join(", ", sets)} WHERE id=@id",
+                conn, 20, ps.ToArray());
         return Results.Ok(new { success = true });
     }
     catch (Exception ex) { return Results.Problem(ex.Message); }
