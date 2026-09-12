@@ -18,7 +18,10 @@ internal static class EnterOnlyGridSave
         public DispatcherTimer? ResetTimer;
     }
 
+    private sealed class StatusWatch { }
+
     private static readonly ConditionalWeakTable<DataGrid, GridState> States = new();
+    private static readonly ConditionalWeakTable<TextBlock, StatusWatch> StatusWatches = new();
 
     [ModuleInitializer]
     internal static void Initialize()
@@ -30,6 +33,12 @@ internal static class EnterOnlyGridSave
             handledEventsToo: true);
 
         EventManager.RegisterClassHandler(
+            typeof(DataGrid),
+            DataGrid.CellEditEndingEvent,
+            new DataGridCellEditEndingEventHandler(OnCellEditEnding),
+            handledEventsToo: true);
+
+        EventManager.RegisterClassHandler(
             typeof(ComboBox),
             Selector.SelectionChangedEvent,
             new SelectionChangedEventHandler(OnGridComboSelectionChanged),
@@ -38,9 +47,14 @@ internal static class EnterOnlyGridSave
         EventManager.RegisterClassHandler(
             typeof(TextBox),
             UIElement.LostFocusEvent,
-            new RoutedEventHandler(OnGridBillingRemarkLostFocus),
+            new RoutedEventHandler(OnGridTextBoxLostFocus),
             handledEventsToo: true);
 
+        EventManager.RegisterClassHandler(
+            typeof(DataGrid),
+            FrameworkElement.LoadedEvent,
+            new RoutedEventHandler(OnGridLoaded),
+            handledEventsToo: true);
     }
 
     private static FrameworkElement? TargetOwner(DependencyObject? child)
@@ -62,15 +76,53 @@ internal static class EnterOnlyGridSave
 
     private static bool IsTargetGrid(DataGrid grid) => TargetOwner(grid) != null;
 
+    private static void OnGridLoaded(object sender, RoutedEventArgs e)
+    {
+        if (sender is not DataGrid grid) return;
+        var owner = TargetOwner(grid);
+        if (owner == null) return;
+
+        var status = FindNamedDescendant<TextBlock>(owner, "txtStatus");
+        if (status == null || StatusWatches.TryGetValue(status, out _)) return;
+
+        StatusWatches.Add(status, new StatusWatch());
+        status.TextChanged += Status_TextChanged;
+    }
+
+    private static void Status_TextChanged(object? sender, TextChangedEventArgs e)
+    {
+        if (sender is not TextBlock status) return;
+        var text = status.Text ?? "";
+        if (!text.Equals("Saved", StringComparison.OrdinalIgnoreCase)
+            && !text.Equals("Saved.", StringComparison.OrdinalIgnoreCase)
+            && !text.Contains("remark saved", StringComparison.OrdinalIgnoreCase)) return;
+
+        status.Text = "Saved";
+        var timer = new DispatcherTimer(DispatcherPriority.Background)
+        {
+            Interval = TimeSpan.FromSeconds(2)
+        };
+        timer.Tick += (_, _) =>
+        {
+            timer.Stop();
+            if (status.Text.Equals("Saved", StringComparison.OrdinalIgnoreCase))
+                status.Text = "";
+        };
+        timer.Start();
+    }
+
     private static void OnGridPreviewKeyDown(object sender, KeyEventArgs e)
     {
         if (e.Key != Key.Enter || e.OriginalSource is not DependencyObject source) return;
+
         var grid = FindAncestor<DataGrid>(source);
         if (grid == null || !IsTargetGrid(grid)) return;
 
-        // Billing Remark already has a dedicated Enter handler in ViewAllDetailsWindow.EnterSave.cs.
-        if (source is TextBox tb && IsBindingPath(tb, TextBox.TextProperty, "BillingRemark")
-            && IsViewAll(grid)) return;
+        // Billing ViewAll has a dedicated direct-save handler for Billing Remark.
+        if (source is TextBox tb
+            && IsBindingPath(tb, TextBox.TextProperty, "BillingRemark")
+            && IsViewAll(grid))
+            return;
 
         if (source is not TextBox && source is not ComboBox) return;
 
@@ -93,6 +145,25 @@ internal static class EnterOnlyGridSave
         e.Handled = true;
         grid.CommitEdit(DataGridEditingUnit.Cell, true);
         grid.CommitEdit(DataGridEditingUnit.Row, true);
+
+        // Leave the editor immediately so there is no lingering caret/focus border.
+        grid.Dispatcher.BeginInvoke(new Action(() => grid.Focus()),
+            DispatcherPriority.Input);
+    }
+
+    private static void OnCellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
+    {
+        if (sender is not DataGrid grid || !IsTargetGrid(grid)) return;
+        var state = States.GetOrCreateValue(grid);
+
+        if (state.AllowedCellEditEndings > 0)
+        {
+            state.AllowedCellEditEndings--;
+            return;
+        }
+
+        // Clicking away, tabbing away, or otherwise losing edit mode never saves.
+        e.Handled = true;
     }
 
     private static void OnGridComboSelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -101,19 +172,19 @@ internal static class EnterOnlyGridSave
         var grid = FindAncestor<DataGrid>(combo);
         if (grid == null || !IsTargetGrid(grid)) return;
 
-        // Binding still updates the row; suppress Couriers/Accounts Pick_Changed immediate saves.
+        // Keep the binding/model updated. Couriers/Accounts save only after Enter commits the cell.
         e.Handled = true;
     }
 
-    private static void OnGridBillingRemarkLostFocus(object sender, RoutedEventArgs e)
+    private static void OnGridTextBoxLostFocus(object sender, RoutedEventArgs e)
     {
         if (sender is not TextBox box) return;
         var grid = FindAncestor<DataGrid>(box);
-        if (grid == null || !IsViewAll(grid)) return;
-        if (!IsBindingPath(box, TextBox.TextProperty, "BillingRemark")) return;
+        if (grid == null || !IsTargetGrid(grid)) return;
 
-        // Billing Remark must wait for Enter; prevent the old LostFocus save path.
-        e.Handled = true;
+        // Specifically suppress the old Billing Remark LostFocus save path.
+        if (IsViewAll(grid) && IsBindingPath(box, TextBox.TextProperty, "BillingRemark"))
+            e.Handled = true;
     }
 
     private static bool IsViewAll(DataGrid grid)
@@ -159,4 +230,15 @@ internal static class EnterOnlyGridSave
         return null;
     }
 
+    private static T? FindNamedDescendant<T>(DependencyObject root, string name) where T : FrameworkElement
+    {
+        if (root is T fe && fe.Name == name) return fe;
+        var count = VisualTreeHelper.GetChildrenCount(root);
+        for (var i = 0; i < count; i++)
+        {
+            var found = FindNamedDescendant<T>(VisualTreeHelper.GetChild(root, i), name);
+            if (found != null) return found;
+        }
+        return null;
+    }
 }
