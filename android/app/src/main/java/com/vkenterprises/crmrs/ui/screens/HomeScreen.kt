@@ -34,6 +34,10 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.*
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
@@ -461,6 +465,49 @@ fun HomeScreen(
             key(ui.searchToken) {
             val gridState = rememberLazyGridState(searchVm.scrollIndex, searchVm.scrollOffset)
             val listState = rememberLazyListState(searchVm.scrollIndex, searchVm.scrollOffset)
+            var keyboardHiddenByScroll by remember(ui.twoColumnView) { mutableStateOf(false) }
+            var returningToTop by remember(ui.twoColumnView) { mutableStateOf(false) }
+            val currentImeVisible by rememberUpdatedState(imeVisible)
+            val keyboardScrollConnection = remember(ui.twoColumnView, focusManager, keyboardController) {
+                object : NestedScrollConnection {
+                    override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                        // Only a real gesture can arm reopening, never new rows or
+                        // the viewport growing when the keyboard closes.
+                        if (source == NestedScrollSource.Drag && available.y != 0f) {
+                            returningToTop = keyboardHiddenByScroll && available.y > 0f
+                        }
+                        return Offset.Zero
+                    }
+
+                    override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
+                        if (source == NestedScrollSource.Drag && consumed.y < 0f &&
+                            (!keyboardHiddenByScroll || currentImeVisible)) {
+                            keyboardHiddenByScroll = true
+                            returningToTop = false
+                            focusManager.clearFocus()
+                            keyboardController?.hide()
+                        }
+                        return Offset.Zero
+                    }
+                }
+            }
+            LaunchedEffect(ui.twoColumnView) {
+                snapshotFlow {
+                    val atTop = if (ui.twoColumnView)
+                        gridState.firstVisibleItemIndex == 0 && gridState.firstVisibleItemScrollOffset == 0
+                    else
+                        listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset == 0
+                    val scrolling = if (ui.twoColumnView) gridState.isScrollInProgress else listState.isScrollInProgress
+                    returningToTop && keyboardHiddenByScroll && atTop && !scrolling
+                }.collect { reopen ->
+                    if (reopen) {
+                        returningToTop = false
+                        keyboardHiddenByScroll = false
+                        focusRequester.requestFocus()
+                        keyboardController?.show()
+                    }
+                }
+            }
             LaunchedEffect(ui.twoColumnView) {
                 if (ui.twoColumnView) {
                     snapshotFlow { gridState.firstVisibleItemIndex to gridState.firstVisibleItemScrollOffset }
@@ -510,7 +557,7 @@ fun HomeScreen(
                     LazyVerticalGrid(
                         columns = GridCells.Fixed(2),
                         state = gridState,
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier.fillMaxSize().nestedScroll(keyboardScrollConnection),
                         contentPadding = PaddingValues(0.dp)
                     ) {
                         items(reordered, key = { it.id }) { item ->
@@ -521,7 +568,7 @@ fun HomeScreen(
                         }
                     }
                 } else {
-                    LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
+                    LazyColumn(state = listState, modifier = Modifier.fillMaxSize().nestedScroll(keyboardScrollConnection)) {
                         items(ui.results, key = { it.id }) { item ->
                             VehicleListRow(item, ui.mode, ui.showHyphens) {
                                 searchVm.selectResult(item)
