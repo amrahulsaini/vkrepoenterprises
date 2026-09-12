@@ -6,6 +6,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
@@ -158,6 +159,7 @@ fun VehicleDetailScreen(
     val isAdmin    by authVm.isAdmin.collectAsState(initial = false)
     val showFinanceName by authVm.showFinanceName.collectAsState(initial = false)
     val context    = LocalContext.current
+    val scope      = rememberCoroutineScope()
 
     val imeVisible = WindowInsets.isImeVisible
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -307,9 +309,39 @@ fun VehicleDetailScreen(
                 )
                 Spacer(Modifier.height(2.dp))
                 WaOptionButton("Banker for Confirmation", Color(0xFF1565C0)) {
-                    openWhatsApp(context, buildBankerWaMessage(detailRecord ?: item,
-                        agentName, agentPhone, waAgencyName, vehicleLocation, loadDetails))
-                    showWaSheet = false
+                    val record = detailRecord ?: item
+                    val message = buildBankerWaMessage(
+                        record, agentName, agentPhone, waAgencyName, vehicleLocation, loadDetails)
+                    scope.launch {
+                        runCatching {
+                            val userId = authVm.userId.first()
+                            ApiClient.api.confirmCapture(
+                                userId,
+                                com.vkenterprises.crmrs.data.models.ConfirmCaptureRequest(
+                                    vehicleNo = record.vehicleNo,
+                                    chassisNo = record.chassisNo,
+                                    imageBase64 = null,
+                                    capturedAtIso = java.time.Instant.now().toString(),
+                                    actionType = "bank_confirmation",
+                                    channel = "whatsapp",
+                                    customerName = record.customerName,
+                                    model = record.model,
+                                    engineNo = record.engineNo,
+                                    agreementNo = record.agreementNo,
+                                    financer = record.financer,
+                                    address = vehicleLocation.trim().ifBlank { null },
+                                    loadDetails = loadDetails.trim().ifBlank { null },
+                                    messageText = message
+                                )
+                            )
+                        }.onFailure {
+                            Toast.makeText(context,
+                                "Couldn't record this bank confirmation, sending anyway.",
+                                Toast.LENGTH_SHORT).show()
+                        }
+                        openWhatsApp(context, message)
+                        showWaSheet = false
+                    }
                 }
                 WaOptionButton("OK for Repo", Color(0xFF2E7D32)) {
                     openWhatsApp(context, buildOkRepoWaMessage(detailRecord ?: item,

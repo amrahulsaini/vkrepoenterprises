@@ -408,7 +408,10 @@ class SearchViewModel @Inject constructor(
                         result.data.sortedBy { it.chassisNo }
                     val filtered = if (mode == SearchMode.RC)
                         full.filter { matchesPrefix(it.vehicleNo, statePrefix) } else full
-                    val unique = filtered.bestPerVehicle(mode)
+                    val unique = filtered.bestPerVehicle(mode).sortedWith(
+                        compareBy<SearchResult> { if (mode == SearchMode.RC) it.vehicleNo else it.chassisNo }
+                            .thenBy { it.id }
+                    )
                     it.copy(results = unique, allResults = full, lastQuery = q, errorMsg = null, isSearching = false)
                 }
                 is SearchResult2.SubscriptionExpired -> it.copy(subscriptionExpired = true, isSearching = false)

@@ -244,6 +244,7 @@ private fun ConfirmationCard(
     val stamp = parseServerInstant(log.confirmedAt)?.format(STAMP_FMT) ?: "—"
     val action = when (log.actionType) {
         "okrepo" -> "OK for Repo"
+            "bank_confirmation" -> "Banker Confirmation"
         "cancel" -> "Cancellation"
         else     -> "Confirmation"
     }

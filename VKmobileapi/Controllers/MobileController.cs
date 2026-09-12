@@ -1090,6 +1090,9 @@ public class MobileController : ControllerBase
             if (status.IsBlacklisted) return StatusCode(403, new ApiError(false, "blacklisted"));
             if (!status.IsActive)     return StatusCode(403, new ApiError(false, "inactive"));
             if (status.IsStopped)     return StatusCode(403, new ApiError(false, "app_stopped"));
+            if (await _repo.IsAdminAsync(userId) &&
+                !string.Equals(req.ActionType, "bank_confirmation", StringComparison.OrdinalIgnoreCase))
+                return StatusCode(403, new ApiError(false, "Admins can only record banker confirmations."));
 
             if (!DateTime.TryParse(req.CapturedAtIso,
                     System.Globalization.CultureInfo.InvariantCulture,

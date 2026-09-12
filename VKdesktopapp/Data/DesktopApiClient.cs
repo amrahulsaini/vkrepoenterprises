@@ -398,6 +398,7 @@ internal static class DesktopApiClient
         public string ActionDisplay  => ActionType switch
         {
             "okrepo" => "OK for Repo",
+            "bank_confirmation" => "Banker Confirmation",
             "cancel" => "Cancellation",
             _        => "Confirmation",
         };
