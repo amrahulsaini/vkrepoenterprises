@@ -1960,7 +1960,7 @@ app.MapGet("/api/mgr/users/{id:long}/confirmations", async (HttpContext ctx, lon
                     loadDetails  = S(12),
                     messageText  = S(13),
                     imageUrl     = string.IsNullOrEmpty(img) ? null : $"{baseUrl}/uploads/{img.TrimStart('/')}",
-                    confirmedAt  = r.GetDateTime(15),
+                    confirmedAt  = DateTime.SpecifyKind(r.GetDateTime(15), DateTimeKind.Utc),
                 });
             }
         }

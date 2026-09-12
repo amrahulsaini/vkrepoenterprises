@@ -1122,7 +1122,10 @@ public class MobileController : ControllerBase
                     System.Globalization.DateTimeStyles.None, out var d) ? d.Date : null;
 
             var rows = await _repo.GetConfirmationsAsync(userId, Day(from), Day(to));
-            var items = rows.Select(r => r with { ImageUrl = AbsUrl(r.ImageUrl) }).ToList();
+            var items = rows.Select(r => r with {
+                ImageUrl = AbsUrl(r.ImageUrl),
+                ConfirmedAt = DateTime.SpecifyKind(r.ConfirmedAt, DateTimeKind.Utc)
+            }).ToList();
             return Ok(new { success = true, total = items.Count, items });
         }
         catch (Exception ex)
