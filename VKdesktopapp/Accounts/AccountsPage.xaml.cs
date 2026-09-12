@@ -867,6 +867,14 @@ public partial class AccountsPage : Page
         UpdateAcFinal();
     }
 
+    private void BillingGross_Changed(object sender, TextChangedEventArgs e)
+    {
+        if (_suppressAcCalc) return;
+        var repo = ParseAmt(txtAcBillingRepo.Text) ?? 0m;
+        var addl = ParseAmt(txtAcAddl.Text) ?? 0m;
+        txtAcGross.Text = (repo + addl).ToString("0.##");
+    }
+
     private void UpdateAcFinal()
     {
         decimal repo = ParseAmt(txtAcRepo.Text) ?? 0m;

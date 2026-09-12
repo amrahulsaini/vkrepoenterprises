@@ -186,7 +186,7 @@
                     </ContextMenu>
                 </DataGrid.ContextMenu>
                 <DataGrid.Columns>
-                    <DataGridTextColumn Header="Vehicle No" Binding="{Binding VehicleNo, UpdateSourceTrigger=Explicit, ValidatesOnExceptions=True}" Width="110" IsReadOnly="False" ElementStyle="{StaticResource XlText}" />
+                    <DataGridTextColumn Header="Vehicle No" Binding="{Binding VehicleNo}" Width="110" IsReadOnly="True" ElementStyle="{StaticResource XlText}" />
                     <DataGridTextColumn Header="Customer Name" Binding="{Binding CustomerName, UpdateSourceTrigger=Explicit, ValidatesOnExceptions=True}" Width="140" IsReadOnly="False" ElementStyle="{StaticResource XlText}" />
                     <DataGridTextColumn Header="Repo Date" Binding="{Binding RepoDate, UpdateSourceTrigger=Explicit, ValidatesOnExceptions=True}" Width="120" IsReadOnly="False" ElementStyle="{StaticResource XlText}" />
                     <DataGridTextColumn Header="Model" Binding="{Binding Model, UpdateSourceTrigger=Explicit, ValidatesOnExceptions=True}" Width="140" IsReadOnly="False" ElementStyle="{StaticResource XlText}" />
@@ -201,8 +201,8 @@
                                             EditingElementStyle="{StaticResource PickEdit}" Width="140" />
                     <DataGridTextColumn Header="Billing Remark" Binding="{Binding BillingRemark, UpdateSourceTrigger=Explicit, ValidatesOnExceptions=True}" Width="170" ElementStyle="{StaticResource XlText}" />
                     <DataGridTextColumn Header="Collection Update" Binding="{Binding CollectionUpdate, UpdateSourceTrigger=Explicit, ValidatesOnExceptions=True}" Width="150" ElementStyle="{StaticResource XlText}" />
-                    <DataGridTextColumn Header="Addln Amount" Binding="{Binding AddlAmountText, UpdateSourceTrigger=Explicit, ValidatesOnExceptions=True}" Width="140" IsReadOnly="False" ElementStyle="{StaticResource XlText}" />
-                    <DataGridTextColumn Header="Repo Charges" Binding="{Binding BillingRepoChargesText, UpdateSourceTrigger=Explicit, ValidatesOnExceptions=True}" Width="140" IsReadOnly="False" ElementStyle="{StaticResource XlText}" />
+                    <DataGridTextColumn Header="Addln Amount" Binding="{Binding AddlAmountText, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True}" Width="140" IsReadOnly="False" ElementStyle="{StaticResource XlText}" />
+                    <DataGridTextColumn Header="Repo Charges" Binding="{Binding BillingRepoChargesText, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True}" Width="140" IsReadOnly="False" ElementStyle="{StaticResource XlText}" />
                     <DataGridTextColumn Header="Gross Amount" Binding="{Binding GrossText}" Width="140" IsReadOnly="True" ElementStyle="{StaticResource XlText}" />
                     <DataGridTextColumn Header="Remark" Binding="{Binding Remark, UpdateSourceTrigger=Explicit, ValidatesOnExceptions=True}" Width="140" IsReadOnly="False" ElementStyle="{StaticResource XlText}" />
                     <DataGridTextColumn Header="Cash Collected" Binding="{Binding CashText, UpdateSourceTrigger=Explicit, ValidatesOnExceptions=True}" Width="140" IsReadOnly="False" ElementStyle="{StaticResource XlText}" />
@@ -252,10 +252,10 @@
                                 <TextBox Name="txtAcGross" Style="{StaticResource PFld}" IsReadOnly="True" Background="#E8EAED" />
 
                                 <TextBlock Name="lblAcAddl" Text="Addln Amount (from billing)" Style="{StaticResource PLbl}" />
-                                <TextBox Name="txtAcAddl" Style="{StaticResource PFld}" IsReadOnly="False" />
+                                <TextBox Name="txtAcAddl" Style="{StaticResource PFld}" IsReadOnly="False" TextChanged="BillingGross_Changed" />
 
                                 <TextBlock Text="Repo Charges (from billing)" Style="{StaticResource PLbl}" />
-                                <TextBox Name="txtAcBillingRepo" Style="{StaticResource PFld}" />
+                                <TextBox Name="txtAcBillingRepo" Style="{StaticResource PFld}" TextChanged="BillingGross_Changed" />
 
                                 <TextBlock Name="lblAcPercent" Text="Percentage (%) of invoice amount" Style="{StaticResource PLbl}" />
                                 <TextBox Name="txtAcPercent" Style="{StaticResource PFld}" TextChanged="AcCalc_Changed" />

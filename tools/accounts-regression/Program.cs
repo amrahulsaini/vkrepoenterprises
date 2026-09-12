@@ -35,7 +35,10 @@ var grid=(DataGrid)page.FindName("grid");
 var expected="Vehicle No|Customer Name|Repo Date|Model|Finance|Yard Name|Inventory|Inventory Remark|Billing Status|Billing Remark|Collection Update|Addln Amount|Repo Charges|Gross Amount|Remark|Cash Collected|Advance|Seizing Charges";
 Check(string.Join("|",grid.Columns.Select(c=>c.Header))==expected,"exact Accounts column order");
 grid.Measure(new Size(1000,600)); grid.Arrange(new Rect(0,0,1000,600)); grid.UpdateLayout(); Check(grid.FrozenColumnCount==2,"two frozen identity columns");
-Check(grid.Columns.OfType<DataGridTextColumn>().Where(c=>!c.IsReadOnly).All(c=>((Binding)c.Binding).UpdateSourceTrigger==UpdateSourceTrigger.Explicit),"text changes do not update on focus loss");
+Check(grid.Columns.OfType<DataGridTextColumn>()
+    .Where(c=>!c.IsReadOnly && (string)c.Header is not "Addln Amount" and not "Repo Charges")
+    .All(c=>((Binding)c.Binding).UpdateSourceTrigger==UpdateSourceTrigger.Explicit),
+    "ordinary text changes do not update on focus loss");
 var gate=assembly.GetType("CRMRSDesktopApp.EnterOnlyGridSave")!;
 var ending=new DataGridCellEditEndingEventArgs(grid.Columns[1],new DataGridRow(),new TextBox(),DataGridEditAction.Commit);
 Check(!(bool)gate.GetMethod("AllowCommit",All)!.Invoke(null,new object[]{grid,ending})! && ending.Cancel,"focus-loss commit blocked");
@@ -55,8 +58,7 @@ grid.CurrentCell=new DataGridCellInfo(row,grid.Columns[0]);
 grid.ScrollIntoView(row,grid.Columns[0]); grid.UpdateLayout();
 var vehicleCell=(DataGridCell)grid.Columns[0].GetCellContent(row).Parent;
 vehicleCell.RaiseEvent(new MouseButtonEventArgs(Mouse.PrimaryDevice,0,MouseButton.Left){RoutedEvent=Mouse.PreviewMouseDownEvent}); Pump();
-Check(vehicleCell.IsEditing && grid.Columns[0].GetCellContent(row) is TextBox,"Vehicle No enters edit mode on first click");
-grid.CancelEdit(DataGridEditingUnit.Cell);
+Check(!vehicleCell.IsEditing && grid.Columns[0].GetCellContent(row) is not TextBox,"Vehicle No remains locked");
 grid.CurrentCell=new DataGridCellInfo(row,grid.Columns[1]);
 grid.ScrollIntoView(row,grid.Columns[1]); grid.UpdateLayout(); grid.BeginEdit(); grid.UpdateLayout();
 var editor=Child<TextBox>(grid)!;
@@ -75,21 +77,32 @@ void Edit(int column, string value, string expectedField)
     box.RaiseEvent(new KeyEventArgs(Keyboard.PrimaryDevice,PresentationSource.FromVisual(window),0,Key.Enter){RoutedEvent=Keyboard.PreviewKeyDownEvent}); Pump();
     Check(handler.Posts>count && handler.Body.Contains(expectedField),"Enter saves " + grid.Columns[column].Header + " to " + expectedField);
 }
-Edit(0,"TEST1234","VehicleNo"); Edit(2,"2026-09-12 10:00","CreatedAt");
+Edit(2,"2026-09-12 10:00","CreatedAt");
 Edit(3,"MODEL TEST","Model"); Edit(4,"FINANCE TEST","FinanceName"); Edit(5,"YARD TEST","ParkingYardName");
 Edit(7,"Inventory note","InventoryRemark"); Edit(9,"Billing note","BillingRemark");
-Edit(10,"Collection note","CollectionUpdate"); Edit(11,"250","AddlChargesAmount");
+Edit(10,"Collection note","CollectionUpdate");
+grid.CurrentCell=new DataGridCellInfo(row,grid.Columns[11]); grid.ScrollIntoView(row,grid.Columns[11]); grid.UpdateLayout(); grid.BeginEdit(); grid.UpdateLayout();
+var addlEditor=(TextBox)grid.Columns[11].GetCellContent(row); addlEditor.Text="250"; Pump();
+Check((string)Get("GrossText")=="250","Gross Amount updates instantly while typing Addln Amount");
+var addlPosts=handler.Posts; addlEditor.RaiseEvent(new KeyEventArgs(Keyboard.PrimaryDevice,PresentationSource.FromVisual(window),0,Key.Enter){RoutedEvent=Keyboard.PreviewKeyDownEvent}); Pump();
+Check(handler.Posts>addlPosts && handler.Body.Contains("AddlChargesAmount"),"Enter saves Addln Amount and calculated Gross");
 Edit(12,"1500","BillingRepoCharges");
 Check((string)Get("GrossText")=="1750" && handler.Body.Contains("TotalGross"),"Repo Charges recalculates and saves Gross Amount");
 Edit(14,"Remark test","Remark");
 Edit(15,"300","CashAmount"); Edit(16,"100","Advance"); Edit(17,"800","RepoCharges");
 Check((decimal)dto.GetProperty("BillingRepoCharges")!.GetValue(Get("Src"))! ==1500 && (decimal)dto.GetProperty("RepoCharges")!.GetValue(Get("Src"))! ==800,"Billing repo and Accounts seizing stay independent");
 Check((string)Get("FinalText")=="400","old seizing deduction behavior retained");
+var rightBillingRepo=(TextBox)page.FindName("txtAcBillingRepo");
+var rightAddl=(TextBox)page.FindName("txtAcAddl");
+var rightGross=(TextBox)page.FindName("txtAcGross");
+rightBillingRepo.Text="2000"; rightAddl.Text="300"; Pump();
+Check(rightGross.Text=="2300","right-side Gross Amount updates instantly while typing");
+rightBillingRepo.Text="1500"; rightAddl.Text="250";
 var right=(TextBox)page.FindName("txtAcRepo"); right.Text="900";
 var rightBefore=handler.Posts;
 right.RaiseEvent(new KeyEventArgs(Keyboard.PrimaryDevice,PresentationSource.FromVisual(window),0,Key.Enter){RoutedEvent=Keyboard.PreviewKeyDownEvent}); Pump();
 Check(handler.Posts>rightBefore && handler.Body.Contains("900"),"right-side seizing Enter saves");
-Check(grid.Columns.Where(c=>(string)c.Header!="Gross Amount").All(c=>!c.IsReadOnly),"all source fields editable; calculated Gross is read-only");
+Check(grid.Columns.Where(c=>(string)c.Header is not "Gross Amount" and not "Vehicle No").All(c=>!c.IsReadOnly),"source fields editable except locked Vehicle No; calculated Gross is read-only");
 grid.CurrentCell=new DataGridCellInfo(row,grid.Columns[6]); grid.ScrollIntoView(row,grid.Columns[6]); grid.UpdateLayout(); grid.BeginEdit(); grid.UpdateLayout();
 var picker=(ComboBox)grid.Columns[6].GetCellContent(row); picker.Focus(); Pump();
 Console.WriteLine($"PICK loaded={picker.IsLoaded} focus={picker.IsKeyboardFocusWithin} selected={picker.SelectedItem}");
