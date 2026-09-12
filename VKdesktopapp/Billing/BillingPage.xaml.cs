@@ -227,7 +227,7 @@ public partial class BillingPage : Page
             ShowPreview(preview, url);
             txtGenStatus.Text = $"{kind} uploaded.";
         }
-        catch (Exception ex) { MessageBox.Show("Upload failed: " + ex.Message, "Billing", MessageBoxButton.OK, MessageBoxButton.Error); }
+        catch (Exception ex) { MessageBox.Show("Upload failed: " + ex.Message, "Billing", MessageBoxButton.OK, MessageBoxImage.Error); }
     }
 
     private async void cmbFinance_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -250,7 +250,7 @@ public partial class BillingPage : Page
         txtAgriLoan.Text = txtCustomer.Text = txtMakeModel.Text = txtRcNo.Text = txtBranch.Text = "";
         txtAgentName.Text = txtParkingYardMobile.Text = txtLoadDetails.Text = "";
         txtConfirmationByMobile.Text = txtExecutiveName.Text = "";
-        txtCollectionUpdate.Text = txtRemark.Text = txtBillingRemark.Text = "";
+        txtCollectionUpdate.Text = txtRemark.Text = "";
         _currentSubmissionId = 0;
         SetSubmissionFieldsReadOnly(false);
     }
@@ -326,7 +326,7 @@ public partial class BillingPage : Page
         {
             txtAgriLoan, txtCustomer, txtMakeModel, txtRcNo,
             txtConfirmationBy, txtConfirmationByMobile, txtAgentName, txtParkingYardMobile,
-            txtLoadDetails, txtExecutiveName, txtCollectionUpdate, txtRemark, txtBillingRemark,
+            txtLoadDetails, txtExecutiveName, txtCollectionUpdate, txtRemark,
             txtParkingYard, txtAddlCharges, txtAddlAmount
         };
         foreach (var b in boxes)
@@ -360,8 +360,7 @@ public partial class BillingPage : Page
             ConfirmationByMobile = txtConfirmationByMobile.Text.Trim(),
             ExecutiveName        = txtExecutiveName.Text.Trim(),
             CollectionUpdate     = txtCollectionUpdate.Text.Trim(),
-            Remark               = txtRemark.Text.Trim(),
-            BillingRemark        = txtBillingRemark.Text.Trim()
+            Remark               = txtRemark.Text.Trim()
         });
     }
 
@@ -370,5 +369,455 @@ public partial class BillingPage : Page
         if (e.Key == Key.Enter) _ = DoSearchAsync(txtVehSearch.Text.Trim());
     }
 
-    // ... remainder of file unchanged ...
+    private void txtVehSearch_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        if (_clearingSearch) return;
+        var digits = new string(txtVehSearch.Text.Where(char.IsLetterOrDigit).ToArray());
+        int need = rbChassis.IsChecked == true ? 5 : 4;
+        if (digits.Length >= need) _ = DoSearchAsync(digits.Substring(digits.Length - need));
+    }
+
+    private async Task DoSearchAsync(string q)
+    {
+        if (_searching || q.Length == 0) return;
+        if (_financeId <= 0) { txtSearchStatus.Text = "Select a finance first."; return; }
+        _searching = true;
+        _clearingSearch = true;
+        txtVehSearch.Text = "";
+        _clearingSearch = false;
+        txtSearchStatus.Text = "Searching…";
+        lstResults.ItemsSource = null;
+        try
+        {
+            _results = rbChassis.IsChecked == true
+                ? await _search.SearchByChassisLast5Async(q, _financeId)
+                : await _search.SearchByRcLast4Async(q, _financeId);
+            lstResults.ItemsSource = _results;
+            txtSearchStatus.Text = $"{_results.Count} vehicle(s) found in this finance.";
+        }
+        catch (Exception ex) { txtSearchStatus.Text = "Search failed: " + ex.Message; }
+        finally { _searching = false; }
+    }
+
+    private async void lstResults_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (lstResults.SelectedItem is not VehicleSearchItem sel) return;
+        var rec = sel;
+        if (long.TryParse(sel.Id, out var id))
+        {
+            try { rec = await _search.GetRecordByIdAsync(id) ?? sel; } catch { }
+        }
+        txtAgriLoan.Text  = Up(rec.AgreementNo);
+        txtCustomer.Text  = Up(rec.CustomerName);
+        txtMakeModel.Text = Up(rec.Model);
+        txtRcNo.Text      = Up(rec.VehicleNo);
+        txtBranch.Text    = Up(rec.BranchFromExcel);
+    }
+
+    private string BillFileName(string fallback)
+    {
+        var office = (cmbFinance.SelectedItem as FinanceOption)?.Name ?? "";
+        if (string.IsNullOrWhiteSpace(office)) office = txtBankTo.Text;
+        var letters = new string((office ?? "").Where(char.IsLetterOrDigit).ToArray()).ToUpperInvariant();
+        if (letters.Length > 8) letters = letters.Substring(0, 8);
+
+        var inv = new string(txtInvoiceNo.Text.Where(char.IsLetterOrDigit).ToArray());
+
+        if (letters.Length > 0 && inv.Length > 0) return $"{letters}_{inv}.docx";
+        if (letters.Length > 0) return $"{letters}_{DateTime.Now:yyyyMMdd_HHmmss}.docx";
+        return $"RepoBill_{fallback}_{DateTime.Now:yyyyMMdd_HHmmss}.docx";
+    }
+
+    private async void btnGenerate_Click(object sender, RoutedEventArgs e)
+    {
+        if (_financeId <= 0) { MessageBox.Show("Select a finance first.", "Billing", MessageBoxButton.OK, MessageBoxImage.Information); return; }
+        try
+        {
+            await DesktopApiClient.SaveBillingSettingsAsync(new
+            {
+                FinanceId = _financeId,
+                AgencyName = _realAgencyName, VendorCode = txtAgencyName.Text.Trim(),
+                PanNo = txtPan.Text.Trim(), GstState = txtGst.Text.Trim(),
+                BankAccountName = txtAcHolder.Text.Trim(), AccountNo = txtAccountNo.Text.Trim(), IfscCode = txtIfsc.Text.Trim(),
+                BankBranch = txtBankBranch.Text.Trim(), ParkingYard = txtParkingYard.Text.Trim(),
+                PaymentName = txtPaymentName.Text.Trim(), FooterLine = txtFooter.Text.Trim()
+            });
+        }
+        catch (Exception ex) { MessageBox.Show("Could not save billing settings: " + ex.Message, "Billing", MessageBoxButton.OK, MessageBoxImage.Warning); }
+
+        var safe = new string(txtRcNo.Text.Where(char.IsLetterOrDigit).ToArray());
+        if (safe.Length == 0) safe = "bill";
+        var dlg = new SaveFileDialog
+        {
+            Title = "Save Repossession Bill",
+            Filter = "Word document (*.docx)|*.docx",
+            FileName = BillFileName(safe)
+        };
+        if (dlg.ShowDialog() != true) return;
+
+        try
+        {
+            var assigned = await DesktopApiClient.CommitNextInvoiceNoAsync(_financeId);
+            if (assigned > 0) txtInvoiceNo.Text = assigned.ToString();
+        }
+        catch (Exception ex) { MessageBox.Show("Could not assign invoice number: " + ex.Message, "Billing", MessageBoxButton.OK, MessageBoxImage.Warning); }
+
+        try
+        {
+            var lh = await DownloadBytes(_letterheadUrl);
+            var bg = await DownloadBytes(_backgroundUrl);
+            var (pdfPath, signErr) = BuildDocx(dlg.FileName, lh, bg);
+            txtGenStatus.Foreground = System.Windows.Media.Brushes.Green;
+            txtGenStatus.Text = pdfPath != null ? "Bill generated + digitally signed." : "Bill generated.";
+            Process.Start(new ProcessStartInfo(pdfPath ?? dlg.FileName) { UseShellExecute = true });
+            if (signErr != null)
+                MessageBox.Show("The Word bill was created, but the signed PDF could not be made:\n\n" + signErr,
+                    "Billing", MessageBoxButton.OK, MessageBoxImage.Warning);
+            if (_currentSubmissionId > 0)
+            {
+                try
+                {
+                    await SaveSubmissionEditsAsync(_currentSubmissionId);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show(
+                        "The bill was generated, but your edits could not be saved back to the record: " + ex.Message,
+                        "Billing", MessageBoxButton.OK, MessageBoxImage.Warning);
+                }
+
+                try
+                {
+                    var billPath = pdfPath ?? dlg.FileName;
+                    string? billB64 = null, ext = null;
+                    try
+                    {
+                        billB64 = Convert.ToBase64String(await File.ReadAllBytesAsync(billPath));
+                        ext = Path.GetExtension(billPath).TrimStart('.');
+                    }
+                    catch { }
+                    await DesktopApiClient.MarkSubmissionBilledAsync(
+                        _currentSubmissionId, _session?.MemberId ?? 0,
+                        txtInvoiceNo.Text.Trim(), billB64, ext, ParseAmt(txtTotalAmount.Text),
+                        txtBillingRemark.Text.Trim());
+                }
+                catch { }
+                _currentSubmissionId = 0;
+            }
+            ResetVehicle();
+            txtInvoiceNo.Text = int.TryParse(txtInvoiceNo.Text, out var last) ? (last + 1).ToString() : "";
+            txtConfirmationBy.Text = "";
+            txtRepoAmount.Text = txtRepoWords.Text = "";
+            txtTotalAmount.Text = txtTotalWords.Text = "";
+            txtBillingRemark.Text = "";
+            txtAddlCharges.Text = "NA";
+            txtAddlAmount.Text = "";
+            txtSearchStatus.Text = "Ready for the next bill.";
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show("Failed to generate: " + ex.Message, "Billing", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private static async Task<byte[]?> DownloadBytes(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url)) return null;
+        try { return await App.HttpClient.GetByteArrayAsync(url); } catch { return null; }
+    }
+
+    private const string FontName = "Roboto";
+
+    private (string? PdfPath, string? Error) BuildDocx(string filePath, byte[]? letterhead, byte[]? background)
+    {
+        using var doc = new WordDocument();
+        var sec = doc.AddSection();
+        sec.PageSetup.Margins.All = 36;
+        float pageW = sec.PageSetup.PageSize.Width - 72;
+
+        float marginTop = sec.PageSetup.Margins.Top;
+        float lhBottom = marginTop;
+        if (letterhead != null)
+        {
+            var hp = sec.AddParagraph();
+            hp.ParagraphFormat.HorizontalAlignment = DocAlign.Center;
+            var pic = hp.AppendPicture(letterhead);
+            if (pic.Width > pageW) { float r = pageW / pic.Width; pic.Width *= r; pic.Height *= r; }
+            lhBottom = marginTop + pic.Height;
+        }
+        else
+        {
+            lhBottom = marginTop;
+        }
+
+        if (background != null)
+        {
+            try
+            {
+                var hpara = sec.HeadersFooters.Header.AddParagraph();
+                var bgPic = hpara.AppendPicture(background);
+                float pageH = sec.PageSetup.PageSize.Height;
+                float bgTop = lhBottom + 8f;
+                bgPic.TextWrappingStyle  = TextWrappingStyle.Behind;
+                bgPic.HorizontalOrigin   = HorizontalOrigin.Page;
+                bgPic.VerticalOrigin     = VerticalOrigin.Page;
+                bgPic.HorizontalPosition = sec.PageSetup.Margins.Left;
+                bgPic.VerticalPosition   = bgTop;
+                bgPic.Width  = pageW;
+                bgPic.Height = pageH - bgTop - sec.PageSetup.Margins.Bottom;
+            }
+            catch { }
+        }
+
+        var pay = string.IsNullOrWhiteSpace(txtPaymentName.Text) ? txtAgencyName.Text.Trim() : txtPaymentName.Text.Trim();
+        var agencyAddr = (App.SignedAppUser?.IsAgency == true && !string.IsNullOrWhiteSpace(App.SignedAppUser.Address))
+            ? App.SignedAppUser!.Address : App.Firm.Address;
+        float wl = pageW * 0.317f;
+        float wd = pageW * 0.507f;
+        float wa = pageW - wl - wd;
+
+        var t = sec.AddTable();
+        t.ResetCells(25, 3);
+        t.TableFormat.Borders.BorderType = BorderStyle.Single;
+        t.TableFormat.Borders.LineWidth = 0.5f;
+        t.TableFormat.Borders.Color = SFColor.Black;
+        t.TableFormat.Borders.Horizontal.BorderType = BorderStyle.Single;
+        t.TableFormat.Borders.Vertical.BorderType = BorderStyle.Single;
+
+        void W(int r) { t[r, 0].Width = wl; t[r, 1].Width = wd; t[r, 2].Width = wa; }
+        int ri = 0;
+
+        CellLines(t, ri, 0, new[] { $"To,  {txtBankTo.Text.Trim()},", "SUBJECT–SUBMISSION OF REPOSSESSION BILL." }, align: DocAlign.Center);
+        t.ApplyHorizontalMerge(ri, 0, 2); ri++;
+
+        var invLabels = new List<string> { "INVOICE DATE -", "INVOICE NO-", "BRANCH-" };
+        var invValues = new List<string> { txtInvoiceDate.Text.Trim(), txtInvoiceNo.Text.Trim(), txtBranch.Text.Trim() };
+        if (!string.IsNullOrWhiteSpace(txtCompanyAddress.Text))
+        {
+            invLabels.Add("COMPANY ADDRESS-");
+            invValues.Add(txtCompanyAddress.Text.Trim());
+        }
+        if (!string.IsNullOrWhiteSpace(txtCompanyGst.Text))
+        {
+            invLabels.Add("COMPANY GST-");
+            invValues.Add(txtCompanyGst.Text.Trim());
+        }
+        invLabels.Add("CONFIRMATION BY-");
+        invValues.Add(txtConfirmationBy.Text.Trim());
+        CellLines(t, ri, 0, invLabels.ToArray());
+        CellLines(t, ri, 1, invValues.ToArray());
+        W(ri); ri++;
+
+        CellText(t, ri, 0, "DESCRIPTION EXPENSE"); CellText(t, ri, 1, "ALL DETAILS"); CellText(t, ri, 2, "AMOUNT"); W(ri); ri++;
+
+        void KV(string label, string val, string amt = "")
+        {
+            CellText(t, ri, 0, label); CellText(t, ri, 1, val); CellText(t, ri, 2, amt); W(ri); ri++;
+        }
+        KV("AGRI-LOAN NO", txtAgriLoan.Text.Trim());
+        KV("NAME OF CUSTOMER", txtCustomer.Text.Trim());
+        KV("MAKE-MODEL", txtMakeModel.Text.Trim());
+        KV("RC NO", txtRcNo.Text.Trim());
+        KV("DATE OF REPOSSESSION", txtDateRepo.Text.Trim());
+        KV("PARKING YARD NAME", txtParkingYard.Text.Trim());
+        KV("VENDOR CODE", txtAgencyName.Text.Trim());
+        KV("ENCLOSED", txtEnclosed.Text.Trim());
+        KV("QTY", txtQty.Text.Trim());
+        KV("REPO CHARGES", txtRepoWords.Text.Trim(), Rs(ParseAmt(txtRepoAmount.Text)));
+        KV("ADDITIONAL CHARGES", txtAddlCharges.Text.Trim(), Rs(ParseAmt(txtAddlAmount.Text)));
+        KV("COLLECTION UPDATE", txtCollectionUpdate.Text.Trim());
+        KV("PAN NO", txtPan.Text.Trim());
+        KV("GST STATE", txtGst.Text.Trim());
+        KV("BANK ACCOUNT NAME", txtAcHolder.Text.Trim());
+        KV("ACCOUNT NO", txtAccountNo.Text.Trim());
+        KV("IFSC CODE", txtIfsc.Text.Trim());
+        KV("BRANCH", txtBankBranch.Text.Trim());
+        KV("TOTAL GROSS AMOUNT", txtTotalWords.Text.Trim(), Rs(ParseAmt(txtTotalAmount.Text)));
+
+        CellText(t, ri, 0, $"KINDIY RELEASE THE PAYMENT IN THE NAME OF M/S {pay}");
+        t.ApplyHorizontalMerge(ri, 0, 2); ri++;
+
+        var tyLines = new List<string> { "", "", "", "", "Thank You", Up(txtAgencyRealName.Text.Trim()) };
+        if (!string.IsNullOrWhiteSpace(agencyAddr)) tyLines.Add(Up(agencyAddr.Trim()));
+        if (!string.IsNullOrWhiteSpace(txtFooter.Text)) tyLines.Add(txtFooter.Text.Trim());
+        CellLines(t, ri, 0, tyLines.ToArray(), align: DocAlign.Right);
+        t.ApplyHorizontalMerge(ri, 0, 2);
+
+        using (var fs = new FileStream(filePath, FileMode.Create, FileAccess.Write))
+            doc.Save(fs, FormatType.Docx);
+
+        if (!SigningCertificates.LoadSigningEnabled()) return (null, null);
+
+        var cert = SigningCertificates.Saved(SigningIdentity);
+        if (cert == null) return (null, "No certificate chosen. Open Digital Signature and pick your name.");
+
+        var pdfPath = Path.ChangeExtension(filePath, ".pdf");
+        var signer = Up(txtAgencyRealName.Text.Trim());
+        var layout = SigningCertificates.LoadLayout();
+
+        try
+        {
+            RenderSignedPdf(doc, pdfPath, cert, signer, useToken: true, layout);
+            return (pdfPath, null);
+        }
+        catch (Exception token)
+        {
+            try
+            {
+                RenderSignedPdf(doc, pdfPath, cert, signer, useToken: false, layout);
+                return (pdfPath, null);
+            }
+            catch (Exception direct)
+            {
+                return (null, $"{token.Message}\n\n(fallback also failed: {direct.Message})");
+            }
+        }
+    }
+
+    private static void DrawLines(PdfGraphics g, string[] lines, PdfFont font, float x, float y, float lineHeight)
+    {
+        foreach (var line in lines)
+        {
+            g.DrawString(line, font, PdfBrushes.Black, x, y);
+            y += lineHeight;
+        }
+    }
+
+    private static byte[]? _robotoRegular, _robotoBold;
+
+    private static byte[]? RobotoBytes(bool bold)
+    {
+        if (bold && _robotoBold != null) return _robotoBold;
+        if (!bold && _robotoRegular != null) return _robotoRegular;
+        var file = bold ? "Roboto-Bold.ttf" : "Roboto-Regular.ttf";
+        foreach (var dir in new[]
+        {
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "Fonts"),
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Microsoft", "Windows", "Fonts")
+        })
+        {
+            try
+            {
+                var path = Path.Combine(dir, file);
+                if (!File.Exists(path)) continue;
+                var bytes = File.ReadAllBytes(path);
+                if (bold) _robotoBold = bytes; else _robotoRegular = bytes;
+                return bytes;
+            }
+            catch { }
+        }
+        return null;
+    }
+
+    private static PdfFont BillPdfFont(float size, bool bold)
+    {
+        var bytes = RobotoBytes(bold);
+        if (bytes != null) return new PdfTrueTypeFont(new MemoryStream(bytes), size);
+        return new PdfStandardFont(PdfFontFamily.Helvetica, size, bold ? PdfFontStyle.Bold : PdfFontStyle.Regular);
+    }
+
+    private static (PdfFont Font, float LineHeight) FitLines(string[] lines, bool bold, float maxSize, float minSize, float maxW, float maxH)
+    {
+        for (var s = maxSize; s >= minSize; s -= 0.5f)
+        {
+            var f = BillPdfFont(s, bold);
+            var lh = s * 1.18f;
+            if (lines.Max(l => f.MeasureString(l).Width) <= maxW && lines.Length * lh <= maxH)
+                return (f, lh);
+        }
+        return (BillPdfFont(minSize, bold), minSize * 1.18f);
+    }
+
+    private static string[] WrapToWidth(string text, PdfFont font, float maxW)
+    {
+        var lines = new List<string>();
+        var line = "";
+        foreach (var word in text.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var probe = line.Length == 0 ? word : line + " " + word;
+            if (line.Length > 0 && font.MeasureString(probe).Width > maxW) { lines.Add(line); line = word; }
+            else line = probe;
+        }
+        if (line.Length > 0) lines.Add(line);
+        return lines.Count == 0 ? new[] { "" } : lines.ToArray();
+    }
+
+    private static void RenderSignedPdf(WordDocument doc, string pdfPath, X509Certificate2 cert, string fallbackName, bool useToken,
+        (float X, float Y, float W, float H) layout)
+    {
+        using var render = new DocIORenderer();
+        using var pdf = render.ConvertToPDF(doc);
+
+        var page = pdf.Pages[pdf.Pages.Count - 1];
+        var size = page.GetClientSize();
+        float w = layout.W, h = layout.H;
+        float x = Math.Min(Math.Max(0f, layout.X), Math.Max(0f, size.Width - w));
+        float yTop = size.Height - layout.Y - h;
+        yTop = Math.Min(Math.Max(0f, yTop), Math.Max(0f, size.Height - h));
+        var bounds = new SFRectF(x, yTop, w, h);
+
+        var signature = useToken
+            ? new PdfSignature(pdf, page, null, "BillSignature") { Bounds = bounds }
+            : new PdfSignature(pdf, page, new PdfCertificate(cert), "BillSignature") { Bounds = bounds };
+
+        signature.Settings.CryptographicStandard = CryptographicStandard.CADES;
+        signature.Settings.DigestAlgorithm = DigestAlgorithm.SHA256;
+        signature.Reason = "Repossession bill";
+
+        var name = SigningCertificates.DisplayName(cert);
+        if (string.IsNullOrWhiteSpace(name)) name = fallbackName;
+        if (string.IsNullOrWhiteSpace(name)) name = "Authorised Signatory";
+
+        var g = signature.Appearance.Normal.Graphics;
+        var now = DateTimeOffset.Now;
+        var off = now.Offset;
+        var tz = (off < TimeSpan.Zero ? "-" : "+") + $"{Math.Abs(off.Hours):00}'{Math.Abs(off.Minutes):00}'";
+        var words = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+
+        const float leftX = 2f, rightX = 62f;
+        float leftW = rightX - leftX - 2f;
+        float rightW = w - rightX - 2f;
+        float innerH = h - 4f;
+
+        var leftLines = words.Length > 0 ? words : new[] { name };
+
+        var right = new List<string> { "Digitally signed" };
+        if (words.Length > 0) right.Add("by " + words[0]);
+        if (words.Length > 1)
+            right.AddRange(WrapToWidth(string.Join(" ", words.Skip(1)), BillPdfFont(6.5f, false), rightW));
+        right.Add("Date:");
+        right.Add(now.ToString("yyyy.MM.dd"));
+        right.Add($"{now:HH:mm:ss} {tz}");
+        var rightLines = right.ToArray();
+
+        var (nameFont, nameLineH) = FitLines(leftLines, true, 13f, 5f, leftW, innerH);
+        var (infoFont, infoLineH) = FitLines(rightLines, false, 6.5f, 4.5f, rightW, innerH);
+
+        DrawLines(g, leftLines, nameFont, leftX, 2f, nameLineH);
+        DrawLines(g, rightLines, infoFont, rightX, 2f, infoLineH);
+
+        if (useToken)
+            signature.AddExternalSigner(new TokenSigner(cert), SigningCertificates.ChainFor(cert), null);
+
+        using var fs = new FileStream(pdfPath, FileMode.Create, FileAccess.ReadWrite);
+        pdf.Save(fs);
+    }
+
+    private static void CellText(IWTable t, int row, int col, string text, bool bold = true, DocAlign align = DocAlign.Left)
+        => CellLines(t, row, col, new[] { text }, bold, align);
+
+    private static void CellLines(IWTable t, int row, int col, string[] lines, bool bold = true, DocAlign align = DocAlign.Left)
+    {
+        var cell = t[row, col];
+        for (int k = 0; k < lines.Length; k++)
+        {
+            var p = (k == 0 && cell.Paragraphs.Count > 0) ? cell.Paragraphs[0] : cell.AddParagraph();
+            p.ParagraphFormat.HorizontalAlignment = align;
+            p.ParagraphFormat.AfterSpacing = 0f;
+            var r = p.AppendText(lines[k] ?? "");
+            r.CharacterFormat.FontName = FontName;
+            r.CharacterFormat.FontSize = 9f;
+            r.CharacterFormat.Bold = bold;
+        }
+    }
 }
