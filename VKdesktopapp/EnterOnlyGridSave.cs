@@ -18,12 +18,7 @@ internal static class EnterOnlyGridSave
         public DispatcherTimer? ResetTimer;
     }
 
-    private sealed class StatusWatch
-    {
-    }
-
     private static readonly ConditionalWeakTable<DataGrid, GridState> States = new();
-    private static readonly ConditionalWeakTable<TextBlock, StatusWatch> StatusWatches = new();
 
     [ModuleInitializer]
     internal static void Initialize()
@@ -32,12 +27,6 @@ internal static class EnterOnlyGridSave
             typeof(DataGrid),
             Keyboard.PreviewKeyDownEvent,
             new KeyEventHandler(OnGridPreviewKeyDown),
-            handledEventsToo: true);
-
-        EventManager.RegisterClassHandler(
-            typeof(DataGrid),
-            DataGrid.CellEditEndingEvent,
-            new DataGridCellEditEndingEventHandler(OnCellEditEnding),
             handledEventsToo: true);
 
         EventManager.RegisterClassHandler(
@@ -52,11 +41,6 @@ internal static class EnterOnlyGridSave
             new RoutedEventHandler(OnGridBillingRemarkLostFocus),
             handledEventsToo: true);
 
-        EventManager.RegisterClassHandler(
-            typeof(DataGrid),
-            FrameworkElement.LoadedEvent,
-            new RoutedEventHandler(OnGridLoaded),
-            handledEventsToo: true);
     }
 
     private static FrameworkElement? TargetOwner(DependencyObject? child)
@@ -77,39 +61,6 @@ internal static class EnterOnlyGridSave
     }
 
     private static bool IsTargetGrid(DataGrid grid) => TargetOwner(grid) != null;
-
-    private static void OnGridLoaded(object sender, RoutedEventArgs e)
-    {
-        if (sender is not DataGrid grid) return;
-        var root = TargetOwner(grid);
-        if (root == null) return;
-        var status = FindNamedDescendant<TextBlock>(root, "txtStatus");
-        if (status == null || StatusWatches.TryGetValue(status, out _)) return;
-
-        StatusWatches.Add(status, new StatusWatch());
-        status.TextChanged += Status_TextChanged;
-    }
-
-    private static void Status_TextChanged(object? sender, TextChangedEventArgs e)
-    {
-        if (sender is not TextBlock status) return;
-        var text = status.Text ?? "";
-        if (!text.StartsWith("Saved", StringComparison.OrdinalIgnoreCase)
-            && !text.Contains("remark saved", StringComparison.OrdinalIgnoreCase)) return;
-
-        status.Text = "Saved";
-        var timer = new DispatcherTimer(DispatcherPriority.Background)
-        {
-            Interval = TimeSpan.FromSeconds(2)
-        };
-        var expected = status.Text;
-        timer.Tick += (_, _) =>
-        {
-            timer.Stop();
-            if (status.Text == expected) status.Text = "";
-        };
-        timer.Start();
-    }
 
     private static void OnGridPreviewKeyDown(object sender, KeyEventArgs e)
     {
@@ -142,21 +93,6 @@ internal static class EnterOnlyGridSave
         e.Handled = true;
         grid.CommitEdit(DataGridEditingUnit.Cell, true);
         grid.CommitEdit(DataGridEditingUnit.Row, true);
-    }
-
-    private static void OnCellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
-    {
-        if (sender is not DataGrid grid || !IsTargetGrid(grid)) return;
-        var state = States.GetOrCreateValue(grid);
-
-        if (state.AllowedCellEditEndings > 0)
-        {
-            state.AllowedCellEditEndings--;
-            return;
-        }
-
-        // Existing page-level handlers perform the API save. Block them for focus/mouse commits.
-        e.Handled = true;
     }
 
     private static void OnGridComboSelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -223,15 +159,4 @@ internal static class EnterOnlyGridSave
         return null;
     }
 
-    private static T? FindNamedDescendant<T>(DependencyObject root, string name) where T : FrameworkElement
-    {
-        if (root is T fe && fe.Name == name) return fe;
-        var count = VisualTreeHelper.GetChildrenCount(root);
-        for (var i = 0; i < count; i++)
-        {
-            var found = FindNamedDescendant<T>(VisualTreeHelper.GetChild(root, i), name);
-            if (found != null) return found;
-        }
-        return null;
-    }
 }
