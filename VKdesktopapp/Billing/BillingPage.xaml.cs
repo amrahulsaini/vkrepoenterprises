@@ -55,7 +55,7 @@ public partial class BillingPage : Page
             [txtRcNo] = "VehicleNo", [txtBranch] = "BranchName", [txtAgentName] = "AgentName",
             [txtParkingYard] = "ParkingYardName", [txtParkingYardMobile] = "ParkingYardMobile",
             [txtLoadDetails] = "LoadDetails", [txtAddlCharges] = "AddlChargesNotes",
-            [txtAddlAmount] = "AddlChargesAmount", [txtConfirmationBy] = "ConfirmationByName",
+            [txtAddlAmount] = "AddlChargesAmount", [txtRepoAmount] = "BillingRepoCharges", [txtConfirmationBy] = "ConfirmationByName",
             [txtConfirmationByMobile] = "ConfirmationByMobile", [txtExecutiveName] = "ExecutiveName",
             [txtCollectionUpdate] = "CollectionUpdate", [txtRemark] = "Remark", [txtBillingRemark] = "BillingRemark"
         };
@@ -67,7 +67,7 @@ public partial class BillingPage : Page
                 try
                 {
                     object value = pair.Key.Text.Trim();
-                    if (pair.Key == txtAddlAmount) value = ParseAmt(pair.Key.Text);
+                    if (pair.Key == txtAddlAmount || pair.Key == txtRepoAmount) value = ParseAmt(pair.Key.Text);
                     await DesktopApiClient.UpdateSubmissionFieldsAsync(_currentSubmissionId,
                         new Dictionary<string, object> { [pair.Value] = value });
                     txtGenStatus.Text = "Saved.";
@@ -341,7 +341,7 @@ public partial class BillingPage : Page
         if (!string.IsNullOrWhiteSpace(s.ParkingYardName)) txtParkingYard.Text = Up(s.ParkingYardName);
         if (!string.IsNullOrWhiteSpace(s.AddlChargesNotes)) txtAddlCharges.Text = Up(s.AddlChargesNotes);
         if (s.AddlChargesAmount is decimal amt && amt > 0) txtAddlAmount.Text = amt.ToString("0.##");
-        txtRepoAmount.Text = s.RepoCharges?.ToString("0.##") ?? "";
+        txtRepoAmount.Text = s.BillingRepoCharges?.ToString("0.##") ?? "";
         SetSubmissionFieldsReadOnly(false);
         txtGenStatus.Foreground = System.Windows.Media.Brushes.Green;
         txtGenStatus.Text = $"Loaded submission for {s.VehicleNo}. Edit any field, then generate.";
@@ -383,6 +383,7 @@ public partial class BillingPage : Page
             LoadDetails          = txtLoadDetails.Text.Trim(),
             AddlChargesNotes     = txtAddlCharges.Text.Trim(),
             AddlChargesAmount    = addl,
+            BillingRepoCharges   = ParseAmt(txtRepoAmount.Text),
             ConfirmationByName   = txtConfirmationBy.Text.Trim(),
             ConfirmationByMobile = txtConfirmationByMobile.Text.Trim(),
             ExecutiveName        = txtExecutiveName.Text.Trim(),

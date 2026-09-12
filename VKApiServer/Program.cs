@@ -2609,7 +2609,7 @@ app.MapGet("/api/mgr/billing/submissions", async (HttpContext ctx, string? from,
         await using var conn = new MySqlConnection(TenantContext.Conn);
         await conn.OpenAsync();
         await using var cmd = new MySqlCommand($@"
-            SELECT rs.id, rs.record_id, rs.finance_id, COALESCE(NULLIF(f.name,''), rs.finance_name) AS finance_name,
+            SELECT rs.id, rs.record_id, rs.finance_id, COALESCE(NULLIF(rs.finance_name,''), f.name) AS finance_name,
                    CASE WHEN rs.record_id IS NULL THEN rs.branch_name
                         ELSE COALESCE(vr.branch_name_raw, '') END AS branch_name,
                    rs.loan_no, rs.customer_name, rs.vehicle_no,
@@ -2623,7 +2623,7 @@ app.MapGet("/api/mgr/billing/submissions", async (HttpContext ctx, string? from,
                    rs.total_gross, rs.courier_percent, rs.payment_screenshot, rs.acct_holder_name,
                    rs.bank_name, rs.bank_account_no, rs.ifsc_code, rs.utr_no,
                    rs.payment_date, rs.application_charges, rs.cash_amount, rs.payment_status,
-                   rs.billing_remark, rs.accounts_remark, rs.inventory_remark, rs.payment_screenshots
+                   rs.billing_remark, rs.accounts_remark, rs.inventory_remark, rs.payment_screenshots, rs.billing_repo_charges
               FROM repo_submissions rs
          LEFT JOIN finances f ON f.id = rs.finance_id
          LEFT JOIN vehicle_records vr ON vr.id = rs.record_id {whereSql}
@@ -2680,7 +2680,8 @@ app.MapGet("/api/mgr/billing/submissions", async (HttpContext ctx, string? from,
                 billingRemark = S(48) ?? "",
                 accountsRemark = S(49) ?? "",
                 inventoryRemark = S(50) ?? "",
-                screenshotUrls = ScreenshotUrls(S(51), S(38), billBaseUrl)
+                screenshotUrls = ScreenshotUrls(S(51), S(38), billBaseUrl),
+                billingRepoCharges = rdr.IsDBNull(52) ? (decimal?)null : rdr.GetDecimal(52)
             });
         }
         return Results.Ok(list);
@@ -3004,7 +3005,7 @@ app.MapPost("/api/mgr/billing/submissions/{id:long}/billed", async (HttpContext 
                      invoice_no=COALESCE(@inv, invoice_no),
                      bill_file=COALESCE(@bf, bill_file),
                      total_gross=COALESCE(@tg, total_gross),
-                     repo_charges=COALESCE(@repo, repo_charges),
+                     billing_repo_charges=COALESCE(@repo, billing_repo_charges),
                      addl_charges_amount=COALESCE(@addl, addl_charges_amount),
                      billing_remark=COALESCE(@brem, billing_remark)
                WHERE id=@id",
@@ -3044,6 +3045,14 @@ app.MapPost("/api/mgr/billing/submissions/{id:long}/fields", async (HttpContext 
         if (dto.CollectionUpdate  != null) M("collection_update", dto.CollectionUpdate);
         if (dto.Remark            != null) M("remark", dto.Remark);
         if (dto.CashAmount.HasValue) M("cash_amount", dto.CashAmount.Value);
+        if (dto.BillingRepoCharges.HasValue) M("billing_repo_charges", dto.BillingRepoCharges.Value);
+        if (dto.TotalGross.HasValue) M("total_gross", dto.TotalGross.Value);
+        if (dto.CreatedAt != null)
+        {
+            if (!DateTime.TryParse(dto.CreatedAt, out var repoDate))
+                return Results.BadRequest(new { message = "Enter a valid repo date." });
+            M("created_at", repoDate);
+        }
         if (dto.AddlChargesAmount.HasValue) M("addl_charges_amount", dto.AddlChargesAmount.Value);
         if (dto.ParkingYardMobile    != null) M("parking_yard_mobile", dto.ParkingYardMobile);
         if (dto.LoadDetails          != null) M("load_details", dto.LoadDetails);
@@ -4932,7 +4941,8 @@ record MgrEditFieldsDto(
     string? CollectionUpdate = null, string? Remark = null, decimal? AddlChargesAmount = null,
     string? ParkingYardMobile = null, string? LoadDetails = null, string? AddlChargesNotes = null,
     string? ConfirmationByName = null, string? ConfirmationByMobile = null, string? ExecutiveName = null,
-    string? BillingRemark = null, decimal? CashAmount = null);
+    string? BillingRemark = null, decimal? CashAmount = null,
+    decimal? BillingRepoCharges = null, decimal? TotalGross = null, string? CreatedAt = null);
 record MgrPaymentDto(
     string? AcctHolderName = null, string? BankName = null, string? BankAccountNo = null,
     string? IfscCode = null, string? UtrNo = null, string? PaymentDate = null,

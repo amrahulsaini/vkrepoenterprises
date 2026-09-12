@@ -40,7 +40,7 @@ public partial class AgentBillWindow : Window
         decimal adv  = rows.Sum(r => r.Advance ?? 0m);
         decimal cash = rows.Sum(r => r.CashAmount ?? 0m);
         txtCount.Text   = $"Vehicles: {rows.Count}";
-        txtRepoTot.Text = "Total Repo: " + repo.ToString("0.##");
+        txtRepoTot.Text = "Total Seizing Charges: " + repo.ToString("0.##");
         txtAdvTot.Text  = "Total Advance: " + adv.ToString("0.##")
                         + (cash > 0m ? "    •    Cash collected: " + cash.ToString("0.##") : "");
 
@@ -211,7 +211,7 @@ public partial class AgentBillWindow : Window
         t.TableFormat.Borders.LineWidth = 0.5f;
         t.TableFormat.Borders.Color = SFColor.Black;
 
-        string[] heads = { "#", "VEHICLE NO", "MAKE/MODEL", "FINANCE", "PARKING YARD", "REPO DATE", "PAYMENT DATE", "UTR NO", "REPO", "ADVANCE", "CASH COLLECTED", "SEIZING CHARGES" };
+        string[] heads = { "#", "VEHICLE NO", "MAKE/MODEL", "FINANCE", "PARKING YARD", "REPO DATE", "PAYMENT DATE", "UTR NO", "SEIZING CHARGES", "ADVANCE", "CASH COLLECTED", "FINAL AMOUNT" };
         for (int c = 0; c < 12; c++) Cell(t, 0, c, heads[c], bold: true);
 
         decimal repoTot = 0m, advTot = 0m, cashTot = 0m;
@@ -245,12 +245,12 @@ public partial class AgentBillWindow : Window
         tot.TableFormat.Borders.BorderType = BorderStyle.Single;
         tot.TableFormat.Borders.LineWidth = 0.5f;
         tot.TableFormat.Borders.Color = SFColor.Black;
-        TotRow(tot, 0, "TOTAL REPO CHARGES", repoTot.ToString("0.##"));
+        TotRow(tot, 0, "TOTAL SEIZING CHARGES", repoTot.ToString("0.##"));
         TotRow(tot, 1, "LESS: TOTAL ADVANCE", advTot.ToString("0.##"));
         TotRow(tot, 2, "LESS: APPLICATION CHARGES", appc.ToString("0.##"));
         TotRow(tot, 3, "LESS: CASH COLLECTED BY AGENT", cashTot.ToString("0.##"));
         TotRow(tot, 4,
-            net < 0m ? "NET RECOVERABLE FROM AGENT" : "SEIZING CHARGES PAYABLE TO AGENT",
+            net < 0m ? "NET RECOVERABLE FROM AGENT" : "NET PAYABLE TO AGENT",
             Math.Abs(net).ToString("0.##"), bold: true);
 
         if (net < 0m)

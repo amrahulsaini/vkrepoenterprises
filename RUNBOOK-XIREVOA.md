@@ -236,3 +236,14 @@ If you ever sync data from the old box again, read `MIGRATION-CUTOVER.md` "Migra
 - `vehicle_records.completeness` is a **generated column** → load dumps with `SET SESSION sql_mode=''` (else ERROR 1906).
 - `mysqldump --where` with a subquery needs `--single-transaction` (else ERROR 1100).
 - Row-count/max-id checks don't prove data equality (in-place re-uploads and dedup deletes hide differences).
+
+
+## Accounts billing/seizing separation (September 2026)
+
+Before deploying code that reads `billing_repo_charges`, back up each tenant's
+`repo_submissions` table and run `dbschema/billing_repo_charges.sql` on every tenant.
+The existing `repo_charges` field is the independent Accounts **Seizing Charges**
+amount; billing generation must only write the new `billing_repo_charges` field.
+The migration initializes missing billing amounts from recorded gross minus
+additional charges for billed submissions and leaves Accounts seizing values alone.
+New tenants get the additional column from `dbschema/tenant_template.sql`.

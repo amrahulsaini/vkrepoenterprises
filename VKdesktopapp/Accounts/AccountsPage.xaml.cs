@@ -172,7 +172,12 @@ public partial class AccountsPage : Page
         }
 
         public long Id => Src.Id;
-        public string RepoDate => Src.CreatedAt;
+        public string RepoDate
+        {
+            get => Src.CreatedAt;
+            set { if (!DateTime.TryParse(value, out var date)) throw new FormatException("Enter a valid repo date.");
+                Put("CreatedAt", Src.CreatedAt, date.ToString("yyyy-MM-dd HH:mm"), v => Src with { CreatedAt = v }); }
+        }
         public string AgentName
         {
             get
@@ -182,7 +187,7 @@ public partial class AccountsPage : Page
             }
             set => Put(nameof(AgentName), AgentName, value, v => Src with { AgentName = v });
         }
-        public string VehicleNo => string.IsNullOrWhiteSpace(Src.VehicleNo) ? Src.ChassisNo : Src.VehicleNo;
+        public string VehicleNo { get => string.IsNullOrWhiteSpace(Src.VehicleNo) ? Src.ChassisNo : Src.VehicleNo; set => Put(nameof(VehicleNo), VehicleNo, value, v => Src with { VehicleNo = v }); }
         public string CustomerName { get => Src.CustomerName; set => Put(nameof(CustomerName), Src.CustomerName, value, v => Src with { CustomerName = v }); }
         public string FinanceName { get => (Src.FinanceName ?? "").ToUpperInvariant(); set => Put(nameof(FinanceName), FinanceName, value, v => Src with { FinanceName = v }); }
         public string BranchName { get => (Src.BranchName ?? "").ToUpperInvariant(); set => Put(nameof(BranchName), BranchName, value, v => Src with { BranchName = v }); }
@@ -194,7 +199,16 @@ public partial class AccountsPage : Page
             get => string.Equals(Src.CourierYn?.Trim(), "Yes", StringComparison.OrdinalIgnoreCase) ? "Yes" : "No";
             set => Put(nameof(CourierYn), CourierYn, value, v => Src with { CourierYn = v });
         }
-        public string GrossText => Src.TotalGross?.ToString("0.##") ?? "";
+        private void PutAmount(string field, decimal? old, string value, Func<decimal, DesktopApiClient.RepoSubmissionDto> apply, [CallerMemberName] string? prop = null)
+        {
+            decimal n = string.IsNullOrWhiteSpace(value) ? 0m : ParseAmt(value) ?? throw new FormatException("Enter a valid amount.");
+            if (n == old) return;
+            Src = apply(n); Dirty.Add(field); Changed(prop);
+        }
+        public string GrossText { get => Src.TotalGross?.ToString("0.##") ?? "";
+            set => PutAmount("TotalGross", Src.TotalGross, value, v => Src with { TotalGross = v }); }
+        public string BillingRepoChargesText { get => Src.BillingRepoCharges?.ToString("0.##") ?? "";
+            set => PutAmount("BillingRepoCharges", Src.BillingRepoCharges, value, v => Src with { BillingRepoCharges = v }); }
         public string PercentText
         {
             get => Src.CourierPercent?.ToString("0.##") ?? "";
@@ -223,7 +237,7 @@ public partial class AccountsPage : Page
         public string InventoryRemark { get => Src.InventoryRemark ?? ""; set => Put(nameof(InventoryRemark), Src.InventoryRemark, value, v => Src with { InventoryRemark = v }); }
         public string AccountsRemark { get => Src.AccountsRemark ?? ""; set => Put("Payment", Src.AccountsRemark, value, v => Src with { AccountsRemark = v }); }
         public string Remark { get => Src.Remark; set => Put(nameof(Remark), Src.Remark, value, v => Src with { Remark = v }); }
-        public string AddlAmountText => Src.AddlChargesAmount?.ToString("0.##") ?? "";
+        public string AddlAmountText { get => Src.AddlChargesAmount?.ToString("0.##") ?? ""; set => PutAmount("AddlChargesAmount", Src.AddlChargesAmount, value, v => Src with { AddlChargesAmount = v }); }
         public string UtrNo { get => Src.UtrNo; set => Put("Payment", Src.UtrNo, value, v => Src with { UtrNo = v }); }
         public string InvoiceNo => Src.InvoiceNo ?? "";
         public string PaymentDate { get => Src.PaymentDate; set => Put("Payment", Src.PaymentDate, value, v => Src with { PaymentDate = v }); }
@@ -250,7 +264,7 @@ public partial class AccountsPage : Page
             get => _repo?.ToString("0.##") ?? "";
             set
             {
-                var n = ParseAmt(value);
+                var n = string.IsNullOrWhiteSpace(value) ? 0m : ParseAmt(value) ?? throw new FormatException("Enter a valid amount.");
                 if (n == _repo) return;
                 _repo = n; Src = Src with { RepoCharges = n }; Dirty.Add("RepoCharges");
                 Changed(nameof(RepoChargesText)); Changed(nameof(FinalText));
@@ -508,8 +522,8 @@ public partial class AccountsPage : Page
 
     private void SetAgentEditing(bool on)
     {
-        cmbEditAgent.IsEnabled  = on;
-        btnAgentEdit.Visibility   = on ? Visibility.Collapsed : Visibility.Visible;
+        cmbEditAgent.IsEnabled  = true;
+        btnAgentEdit.Visibility   = Visibility.Collapsed;
         btnAgentSave.Visibility   = on ? Visibility.Visible   : Visibility.Collapsed;
         btnAgentCancel.Visibility = on ? Visibility.Visible   : Visibility.Collapsed;
     }
@@ -636,11 +650,11 @@ public partial class AccountsPage : Page
     private void BuildSummary(List<AcctRow> rows)
     {
         txtGrandVehicles.Text = $"Vehicles: {rows.Count}";
-        txtGrandRepo.Text  = "Total Repo: " + rows.Sum(x => x.RepoCharges ?? 0m).ToString("0.##");
+        txtGrandRepo.Text  = "Total Seizing Charges: " + rows.Sum(x => x.RepoCharges ?? 0m).ToString("0.##");
         decimal cashTot = rows.Sum(x => x.CashAmount);
         decimal finalTot = rows.Sum(x => (x.RepoCharges ?? 0m) - (x.Advance ?? 0m) - x.CashAmount);
         txtGrandCash.Text = "Total Cash Collected: " + cashTot.ToString("0.##");
-        txtGrandFinal.Text = (finalTot < 0m ? "Recoverable from agent: " : "Total Seizing Charges: ") + finalTot.ToString("0.##");
+        txtGrandFinal.Text = (finalTot < 0m ? "Recoverable from agent: " : "Total Final Amount: ") + finalTot.ToString("0.##");
         txtGrandFinal.Foreground = finalTot < 0m
             ? System.Windows.Media.Brushes.Firebrick
             : (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFrom("#1565C0")!;
@@ -743,15 +757,14 @@ public partial class AccountsPage : Page
     private void LoadCharges(AcctRow r)
     {
         var vis  = Visibility.Visible;
-        var gone = Visibility.Collapsed;
 
         txtChargesHead.Text = "CHARGES — " + r.ActionText.ToUpperInvariant();
         txtChargesMsg.Text = "";
 
         lblGross.Visibility    = vis;
         txtAcGross.Visibility  = vis;
-        lblAcPercent.Visibility   = gone;
-        txtAcPercent.Visibility   = gone;
+        lblAcPercent.Visibility   = vis;
+        txtAcPercent.Visibility   = vis;
 
         lblAcAddl.Visibility   = vis;
         txtAcAddl.Visibility   = vis;
@@ -759,6 +772,7 @@ public partial class AccountsPage : Page
         _suppressAcCalc = true;
         txtAcGross.Text   = r.Src.TotalGross?.ToString("0.##") ?? "";
         txtAcAddl.Text    = r.AddlAmountText;
+        txtAcBillingRepo.Text = r.BillingRepoChargesText;
         txtAcPercent.Text = r.Src.CourierPercent?.ToString("0.##") ?? "";
         txtAcRepo.Text    = r.RepoCharges?.ToString("0.##") ?? "";
         txtAcAdvance.Text = r.Advance?.ToString("0.##") ?? "";
@@ -839,8 +853,8 @@ public partial class AccountsPage : Page
         decimal cash = ParseAmt(txtAcCash.Text) ?? 0m;
         decimal net  = repo - adv - cash;
         txtAcFinal.Text = cash > 0m
-            ? $"Seizing Charges: {repo:0.##} − {adv:0.##} − {cash:0.##} cash = {net:0.##}"
-            : $"Seizing Charges: {repo:0.##} − {adv:0.##} = {net:0.##}";
+            ? $"Final Amount: {repo:0.##} − {adv:0.##} − {cash:0.##} cash = {net:0.##}"
+            : $"Final Amount: {repo:0.##} − {adv:0.##} = {net:0.##}";
         txtAcFinal.Foreground = net < 0m
             ? System.Windows.Media.Brushes.Firebrick
             : (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFrom("#1565C0")!;
@@ -850,13 +864,46 @@ public partial class AccountsPage : Page
     {
         if (e.Key != System.Windows.Input.Key.Enter || _selected is not { } r) return;
         e.Handled = true;
+        try
+        {
         if (e.OriginalSource == txtAcAdvance) r.AdvanceText = txtAcAdvance.Text;
         else if (e.OriginalSource == txtAcCash) r.CashText = txtAcCash.Text;
+        else if (e.OriginalSource == txtAcRepo) r.RepoChargesText = txtAcRepo.Text;
+        else if (e.OriginalSource == txtAcGross) r.GrossText = txtAcGross.Text;
+        else if (e.OriginalSource == txtAcAddl) r.AddlAmountText = txtAcAddl.Text;
+        else if (e.OriginalSource == txtAcBillingRepo) r.BillingRepoChargesText = txtAcBillingRepo.Text;
+        else if (e.OriginalSource == txtAcPercent)
+        {
+            r.PercentText = txtAcPercent.Text;
+            var percent = ParseAmt(txtAcPercent.Text) ?? 0m;
+            r.RepoChargesText = ((r.Src.TotalGross ?? 0m) * percent / 100m).ToString("0.##");
+        }
         else if (e.OriginalSource == txtAcRemark) r.AccountsRemark = txtAcRemark.Text;
         else if (e.OriginalSource == txtUtr) r.UtrNo = txtUtr.Text;
         else if (cmbEditAgent.IsKeyboardFocusWithin) r.AgentName = cmbEditAgent.Text;
-        else if (dpPayDate.IsKeyboardFocusWithin) r.PaymentDate = dpPayDate.SelectedDate?.ToString("yyyy-MM-dd") ?? "";
+        else if (dpPayDate.IsKeyboardFocusWithin)
+        {
+            var dateText = (e.OriginalSource as TextBox)?.Text ?? dpPayDate.Text;
+            if (!DateTime.TryParse(dateText, out var date)) throw new FormatException("Enter a valid payment date.");
+            r.PaymentDate = date.ToString("yyyy-MM-dd");
+        }
         else return;
+        await SaveRow(r);
+        }
+        catch (Exception ex) { txtStatus.Text = "Save failed: " + ex.Message; }
+    }
+
+    private async void AgentSelection_Changed(object sender, SelectionChangedEventArgs e)
+    {
+        if (_loadingPanel || !_ready || _selected is not { } r || !cmbEditAgent.IsDropDownOpen || cmbEditAgent.SelectedItem is not string agent) return;
+        r.AgentName = agent;
+        await SaveRow(r);
+    }
+
+    private async void PaymentDate_Changed(object sender, SelectionChangedEventArgs e)
+    {
+        if (_loadingPanel || !_ready || _selected is not { } r || !dpPayDate.IsDropDownOpen) return;
+        r.PaymentDate = dpPayDate.SelectedDate?.ToString("yyyy-MM-dd") ?? "";
         await SaveRow(r);
     }
 
@@ -875,6 +922,11 @@ public partial class AccountsPage : Page
         txtChargesMsg.Text = "Saving…";
         try
         {
+            r.RepoChargesText = txtAcRepo.Text;
+            r.PercentText = txtAcPercent.Text;
+            r.GrossText = txtAcGross.Text;
+            r.AddlAmountText = txtAcAddl.Text;
+            r.BillingRepoChargesText = txtAcBillingRepo.Text;
             r.AdvanceText = txtAcAdvance.Text;
             r.CashText = txtAcCash.Text;
             await SaveRow(r);

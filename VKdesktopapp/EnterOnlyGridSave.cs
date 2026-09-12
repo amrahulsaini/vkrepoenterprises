@@ -74,9 +74,13 @@ internal static class EnterOnlyGridSave
             && IsViewAll(grid))
             return;
 
-        if (source is not TextBox && source is not ComboBox) return;
-
-        UpdateEditorSource(source);
+        // Focus can move onto the cell/grid while a text edit is still pending.
+        // Locate that editor instead of silently ignoring Enter from a cell or its child.
+        var editor = source as TextBox ?? (DependencyObject?)FindAncestor<TextBox>(source)
+            ?? source as ComboBox ?? FindAncestor<ComboBox>(source) ?? FindEditingControl(grid);
+        if (editor == null) return;
+        UpdateEditorSource(editor);
+        if (Validation.GetHasError(editor)) { e.Handled = true; return; }
 
         e.Handled = true;
         Commit(grid);
@@ -92,7 +96,7 @@ internal static class EnterOnlyGridSave
         var grid = FindAncestor<DataGrid>(combo);
         if (grid == null || !IsTargetGrid(grid)) return;
 
-        if (!combo.IsLoaded || !combo.IsKeyboardFocusWithin || e.AddedItems.Count == 0) return;
+        if (!combo.IsLoaded || FindAncestor<DataGridCell>(combo)?.IsEditing != true || e.AddedItems.Count == 0) return;
         UpdateEditorSource(combo);
         grid.Dispatcher.BeginInvoke(new Action(() => Commit(grid)), DispatcherPriority.Background);
     }
@@ -127,6 +131,19 @@ internal static class EnterOnlyGridSave
         // Specifically suppress the old Billing Remark LostFocus save path.
         if (IsViewAll(grid) && IsBindingPath(box, TextBox.TextProperty, "BillingRemark"))
             e.Handled = true;
+    }
+
+    private static DependencyObject? FindEditingControl(DependencyObject root)
+    {
+        for (int i = 0; i < VisualTreeHelper.GetChildrenCount(root); i++)
+        {
+            var child = VisualTreeHelper.GetChild(root, i);
+            if ((child is TextBox || child is ComboBox) && FindAncestor<DataGridCell>(child)?.IsEditing == true)
+                return child;
+            var found = FindEditingControl(child);
+            if (found != null) return found;
+        }
+        return null;
     }
 
     private static bool IsViewAll(DataGrid grid)

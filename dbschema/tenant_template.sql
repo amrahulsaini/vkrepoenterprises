@@ -646,6 +646,7 @@ CREATE TABLE IF NOT EXISTS `repo_submissions` (
   `collection_update`      VARCHAR(512)    NULL,
   `remark`                 VARCHAR(512)    NULL,
   `total_gross`            DECIMAL(12,2)   NULL,
+  `billing_repo_charges`   DECIMAL(12,2)   NULL,
   `billing_remark`         VARCHAR(512)    NULL,
   `courier_percent`        DECIMAL(6,2)    NULL,
   `payment_screenshot`     VARCHAR(255)    NULL,

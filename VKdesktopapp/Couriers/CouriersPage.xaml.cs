@@ -409,8 +409,8 @@ public partial class CouriersPage : Page
         }
         catch (Exception ex)
         {
-            txtStatus.Text = "Save failed: " + ex.Message;
             await LoadAsync();
+            txtStatus.Text = "Save failed: " + ex.Message;
         }
     }
 

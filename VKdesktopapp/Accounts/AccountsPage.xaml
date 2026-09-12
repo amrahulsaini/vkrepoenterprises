@@ -186,28 +186,28 @@
                     </ContextMenu>
                 </DataGrid.ContextMenu>
                 <DataGrid.Columns>
-                    <DataGridTextColumn Header="Vehicle No" Binding="{Binding VehicleNo, UpdateSourceTrigger=Explicit}" Width="110" IsReadOnly="True" ElementStyle="{StaticResource XlText}" />
-                    <DataGridTextColumn Header="Customer Name" Binding="{Binding CustomerName, UpdateSourceTrigger=Explicit}" Width="140" IsReadOnly="False" ElementStyle="{StaticResource XlText}" />
-                    <DataGridTextColumn Header="Repo Date" Binding="{Binding RepoDate, UpdateSourceTrigger=Explicit}" Width="120" IsReadOnly="True" ElementStyle="{StaticResource XlText}" />
-                    <DataGridTextColumn Header="Model" Binding="{Binding Model, UpdateSourceTrigger=Explicit}" Width="140" IsReadOnly="False" ElementStyle="{StaticResource XlText}" />
-                    <DataGridTextColumn Header="Finance" Binding="{Binding FinanceName, UpdateSourceTrigger=Explicit}" Width="130" ElementStyle="{StaticResource XlText}" />
-                    <DataGridTextColumn Header="Yard Name" Binding="{Binding ParkingYardName, UpdateSourceTrigger=Explicit}" Width="150" ElementStyle="{StaticResource XlText}" />
+                    <DataGridTextColumn Header="Vehicle No" Binding="{Binding VehicleNo, UpdateSourceTrigger=Explicit, ValidatesOnExceptions=True}" Width="110" IsReadOnly="False" ElementStyle="{StaticResource XlText}" />
+                    <DataGridTextColumn Header="Customer Name" Binding="{Binding CustomerName, UpdateSourceTrigger=Explicit, ValidatesOnExceptions=True}" Width="140" IsReadOnly="False" ElementStyle="{StaticResource XlText}" />
+                    <DataGridTextColumn Header="Repo Date" Binding="{Binding RepoDate, UpdateSourceTrigger=Explicit, ValidatesOnExceptions=True}" Width="120" IsReadOnly="False" ElementStyle="{StaticResource XlText}" />
+                    <DataGridTextColumn Header="Model" Binding="{Binding Model, UpdateSourceTrigger=Explicit, ValidatesOnExceptions=True}" Width="140" IsReadOnly="False" ElementStyle="{StaticResource XlText}" />
+                    <DataGridTextColumn Header="Finance" Binding="{Binding FinanceName, UpdateSourceTrigger=Explicit, ValidatesOnExceptions=True}" Width="130" ElementStyle="{StaticResource XlText}" />
+                    <DataGridTextColumn Header="Yard Name" Binding="{Binding ParkingYardName, UpdateSourceTrigger=Explicit, ValidatesOnExceptions=True}" Width="150" ElementStyle="{StaticResource XlText}" />
                     <DataGridComboBoxColumn x:Name="colInventory" Header="Inventory" SortMemberPath="CourierYn"
                                             SelectedItemBinding="{Binding CourierYn, UpdateSourceTrigger=PropertyChanged}"
                                             EditingElementStyle="{StaticResource PickEdit}" Width="85" />
-                    <DataGridTextColumn Header="Inventory Remark" Binding="{Binding InventoryRemark, UpdateSourceTrigger=Explicit}" Width="170" ElementStyle="{StaticResource XlText}" />
+                    <DataGridTextColumn Header="Inventory Remark" Binding="{Binding InventoryRemark, UpdateSourceTrigger=Explicit, ValidatesOnExceptions=True}" Width="170" ElementStyle="{StaticResource XlText}" />
                     <DataGridComboBoxColumn x:Name="colBilling" Header="Billing Status" SortMemberPath="ActionText"
                                             SelectedValueBinding="{Binding ActionKey, UpdateSourceTrigger=PropertyChanged}" SelectedValuePath="Key" DisplayMemberPath="Name"
                                             EditingElementStyle="{StaticResource PickEdit}" Width="140" />
-                    <DataGridTextColumn Header="Billing Remark" Binding="{Binding BillingRemark, UpdateSourceTrigger=Explicit}" Width="170" ElementStyle="{StaticResource XlText}" />
-                    <DataGridTextColumn Header="Collection Update" Binding="{Binding CollectionUpdate, UpdateSourceTrigger=Explicit}" Width="150" ElementStyle="{StaticResource XlText}" />
-                    <DataGridTextColumn Header="Addln Amount" Binding="{Binding AddlAmountText, UpdateSourceTrigger=Explicit}" Width="140" IsReadOnly="True" ElementStyle="{StaticResource XlText}" />
-                    <DataGridTextColumn Header="Repo Charges" Binding="{Binding RepoChargesText, UpdateSourceTrigger=Explicit}" Width="140" IsReadOnly="True" ElementStyle="{StaticResource XlText}" />
-                    <DataGridTextColumn Header="Gross Amount" Binding="{Binding GrossText, UpdateSourceTrigger=Explicit}" Width="140" IsReadOnly="True" ElementStyle="{StaticResource XlText}" />
-                    <DataGridTextColumn Header="Remark" Binding="{Binding Remark, UpdateSourceTrigger=Explicit}" Width="140" IsReadOnly="False" ElementStyle="{StaticResource XlText}" />
-                    <DataGridTextColumn Header="Cash Collected" Binding="{Binding CashText, UpdateSourceTrigger=Explicit}" Width="140" IsReadOnly="False" ElementStyle="{StaticResource XlText}" />
-                    <DataGridTextColumn Header="Advance" Binding="{Binding AdvanceText, UpdateSourceTrigger=Explicit}" Width="140" IsReadOnly="False" ElementStyle="{StaticResource XlText}" />
-                    <DataGridTextColumn Header="Seizing Charges" Binding="{Binding FinalText, UpdateSourceTrigger=Explicit}" Width="140" IsReadOnly="True" ElementStyle="{StaticResource XlText}" />
+                    <DataGridTextColumn Header="Billing Remark" Binding="{Binding BillingRemark, UpdateSourceTrigger=Explicit, ValidatesOnExceptions=True}" Width="170" ElementStyle="{StaticResource XlText}" />
+                    <DataGridTextColumn Header="Collection Update" Binding="{Binding CollectionUpdate, UpdateSourceTrigger=Explicit, ValidatesOnExceptions=True}" Width="150" ElementStyle="{StaticResource XlText}" />
+                    <DataGridTextColumn Header="Addln Amount" Binding="{Binding AddlAmountText, UpdateSourceTrigger=Explicit, ValidatesOnExceptions=True}" Width="140" IsReadOnly="False" ElementStyle="{StaticResource XlText}" />
+                    <DataGridTextColumn Header="Repo Charges" Binding="{Binding BillingRepoChargesText, UpdateSourceTrigger=Explicit, ValidatesOnExceptions=True}" Width="140" IsReadOnly="False" ElementStyle="{StaticResource XlText}" />
+                    <DataGridTextColumn Header="Gross Amount" Binding="{Binding GrossText, UpdateSourceTrigger=Explicit, ValidatesOnExceptions=True}" Width="140" IsReadOnly="False" ElementStyle="{StaticResource XlText}" />
+                    <DataGridTextColumn Header="Remark" Binding="{Binding Remark, UpdateSourceTrigger=Explicit, ValidatesOnExceptions=True}" Width="140" IsReadOnly="False" ElementStyle="{StaticResource XlText}" />
+                    <DataGridTextColumn Header="Cash Collected" Binding="{Binding CashText, UpdateSourceTrigger=Explicit, ValidatesOnExceptions=True}" Width="140" IsReadOnly="False" ElementStyle="{StaticResource XlText}" />
+                    <DataGridTextColumn Header="Advance" Binding="{Binding AdvanceText, UpdateSourceTrigger=Explicit, ValidatesOnExceptions=True}" Width="140" IsReadOnly="False" ElementStyle="{StaticResource XlText}" />
+                    <DataGridTextColumn Header="Seizing Charges" Binding="{Binding RepoChargesText, UpdateSourceTrigger=Explicit, ValidatesOnExceptions=True}" Width="140" IsReadOnly="False" ElementStyle="{StaticResource XlText}" />
                 </DataGrid.Columns>
             </DataGrid>
         </DockPanel>
@@ -249,16 +249,19 @@
                                            Foreground="{StaticResource Accent}" Margin="0,0,0,8" />
 
                                 <TextBlock Name="lblGross" Text="Gross Amount" Style="{StaticResource PLbl}" />
-                                <TextBox Name="txtAcGross" Style="{StaticResource PFld}" IsReadOnly="True" Background="#E8EAED" />
+                                <TextBox Name="txtAcGross" Style="{StaticResource PFld}" IsReadOnly="False" />
 
                                 <TextBlock Name="lblAcAddl" Text="Addln Amount (from billing)" Style="{StaticResource PLbl}" />
-                                <TextBox Name="txtAcAddl" Style="{StaticResource PFld}" IsReadOnly="True" Background="#E8EAED" />
+                                <TextBox Name="txtAcAddl" Style="{StaticResource PFld}" IsReadOnly="False" />
+
+                                <TextBlock Text="Repo Charges (from billing)" Style="{StaticResource PLbl}" />
+                                <TextBox Name="txtAcBillingRepo" Style="{StaticResource PFld}" />
 
                                 <TextBlock Name="lblAcPercent" Text="Percentage (%) of invoice amount" Style="{StaticResource PLbl}" />
                                 <TextBox Name="txtAcPercent" Style="{StaticResource PFld}" TextChanged="AcCalc_Changed" />
 
-                                <TextBlock Text="Repo Charges" Style="{StaticResource PLbl}" />
-                                <TextBox Name="txtAcRepo" IsReadOnly="True" Style="{StaticResource PFld}" TextChanged="AcCalc_Changed" />
+                                <TextBlock Text="Seizing Charges" Style="{StaticResource PLbl}" />
+                                <TextBox Name="txtAcRepo" IsReadOnly="False" Style="{StaticResource PFld}" TextChanged="AcCalc_Changed" />
 
                                 <TextBlock Text="Advance" Style="{StaticResource PLbl}" />
                                 <TextBox Name="txtAcAdvance" Style="{StaticResource PFld}" TextChanged="AcCalc_Changed" />
@@ -291,9 +294,9 @@
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
-                            <ComboBox Grid.Column="0" Name="cmbEditAgent" Height="28" IsEditable="True"
+                            <ComboBox Grid.Column="0" Name="cmbEditAgent" SelectionChanged="AgentSelection_Changed" Height="28" IsEditable="True"
                                       IsTextSearchEnabled="True" StaysOpenOnEdit="True"
-                                      VerticalContentAlignment="Center" IsEnabled="False"
+                                      VerticalContentAlignment="Center" IsEnabled="True"
                                       ToolTip="Pick the agent from the list, or type a correction" />
                             <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="4,0,0,0">
                                 <Button Name="btnAgentEdit" Content="&#x270E;" Width="28" Height="28" FontSize="14"
@@ -315,7 +318,7 @@
                         <TextBlock Text="UTR No" Style="{StaticResource PLbl}" />
                         <TextBox Name="txtUtr" Style="{StaticResource PFld}" />
                         <TextBlock Text="Date of Payment" Style="{StaticResource PLbl}" />
-                        <DatePicker Name="dpPayDate" Height="28" Margin="0,0,0,7" />
+                        <DatePicker Name="dpPayDate" SelectedDateChanged="PaymentDate_Changed" Height="28" Margin="0,0,0,7" />
                         <TextBlock Text="Payment Status *" Style="{StaticResource PLbl}" />
                         <ComboBox Name="cmbPayStatus" SelectionChanged="PaymentStatus_Changed" Height="28" Margin="0,0,0,7" SelectedIndex="0">
                             <ComboBoxItem Content="-- select --" />
