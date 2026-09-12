@@ -223,7 +223,7 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
                     aadhaarFrontB64 = uriToBase64(uri)
                     ocrRunning = true
                     val num = runCatching { extractAadhaarNumber(context, uri) }.getOrNull()
-                    if (!num.isNullOrBlank()) {
+                    if (!num.isNullOrBlank() && num != aadhaarNumber) {
                         aadhaarNumber = num
                         aadhaarVerified = false; otpRefId = null; otp = ""
                     }
@@ -265,7 +265,10 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
         }
     }
 
-    fun startPick(target: PickTarget) { pickTarget = target; showSourceDialog = true }
+    fun startPick(target: PickTarget) {
+        if (otpSending || otpVerifying) return
+        pickTarget = target; showSourceDialog = true
+    }
 
     if (showSourceDialog) {
         ImageSourceDialog(
@@ -521,8 +524,12 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
 
             OutlinedTextField(
                 value = aadhaarNumber,
-                onValueChange = { v -> aadhaarNumber = v.filter { it.isDigit() }.take(12)
-                    aadhaarVerified = false; otpRefId = null },
+                onValueChange = { v ->
+                    val number = v.filter { it in '0'..'9' }.take(12)
+                    if (number != aadhaarNumber) {
+                        aadhaarNumber = number; aadhaarVerified = false; otpRefId = null; otp = ""; kycMsg = ""
+                    }
+                },
                 label = { Text("Aadhaar Number *") },
                 leadingIcon = { Icon(Icons.Default.Badge, null) },
                 trailingIcon = {
@@ -533,18 +540,25 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
                     }
                 },
                 supportingText = { if (ocrRunning) Text("Reading number from photo…") },
-                enabled = !aadhaarVerified,
+                enabled = !aadhaarVerified && !otpSending && !otpVerifying && !ocrRunning,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 singleLine = true, modifier = Modifier.fillMaxWidth()
             )
 
             fun sendAadhaarOtp(isResend: Boolean) {
+                if (otpSending || otpVerifying || ocrRunning || aadhaarOtpCooldown > 0) return
+                val number = aadhaarNumber
+                if (number.length != 12) return
+                otpSending = true
+                otpRefId = null
+                otp = ""
+                aadhaarOtpCooldown = 45
                 kycMsg = ""
                 scope.launch {
-                    otpSending = true
                     val r = runCatching {
-                        ApiClient.api.kycAadhaarOtp(mapOf("aadhaarNumber" to aadhaarNumber))
+                        ApiClient.api.kycAadhaarOtp(mapOf("aadhaarNumber" to number))
                     }.getOrNull()
+                    if (aadhaarNumber != number) { otpSending = false; return@launch }
                     val body = r?.body()
                     if (r?.isSuccessful == true && body?.ok == true && body.referenceId != null) {
                         otpRefId = body.referenceId
@@ -575,7 +589,7 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
                 if (otpRefId == null) {
                     Button(
                         onClick = { focusManager.clearFocus(); sendAadhaarOtp(isResend = false) },
-                        enabled = aadhaarNumber.length == 12 && !otpSending && aadhaarOtpCooldown == 0,
+                        enabled = aadhaarNumber.length == 12 && !otpSending && !otpVerifying && !ocrRunning && aadhaarOtpCooldown == 0,
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         when {
@@ -586,7 +600,8 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
                     }
                 } else {
                     OutlinedTextField(
-                        value = otp, onValueChange = { otp = it.filter { c -> c.isDigit() }.take(6) },
+                        value = otp, onValueChange = { otp = it.filter { c -> c in '0'..'9' }.take(6) },
+                        enabled = !otpSending && !otpVerifying,
                         label = { Text("Enter OTP *") },
                         leadingIcon = { Icon(Icons.Default.Sms, null) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
@@ -595,25 +610,31 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         OutlinedButton(
                             onClick = { sendAadhaarOtp(isResend = true) },
-                            enabled = !otpSending && aadhaarOtpCooldown == 0,
+                            enabled = !otpSending && !otpVerifying && !ocrRunning && aadhaarOtpCooldown == 0,
                             modifier = Modifier.weight(1f)
                         ) { Text(if (aadhaarOtpCooldown > 0) "Resend in ${aadhaarOtpCooldown}s" else "Resend") }
                         Button(
                             onClick = {
+                                if (otpSending || otpVerifying || ocrRunning || otp.length != 6) return@Button
+                                val reference = otpRefId ?: return@Button
+                                val number = aadhaarNumber
+                                val code = otp
+                                otpVerifying = true
                                 focusManager.clearFocus(); kycMsg = ""
                                 scope.launch {
-                                    otpVerifying = true
                                     val r = runCatching {
                                         ApiClient.api.kycAadhaarVerifyAnon(
-                                            mapOf("referenceId" to otpRefId, "otp" to otp, "aadhaarNumber" to aadhaarNumber)
+                                            mapOf("referenceId" to reference, "otp" to code, "aadhaarNumber" to number)
                                         )
                                     }.getOrNull()
+                                    if (aadhaarNumber != number || otpRefId != reference) { otpVerifying = false; return@launch }
                                     val body = r?.body()
                                     if (r?.isSuccessful == true && body?.ok == true && body.verified) {
                                         aadhaarVerified = true
                                         aaName = body.name; aaDob = body.dob
                                         aaGender = body.gender; aaAddress = body.address
                                         aaPhoto = body.photo?.takeIf { it.isNotBlank() }
+                                        otp = ""
                                         kycMsg = ""
                                     } else {
                                         // r.body() is only populated for 2xx responses — the real
@@ -625,11 +646,16 @@ fun RegisterScreen(vm: AuthViewModel, nav: NavController) {
                                         }.getOrNull()
                                         kycMsg = serverMsg?.ifBlank { null }
                                             ?: "OTP verification failed. Try again."
+                                        if (kycMsg.contains("expired", ignoreCase = true) || kycMsg.contains("invalid reference", ignoreCase = true)) {
+                                            otpRefId = null
+                                            otp = ""
+                                            kycMsg = "The verification provider says this OTP session has expired. Request a fresh OTP and enter only the latest code."
+                                        }
                                     }
                                     otpVerifying = false
                                 }
                             },
-                            enabled = otp.length >= 4 && !otpVerifying,
+                            enabled = otp.length == 6 && !otpSending && !otpVerifying && !ocrRunning,
                             modifier = Modifier.weight(1f)
                         ) { if (otpVerifying) Spinner(onPrimary = true) else Text("VERIFY OTP") }
                     }
