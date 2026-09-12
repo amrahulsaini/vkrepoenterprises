@@ -2,6 +2,7 @@ using System;
 using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -58,19 +59,29 @@ internal static class EnterOnlyGridSave
             handledEventsToo: true);
     }
 
-    private static bool IsTargetGrid(DataGrid grid)
+    private static FrameworkElement? TargetOwner(DependencyObject? child)
     {
-        var owner = FindAncestor<FrameworkElement>(grid);
-        var name = owner?.GetType().FullName ?? "";
-        return name == "CRMRSDesktopApp.Couriers.CouriersPage"
-            || name == "CRMRSDesktopApp.Accounts.AccountsPage"
-            || name == "CRMRSDesktopApp.Billing.ViewAllDetailsWindow";
+        while (child != null)
+        {
+            if (child is FrameworkElement fe)
+            {
+                var name = fe.GetType().FullName;
+                if (name == "CRMRSDesktopApp.Couriers.CouriersPage"
+                    || name == "CRMRSDesktopApp.Accounts.AccountsPage"
+                    || name == "CRMRSDesktopApp.Billing.ViewAllDetailsWindow")
+                    return fe;
+            }
+            child = VisualTreeHelper.GetParent(child);
+        }
+        return null;
     }
+
+    private static bool IsTargetGrid(DataGrid grid) => TargetOwner(grid) != null;
 
     private static void OnGridLoaded(object sender, RoutedEventArgs e)
     {
-        if (sender is not DataGrid grid || !IsTargetGrid(grid)) return;
-        var root = FindAncestor<FrameworkElement>(grid);
+        if (sender is not DataGrid grid) return;
+        var root = TargetOwner(grid);
         if (root == null) return;
         var status = FindNamedDescendant<TextBlock>(root, "txtStatus");
         if (status == null || StatusWatches.TryGetValue(status, out _)) return;
@@ -106,7 +117,7 @@ internal static class EnterOnlyGridSave
         var grid = FindAncestor<DataGrid>(source);
         if (grid == null || !IsTargetGrid(grid)) return;
 
-        // Billing Remark already has a dedicated Enter handler. Let it handle its own save.
+        // Billing Remark already has a dedicated Enter handler in ViewAllDetailsWindow.EnterSave.cs.
         if (source is TextBox tb && IsBindingPath(tb, TextBox.TextProperty, "BillingRemark")
             && IsViewAll(grid)) return;
 
@@ -144,8 +155,7 @@ internal static class EnterOnlyGridSave
             return;
         }
 
-        // Existing page-level CellEditEnding handlers perform the actual API save.
-        // Block them for mouse/focus commits so Enter is the only save trigger.
+        // Existing page-level handlers perform the API save. Block them for focus/mouse commits.
         e.Handled = true;
     }
 
@@ -155,8 +165,7 @@ internal static class EnterOnlyGridSave
         var grid = FindAncestor<DataGrid>(combo);
         if (grid == null || !IsTargetGrid(grid)) return;
 
-        // Keep the binding/model updated, but suppress page-level SelectionChanged
-        // handlers such as Couriers/Accounts Pick_Changed, which previously saved immediately.
+        // Binding still updates the row; suppress Couriers/Accounts Pick_Changed immediate saves.
         e.Handled = true;
     }
 
@@ -167,15 +176,12 @@ internal static class EnterOnlyGridSave
         if (grid == null || !IsViewAll(grid)) return;
         if (!IsBindingPath(box, TextBox.TextProperty, "BillingRemark")) return;
 
-        // Billing Remark must also wait for Enter; prevent the old LostFocus save path.
+        // Billing Remark must wait for Enter; prevent the old LostFocus save path.
         e.Handled = true;
     }
 
     private static bool IsViewAll(DataGrid grid)
-    {
-        var owner = FindAncestor<FrameworkElement>(grid);
-        return owner?.GetType().FullName == "CRMRSDesktopApp.Billing.ViewAllDetailsWindow";
-    }
+        => TargetOwner(grid)?.GetType().FullName == "CRMRSDesktopApp.Billing.ViewAllDetailsWindow";
 
     private static void UpdateEditorSource(DependencyObject source)
     {
