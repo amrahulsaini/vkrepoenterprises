@@ -34,18 +34,21 @@ public partial class ViewAllDetailsWindow
         if (window == null)
             return;
 
-        // Enter saves the remark immediately instead of waiting for LostFocus.
-        // UpdateSourceTrigger=LostFocus in the existing XAML means the row model
-        // may not have received the new text yet, so read directly from the TextBox.
         var text = (box.Text ?? "").Trim();
         if (text == (window._lastSavedRemark.TryGetValue(row.Id, out var prev) ? prev : row.BillingRemark))
         {
             e.Handled = true;
+            grid.Dispatcher.BeginInvoke(new Action(() => grid.Focus()),
+                System.Windows.Threading.DispatcherPriority.Input);
             return;
         }
 
         e.Handled = true;
         await window.SaveBillingRemarkAsync(row, text);
+
+        // Enter completes the edit and removes the caret immediately.
+        grid.Dispatcher.BeginInvoke(new Action(() => grid.Focus()),
+            System.Windows.Threading.DispatcherPriority.Input);
     }
 
     private async Task SaveBillingRemarkAsync(Row row, string text)
